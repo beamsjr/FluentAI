@@ -13,7 +13,7 @@ from enum import Enum
 from collections import defaultdict
 
 from ..core.ast import Graph, ASTNode, NodeType
-from ..optimizer.graph_optimizer import OptimizationPass
+from ..optimizer.graph_optimizer import GraphOptimizer
 
 
 class OptimizationHintType(Enum):

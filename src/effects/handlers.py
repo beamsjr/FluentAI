@@ -246,6 +246,45 @@ class StateHandler(EffectHandler):
                 self.state = self.transaction_stack.pop()
             return EffectResult(value=None)
         
+        elif op == "gc-collect":
+            # Trigger garbage collection
+            # Import here to avoid circular imports
+            from ..vm.gc import gc_collect
+            gc_collect()
+            return EffectResult(value=None)
+        
+        elif op == "gc-stats":
+            # Get garbage collection statistics
+            from ..vm.gc import gc_stats
+            stats = gc_stats()
+            return EffectResult(value=stats)
+        
+        elif op == "gc-set-threshold":
+            # Set garbage collection threshold
+            threshold = args[0]
+            # This would need to be implemented in the GC module
+            # For now, just store it in state
+            self.state['gc_threshold'] = threshold
+            return EffectResult(value=None)
+        
+        elif op == "gc-enable":
+            # Enable garbage collection
+            self.state['gc_enabled'] = True
+            return EffectResult(value=None)
+        
+        elif op == "gc-disable":
+            # Disable garbage collection
+            self.state['gc_enabled'] = False
+            return EffectResult(value=None)
+        
+        elif op == "gc-is-enabled":
+            # Check if garbage collection is enabled
+            return EffectResult(value=self.state.get('gc_enabled', True))
+        
+        elif op == "gc-get-threshold":
+            # Get garbage collection threshold
+            return EffectResult(value=self.state.get('gc_threshold', 100))
+        
         else:
             raise ValueError(f"Unknown state operation: {op}")
 

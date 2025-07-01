@@ -5,14 +5,16 @@ This module connects contract specifications with formal proof generation,
 allowing contracts to be verified through automated theorem proving.
 """
 
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Dict, List, Optional, Set, Tuple, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from ..core.ast import Contract, Graph, ASTNode, NodeType, Function
 from ..semantic.proof_generation import ProofGenerator, ProofObligation, Theorem, ProofStep, ProofTactic
 from ..contracts.verification import ContractVerifier, ContractViolationType
-from ..interpreter.interpreter import Interpreter, Environment, Value
+
+if TYPE_CHECKING:
+    from ..interpreter.interpreter import Interpreter, Environment, Value
 
 
 class VerificationStrategy(Enum):
@@ -74,7 +76,7 @@ class SymbolicValue:
 class ContractProofVerifier:
     """Verifies contracts through formal proof generation"""
     
-    def __init__(self, interpreter: Interpreter):
+    def __init__(self, interpreter: 'Interpreter'):
         self.interpreter = interpreter
         self.proof_generator = ProofGenerator()
         self.contract_proofs: Dict[str, ContractProof] = {}
@@ -428,7 +430,7 @@ class ContractProofVerifier:
 
 
 def verify_contract_statically(contract: Contract, function_code: str,
-                             interpreter: Interpreter) -> ContractProof:
+                             interpreter: 'Interpreter') -> ContractProof:
     """Convenience function to verify a contract statically"""
     # Parse the function
     from ..parser.sexpr_parser import parse

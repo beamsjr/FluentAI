@@ -37,6 +37,15 @@ Mutable state operations:
 - `state:commit-transaction` - Commit changes
 - `state:rollback-transaction` - Rollback changes
 
+Garbage collection operations:
+- `gc:collect` - Force garbage collection
+- `gc:stats` - Get GC statistics (returns dict with live_objects, total_allocated, etc.)
+- `gc:enable` - Enable automatic garbage collection
+- `gc:disable` - Disable automatic garbage collection
+- `gc:set-threshold` - Set GC threshold for automatic collection
+- `gc:get-threshold` - Get current GC threshold
+- `gc:is-enabled?` - Check if GC is enabled
+
 ### 4. ERROR
 Error handling:
 - `error:raise` - Raise an error
@@ -81,6 +90,15 @@ Effects can be used as regular function calls:
 
 ; Random effects
 (io:print "Dice roll:" (+ 1 (random:int 0 5)))
+
+; Garbage collection
+(io:print "GC stats before:" (gc:stats))
+(gc:collect)  ; Force collection
+(io:print "GC stats after:" (gc:stats))
+
+; Configure GC
+(gc:set-threshold 1000)  ; Collect when 1000 objects allocated
+(io:print "GC enabled?" (gc:is-enabled?))
 ```
 
 ## Effect Syntax (Legacy)

@@ -8,9 +8,11 @@ and generates proof reports.
 
 import argparse
 import sys
+import os
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.parser.sexpr_parser import parse
 from src.interpreter.interpreter import Interpreter

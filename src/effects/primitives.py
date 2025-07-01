@@ -325,6 +325,127 @@ def register_effect_primitives():
         ),
         _run_pure
     )
+    
+    # Garbage Collection Effects
+    PRIMITIVES.register(
+        "gc:collect",
+        Function(
+            name="gc:collect",
+            arity=0,
+            effects={EffectType.STATE},
+            type_annotation=TypeAnnotation(
+                name="Function",
+                parameters=[
+                    TypeAnnotation("Unit")
+                ],
+                effects={EffectType.STATE}
+            )
+        ),
+        lambda: _perform_effect(EffectType.STATE, "gc-collect")
+    )
+    
+    PRIMITIVES.register(
+        "gc:stats",
+        Function(
+            name="gc:stats",
+            arity=0,
+            effects={EffectType.STATE},
+            type_annotation=TypeAnnotation(
+                name="Function",
+                parameters=[
+                    TypeAnnotation("Dict", [TypeAnnotation("String"), TypeAnnotation("Int")])
+                ],
+                effects={EffectType.STATE}
+            )
+        ),
+        lambda: _perform_effect(EffectType.STATE, "gc-stats")
+    )
+    
+    PRIMITIVES.register(
+        "gc:set-threshold",
+        Function(
+            name="gc:set-threshold",
+            arity=1,
+            effects={EffectType.STATE},
+            type_annotation=TypeAnnotation(
+                name="Function",
+                parameters=[
+                    TypeAnnotation("Int"),
+                    TypeAnnotation("Unit")
+                ],
+                effects={EffectType.STATE}
+            )
+        ),
+        lambda threshold: _perform_effect(EffectType.STATE, "gc-set-threshold", threshold)
+    )
+    
+    PRIMITIVES.register(
+        "gc:enable",
+        Function(
+            name="gc:enable",
+            arity=0,
+            effects={EffectType.STATE},
+            type_annotation=TypeAnnotation(
+                name="Function",
+                parameters=[
+                    TypeAnnotation("Unit")
+                ],
+                effects={EffectType.STATE}
+            )
+        ),
+        lambda: _perform_effect(EffectType.STATE, "gc-enable")
+    )
+    
+    PRIMITIVES.register(
+        "gc:disable",
+        Function(
+            name="gc:disable",
+            arity=0,
+            effects={EffectType.STATE},
+            type_annotation=TypeAnnotation(
+                name="Function",
+                parameters=[
+                    TypeAnnotation("Unit")
+                ],
+                effects={EffectType.STATE}
+            )
+        ),
+        lambda: _perform_effect(EffectType.STATE, "gc-disable")
+    )
+    
+    PRIMITIVES.register(
+        "gc:is-enabled?",
+        Function(
+            name="gc:is-enabled?",
+            arity=0,
+            effects={EffectType.STATE},
+            type_annotation=TypeAnnotation(
+                name="Function",
+                parameters=[
+                    TypeAnnotation("Bool")
+                ],
+                effects={EffectType.STATE}
+            )
+        ),
+        lambda: _perform_effect(EffectType.STATE, "gc-is-enabled")
+    )
+    
+    PRIMITIVES.register(
+        "gc:get-threshold",
+        Function(
+            name="gc:get-threshold",
+            arity=0,
+            effects={EffectType.STATE},
+            type_annotation=TypeAnnotation(
+                name="Function",
+                parameters=[
+                    TypeAnnotation("Int")
+                ],
+                effects={EffectType.STATE}
+            )
+        ),
+        lambda: _perform_effect(EffectType.STATE, "gc-get-threshold")
+    )
 
 
 def _perform_effect(effect_type: EffectType, operation: str, *args) -> Any:

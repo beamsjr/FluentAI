@@ -53,6 +53,9 @@ class Lexer:
             elif char == ']':
                 self._add_token('RBRACKET', ']')
                 self.pos += 1
+            elif char == ',':
+                self._add_token('COMMA', ',')
+                self.pos += 1
             elif char == '"':
                 self._read_string()
             elif char == ';':
@@ -108,8 +111,15 @@ class Lexer:
         value = self.source[start:self.pos]
         self.pos += 1  # Skip closing quote
         
-        # Process escape sequences
+        # Process escape sequences - order matters!
+        # First replace \\ with a placeholder to avoid double processing
+        # Use a very unlikely sequence as placeholder
+        placeholder = '\uffff\ufffe'
+        value = value.replace('\\\\', placeholder)
+        # Then process other escapes
         value = value.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"')
+        # Finally restore the backslashes
+        value = value.replace(placeholder, '\\')
         
         self._add_token('STRING', value)
     
@@ -130,11 +140,44 @@ class Lexer:
             while self.pos < len(self.source) and self.source[self.pos].isdigit():
                 self.pos += 1
             
+            # Check for scientific notation (e or E)
+            if self.pos < len(self.source) and self.source[self.pos] in 'eE':
+                self.pos += 1
+                # Optional sign
+                if self.pos < len(self.source) and self.source[self.pos] in '+-':
+                    self.pos += 1
+                # Exponent digits
+                if self.pos < len(self.source) and self.source[self.pos].isdigit():
+                    while self.pos < len(self.source) and self.source[self.pos].isdigit():
+                        self.pos += 1
+                else:
+                    # Invalid scientific notation, backtrack
+                    self.pos = self.source.find('e', start)
+                    if self.pos == -1:
+                        self.pos = self.source.find('E', start)
+            
             value = float(self.source[start:self.pos])
             self._add_token('FLOAT', value)
         else:
-            value = int(self.source[start:self.pos])
-            self._add_token('INT', value)
+            # Check for scientific notation on integers too
+            end_pos = self.pos
+            if self.pos < len(self.source) and self.source[self.pos] in 'eE':
+                self.pos += 1
+                if self.pos < len(self.source) and self.source[self.pos] in '+-':
+                    self.pos += 1
+                if self.pos < len(self.source) and self.source[self.pos].isdigit():
+                    while self.pos < len(self.source) and self.source[self.pos].isdigit():
+                        self.pos += 1
+                    value = float(self.source[start:self.pos])
+                    self._add_token('FLOAT', value)
+                else:
+                    # Not scientific notation, parse as int
+                    self.pos = end_pos
+                    value = int(self.source[start:self.pos])
+                    self._add_token('INT', value)
+            else:
+                value = int(self.source[start:self.pos])
+                self._add_token('INT', value)
     
     def _read_symbol(self):
         """Read a symbol"""
@@ -142,7 +185,7 @@ class Lexer:
         
         while self.pos < len(self.source):
             char = self.source[self.pos]
-            if char.isspace() or char in '()[]";':
+            if char.isspace() or char in '()[]";,':
                 break
             self.pos += 1
         
@@ -298,8 +341,12 @@ class Parser:
                 return self._parse_export()
             elif symbol == 'match':
                 return self._parse_match()
+            elif symbol == 'data':
+                return self._parse_data_declaration()
             elif symbol == 'spec:contract':
                 return self._parse_contract()
+            elif symbol == ':':
+                return self._parse_type_ascription()
         
         # Regular function application
         return self._parse_application()
@@ -982,6 +1029,137 @@ class Parser:
         )
         
         return self.graph.add_node(node)
+    
+    def _parse_data_declaration(self) -> str:
+        """Parse algebraic data type declaration
+        
+        Syntax: (data TypeName typeVar1 typeVar2 ... 
+                  (Constructor1 field1Type field2Type ...)
+                  (Constructor2 field1Type)
+                  ...)
+        
+        Example: (data Option a (None) (Some a))
+        Example: (data List a (Nil) (Cons a (List a)))
+        """
+        self._advance()  # Skip 'data'
+        
+        # Parse type name
+        if not self._current() or self._current().type != 'SYMBOL':
+            raise SyntaxError("Expected type name after 'data'")
+        
+        type_name = self._advance().value
+        
+        # Parse type parameters
+        type_params = []
+        while self._current() and self._current().type == 'SYMBOL':
+            type_params.append(self._advance().value)
+        
+        # Parse constructors
+        constructors = []
+        while self._current() and self._current().type == 'LPAREN':
+            self._advance()  # Skip LPAREN
+            
+            # Parse constructor name
+            if not self._current() or self._current().type != 'SYMBOL':
+                raise SyntaxError("Expected constructor name")
+            
+            constructor_name = self._advance().value
+            
+            # Parse field types
+            fields = []
+            while self._current() and self._current().type != 'RPAREN':
+                field_type = self._parse_type_annotation()
+                fields.append(field_type)
+            
+            if not self._current() or self._current().type != 'RPAREN':
+                raise SyntaxError("Expected closing parenthesis for constructor")
+            
+            self._advance()  # Skip RPAREN
+            
+            constructors.append({
+                "name": constructor_name,
+                "fields": fields
+            })
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for data declaration")
+        
+        self._advance()  # Skip RPAREN
+        
+        node = DataDeclaration(
+            type_name=type_name,
+            type_params=type_params,
+            constructors=constructors
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_type_ascription(self) -> str:
+        """Parse type ascription: (: expr Type)"""
+        self._advance()  # Skip ':'
+        
+        # Parse the expression
+        if not self._current():
+            raise SyntaxError("Expected expression after ':'")
+        
+        expr_id = self._parse_expr()
+        
+        # Parse the type annotation
+        if not self._current():
+            raise SyntaxError("Expected type annotation after expression")
+        
+        ascribed_type = self._parse_type_annotation()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for type ascription")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import TypeAscription
+        node = TypeAscription(
+            expr_id=expr_id,
+            ascribed_type=ascribed_type
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_type_annotation(self) -> TypeAnnotation:
+        """Parse a type annotation
+        
+        Examples:
+        - Int
+        - (List a)
+        - (Function Int Int Bool)
+        """
+        if self._current() and self._current().type == 'LPAREN':
+            self._advance()  # Skip LPAREN
+            
+            # Parse type constructor
+            if not self._current() or self._current().type != 'SYMBOL':
+                raise SyntaxError("Expected type constructor")
+            
+            type_name = self._advance().value
+            
+            # Parse type parameters
+            params = []
+            while self._current() and self._current().type != 'RPAREN':
+                param = self._parse_type_annotation()
+                params.append(param)
+            
+            if not self._current() or self._current().type != 'RPAREN':
+                raise SyntaxError("Expected closing parenthesis for type")
+            
+            self._advance()  # Skip RPAREN
+            
+            return TypeAnnotation(name=type_name, parameters=params)
+        
+        elif self._current() and self._current().type == 'SYMBOL':
+            # Simple type name or type variable
+            type_name = self._advance().value
+            return TypeAnnotation(name=type_name)
+        
+        else:
+            raise SyntaxError(f"Expected type annotation, got {self._current()}")
 
 
 def parse(source: str) -> Graph:

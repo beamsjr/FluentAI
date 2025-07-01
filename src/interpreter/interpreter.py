@@ -209,7 +209,7 @@ class Interpreter:
             return self._eval_variable(node, env)
         
         elif isinstance(node, Function):
-            return self._eval_function(node)
+            return self._eval_function(node, env)
         
         elif isinstance(node, Application):
             return self._eval_application(node, graph, env)
@@ -247,6 +247,11 @@ class Interpreter:
                 return self._eval_qualified_var(node, env)
             elif node.node_type == NodeType.MATCH:
                 return self._eval_match(node, graph, env)
+            elif node.node_type == NodeType.DATA_DECLARATION:
+                return self._eval_data_declaration(node, graph, env)
+            
+            elif node.node_type == NodeType.TYPE_ASCRIPTION:
+                return self._eval_type_ascription(node, graph, env)
         
         else:
             raise ValueError(f"Unknown node type: {node.node_type}")
@@ -273,8 +278,16 @@ class Interpreter:
             raise ClaudeLangNameError(node.name)
         return value
     
-    def _eval_function(self, node: Function) -> Value:
+    def _eval_function(self, node: Function, env: Environment) -> Value:
         """Evaluate a function reference"""
+        # First check if there's a variable binding with this name
+        # This handles the case where pattern variables shadow built-in functions
+        if hasattr(node, 'name') and node.name:
+            value = env.lookup(node.name)
+            if value is not None:
+                return value
+        
+        # Otherwise return the function itself
         return Value(
             data=node,
             type_info=node.type_annotation
@@ -315,6 +328,18 @@ class Interpreter:
         elif isinstance(func_val.data, dict) and 'type' in func_val.data and func_val.data['type'] == 'closure':
             # User-defined function (closure)
             return self._apply_closure(func_val.data, arg_vals, graph)
+        
+        elif callable(func_val.data):
+            # Python callable (e.g., ADT constructors)
+            try:
+                args = [arg.data for arg in arg_vals]
+                result = func_val.data(*args)
+                return Value(
+                    data=result,
+                    type_info=func_val.type_info.parameters[-1] if func_val.type_info and func_val.type_info.parameters else None
+                )
+            except Exception as e:
+                raise e
         
         else:
             raise TypeError(f"Cannot apply non-function: {func_val.data}")
@@ -731,3 +756,91 @@ class Interpreter:
                     return {}
             
             raise ValueError(f"Unknown pattern type: {pattern}")
+    
+    def _eval_data_declaration(self, node: 'DataDeclaration', graph: Graph, env: Environment) -> Value:
+        """Evaluate an algebraic data type declaration
+        
+        This creates constructor functions for each constructor in the ADT.
+        For example:
+        (data Option a (None) (Some a))
+        
+        Creates:
+        - None: a function that returns ('None',)
+        - Some: a function that takes one argument and returns ('Some', arg)
+        """
+        # Register the type in the type system
+        # For now, we'll just create the constructor functions
+        
+        for constructor in node.constructors:
+            cons_name = constructor["name"]
+            fields = constructor["fields"]
+            num_fields = len(fields)
+            
+            # Create a constructor function
+            if num_fields == 0:
+                # Nullary constructor - just return the tagged tuple
+                def make_constructor(name):
+                    def constructor_fn():
+                        return (name,)
+                    constructor_fn.__name__ = name
+                    return constructor_fn
+                
+                cons_value = Value(
+                    data=make_constructor(cons_name),
+                    type_info=TypeAnnotation(
+                        name="Function",
+                        parameters=[TypeAnnotation(name=node.type_name)]
+                    )
+                )
+            else:
+                # Constructor with fields
+                def make_constructor(name, arity):
+                    def constructor_fn(*args):
+                        if len(args) != arity:
+                            raise TypeError(f"{name} expects {arity} arguments, got {len(args)}")
+                        return (name,) + args
+                    constructor_fn.__name__ = name
+                    return constructor_fn
+                
+                # Create type annotation for constructor function
+                param_types = [field for field in fields]
+                param_types.append(TypeAnnotation(name=node.type_name))
+                
+                cons_value = Value(
+                    data=make_constructor(cons_name, num_fields),
+                    type_info=TypeAnnotation(
+                        name="Function",
+                        parameters=param_types
+                    )
+                )
+            
+            # Bind constructor in environment
+            env.bind(cons_name, cons_value)
+        
+        # Return a value representing the type declaration
+        return Value(
+            data=f"<type {node.type_name}>",
+            type_info=TypeAnnotation(name="Type")
+        )
+    
+    def _eval_type_ascription(self, node: 'TypeAscription', graph: Graph, env: Environment) -> Value:
+        """Evaluate type ascription - just evaluate the expression with the given type"""
+        from ..core.ast import TypeAscription
+        if not isinstance(node, TypeAscription):
+            # Handle generic type ascription node
+            expr_id = node.attributes.get("expr_id")
+            ascribed_type = node.attributes.get("ascribed_type")
+        else:
+            expr_id = node.expr_id
+            ascribed_type = node.ascribed_type
+        
+        # Evaluate the expression
+        result = self.eval_node(expr_id, graph, env)
+        
+        # Override the type annotation with the ascribed type
+        result.type_info = ascribed_type
+        
+        # TODO: In a full type checker, we would verify that the expression's
+        # actual type is compatible with the ascribed type
+        
+        return result

@@ -35,6 +35,8 @@ class NodeType(Enum):
     PATTERN_LIST = auto()
     PATTERN_WILDCARD = auto()
     CONTRACT = auto()
+    DATA_DECLARATION = auto()
+    TYPE_ASCRIPTION = auto()
 
 
 class EffectType(Enum):
@@ -496,3 +498,47 @@ class PatternWildcard(ASTNode):
     
     def get_dependencies(self) -> List[str]:
         return []
+
+
+@dataclass
+class DataDeclaration(ASTNode):
+    """Algebraic Data Type declaration
+    
+    Example: (data Option a (None) (Some a))
+    Example: (data List a (Nil) (Cons a (List a)))
+    """
+    type_name: str = ""
+    type_params: List[str] = field(default_factory=list)  # Type variables
+    constructors: List[Dict[str, Any]] = field(default_factory=list)
+    # Each constructor is a dict with:
+    # - "name": str (constructor name)
+    # - "fields": List[TypeAnnotation] (field types)
+    
+    def __post_init__(self):
+        self.node_type = NodeType.DATA_DECLARATION
+        self.type_annotation = TypeAnnotation(
+            name="Type",
+            effects={EffectType.PURE}
+        )
+    
+    def get_dependencies(self) -> List[str]:
+        return []
+
+
+@dataclass
+class TypeAscription(ASTNode):
+    """Type ascription - annotates an expression with a type
+    
+    Example: (: 42 Int)
+    Example: (: (lambda (x) x) (Function a a))
+    """
+    expr_id: str = ""
+    ascribed_type: Optional[TypeAnnotation] = None
+    
+    def __post_init__(self):
+        self.node_type = NodeType.TYPE_ASCRIPTION
+        # The type annotation is the ascribed type
+        self.type_annotation = self.ascribed_type
+    
+    def get_dependencies(self) -> List[str]:
+        return [self.expr_id] if self.expr_id else []

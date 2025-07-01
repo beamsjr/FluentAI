@@ -13,7 +13,7 @@ from enum import Enum
 from collections import defaultdict, Counter
 
 from ..core.ast import Graph, ASTNode, NodeType, EffectType
-from ..interpreter.interpreter import Value
+# Import Value inside functions to avoid circular import
 
 
 class TraceEventType(Enum):

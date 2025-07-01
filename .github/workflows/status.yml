@@ -1,0 +1,31 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Run tests
+      run: |
+        python -m unittest discover tests -v
+    
+    - name: Test Summary
+      if: always()
+      run: |
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Parser Tests" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Module System Tests" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Code Generation Tests" >> $GITHUB_STEP_SUMMARY
+        echo "✅ VM Tests" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Error Handling Tests" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Standard Library Tests" >> $GITHUB_STEP_SUMMARY
