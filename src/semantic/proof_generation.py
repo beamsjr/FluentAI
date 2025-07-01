@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from ..core.ast import Graph, ASTNode, NodeType, EffectType
-from ..optimizer.graph_optimizer import OptimizationPass
+# OptimizationPass import removed - not available in graph_optimizer
 
 
 class ProofTactic(Enum):

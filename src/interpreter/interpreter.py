@@ -15,6 +15,7 @@ from ..core.cache import cached_parse
 from ..types.type_system import TypeChecker, TypeEnvironment
 from ..effects.handlers import EffectContext, create_default_handler
 from ..effects.primitives import set_effect_context
+from ..contracts.verification import ContractVerifier, ContractViolation, register_contract_predicates
 
 
 @dataclass
@@ -35,6 +36,13 @@ class Environment:
     
     def bind(self, name: str, value: Value):
         """Bind a variable to a value"""
+        self.bindings[name] = value
+    
+    def define(self, name: str, value: Any):
+        """Define a variable (for contract predicates)"""
+        # Wrap raw values in Value objects
+        if not isinstance(value, Value):
+            value = Value(data=value)
         self.bindings[name] = value
     
     def lookup(self, name: str) -> Optional[Value]:
@@ -64,10 +72,11 @@ class EffectHandler:
 class Interpreter:
     """ClaudeLang interpreter"""
     
-    def __init__(self, effect_handler=None):
+    def __init__(self, effect_handler=None, enable_contracts=True):
         self.global_env = Environment()
         self.execution_trace: List[Dict[str, Any]] = []
         self.type_checker = TypeChecker()
+        self.graph = None  # Will be set when evaluating
         
         # Use new effect system
         self.effect_handler = effect_handler or create_default_handler()
@@ -80,8 +89,18 @@ class Interpreter:
         self.effect_handlers: Dict[EffectType, EffectHandler] = {}
         self._setup_default_handlers()
         
+        # Contract verification
+        self.contract_verifier = ContractVerifier(self)
+        self.contract_verifier.enabled = enable_contracts
+        
         # Initialize standard library
         self._init_stdlib()
+        
+        # Register contract predicates
+        register_contract_predicates(self.global_env)
+        
+        # Register contract control functions
+        self._register_contract_functions()
     
     def _setup_default_handlers(self):
         """Set up default effect handlers"""
@@ -122,6 +141,12 @@ class Interpreter:
         if not graph.root_id:
             raise ValueError("Graph has no root node")
         
+        # Store graph for contract verification
+        self.graph = graph
+        
+        # Register any contracts in the graph
+        self._register_contracts(graph)
+        
         # Type check first (disabled for now)
         # valid, errors = self.type_checker.type_check(graph)
         # if not valid:
@@ -130,10 +155,23 @@ class Interpreter:
         env = env or self.global_env
         return self.eval_node(graph.root_id, graph, env)
     
+    def _register_contracts(self, graph: Graph):
+        """Register all contracts found in the graph"""
+        for node in graph.nodes.values():
+            if node.node_type == NodeType.CONTRACT:
+                self.contract_verifier.register_contract(node)
+    
     def eval(self, source: str, env: Optional[Environment] = None) -> Value:
         """Parse and evaluate ClaudeLang source code with caching"""
         graph = cached_parse(source)
         return self.interpret(graph, env)
+    
+    def evaluate_node(self, node_id: str, env: Environment) -> Any:
+        """Evaluate a node (used by contract verifier)"""
+        if not self.graph:
+            raise ValueError("No graph set for evaluation")
+        result = self.eval_node(node_id, self.graph, env)
+        return result.data
     
     def eval_node(self, node_id: str, graph: Graph, env: Environment) -> Value:
         """Evaluate a single node"""
@@ -288,7 +326,8 @@ class Interpreter:
             'params': node.parameter_names,
             'body_id': node.body_id,
             'env': env,
-            'captured': node.captured_variables
+            'captured': node.captured_variables,
+            'name': getattr(node, 'function_name', '<anonymous>')  # Track function name
         }
         
         return Value(
@@ -297,9 +336,24 @@ class Interpreter:
         )
     
     def _apply_closure(self, closure: Dict, args: List[Value], graph: Graph) -> Value:
-        """Apply a closure"""
+        """Apply a closure with contract verification"""
         if len(args) != len(closure['params']):
             raise ValueError(f"Arity mismatch: expected {len(closure['params'])}, got {len(args)}")
+        
+        # Check if this closure has a contract
+        function_name = closure.get('name', '<anonymous>')
+        contract_context = None
+        
+        if self.contract_verifier.enabled and function_name in self.contract_verifier.contracts:
+            # Verify preconditions
+            arg_values = [arg.data for arg in args]
+            # Create environment with parameter bindings for contract checking
+            contract_env = closure['env'].extend()
+            for param, arg in zip(closure['params'], args):
+                contract_env.bind(param, arg)
+            contract_context = self.contract_verifier.verify_function_call(
+                function_name, arg_values, closure['params'], contract_env
+            )
         
         # Create new environment
         new_env = closure['env'].extend()
@@ -308,8 +362,30 @@ class Interpreter:
         for param, arg in zip(closure['params'], args):
             new_env.bind(param, arg)
         
-        # Evaluate body
-        return self.eval_node(closure['body_id'], graph, new_env)
+        # Track effects if contract checking is enabled
+        effects_before = set()  # TODO: Implement proper effect tracking
+        
+        try:
+            # Evaluate body
+            result = self.eval_node(closure['body_id'], graph, new_env)
+            
+            # Verify postconditions if contract exists
+            if contract_context:
+                effects_after = set()  # TODO: Implement proper effect tracking
+                effects_used = effects_after - effects_before
+                
+                self.contract_verifier.verify_function_return(
+                    contract_context, result.data, new_env, effects_used
+                )
+            
+            return result
+            
+        except Exception as e:
+            # Clean up contract context on exception
+            if contract_context and self.contract_verifier.contract_stack:
+                if self.contract_verifier.contract_stack[-1] == contract_context:
+                    self.contract_verifier.contract_stack.pop()
+            raise
     
     def _eval_let(self, node: Let, graph: Graph, env: Environment) -> Value:
         """Evaluate let binding"""
@@ -318,6 +394,13 @@ class Interpreter:
         # Evaluate bindings
         for binding in node.bindings:
             value = self.eval_node(binding['value_id'], graph, new_env)
+            
+            # If binding a closure, associate the name with it
+            if (isinstance(value.data, dict) and 
+                value.data.get('type') == 'closure' and 
+                value.data.get('name') == '<anonymous>'):
+                value.data['name'] = binding['name']
+            
             new_env.bind(binding['name'], value)
         
         # Evaluate body
@@ -458,6 +541,42 @@ class Interpreter:
         register_data_functions()
         register_functional_functions()
         register_datetime_functions()
+    
+    def _register_contract_functions(self):
+        """Register contract control functions"""
+        # Enable contract checking function
+        def enable_contracts():
+            self.contract_verifier.enable()
+            return True  # Return True instead of None
+        
+        # Disable contract checking function
+        def disable_contracts():
+            self.contract_verifier.disable()
+            return True  # Return True instead of None
+        
+        # Register as primitives
+        from ..core.primitives import PRIMITIVES
+        from ..core.ast import Function
+        
+        PRIMITIVES.register(
+            "enable-contract-checking!",
+            Function(
+                name="enable-contract-checking!",
+                arity=0,
+                effects={EffectType.STATE}
+            ),
+            enable_contracts
+        )
+        
+        PRIMITIVES.register(
+            "disable-contract-checking!",
+            Function(
+                name="disable-contract-checking!",
+                arity=0,
+                effects={EffectType.STATE}
+            ),
+            disable_contracts
+        )
     
     def _eval_module(self, node: 'Module', graph: Graph, env: Environment) -> Value:
         """Evaluate a module - just evaluate its body"""

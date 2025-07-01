@@ -110,7 +110,7 @@ class PrimitiveRegistry:
                     effects={EffectType.ERROR}
                 )
             ),
-            lambda x, y: x / y if y != 0 else {"error": "Division by zero"}
+            lambda x, y: x / y  # Let Python raise ZeroDivisionError
         )
         
         # Comparison operations
@@ -150,6 +150,101 @@ class PrimitiveRegistry:
                 )
             ),
             lambda x, y: x < y
+        )
+        
+        self.register(
+            ">",
+            Function(
+                name=">",
+                arity=2,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Number"),
+                        TypeAnnotation("Number"),
+                        TypeAnnotation("Bool")
+                    ],
+                    effects={EffectType.PURE}
+                )
+            ),
+            lambda x, y: x > y
+        )
+        
+        self.register(
+            "<=",
+            Function(
+                name="<=",
+                arity=2,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Number"),
+                        TypeAnnotation("Number"),
+                        TypeAnnotation("Bool")
+                    ],
+                    effects={EffectType.PURE}
+                )
+            ),
+            lambda x, y: x <= y
+        )
+        
+        self.register(
+            ">=",
+            Function(
+                name=">=",
+                arity=2,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Number"),
+                        TypeAnnotation("Number"),
+                        TypeAnnotation("Bool")
+                    ],
+                    effects={EffectType.PURE}
+                )
+            ),
+            lambda x, y: x >= y
+        )
+        
+        self.register(
+            "not=",
+            Function(
+                name="not=",
+                arity=2,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("a"),
+                        TypeAnnotation("a"),
+                        TypeAnnotation("Bool")
+                    ],
+                    effects={EffectType.PURE}
+                )
+            ),
+            lambda x, y: x != y
+        )
+        
+        self.register(
+            "=",
+            Function(
+                name="=",
+                arity=2,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("a"),
+                        TypeAnnotation("a"),
+                        TypeAnnotation("Bool")
+                    ],
+                    effects={EffectType.PURE}
+                )
+            ),
+            lambda x, y: x == y
         )
         
         # Boolean operations

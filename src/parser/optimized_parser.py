@@ -28,6 +28,16 @@ class OptimizedParser(BaseParser):
                     elements.append(elem_node.value)
                 else:
                     # Can't optimize - fall back to cons construction
+                    # First, finish parsing the rest of the list
+                    while self._current() and self._current().type != 'RBRACKET':
+                        elem_id = self._parse_expr()
+                        if elem_id:
+                            element_ids.append(elem_id)
+                    
+                    if not self._current() or self._current().type != 'RBRACKET':
+                        raise SyntaxError("Expected closing bracket for list")
+                    
+                    self._advance()  # Skip RBRACKET
                     return self._build_cons_list(element_ids)
         
         if not self._current() or self._current().type != 'RBRACKET':

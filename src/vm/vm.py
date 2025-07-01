@@ -1,12 +1,14 @@
 """
 ClaudeLang Virtual Machine
 
-Stack-based VM for executing bytecode.
+Stack-based VM for executing bytecode with JIT compilation support.
 """
 
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Tuple
 from dataclasses import dataclass
+import time
 from .bytecode import BytecodeChunk, Opcode, Instruction
+from ..jit import JITCompiler
 
 
 @dataclass
@@ -23,34 +25,65 @@ class VMError(Exception):
 
 
 class VM:
-    """Stack-based virtual machine"""
+    """Stack-based virtual machine with JIT compilation"""
     
-    def __init__(self, stack_size: int = 10000):
+    def __init__(self, stack_size: int = 10000, enable_jit: bool = True):
         self.stack: List[Any] = []
         self.call_stack: List[CallFrame] = []
         self.globals: Dict[str, Any] = {}
         self.ip = 0  # Instruction pointer
         self.chunk: Optional[BytecodeChunk] = None
         self.max_stack_size = stack_size
+        self.enable_jit = enable_jit
+        self.jit_compiler = JITCompiler() if enable_jit else None
+        self.current_function_id: Optional[str] = None
+        self.function_entry_time: Optional[float] = None
     
-    def execute(self, chunk: BytecodeChunk) -> Any:
-        """Execute bytecode chunk"""
+    def execute(self, chunk: BytecodeChunk, function_id: Optional[str] = None) -> Any:
+        """Execute bytecode chunk with optional JIT compilation"""
         self.chunk = chunk
         self.ip = 0
         self.stack.clear()
         self.call_stack.clear()
         
+        # Track function execution for JIT profiling
+        if self.enable_jit and function_id:
+            self.current_function_id = function_id
+            self.function_entry_time = time.perf_counter()
+        
         try:
-            while self.ip < len(chunk.instructions):
-                instruction = chunk.instructions[self.ip]
-                self._execute_instruction(instruction)
-                self.ip += 1
+            result = self._run_bytecode()
             
-            # Return top of stack if any
-            return self.stack[-1] if self.stack else None
+            # Profile execution if JIT is enabled
+            if self.enable_jit and function_id and self.function_entry_time:
+                execution_time = time.perf_counter() - self.function_entry_time
+                self.jit_compiler.profile_execution(
+                    function_id, 
+                    execution_time, 
+                    tuple(self.stack[:5]),  # Sample args from stack
+                    result  # Return value
+                )
+                
+                # Check if we should compile this function
+                if self.jit_compiler.should_compile(function_id):
+                    # For now, we'll need the AST graph to compile
+                    # This would be passed in from the caller
+                    pass
+            
+            return result
             
         except Exception as e:
             raise VMError(f"VM error at instruction {self.ip}: {e}") from e
+    
+    def _run_bytecode(self) -> Any:
+        """Run bytecode instructions"""
+        while self.ip < len(self.chunk.instructions):
+            instruction = self.chunk.instructions[self.ip]
+            self._execute_instruction(instruction)
+            self.ip += 1
+        
+        # Return top of stack if any
+        return self.stack[-1] if self.stack else None
     
     def _execute_instruction(self, instruction: Instruction):
         """Execute a single instruction"""
@@ -289,3 +322,9 @@ class VM:
         if abs(idx) > len(self.stack):
             raise VMError("Stack underflow")
         return self.stack[idx]
+    
+    def get_jit_stats(self) -> Dict[str, Any]:
+        """Get JIT compilation statistics"""
+        if self.jit_compiler:
+            return self.jit_compiler.get_compilation_stats()
+        return {"jit_enabled": False}

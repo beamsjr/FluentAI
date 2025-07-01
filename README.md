@@ -1,5 +1,10 @@
 # ClaudeLang: An AI-First Programming Language
 
+[![Tests](https://github.com/yourusername/claudelang/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/claudelang/actions/workflows/tests.yml)
+[![Quick Tests](https://github.com/yourusername/claudelang/actions/workflows/quick-tests.yml/badge.svg)](https://github.com/yourusername/claudelang/actions/workflows/quick-tests.yml)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 ClaudeLang is an experimental programming language that explores what happens when we design a language specifically for AI systems rather than humans. It features a graph-based AST, explicit semantics, and advanced AI-driven optimization capabilities.
 
 ## Table of Contents
@@ -7,6 +12,7 @@ ClaudeLang is an experimental programming language that explores what happens wh
 - [Key Features](#key-features)
 - [Quick Example](#quick-example)
 - [Installation](#installation)
+- [Testing](#testing)
 - [Language Features](#language-features)
 - [AI-First Features](#advanced-ai-first-features-new)
 - [Performance](#performance)
@@ -84,6 +90,55 @@ python3 -m src.repl
 
 # Run with VM optimization
 python3 -m src.vm.vm_runner examples/fibonacci.cl
+```
+
+## Testing
+
+ClaudeLang has a comprehensive test suite covering all major components:
+
+### Running Tests Locally
+
+```bash
+# Run all tests
+python3 -m unittest discover tests -v
+
+# Run specific test suites
+python3 -m unittest tests.test_parser_lexer -v
+python3 -m unittest tests.test_module_system_simple -v
+python3 -m unittest tests.test_vm_components -v
+
+# Install test dependencies
+pip install -r requirements.txt
+
+# Run tests with coverage
+pytest tests/ --cov=src --cov-report=html
+```
+
+### Continuous Integration
+
+Tests run automatically on GitHub Actions for:
+- Every push to main/master branches
+- All pull requests
+- Multiple Python versions (3.9, 3.10, 3.11, 3.12)
+- Multiple operating systems (Ubuntu, macOS, Windows)
+
+### Test Coverage
+
+The test suite includes:
+- **Parser Tests**: Lexer, S-expression parser, and optimizations
+- **Module System Tests**: Import/export, dependencies, namespacing
+- **Code Generation Tests**: Bytecode compilation, x86-64 generation
+- **VM Tests**: Stack operations, execution, optimizations
+- **Error Handling Tests**: Diagnostics, error recovery, exceptions
+- **Standard Library Tests**: All stdlib modules and primitives
+
+### Pre-commit Hooks
+
+To run tests before every commit:
+
+```bash
+pip install pre-commit
+pre-commit install
 ```
 
 ### Hello World
@@ -209,6 +264,7 @@ See [Effect System Documentation](docs/EFFECT_SYSTEM.md) for details.
 
 - [Quick Start Guide](docs/QUICK_START.md) - Get started quickly
 - [Language Specification](docs/LANGUAGE_SPECIFICATION.md) - Complete reference
+- [Contract Specifications](docs/CONTRACTS.md) - Formal function contracts
 - [Optimization Journey](OPTIMIZATION_JOURNEY.md) - How we achieved 27-83x speedup
 - [Performance Report](PERFORMANCE_REPORT.md) - Detailed benchmarks
 - [Examples](examples/) - Sample programs
@@ -255,6 +311,17 @@ See [Standard Library Documentation](docs/STANDARD_LIBRARY.md) for details.
 ```lisp
 (import "modules/math_utils" (square cube))
 (import "modules/prelude" *)
+```
+
+### Contract Specifications (NEW!)
+```lisp
+(spec:contract divide
+  :requires [(not= y 0)]
+  :ensures [(= result (/ x y))]
+  :complexity "O(1)")
+
+(define (divide x y)
+  (/ x y))
 ```
 
 ### Enhanced Error Diagnostics (NEW!)
@@ -320,11 +387,28 @@ See [AI-First Features Documentation](docs/AI_FIRST_FEATURES.md) for details.
 
 ## Future Work
 
-- **JIT Compilation**: Expected 3-5x speedup
+- **JIT Compilation**: Profile-guided native code generation (framework implemented, native codegen in progress)
 - **Concurrency**: Async/await and parallel primitives
 - **Package Manager**: Dependency management and registry
 - **Developer Tools**: LSP, formatter, linter
 - **Formal Verification**: Prove program properties
+
+## JIT Compilation (NEW!)
+
+ClaudeLang now includes a JIT compiler framework that profiles hot functions and can compile them to native code:
+
+```lisp
+; Functions are automatically profiled and compiled when hot
+(define (sum n)
+  (if (= n 0)
+      0
+      (+ n (sum (- n 1)))))
+
+; After ~1000 calls, this function will be JIT compiled
+(sum 1000)
+```
+
+See [JIT Compilation Documentation](docs/JIT_COMPILATION.md) for details.
 
 ## Contributing
 

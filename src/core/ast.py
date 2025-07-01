@@ -34,6 +34,7 @@ class NodeType(Enum):
     PATTERN_CONSTRUCTOR = auto()
     PATTERN_LIST = auto()
     PATTERN_WILDCARD = auto()
+    CONTRACT = auto()
 
 
 class EffectType(Enum):
@@ -250,6 +251,28 @@ class Uncertainty(ASTNode):
     
     def get_dependencies(self) -> List[str]:
         return [choice["node_id"] for choice in self.choices]
+
+
+@dataclass
+class Contract(ASTNode):
+    """Contract specification node for functions"""
+    function_name: str = ""
+    preconditions: List[str] = field(default_factory=list)  # Condition node IDs
+    postconditions: List[str] = field(default_factory=list)  # Condition node IDs
+    invariants: List[str] = field(default_factory=list)  # Condition node IDs
+    complexity: Optional[str] = None  # Big-O complexity
+    pure: bool = True  # Whether function is pure
+    
+    def __post_init__(self):
+        self.node_type = NodeType.CONTRACT
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="Contract",
+                effects=set()
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        return self.preconditions + self.postconditions + self.invariants
 
 
 @dataclass

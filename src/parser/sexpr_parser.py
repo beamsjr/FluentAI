@@ -298,6 +298,8 @@ class Parser:
                 return self._parse_export()
             elif symbol == 'match':
                 return self._parse_match()
+            elif symbol == 'spec:contract':
+                return self._parse_contract()
         
         # Regular function application
         return self._parse_application()
@@ -873,6 +875,111 @@ class Parser:
         
         from ..core.ast import PatternList
         node = PatternList(elements=elements, rest_pattern=rest_pattern)
+        
+        return self.graph.add_node(node)
+    
+    def _parse_contract(self) -> str:
+        """Parse contract specification: (spec:contract function-name :requires [...] :ensures [...] :complexity "O(n)")"""
+        self._advance()  # Skip 'spec:contract'
+        
+        # Parse function name
+        if not self._current() or self._current().type != 'SYMBOL':
+            raise SyntaxError("Expected function name after spec:contract")
+        
+        function_name = self._current().value
+        self._advance()
+        
+        # Parse contract clauses
+        preconditions = []
+        postconditions = []
+        invariants = []
+        complexity = None
+        pure = True
+        
+        while self._current() and self._current().type != 'RPAREN':
+            if self._current().type != 'SYMBOL' or not self._current().value.startswith(':'):
+                raise SyntaxError("Expected keyword in contract specification")
+            
+            keyword = self._current().value
+            self._advance()
+            
+            if keyword == ':requires' or keyword == ':pre':
+                # Parse preconditions list
+                if not self._current() or self._current().type != 'LBRACKET':
+                    raise SyntaxError("Expected '[' after :requires")
+                self._advance()  # Skip LBRACKET
+                
+                while self._current() and self._current().type != 'RBRACKET':
+                    condition_id = self._parse_expr()
+                    preconditions.append(condition_id)
+                
+                if not self._current() or self._current().type != 'RBRACKET':
+                    raise SyntaxError("Expected ']' to close :requires")
+                self._advance()  # Skip RBRACKET
+                
+            elif keyword == ':ensures' or keyword == ':post':
+                # Parse postconditions list
+                if not self._current() or self._current().type != 'LBRACKET':
+                    raise SyntaxError("Expected '[' after :ensures")
+                self._advance()  # Skip LBRACKET
+                
+                while self._current() and self._current().type != 'RBRACKET':
+                    condition_id = self._parse_expr()
+                    postconditions.append(condition_id)
+                
+                if not self._current() or self._current().type != 'RBRACKET':
+                    raise SyntaxError("Expected ']' to close :ensures")
+                self._advance()  # Skip RBRACKET
+                
+            elif keyword == ':invariant':
+                # Parse invariants list
+                if not self._current() or self._current().type != 'LBRACKET':
+                    raise SyntaxError("Expected '[' after :invariant")
+                self._advance()  # Skip LBRACKET
+                
+                while self._current() and self._current().type != 'RBRACKET':
+                    condition_id = self._parse_expr()
+                    invariants.append(condition_id)
+                
+                if not self._current() or self._current().type != 'RBRACKET':
+                    raise SyntaxError("Expected ']' to close :invariant")
+                self._advance()  # Skip RBRACKET
+                
+            elif keyword == ':complexity':
+                # Parse complexity string
+                if not self._current() or self._current().type != 'STRING':
+                    raise SyntaxError("Expected string after :complexity")
+                complexity = self._current().value
+                self._advance()
+                
+            elif keyword == ':pure':
+                # Parse pure flag
+                if not self._current():
+                    raise SyntaxError("Expected value after :pure")
+                if self._current().type == 'SYMBOL':
+                    pure = self._current().value == 'true'
+                elif self._current().type == 'BOOL':
+                    pure = self._current().value
+                else:
+                    raise SyntaxError("Expected boolean after :pure")
+                self._advance()
+            
+            else:
+                raise SyntaxError(f"Unknown contract keyword: {keyword}")
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for spec:contract")
+        
+        self._advance()  # Skip RPAREN
+        
+        node = Contract(
+            function_name=function_name,
+            preconditions=preconditions,
+            postconditions=postconditions,
+            invariants=invariants,
+            complexity=complexity,
+            pure=pure
+        )
         
         return self.graph.add_node(node)
 
