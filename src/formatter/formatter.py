@@ -49,27 +49,97 @@ class ClaudeLangFormatter:
         self.output = []
         self.token_pos = 0
         
-        # Tokenize to preserve comments
-        lexer = Lexer(source)
-        self.tokens = lexer.tokenize()
-        self._extract_comments(source)
+        # Handle multiple top-level expressions
+        source_stripped = source.strip()
+        if not source_stripped:
+            return ''
         
-        # Try to parse as a single expression first
+        # Try to tokenize and find expression boundaries
         try:
-            ast = parse(source)
-            self._format_node(ast.root_id, ast)
-            result = ''.join(self.output)
+            lexer = Lexer(source_stripped)
+            tokens = lexer.tokenize()
         except Exception:
-            # If that fails, return original source
+            # If tokenization fails, return original
             return source
         
-        # Clean up trailing whitespace and ensure newline at end
-        lines = result.split('\n')
-        lines = [line.rstrip() for line in lines]
-        while lines and not lines[-1]:
-            lines.pop()
+        # Find top-level expressions by counting parentheses
+        expressions = []
+        current_expr_tokens = []
+        paren_depth = 0
+        bracket_depth = 0
         
-        return '\n'.join(lines) + '\n' if lines else ''
+        for token in tokens:
+            current_expr_tokens.append(token)
+            
+            if token.type == 'LPAREN':
+                paren_depth += 1
+            elif token.type == 'RPAREN':
+                paren_depth -= 1
+            elif token.type == 'LBRACKET':
+                bracket_depth += 1
+            elif token.type == 'RBRACKET':
+                bracket_depth -= 1
+            
+            # Complete expression when depth returns to 0
+            if paren_depth == 0 and bracket_depth == 0 and current_expr_tokens:
+                # Reconstruct source for this expression
+                expr_source = self._tokens_to_source(current_expr_tokens)
+                if expr_source.strip():
+                    expressions.append(expr_source)
+                current_expr_tokens = []
+        
+        # Format each expression
+        formatted_expressions = []
+        for expr in expressions:
+            try:
+                # Parse and format individual expression
+                ast = parse(expr)
+                self.output = []
+                self._format_node(ast.root_id, ast)
+                result = ''.join(self.output).strip()
+                if result:
+                    formatted_expressions.append(result)
+            except Exception:
+                # Keep original if formatting fails
+                formatted_expressions.append(expr.strip())
+        
+        # Join expressions with newlines
+        if formatted_expressions:
+            return '\n'.join(formatted_expressions) + '\n'
+        elif not expressions:
+            # No complete expressions found, return original
+            return source
+        else:
+            return ''
+    
+    def _tokens_to_source(self, tokens: List[Token]) -> str:
+        """Reconstruct source from tokens"""
+        parts = []
+        for token in tokens:
+            if token.type == 'STRING':
+                # Add quotes back
+                value = str(token.value).replace('\\', '\\\\').replace('"', '\\"')
+                parts.append(f'"{value}"')
+            elif token.type == 'BOOL':
+                parts.append('#t' if token.value else '#f')
+            elif token.type in ['LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET']:
+                parts.append(token.value)
+            elif token.type == 'COMMA':
+                parts.append(',')
+            else:
+                parts.append(str(token.value))
+        
+        # Join with spaces, but handle special cases
+        result = []
+        for i, part in enumerate(parts):
+            if i > 0:
+                prev = parts[i-1]
+                # No space after opening parens/brackets or before closing ones
+                if prev not in ['(', '['] and part not in [')', ']', ',']:
+                    result.append(' ')
+            result.append(part)
+        
+        return ''.join(result)
     
     def _extract_comments(self, source: str):
         """Extract comments from source"""
@@ -191,6 +261,7 @@ class ClaudeLangFormatter:
                 and i < len(node.argument_ids) - 1):
                 self._write_line()
                 self._write_indent()
+                self._write('  ')  # Extra indent for continuation
             
             self._format_node(arg_id, graph, inline=True)
         
@@ -257,10 +328,20 @@ class ClaudeLangFormatter:
         
         # Format body
         body_node = graph.nodes.get(node.body_id)
-        if self._is_simple_expr(node.body_id, graph) or isinstance(body_node, Variable):
+        # Use multi-line format if we have multiple bindings or complex body
+        if len(node.bindings) > 1:
+            # Always use multi-line for multiple bindings
+            self._write_line()
+            self.indent_level += 1
+            self._write_indent()
+            self._format_node(node.body_id, graph)
+            self.indent_level -= 1
+        elif self._is_simple_expr(node.body_id, graph) or isinstance(body_node, (Variable, Application)):
+            # Inline for single binding with simple body or function call
             self._write(' ')
             self._format_node(node.body_id, graph, inline=True)
         else:
+            # Multi-line for complex body
             self._write_line()
             self.indent_level += 1
             self._write_indent()
@@ -304,7 +385,22 @@ class ClaudeLangFormatter:
         all_simple = all(self._is_simple_expr(step_id, graph) for step_id in node.step_ids)
         total_steps = len(node.step_ids)
         
-        if all_simple and total_steps <= 3:
+        # Check if all are simple print statements
+        all_simple_prints = True
+        for step_id in node.step_ids:
+            step_node = graph.nodes.get(step_id)
+            if isinstance(step_node, Application):
+                func_node = graph.nodes.get(step_node.function_id)
+                if not (isinstance(func_node, Variable) and 
+                        func_node.name == 'print' and 
+                        len(step_node.argument_ids) == 1):
+                    all_simple_prints = False
+                    break
+            else:
+                all_simple_prints = False
+                break
+        
+        if (all_simple and total_steps <= 3) or (all_simple_prints and total_steps <= 2):
             # Inline format for all simple expressions
             for step_id in node.step_ids:
                 self._write(' ')
@@ -333,9 +429,17 @@ class ClaudeLangFormatter:
             self._write('(')
             self._format_pattern(branch['pattern_id'], graph)
             
-            # Format body
+            # Format body - use multi-line for complex expressions
             body_node = graph.nodes.get(branch['body_id'])
-            if self._is_simple_expr(branch['body_id'], graph):
+            # Check if pattern is complex (has rest pattern or multiple elements)
+            pattern_node = graph.nodes.get(branch['pattern_id'])
+            is_complex_pattern = False
+            if isinstance(pattern_node, PatternList):
+                is_complex_pattern = pattern_node.rest_pattern is not None or len(pattern_node.elements) > 1
+            
+            if (self._is_simple_expr(branch['body_id'], graph) and 
+                not is_complex_pattern and
+                isinstance(body_node, (Literal, Variable))):
                 self._write(' ')
                 self._format_node(branch['body_id'], graph, inline=True)
             else:
@@ -556,8 +660,22 @@ class ClaudeLangFormatter:
             return True
         
         if isinstance(node, Application):
-            # Simple function calls with few arguments
-            return len(node.argument_ids) <= 2
+            # Check if it's a simple arithmetic or comparison
+            func_node = graph.nodes.get(node.function_id)
+            if isinstance(func_node, Function):
+                # Simple operators with 1-2 arguments
+                if func_node.name in ['+', '-', '*', '/', '=', '<', '>', '<=', '>=', 'not']:
+                    return len(node.argument_ids) <= 2
+                # Other functions are not considered simple
+                return False
+            elif isinstance(func_node, Variable):
+                # Check if it's a simple operator by name
+                if func_node.name in ['+', '-', '*', '/', '=', '<', '>', '<=', '>=', 'not', 
+                                      'car', 'cdr', 'null?', 'number?', 'string?', 'list?']:
+                    return len(node.argument_ids) <= 2
+                # Other function calls (like print) are not simple
+                return False
+            return len(node.argument_ids) <= 1
         
         return False
     
