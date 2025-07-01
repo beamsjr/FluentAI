@@ -1,7 +1,5 @@
 # ClaudeLang: An AI-First Programming Language
 
-[![Tests](https://github.com/beamsjr/claudelang/actions/workflows/tests.yml/badge.svg)](https://github.com/yourusername/claudelang/actions/workflows/tests.yml)
-[![Quick Tests](https://github.com/beamsjr/claudelang/actions/workflows/quick-tests.yml/badge.svg)](https://github.com/yourusername/claudelang/actions/workflows/quick-tests.yml)
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
