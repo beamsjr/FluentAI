@@ -53,6 +53,12 @@ class Lexer:
             elif char == ']':
                 self._add_token('RBRACKET', ']')
                 self.pos += 1
+            elif char == '{':
+                self._add_token('LBRACE', '{')
+                self.pos += 1
+            elif char == '}':
+                self._add_token('RBRACE', '}')
+                self.pos += 1
             elif char == ',':
                 self._add_token('COMMA', ',')
                 self.pos += 1
@@ -185,7 +191,7 @@ class Lexer:
         
         while self.pos < len(self.source):
             char = self.source[self.pos]
-            if char.isspace() or char in '()[]";,':
+            if char.isspace() or char in '()[]{}";,':
                 break
             self.pos += 1
         
@@ -255,6 +261,8 @@ class Parser:
             return self._parse_list()
         elif token.type == 'LBRACKET':
             return self._parse_list_literal()
+        elif token.type == 'LBRACE':
+            return self._parse_map_literal()
         elif token.type in ['INT', 'FLOAT', 'STRING', 'BOOL']:
             return self._parse_literal()
         elif token.type == 'SYMBOL':
@@ -363,6 +371,14 @@ class Parser:
                 return self._parse_receive()
             elif symbol == 'select':
                 return self._parse_select()
+            elif symbol == 'ui:component':
+                return self._parse_ui_component()
+            elif symbol == 'ui:if':
+                return self._parse_ui_if()
+            elif symbol == 'ui:for':
+                return self._parse_ui_for()
+            elif symbol == 'ui:when':
+                return self._parse_ui_when()
         
         # Regular function application
         return self._parse_application()
@@ -652,6 +668,49 @@ class Parser:
             app = Application(
                 function_id=cons_id,
                 argument_ids=[elem_id, result_id]
+            )
+            result_id = self.graph.add_node(app)
+        
+        return result_id
+    
+    def _parse_map_literal(self) -> str:
+        """Parse map literal: {key value key2 value2 ...}"""
+        self._advance()  # Skip LBRACE
+        
+        pairs = []
+        while self._current() and self._current().type != 'RBRACE':
+            # Parse key (usually a string or keyword)
+            key_id = self._parse_expr()
+            if not key_id:
+                raise SyntaxError("Expected key in map literal")
+            
+            # Parse value
+            if not self._current():
+                raise SyntaxError("Expected value after key in map literal")
+            value_id = self._parse_expr()
+            if not value_id:
+                raise SyntaxError("Expected value in map literal")
+            
+            pairs.append((key_id, value_id))
+        
+        if not self._current() or self._current().type != 'RBRACE':
+            raise SyntaxError("Expected closing brace for map")
+        
+        self._advance()  # Skip RBRACE
+        
+        # Build map using set operations
+        # Start with empty map
+        empty_map = Literal(value={}, literal_type='map')
+        result_id = self.graph.add_node(empty_map)
+        
+        # Build map by adding each key-value pair
+        for key_id, value_id in pairs:
+            set_func = Function(name="set", arity=3, effects={EffectType.PURE})
+            set_id = self.graph.add_node(set_func)
+            
+            app = Application(
+                function_id=set_id,
+                argument_ids=[result_id, key_id, value_id]
             )
             result_id = self.graph.add_node(app)
         
@@ -1404,6 +1463,178 @@ class Parser:
         
         else:
             raise SyntaxError(f"Expected type annotation, got {self._current()}")
+    
+    def _parse_ui_component(self) -> str:
+        """Parse UI component definition: (ui:component "Name" props render-fn)"""
+        self._advance()  # Skip 'ui:component'
+        
+        # Parse component name
+        if not self._current() or self._current().type != 'STRING':
+            raise SyntaxError("Expected component name string")
+        
+        component_name = self._advance().value
+        
+        # Parse props definition
+        props = {}
+        if self._current() and self._current().type == 'LBRACE':
+            props = self._parse_props_definition()
+        
+        # Parse render function
+        render_fn_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:component")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIComponent
+        node = UIComponent(
+            name=component_name,
+            props=props,
+            render_function_id=render_fn_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_props_definition(self) -> Dict[str, 'PropDefinition']:
+        """Parse component props definition: {:text (prop :string :required true) ...}"""
+        if not self._current() or self._current().type != 'LBRACE':
+            raise SyntaxError("Expected { for props definition")
+        
+        self._advance()  # Skip LBRACE
+        props = {}
+        
+        while self._current() and self._current().type != 'RBRACE':
+            # Parse prop name (keyword)
+            if not self._current() or self._current().type != 'SYMBOL' or not self._current().value.startswith(':'):
+                raise SyntaxError("Expected prop name as keyword")
+            
+            prop_name = self._advance().value[1:]  # Remove the :
+            
+            # Parse prop definition
+            if not self._current() or self._current().type != 'LPAREN':
+                raise SyntaxError("Expected prop definition")
+            
+            prop_def = self._parse_prop_definition()
+            props[prop_name] = prop_def
+        
+        if not self._current() or self._current().type != 'RBRACE':
+            raise SyntaxError("Expected } to close props definition")
+        
+        self._advance()  # Skip RBRACE
+        return props
+    
+    def _parse_prop_definition(self) -> 'PropDefinition':
+        """Parse individual prop definition: (prop :string :required true :default "")"""
+        self._advance()  # Skip LPAREN
+        
+        if not self._current() or self._current().type != 'SYMBOL' or self._current().value != 'prop':
+            raise SyntaxError("Expected 'prop' in prop definition")
+        
+        self._advance()  # Skip 'prop'
+        
+        # Parse prop type
+        if not self._current() or self._current().type != 'SYMBOL' or not self._current().value.startswith(':'):
+            raise SyntaxError("Expected prop type as keyword")
+        
+        prop_type = self._advance().value[1:]  # Remove the :
+        
+        # Parse options
+        required = False
+        default_value = None
+        
+        while self._current() and self._current().type != 'RPAREN':
+            if self._current().type == 'SYMBOL' and self._current().value.startswith(':'):
+                option = self._advance().value
+                
+                if option == ':required':
+                    if not self._current():
+                        raise SyntaxError("Expected value after :required")
+                    required = self._current().value in ['true', True]
+                    self._advance()
+                elif option == ':default':
+                    default_value_id = self._parse_expr()
+                    # For now, store the node ID - in real implementation we'd evaluate it
+                    default_value = default_value_id
+            else:
+                raise SyntaxError(f"Unexpected token in prop definition: {self._current()}")
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for prop definition")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import PropDefinition
+        return PropDefinition(
+            prop_type=prop_type,
+            required=required,
+            default_value=default_value
+        )
+    
+    def _parse_ui_if(self) -> str:
+        """Parse ui:if: (ui:if condition then-node else-node)"""
+        self._advance()  # Skip 'ui:if'
+        
+        condition_id = self._parse_expr()
+        then_id = self._parse_expr()
+        else_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:if")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIControlFlow
+        node = UIControlFlow(
+            flow_type="if",
+            condition_id=condition_id,
+            then_id=then_id,
+            else_id=else_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_ui_for(self) -> str:
+        """Parse ui:for: (ui:for items render-fn)"""
+        self._advance()  # Skip 'ui:for'
+        
+        items_id = self._parse_expr()
+        render_func_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:for")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIControlFlow
+        node = UIControlFlow(
+            flow_type="for",
+            items_id=items_id,
+            render_func_id=render_func_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_ui_when(self) -> str:
+        """Parse ui:when: (ui:when condition node)"""
+        self._advance()  # Skip 'ui:when'
+        
+        condition_id = self._parse_expr()
+        then_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:when")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIControlFlow
+        node = UIControlFlow(
+            flow_type="when",
+            condition_id=condition_id,
+            then_id=then_id
+        )
+        
+        return self.graph.add_node(node)
 
 
 def parse(source: str) -> Graph:

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClaudeLang Compiled Counter Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f5f5f5;
+        }
+        
+        #app {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin: 0 0 20px 0;
+        }
+        
+        h2 {
+            font-size: 48px;
+            color: #007bff;
+            margin: 20px 0;
+        }
+        
+        button {
+            font-size: 24px;
+            padding: 15px 30px;
+            margin: 0 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">Loading...</div>
+    
+    <!-- Load ClaudeLang runtime -->
+    <script>
+        // Inline the runtime for now to avoid path issues
+        (function(global) {
+            'use strict';
+
+            // Core runtime object
+            const ClaudeLang = {
+                version: '0.1.0',
+                effects: {},
+                primitives: {},
+                modules: {},
+                _effectHandlers: new Map(),
+                _currentEffect: null
+            };
+
+            // Virtual DOM implementation
+            class VNode {
+                constructor(tag, props, children) {
+                    this.tag = tag;
+                    this.props = props || {};
+                    this.children = children || [];
+                    this.key = props?.key;
+                }
+
+                toElement() {
+                    if (this.tag === 'text') {
+                        return document.createTextNode(this.props.content || '');
+                    }
+
+                    const el = document.createElement(this.tag);
+
+                    // Set properties
+                    Object.entries(this.props).forEach(([key, value]) => {
+                        if (key.startsWith('on')) {
+                            const event = key.slice(2).toLowerCase();
+                            el.addEventListener(event, value);
+                        } else if (key === 'class' || key === 'className') {
+                            el.className = value;
+                        } else if (key !== 'key' && value != null) {
+                            el.setAttribute(key, value);
+                        }
+                    });
+
+                    // Add children
+                    this.children.forEach(child => {
+                        if (typeof child === 'string') {
+                            el.appendChild(document.createTextNode(child));
+                        } else if (child instanceof VNode) {
+                            el.appendChild(child.toElement());
+                        }
+                    });
+
+                    return el;
+                }
+            }
+
+            // DOM primitives
+            ClaudeLang.primitives['dom:h'] = function(tag, props, children) {
+                return new VNode(tag, props, children);
+            };
+
+            ClaudeLang.primitives['dom:text'] = function(content) {
+                return new VNode('text', { content }, []);
+            };
+
+            // Reactive state implementation
+            class ReactiveRef {
+                constructor(initialValue) {
+                    this._value = initialValue;
+                    this._watchers = new Set();
+                }
+
+                get value() {
+                    return this._value;
+                }
+
+                set value(newValue) {
+                    if (this._value !== newValue) {
+                        this._value = newValue;
+                        this._notify();
+                    }
+                }
+
+                _notify() {
+                    this._watchers.forEach(callback => callback(this._value));
+                }
+            }
+
+            // Effect handlers
+            ClaudeLang.performEffect = function(effectType, operation, args) {
+                const handler = this._effectHandlers.get(effectType);
+                if (!handler) {
+                    throw new Error(`No handler for effect type: ${effectType}`);
+                }
+                return handler(operation, args);
+            };
+
+            // DOM effect handler
+            ClaudeLang._effectHandlers.set('DOM', function(operation, args) {
+                switch (operation) {
+                    case 'render':
+                        const [vnode, container] = args;
+                        const root = typeof container === 'string' 
+                            ? document.querySelector(container) 
+                            : container;
+                        
+                        if (!root) {
+                            throw new Error(`Container not found: ${container}`);
+                        }
+
+                        // Simple render - replace content
+                        root.innerHTML = '';
+                        if (vnode instanceof VNode) {
+                            root.appendChild(vnode.toElement());
+                        }
+                        break;
+
+                    default:
+                        throw new Error(`Unknown DOM operation: ${operation}`);
+                }
+            });
+
+            // Reactive effect handler
+            ClaudeLang._effectHandlers.set('STATE', function(operation, args) {
+                switch (operation) {
+                    case 'reactive-ref':
+                        return new ReactiveRef(args[0]);
+
+                    case 'reactive-get':
+                        const ref = args[0];
+                        return ref instanceof ReactiveRef ? ref.value : ref;
+
+                    case 'reactive-update':
+                        const [refToUpdate, updater] = args;
+                        if (refToUpdate instanceof ReactiveRef) {
+                            refToUpdate.value = updater(refToUpdate.value);
+                        }
+                        break;
+
+                    default:
+                        throw new Error(`Unknown reactive operation: ${operation}`);
+                }
+            });
+
+            // Standard library functions
+            ClaudeLang.primitives['+'] = (a, b) => a + b;
+            ClaudeLang.primitives['-'] = (a, b) => a - b;
+            ClaudeLang.primitives['*'] = (a, b) => a * b;
+            ClaudeLang.primitives['/'] = (a, b) => a / b;
+
+            // List operations
+            ClaudeLang.primitives['cons'] = (head, tail) => [head, ...tail];
+
+            // String operations
+            ClaudeLang.primitives['concat'] = (...args) => args.join('');
+            ClaudeLang.primitives['to-string'] = (val) => String(val);
+
+            // Export to global scope
+            global.ClaudeLang = ClaudeLang;
+
+        })(typeof window !== 'undefined' ? window : global);
+    </script>
+    
+    <!-- Test runtime is loaded -->
+    <script>
+        if (typeof ClaudeLang === 'undefined') {
+            document.getElementById('app').innerHTML = 
+                '<div class="error">Error: ClaudeLang runtime not loaded</div>';
+        } else {
+            console.log('ClaudeLang runtime loaded:', ClaudeLang.version);
+        }
+    </script>
+    
+    <!-- Load and execute compiled code -->
+    <script>
+        try {
+            // The compiled code - wrapped to be immediately executed
+            const compiledApp = () => (() => { const count = ClaudeLang.performEffect('STATE', 'reactive-ref', [0]); return (() => { const update_and_render = (delta) => (ClaudeLang.performEffect('STATE', 'reactive-update', [count, (n) => ClaudeLang.primitives['+'](n, delta)]), ClaudeLang.performEffect('DOM', 'render', [ClaudeLang.primitives['dom:h']("div", [], ClaudeLang.primitives['cons'](ClaudeLang.primitives['dom:h']("h1", [], [ClaudeLang.primitives['dom:text']("Counter")]), ClaudeLang.primitives['cons'](ClaudeLang.primitives['dom:h']("h2", [], [ClaudeLang.primitives['dom:text'](ClaudeLang.primitives['to-string'](ClaudeLang.performEffect('STATE', 'reactive-get', [count])))]), ClaudeLang.primitives['cons'](ClaudeLang.primitives['dom:h']("button", [], [ClaudeLang.primitives['dom:text']("+")]), [ClaudeLang.primitives['dom:h']("button", [], [ClaudeLang.primitives['dom:text']("-")])])))), "#app"])); return update_and_render(0); })(); })()();
+            
+            // Execute the compiled app
+            compiledApp();
+            
+            console.log('ClaudeLang app started successfully!');
+            
+        } catch (error) {
+            console.error('Error running compiled code:', error);
+            document.getElementById('app').innerHTML = 
+                `<div class="error">Error: ${error.message}</div>`;
+        }
+    </script>
+</body>
+</html>

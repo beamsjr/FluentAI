@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClaudeLang UI Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .todo-app {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .filters button {
+            background: #e9ecef;
+            color: #333;
+        }
+        
+        .filters button.active {
+            background: #007bff;
+            color: white;
+        }
+        
+        .todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .todo-item.completed span {
+            text-decoration: line-through;
+            color: #999;
+        }
+        
+        .todo-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .todo-item button {
+            margin-left: auto;
+            padding: 5px 10px;
+            font-size: 14px;
+            background: #dc3545;
+        }
+        
+        .stats {
+            margin-top: 20px;
+            color: #666;
+            text-align: center;
+        }
+        
+        .smart-counter {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .prediction {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .insights-panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .insights-panel h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .insight-icon {
+            width: 24px;
+            height: 24px;
+            background: #007bff;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .predictions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .prediction-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .prediction-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 5px 0;
+        }
+        
+        .prediction-label {
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        .suggestion {
+            background: #e7f3ff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 5px 0;
+            font-size: 14px;
+            color: #004085;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .suggestion button {
+            padding: 5px 10px;
+            font-size: 12px;
+            background: #004085;
+        }
+        
+        .time-pattern {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .time-bar {
+            flex: 1;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .time-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #ffc107 50%, #dc3545 100%);
+            transition: width 0.3s ease;
+        }
+        
+        .velocity-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .velocity-up {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .velocity-down {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .velocity-stable {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <!-- ClaudeLang Runtime (stub for now) -->
+    <script>
+        // Minimal runtime implementation for demo
+        window.ClaudeLangRuntime = {
+            // Virtual DOM implementation
+            h: function(tag, props, children) {
+                return { tag, props: props || {}, children: children || [] };
+            },
+            
+            // Render virtual DOM to real DOM
+            render: function(vnode, container) {
+                const root = typeof container === 'string' 
+                    ? document.querySelector(container) 
+                    : container;
+                
+                // Store current focus
+                const activeElement = document.activeElement;
+                const activeId = activeElement ? activeElement.id : null;
+                const activeValue = activeElement ? activeElement.value : null;
+                const activeSelectionStart = activeElement ? activeElement.selectionStart : null;
+                const activeSelectionEnd = activeElement ? activeElement.selectionEnd : null;
+                
+                // Clear and render
+                root.innerHTML = '';
+                root.appendChild(this.createElement(vnode));
+                
+                // Restore focus if needed
+                if (activeId || (activeElement && activeElement.type)) {
+                    let newActive = null;
+                    if (activeId) {
+                        newActive = document.getElementById(activeId);
+                    } else if (activeElement && activeElement.type === 'text') {
+                        // Find input with same value
+                        const inputs = root.querySelectorAll('input[type="text"]');
+                        for (let input of inputs) {
+                            if (input.value === activeValue || input.placeholder === activeElement.placeholder) {
+                                newActive = input;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (newActive && newActive.type === 'text') {
+                        newActive.focus();
+                        newActive.value = activeValue || newActive.value;
+                        if (activeSelectionStart !== null) {
+                            newActive.setSelectionRange(activeSelectionStart, activeSelectionEnd);
+                        }
+                    }
+                }
+            },
+            
+            createElement: function(vnode) {
+                if (typeof vnode === 'string') {
+                    return document.createTextNode(vnode);
+                }
+                
+                if (vnode.tag === 'fragment') {
+                    const fragment = document.createDocumentFragment();
+                    vnode.children.forEach(child => {
+                        fragment.appendChild(this.createElement(child));
+                    });
+                    return fragment;
+                }
+                
+                const el = document.createElement(vnode.tag);
+                
+                // Set properties
+                Object.entries(vnode.props).forEach(([key, value]) => {
+                    if (key.startsWith('on')) {
+                        const event = key.slice(2).toLowerCase();
+                        el.addEventListener(event, value);
+                    } else if (key === 'style') {
+                        el.style.cssText = value;
+                    } else if (key === 'class') {
+                        el.className = value;
+                    } else if (key === 'checked') {
+                        el.checked = value === 'checked' || value === true;
+                    } else if (key === 'value') {
+                        el.value = value;
+                    } else if (value !== undefined && value !== null) {
+                        el.setAttribute(key, value);
+                    }
+                });
+                
+                // Add children
+                vnode.children.forEach(child => {
+                    el.appendChild(this.createElement(child));
+                });
+                
+                return el;
+            },
+            
+            // Reactive state implementation
+            reactive: {
+                refs: new Map(),
+                watchers: new Map(),
+                
+                ref: function(initial) {
+                    const id = 'ref_' + Math.random().toString(36).substr(2, 9);
+                    this.refs.set(id, { value: initial, watchers: new Set() });
+                    return id;
+                },
+                
+                get: function(refId) {
+                    const ref = this.refs.get(refId);
+                    return ref ? ref.value : undefined;
+                },
+                
+                set: function(refId, value) {
+                    const ref = this.refs.get(refId);
+                    if (ref && ref.value !== value) {
+                        ref.value = value;
+                        this.notify(refId);
+                    }
+                },
+                
+                update: function(refId, updater) {
+                    const ref = this.refs.get(refId);
+                    if (ref) {
+                        const newValue = updater(ref.value);
+                        this.set(refId, newValue);
+                    }
+                },
+                
+                notify: function(refId) {
+                    const ref = this.refs.get(refId);
+                    if (ref) {
+                        ref.watchers.forEach(watcher => watcher());
+                    }
+                },
+                
+                watch: function(refId, callback) {
+                    const ref = this.refs.get(refId);
+                    if (ref) {
+                        ref.watchers.add(callback);
+                    }
+                }
+            }
+        };
+        
+        // Make runtime globally available
+        window.h = ClaudeLangRuntime.h;
+        window.render = ClaudeLangRuntime.render.bind(ClaudeLangRuntime);
+        window.reactive = ClaudeLangRuntime.reactive;
+    </script>
+    
+    <!-- Transpiled ClaudeLang UI Demo -->
+    <script>
+        // This would normally be generated by the ClaudeLang compiler
+        // For now, here's a hand-transpiled version of the todo app with AI features
+        
+        function createTodoApp() {
+            const todos = reactive.ref([]);
+            const inputValue = reactive.ref('');
+            const filterMode = reactive.ref('all');
+            
+            // Learning data
+            const taskHistory = reactive.ref([]);
+            const completionTimes = reactive.ref([]);
+            const taskPatterns = reactive.ref({
+                byHour: new Array(24).fill(0),
+                byDayOfWeek: new Array(7).fill(0),
+                keywords: {},
+                avgCompletionTime: 0,
+                totalCompleted: 0,
+                totalAdded: 0
+            });
+            
+            // Predictions
+            const predictions = reactive.ref({
+                dailyCapacity: 5,
+                bestWorkTime: 'morning',
+                velocity: 'stable',
+                suggestedTasks: []
+            });
+            
+            function addTodo() {
+                const text = reactive.get(inputValue);
+                if (text.trim()) {
+                    const now = new Date();
+                    const newTodo = { 
+                        id: Date.now(), 
+                        text: text, 
+                        completed: false,
+                        createdAt: now,
+                        createdHour: now.getHours(),
+                        createdDay: now.getDay()
+                    };
+                    
+                    reactive.update(todos, current => [...current, newTodo]);
+                    reactive.set(inputValue, '');
+                    
+                    // Learn from the action
+                    learnFromAddTask(newTodo);
+                    updatePredictions();
+                    renderApp();
+                }
+            }
+            
+            function toggleTodo(id) {
+                const now = new Date();
+                reactive.update(todos, current =>
+                    current.map(todo => {
+                        if (todo.id === id) {
+                            const updated = { ...todo, completed: !todo.completed };
+                            if (updated.completed && !todo.completed) {
+                                updated.completedAt = now;
+                                updated.completionTime = now - todo.createdAt;
+                                learnFromCompletion(updated);
+                            }
+                            return updated;
+                        }
+                        return todo;
+                    })
+                );
+                updatePredictions();
+                renderApp();
+            }
+            
+            function deleteTodo(id) {
+                reactive.update(todos, current =>
+                    current.filter(todo => todo.id !== id)
+                );
+                renderApp();
+            }
+            
+            function setFilter(mode) {
+                reactive.set(filterMode, mode);
+                renderApp();
+            }
+            
+            let isUpdatingInput = false;
+            
+            function renderApp() {
+                const allTodos = reactive.get(todos);
+                const mode = reactive.get(filterMode);
+                const currentInput = reactive.get(inputValue);
+                
+                let filteredTodos = allTodos;
+                if (mode === 'active') {
+                    filteredTodos = allTodos.filter(t => !t.completed);
+                } else if (mode === 'completed') {
+                    filteredTodos = allTodos.filter(t => t.completed);
+                }
+                
+                const activeCount = allTodos.filter(t => !t.completed).length;
+                
+                const app = h('div', { class: 'todo-app' }, [
+                    h('h1', {}, ['ClaudeLang Todo App']),
+                    
+                    h('div', { class: 'input-section' }, [
+                        h('input', {
+                            id: 'todo-input',
+                            type: 'text',
+                            value: currentInput,
+                            placeholder: 'What needs to be done?',
+                            onInput: (e) => {
+                                isUpdatingInput = true;
+                                reactive.set(inputValue, e.target.value);
+                                // Don't re-render for input changes
+                                isUpdatingInput = false;
+                            },
+                            onKeypress: (e) => {
+                                if (e.key === 'Enter') addTodo();
+                            }
+                        }),
+                        h('button', { onClick: addTodo }, ['Add'])
+                    ]),
+                    
+                    h('div', { class: 'filters' }, [
+                        h('button', {
+                            class: mode === 'all' ? 'active' : '',
+                            onClick: () => setFilter('all')
+                        }, ['All']),
+                        h('button', {
+                            class: mode === 'active' ? 'active' : '',
+                            onClick: () => setFilter('active')
+                        }, ['Active']),
+                        h('button', {
+                            class: mode === 'completed' ? 'active' : '',
+                            onClick: () => setFilter('completed')
+                        }, ['Completed'])
+                    ]),
+                    
+                    h('ul', { class: 'todo-list' },
+                        filteredTodos.map(todo =>
+                            h('li', { 
+                                class: 'todo-item' + (todo.completed ? ' completed' : ''),
+                                key: todo.id 
+                            }, [
+                                h('input', {
+                                    type: 'checkbox',
+                                    checked: todo.completed ? 'checked' : undefined,
+                                    onChange: () => toggleTodo(todo.id)
+                                }),
+                                h('span', {}, [todo.text]),
+                                h('button', {
+                                    onClick: () => deleteTodo(todo.id)
+                                }, ['Delete'])
+                            ])
+                        )
+                    ),
+                    
+                    h('div', { class: 'stats' }, [
+                        activeCount + ' item(s) left'
+                    ])
+                ]);
+                
+                render(app, '#app');
+            }
+            
+            // Initial render
+            renderApp();
+            
+            // Watch for changes (but not input value changes during typing)
+            reactive.watch(todos, renderApp);
+            reactive.watch(filterMode, renderApp);
+            // Don't watch inputValue to prevent re-renders while typing
+        }
+        
+        // Start the app when DOM is ready
+        document.addEventListener('DOMContentLoaded', createTodoApp);
+    </script>
+</body>
+</html>

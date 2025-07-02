@@ -7,6 +7,7 @@ Each primitive is carefully designed to be unambiguous and have explicit effects
 
 from typing import Dict, Callable, Any, List, Set
 from .ast import Function, EffectType, TypeAnnotation
+from .ui_primitives import UI_PRIMITIVES
 
 
 class PrimitiveRegistry:
@@ -16,6 +17,7 @@ class PrimitiveRegistry:
         self.primitives: Dict[str, Function] = {}
         self.implementations: Dict[str, Callable] = {}
         self._register_core_primitives()
+        self._register_ui_primitives()
     
     def register(self, name: str, func: Function, implementation: Callable):
         """Register a primitive operation"""
@@ -674,15 +676,12 @@ class PrimitiveRegistry:
             ),
             memoize_impl
         )
+    
+    def _register_ui_primitives(self):
+        """Register UI and DOM primitives"""
+        # Register all UI primitives from the UI module
+        UI_PRIMITIVES.register_all(self)
 
 
 # Global primitive registry
 PRIMITIVES = PrimitiveRegistry()
-
-# Register UI primitives if available
-try:
-    from ..ui.primitives import register_ui_primitives
-    register_ui_primitives(PRIMITIVES)
-except ImportError:
-    # UI module not available
-    pass
