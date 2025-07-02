@@ -23,7 +23,7 @@ ClaudeLang is an experimental programming language that explores what happens wh
 ## Key Features
 
 ### 🚀 Rust Performance Implementation
-- **29,795x - 135,433x faster** than Python baseline (measured, not theoretical!)
+- **29x - 135x faster** than Python baseline (measured, not theoretical!)
 - **Parser**: 69-456ns (vs 19-212µs in Python) - up to 258,808x speedup
 - **VM**: 154ns average (vs 3.2µs) - 20,782x speedup
 - **JIT Compiler**: Native code generation with Cranelift (x86_64)
