@@ -201,15 +201,26 @@ class UIOptimizer:
         
         # 1. Memoization recommendations
         if 'prop_change_rates' in analysis:
-            stable_props = [
+            # Get all component props
+            all_props = set(component_ast.props.keys()) if hasattr(component_ast, 'props') else set()
+            changed_props = set(analysis['prop_change_rates'].keys())
+            
+            # Props that never changed
+            never_changed = all_props - changed_props
+            
+            # Props that rarely change
+            rarely_changed = [
                 prop for prop, rate in analysis['prop_change_rates'].items()
                 if rate < self.memo_threshold
             ]
+            
+            stable_props = list(never_changed) + rarely_changed
+            
             if stable_props:
                 optimizations['strategies'].append({
                     'type': 'memoize',
                     'props': stable_props,
-                    'reason': f'Props {stable_props} change infrequently'
+                    'reason': f'Props {stable_props} change infrequently or never'
                 })
         
         # 2. Update batching recommendations
@@ -463,9 +474,36 @@ const use{component.name}State = () => {{
     
     def save_model(self, path: str) -> None:
         """Save trained model and optimization data"""
+        # Convert render_history deques to lists for JSON serialization
+        history_data = {}
+        for component, deque_data in self.render_history.items():
+            history_data[component] = [
+                {
+                    'component_name': m.component_name,
+                    'render_time': m.render_time,
+                    'props_changed': list(m.props_changed),
+                    'state_accessed': list(m.state_accessed),
+                    'dom_operations': m.dom_operations,
+                    'child_renders': m.child_renders,
+                    'timestamp': m.timestamp
+                }
+                for m in deque_data
+            ]
+        
+        # Convert update_patterns to serializable format
+        patterns_data = {}
+        for component, pattern in self.update_patterns.items():
+            patterns_data[component] = {
+                'component_name': pattern.component_name,
+                'prop_updates': [list(s) for s in pattern.prop_updates],
+                'state_updates': [list(s) for s in pattern.state_updates],
+                'render_times': pattern.render_times,
+                'update_intervals': pattern.update_intervals
+            }
+        
         data = {
-            'render_history': dict(self.render_history),
-            'update_patterns': self.update_patterns,
+            'render_history': history_data,
+            'update_patterns': patterns_data,
             'optimization_rules': self.optimization_rules,
             'is_trained': self.is_trained
         }
@@ -473,7 +511,7 @@ const use{component.name}State = () => {{
         with open(path + '.json', 'w') as f:
             json.dump(data, f, default=str)
         
-        if self.is_trained:
+        if self.is_trained and HAS_ML:
             joblib.dump(self.render_time_model, path + '_model.pkl')
             joblib.dump(self.scaler, path + '_scaler.pkl')
     
