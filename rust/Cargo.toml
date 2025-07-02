@@ -1,0 +1,69 @@
+[workspace]
+members = [
+    "claudelang-core",
+    "claudelang-parser",
+    "claudelang-vm",
+    "claudelang-lsp",
+    "claudelang-jit",
+    "claudelang-py",
+    "benchmarks",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["ClaudeLang Contributors"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/beamsjr/ClaudeLang"
+
+[workspace.dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Parser dependencies
+nom = "7.1"
+logos = "0.13"
+
+# VM dependencies
+byteorder = "1.4"
+memmap2 = "0.5"
+
+# Performance
+rayon = "1.7"
+parking_lot = "0.12"
+rustc-hash = "1.1"
+ahash = "0.8"
+
+# Memory management
+bumpalo = "3.13"
+typed-arena = "2.0"
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+pprof = { version = "0.11", features = ["flamegraph", "criterion"] }
+
+# Python bindings
+pyo3 = { version = "0.19", features = ["extension-module", "abi3-py39"] }
+
+# LSP dependencies
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["full"] }
+ropey = "1.6"
+dashmap = "5.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+debug = false
+panic = "abort"
+
+[profile.bench]
+inherits = "release"
+debug = true

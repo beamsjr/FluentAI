@@ -1,0 +1,20 @@
+[package]
+name = "claudelang-py"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "claudelang_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+claudelang-core = { path = "../claudelang-core" }
+claudelang-parser = { path = "../claudelang-parser" }
+claudelang-vm = { path = "../claudelang-vm" }
+pyo3.workspace = true
+anyhow.workspace = true
+
+[features]
+default = ["pyo3/extension-module"]

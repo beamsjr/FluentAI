@@ -1,0 +1,22 @@
+[package]
+name = "claudelang-vm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+claudelang-core = { path = "../claudelang-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+byteorder.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+claudelang-parser = { path = "../claudelang-parser" }
+
+[[example]]
+name = "test_vm"
+path = "../examples/test_vm.rs"
