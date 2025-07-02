@@ -1,0 +1,33 @@
+[package]
+name = "claudelang-benchmarks"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+claudelang-core = { path = "../rust/claudelang-core" }
+claudelang-parser = { path = "../rust/claudelang-parser" }
+claudelang-vm = { path = "../rust/claudelang-vm" }
+criterion.workspace = true
+pprof.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+chrono = "0.4"
+
+[[bench]]
+name = "parser"
+harness = false
+
+[[bench]]
+name = "vm"
+harness = false
+
+[[bench]]
+name = "end_to_end"
+harness = false
+
+[dev-dependencies]

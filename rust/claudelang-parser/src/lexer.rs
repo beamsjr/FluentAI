@@ -1,0 +1,160 @@
+//! Fast lexer for ClaudeLang S-expressions using logos
+
+use logos::{Logos, Lexer as LogosLexer};
+
+#[derive(Logos, Debug, PartialEq, Clone)]
+pub enum Token<'a> {
+    // Delimiters
+    #[token("(")]
+    LParen,
+    
+    #[token(")")]
+    RParen,
+    
+    #[token("[")]
+    LBracket,
+    
+    #[token("]")]
+    RBracket,
+    
+    // Literals
+    #[regex(r"-?[0-9]+", |lex| lex.slice().parse::<i64>().ok())]
+    Integer(i64),
+    
+    #[regex(r"-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", |lex| lex.slice().parse::<f64>().ok())]
+    Float(f64),
+    
+    #[regex(r#""([^"\\]|\\.)*""#, |lex| {
+        let s = lex.slice();
+        // Remove quotes and process escapes
+        let content = &s[1..s.len()-1];
+        Some(process_string_escapes(content))
+    })]
+    String(String),
+    
+    #[token("true", |_| true)]
+    #[token("#t", |_| true)]
+    #[token("false", |_| false)]
+    #[token("#f", |_| false)]
+    Boolean(bool),
+    
+    // Symbols
+    #[regex(r"[a-zA-Z_+\-*/=<>!?][a-zA-Z0-9_+\-*/=<>!?]*", |lex| lex.slice())]
+    Symbol(&'a str),
+    
+    // Special tokens
+    #[token(",")]
+    Comma,
+    
+    #[token(":")]
+    Colon,
+    
+    // Comments and whitespace (automatically skipped)
+    #[regex(r";[^\n]*", logos::skip)]
+    #[regex(r"[ \t\n\r]+", logos::skip)]
+    
+    // Error token
+    #[error]
+    Error,
+}
+
+/// Process escape sequences in strings
+fn process_string_escapes(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            match chars.next() {
+                Some('n') => result.push('\n'),
+                Some('t') => result.push('\t'),
+                Some('r') => result.push('\r'),
+                Some('\\') => result.push('\\'),
+                Some('"') => result.push('"'),
+                Some(c) => {
+                    result.push('\\');
+                    result.push(c);
+                }
+                None => result.push('\\'),
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+    
+    result
+}
+
+pub struct Lexer<'a> {
+    inner: LogosLexer<'a, Token<'a>>,
+    peeked: Option<(Token<'a>, std::ops::Range<usize>)>,
+}
+
+impl<'a> Lexer<'a> {
+    pub fn new(source: &'a str) -> Self {
+        Self {
+            inner: Token::lexer(source),
+            peeked: None,
+        }
+    }
+    
+    pub fn next_token(&mut self) -> Option<Token<'a>> {
+        if let Some((token, _)) = self.peeked.take() {
+            Some(token)
+        } else {
+            self.inner.next()
+        }
+    }
+    
+    pub fn peek_token(&mut self) -> Option<&Token<'a>> {
+        if self.peeked.is_none() {
+            if let Some(token) = self.inner.next() {
+                let span = self.inner.span();
+                self.peeked = Some((token, span));
+            }
+        }
+        self.peeked.as_ref().map(|(token, _)| token)
+    }
+    
+    pub fn span(&self) -> std::ops::Range<usize> {
+        if let Some((_, span)) = &self.peeked {
+            span.clone()
+        } else {
+            self.inner.span()
+        }
+    }
+    
+    pub fn slice(&self) -> &'a str {
+        self.inner.slice()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_lexer_basic() {
+        let mut lexer = Lexer::new("(+ 1 2)");
+        
+        assert_eq!(lexer.next_token(), Some(Token::LParen));
+        assert_eq!(lexer.next_token(), Some(Token::Symbol("+")));
+        assert_eq!(lexer.next_token(), Some(Token::Integer(1)));
+        assert_eq!(lexer.next_token(), Some(Token::Integer(2)));
+        assert_eq!(lexer.next_token(), Some(Token::RParen));
+        assert_eq!(lexer.next_token(), None);
+    }
+    
+    #[test]
+    fn test_lexer_strings() {
+        let mut lexer = Lexer::new(r#""hello \"world\"""#);
+        assert_eq!(lexer.next_token(), Some(Token::String("hello \"world\"".to_string())));
+    }
+    
+    #[test]
+    fn test_lexer_floats() {
+        let mut lexer = Lexer::new("3.14 -2.5e10");
+        assert_eq!(lexer.next_token(), Some(Token::Float(3.14)));
+        assert_eq!(lexer.next_token(), Some(Token::Float(-2.5e10)));
+    }
+}

@@ -1,0 +1,13 @@
+[package]
+name = "claudelang-lsp"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+claudelang-core = { path = "../claudelang-core" }
+claudelang-parser = { path = "../claudelang-parser" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true

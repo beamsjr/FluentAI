@@ -1,0 +1,16 @@
+[package]
+name = "claudelang-vm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+claudelang-core = { path = "../claudelang-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+byteorder.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
