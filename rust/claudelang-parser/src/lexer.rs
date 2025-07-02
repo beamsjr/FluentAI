@@ -17,11 +17,11 @@ pub enum Token<'a> {
     #[token("]")]
     RBracket,
     
-    // Literals
-    #[regex(r"-?[0-9]+", |lex| lex.slice().parse::<i64>().ok())]
+    // Literals (higher priority than symbols)
+    #[regex(r"-?[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     Integer(i64),
     
-    #[regex(r"-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", |lex| lex.slice().parse::<f64>().ok())]
+    #[regex(r"-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", priority = 2, callback = |lex| lex.slice().parse::<f64>().ok())]
     Float(f64),
     
     #[regex(r#""([^"\\]|\\.)*""#, |lex| {
@@ -38,8 +38,8 @@ pub enum Token<'a> {
     #[token("#f", |_| false)]
     Boolean(bool),
     
-    // Symbols
-    #[regex(r"[a-zA-Z_+\-*/=<>!?][a-zA-Z0-9_+\-*/=<>!?]*", |lex| lex.slice())]
+    // Symbols (lower priority to avoid conflicts with numbers)
+    #[regex(r"[a-zA-Z_+\-*/=<>!?][a-zA-Z0-9_+\-*/=<>!?]*", priority = 1, callback = |lex| lex.slice())]
     Symbol(&'a str),
     
     // Special tokens
@@ -54,7 +54,6 @@ pub enum Token<'a> {
     #[regex(r"[ \t\n\r]+", logos::skip)]
     
     // Error token
-    #[error]
     Error,
 }
 
@@ -102,13 +101,13 @@ impl<'a> Lexer<'a> {
         if let Some((token, _)) = self.peeked.take() {
             Some(token)
         } else {
-            self.inner.next()
+            self.inner.next().and_then(Result::ok)
         }
     }
     
     pub fn peek_token(&mut self) -> Option<&Token<'a>> {
         if self.peeked.is_none() {
-            if let Some(token) = self.inner.next() {
+            if let Some(Ok(token)) = self.inner.next() {
                 let span = self.inner.span();
                 self.peeked = Some((token, span));
             }

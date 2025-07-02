@@ -1,0 +1,13 @@
+# Rust build artifacts
+target/
+Cargo.lock
+
+# Benchmark results (can be regenerated)
+criterion/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store

@@ -265,17 +265,18 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_pattern(&mut self) -> ParseResult<Pattern> {
-        match self.lexer.peek_token() {
-            Some(Token::Symbol("_")) => {
+        match self.lexer.peek_token().cloned() {
+            Some(Token::Symbol(name)) if name == "_" => {
                 self.lexer.next_token();
                 Ok(Pattern::Wildcard)
             }
-            Some(Token::Symbol(name)) if name.chars().next().unwrap().is_lowercase() => {
+            Some(Token::Symbol(name)) if !name.is_empty() && name.chars().next().unwrap().is_lowercase() => {
                 self.lexer.next_token();
                 Ok(Pattern::Variable(name.to_string()))
             }
-            Some(Token::Symbol(name)) if name.chars().next().unwrap().is_uppercase() => {
+            Some(Token::Symbol(name)) if !name.is_empty() && name.chars().next().unwrap().is_uppercase() => {
                 self.lexer.next_token();
+                let constructor_name = name.to_string();
                 let mut patterns = Vec::new();
                 
                 // Parse sub-patterns
@@ -284,13 +285,13 @@ impl<'a> Parser<'a> {
                 }
                 
                 Ok(Pattern::Constructor {
-                    name: name.to_string(),
+                    name: constructor_name,
                     patterns,
                 })
             }
             Some(Token::Integer(n)) => {
                 self.lexer.next_token();
-                Ok(Pattern::Literal(Literal::Integer(*n)))
+                Ok(Pattern::Literal(Literal::Integer(n)))
             }
             Some(Token::String(_)) => {
                 let s = self.parse_string_literal()?;
@@ -298,7 +299,7 @@ impl<'a> Parser<'a> {
             }
             Some(Token::Boolean(b)) => {
                 self.lexer.next_token();
-                Ok(Pattern::Literal(Literal::Boolean(*b)))
+                Ok(Pattern::Literal(Literal::Boolean(b)))
             }
             _ => Err(ParseError::InvalidSyntax("Invalid pattern".to_string())),
         }

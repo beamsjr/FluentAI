@@ -9,6 +9,7 @@ license.workspace = true
 claudelang-core = { path = "../claudelang-core" }
 anyhow.workspace = true
 thiserror.workspace = true
+serde.workspace = true
 byteorder.workspace = true
 rustc-hash.workspace = true
 
