@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 claudelang-core = { path = "../claudelang-core" }
 claudelang-effects = { path = "../claudelang-effects" }
+claudelang-stdlib = { path = "../claudelang-stdlib" }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
@@ -159,3 +160,19 @@ path = "../examples/test_list_operations.rs"
 [[example]]
 name = "test_list_debug"
 path = "../examples/test_list_debug.rs"
+
+[[example]]
+name = "test_fast_locals"
+path = "../examples/test_fast_locals.rs"
+
+[[example]]
+name = "test_constructors"
+path = "../examples/test_constructors.rs"
+
+[[example]]
+name = "test_simple_constructor"
+path = "../examples/test_simple_constructor.rs"
+
+[[example]]
+name = "test_stdlib"
+path = "../examples/test_stdlib.rs"

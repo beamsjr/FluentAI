@@ -155,7 +155,14 @@ impl Compiler {
                     0 // Lambda frames start at 0 too
                 };
                 let rel_pos = abs_pos - frame_base;
-                self.emit(Instruction::with_arg(Opcode::Load, rel_pos as u32));
+                // Use fast local opcodes for indices 0-3
+                match rel_pos {
+                    0 => self.emit(Instruction::new(Opcode::LoadLocal0)),
+                    1 => self.emit(Instruction::new(Opcode::LoadLocal1)),
+                    2 => self.emit(Instruction::new(Opcode::LoadLocal2)),
+                    3 => self.emit(Instruction::new(Opcode::LoadLocal3)),
+                    _ => self.emit(Instruction::with_arg(Opcode::Load, rel_pos as u32)),
+                };
                 
                 // If this is a cell variable (from letrec), dereference it
                 if self.cell_vars[scope_idx].contains(name) {
@@ -239,6 +246,23 @@ impl Compiler {
                             // Other opcodes might need special handling
                         }
                     }
+                }
+                
+                // Check if it's a constructor (starts with uppercase)
+                if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                    // Constructor call - create a tagged value
+                    // Push the tag as a constant
+                    let tag_idx = self.add_constant(Value::String(name.clone()));
+                    self.emit(Instruction::with_arg(Opcode::Push, tag_idx));
+                    
+                    // Compile arguments
+                    for &arg in args {
+                        self.compile_node(graph, arg)?;
+                    }
+                    
+                    // Create tagged value
+                    self.emit(Instruction::with_arg(Opcode::MakeTagged, args.len() as u32));
+                    return Ok(());
                 }
             }
         }
@@ -886,10 +910,58 @@ impl Compiler {
                 // The original value remains for the next test or for the body
                 Ok((bindings, false))
             }
-            Pattern::Constructor { .. } => {
-                // TODO: Implement constructor patterns
-                // For now, just fail
+            Pattern::Constructor { name, patterns } => {
+                // First check if the value has the correct tag
+                self.emit(Instruction::new(Opcode::Dup)); // Duplicate the value for tag check
+                let tag_idx = self.add_constant(Value::String(name.clone()));
+                self.emit(Instruction::with_arg(Opcode::IsTagged, tag_idx));
+                
+                // If not the right tag, jump to next pattern
+                let fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
+                
+                // Extract and test sub-patterns
+                for (i, sub_pattern) in patterns.iter().enumerate() {
+                    // Duplicate the tagged value
+                    self.emit(Instruction::new(Opcode::Dup));
+                    // Get the field
+                    self.emit(Instruction::with_arg(Opcode::GetTaggedField, i as u32));
+                    // Test the sub-pattern
+                    let (sub_bindings, _) = self.compile_pattern_test(sub_pattern)?;
+                    bindings.extend(sub_bindings);
+                    
+                    // If sub-pattern failed, clean up stack and fail
+                    let sub_fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
+                    
+                    // Pop the test result (keep the value for next field or body)
+                    self.emit(Instruction::new(Opcode::Pop));
+                }
+                
+                // All sub-patterns matched, push true
+                self.emit(Instruction::new(Opcode::PushTrue));
+                
+                // Jump over the failure case
+                let success_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.emit(Instruction::with_arg(Opcode::Jump, 0)); // Will patch later
+                
+                // Patch the fail jump to here
+                let fail_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.bytecode.chunks[self.current_chunk].patch_jump(fail_jump, fail_target);
+                
+                // Also patch sub-pattern fail jumps
+                for i in 0..patterns.len() {
+                    let sub_fail_jump = fail_jump + 2 + (i * 4) + 3; // Calculate the position
+                    self.bytecode.chunks[self.current_chunk].patch_jump(sub_fail_jump, fail_target);
+                }
+                
+                // Failure case: push false
                 self.emit(Instruction::new(Opcode::PushFalse));
+                
+                // Patch success jump
+                let end_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.bytecode.chunks[self.current_chunk].patch_jump(success_jump, end_target);
+                
                 Ok((bindings, false))
             }
         }
