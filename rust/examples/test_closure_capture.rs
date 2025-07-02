@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
     let code = r#"
         (let ((x 10))
           (let ((make-adder (lambda (n)
-                              (lambda (m) (+ n m x)))))
+                              (lambda (m) (+ (+ n m) x)))))
             (let ((add5 (make-adder 5)))
               (add5 7))))
     "#;
@@ -36,7 +36,7 @@ fn main() -> anyhow::Result<()> {
         (let ((a 1)
               (b 2)
               (c 3))
-          (let ((sum-all (lambda (d) (+ a b c d))))
+          (let ((sum-all (lambda (d) (+ (+ (+ a b) c) d))))
             (sum-all 4)))
     "#;
     run_test("Multiple captures", code, context.clone(), runtime.clone())?;

@@ -71,3 +71,11 @@ path = "../examples/test_scoped_lookup.rs"
 [[example]]
 name = "test_scope_issue"
 path = "../examples/test_scope_issue.rs"
+
+[[example]]
+name = "test_compiler_debug"
+path = "../examples/test_compiler_debug.rs"
+
+[[example]]
+name = "test_nested_closure"
+path = "../examples/test_nested_closure.rs"

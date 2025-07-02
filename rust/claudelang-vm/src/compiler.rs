@@ -136,7 +136,7 @@ impl Compiler {
         // They will be handled specially when applied
         
         // Look up in locals
-        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
+        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&local_idx) = scope.get(name) {
                 // For now, using Load with local index
                 // TODO: Implement proper local variable opcodes
@@ -280,7 +280,7 @@ impl Compiler {
             // Store absolute position on stack
             let abs_pos = self.scope_bases[scope_idx] + i;
             self.locals[scope_idx].insert(name.clone(), abs_pos);
-            self.stack_depth += 1;
+            // Don't increment stack_depth here - compile_node already did it!
         }
         
         // Compile body
@@ -289,7 +289,7 @@ impl Compiler {
         // Clean up bindings while preserving the result
         if !bindings.is_empty() {
             self.emit(Instruction::with_arg(Opcode::PopN, bindings.len() as u32));
-            self.stack_depth -= bindings.len();
+            // PopN already adjusts stack_depth in emit()
         }
         
         // Pop scope
@@ -385,7 +385,9 @@ impl Compiler {
                 let capture_count = (instruction.arg & 0xFFFF) as usize;
                 self.stack_depth = self.stack_depth.saturating_sub(capture_count).saturating_add(1);
             },
-            Opcode::MakeFunc => self.stack_depth += 1,
+            Opcode::MakeFunc => {
+                self.stack_depth += 1;
+            }
             _ => {} // Most instructions don't change stack depth
         }
         self.bytecode.chunks[self.current_chunk].add_instruction(instruction)

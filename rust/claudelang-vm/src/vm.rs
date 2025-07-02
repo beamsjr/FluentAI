@@ -699,32 +699,35 @@ impl VM {
             
             Call => {
                 let arg_count = instruction.arg as usize;
-                let mut args = Vec::with_capacity(arg_count);
                 
-                // Pop arguments
+                // Pop function first (it's on top of stack due to our compilation order)
+                let func = self.pop()?;
+                
+                // Pop arguments in reverse order
+                let mut args = Vec::with_capacity(arg_count);
                 for _ in 0..arg_count {
                     args.push(self.pop()?);
                 }
                 args.reverse();
                 
-                // Pop function
-                let func = self.pop()?;
                 
                 match func {
                     Value::Function { chunk_id, env } => {
                         // Current IP was already incremented by main loop,
                         // so it's already pointing to the next instruction after Call
                         
+                        // Push arguments back onto stack in correct order
+                        for arg in args {
+                            self.push(arg)?;
+                        }
+                        
                         // Push new frame
                         self.call_stack.push(CallFrame {
                             chunk_id,
                             ip: 0,
-                            stack_base: self.stack.len() - args.len(),
+                            stack_base: self.stack.len() - arg_count,
                             env,
                         });
-                        
-                        // Arguments are already on the stack
-                        // TODO: Handle environment
                     }
                     _ => return Err(anyhow!("Cannot call non-function value")),
                 }
