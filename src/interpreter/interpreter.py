@@ -252,6 +252,12 @@ class Interpreter:
             
             elif node.node_type == NodeType.TYPE_ASCRIPTION:
                 return self._eval_type_ascription(node, graph, env)
+            elif node.node_type == NodeType.ASYNC_LAMBDA:
+                return self._eval_async_lambda(node, graph, env)
+            elif node.node_type == NodeType.AWAIT:
+                return self._eval_await(node, graph, env)
+            elif node.node_type == NodeType.PROMISE:
+                return self._eval_promise(node, graph, env)
         
         else:
             raise ValueError(f"Unknown node type: {node.node_type}")
@@ -328,6 +334,35 @@ class Interpreter:
         elif isinstance(func_val.data, dict) and 'type' in func_val.data and func_val.data['type'] == 'closure':
             # User-defined function (closure)
             return self._apply_closure(func_val.data, arg_vals, graph)
+        
+        elif isinstance(func_val.data, dict) and 'type' in func_val.data and func_val.data['type'] == 'async_closure':
+            # Async function - returns a promise
+            closure = func_val.data
+            interpreter = self
+            
+            def executor(resolve, reject):
+                try:
+                    # Create new environment with parameters bound
+                    new_env = Environment(parent=closure['env'])
+                    for param, arg in zip(closure['params'], arg_vals):
+                        new_env.bind(param, arg)
+                    
+                    # Evaluate body - should be a promise
+                    result = interpreter.eval_node(closure['body_id'], graph, new_env)
+                    
+                    # If the body evaluates to a promise ID, we need to wait for it
+                    if isinstance(result.data, str) and result.data in interpreter.effect_context.handler.handlers[-1].promises:
+                        # The body returned a promise, await it
+                        inner_result = interpreter.effect_context.perform(EffectType.ASYNC, "await", result.data)
+                        resolve(inner_result)
+                    else:
+                        resolve(result.data)
+                except Exception as e:
+                    reject(str(e))
+            
+            # Create and return promise
+            promise_id = self.effect_context.perform(EffectType.ASYNC, "promise", executor)
+            return Value(data=promise_id)
         
         elif callable(func_val.data):
             # Python callable (e.g., ADT constructors)
@@ -442,7 +477,28 @@ class Interpreter:
     
     def _eval_effect(self, node: Effect, graph: Graph, env: Environment) -> Value:
         """Evaluate effect operation"""
-        # Evaluate arguments
+        # Special handling for concurrent:go
+        if node.operation == "concurrent:go":
+            # For go, we need to wrap the expression in a closure
+            expr_id = node.argument_ids[0]
+            interpreter = self
+            
+            def goroutine_func():
+                # Evaluate the expression in a new thread
+                return interpreter.eval_node(expr_id, graph, env).data
+            
+            # Perform the go effect with the closure
+            result_data = self.effect_context.perform(
+                node.effect_type, node.operation, goroutine_func
+            )
+            
+            return Value(
+                data=result_data,
+                type_info=node.type_annotation,
+                effects_triggered=[(node.effect_type, node.operation)]
+            )
+        
+        # Evaluate arguments for other effects
         arg_vals = []
         for arg_id in node.argument_ids:
             val = self.eval_node(arg_id, graph, env)
@@ -844,3 +900,73 @@ class Interpreter:
         # actual type is compatible with the ascribed type
         
         return result
+    
+    def _eval_async_lambda(self, node: 'AsyncLambda', graph: Graph, env: Environment) -> Value:
+        """Evaluate async lambda - returns a closure that returns a promise"""
+        from ..core.ast import AsyncLambda
+        
+        # Return closure structure like regular lambda
+        closure = {
+            'type': 'async_closure',
+            'params': node.parameter_names,
+            'body_id': node.body_id,
+            'env': env,
+            'captured': node.captured_variables,
+            'name': '<async>'
+        }
+        
+        return Value(
+            data=closure,
+            type_info=node.type_annotation
+        )
+    
+    def _eval_await(self, node: 'Await', graph: Graph, env: Environment) -> Value:
+        """Evaluate await expression - blocks until promise resolves"""
+        from ..core.ast import Await
+        
+        # Evaluate promise expression
+        promise_val = self.eval_node(node.promise_id, graph, env)
+        
+        # Await the promise
+        result = self.effect_context.perform(EffectType.ASYNC, "await", promise_val.data)
+        
+        return Value(
+            data=result,
+            type_info=node.type_annotation
+        )
+    
+    def _eval_promise(self, node: 'Promise', graph: Graph, env: Environment) -> Value:
+        """Evaluate promise - creates a new promise with executor"""
+        from ..core.ast import Promise
+        
+        # Evaluate executor function
+        executor_val = self.eval_node(node.executor_id, graph, env)
+        
+        # If it's a closure, create a wrapper
+        if isinstance(executor_val.data, dict) and executor_val.data.get('type') == 'closure':
+            closure = executor_val.data
+            interpreter = self  # Capture self
+            
+            def executor_wrapper(resolve, reject):
+                # Create new environment with resolve and reject bound
+                new_env = Environment(parent=closure['env'])
+                new_env.bind('resolve', Value(data=resolve))
+                new_env.bind('reject', Value(data=reject))
+                
+                try:
+                    # Evaluate the body
+                    result = interpreter.eval_node(closure['body_id'], graph, new_env)
+                    # The body should call resolve or reject
+                except Exception as e:
+                    reject(str(e))
+            
+            # Create promise with wrapper
+            promise_id = self.effect_context.perform(EffectType.ASYNC, "promise", executor_wrapper)
+        else:
+            # Use executor directly if it's already callable
+            promise_id = self.effect_context.perform(EffectType.ASYNC, "promise", executor_val.data)
+        
+        return Value(
+            data=promise_id,
+            type_info=node.type_annotation
+        )

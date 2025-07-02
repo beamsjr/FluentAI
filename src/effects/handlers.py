@@ -443,42 +443,42 @@ class RandomHandler(EffectHandler):
             raise ValueError(f"Unknown random operation: {op}")
 
 
+# Import the enhanced network handler
+from .network_handler import NetworkHandler as EnhancedNetworkHandler
+
+# Use a simple wrapper for backwards compatibility
 class NetworkHandler(EffectHandler):
-    """Handler for network effects (simplified for demo)"""
+    """Handler for network effects - wraps the enhanced handler"""
     
     def __init__(self):
         super().__init__()
-        self.mock_responses: Dict[str, Any] = {}
+        self.enhanced_handler = EnhancedNetworkHandler(mock_mode=True)
     
     def can_handle(self, effect_type: EffectType, operation: str) -> bool:
-        return effect_type == EffectType.NETWORK
+        return self.enhanced_handler.can_handle(effect_type, operation)
     
     def handle(self, request: EffectRequest) -> EffectResult:
-        op = request.operation
-        args = request.arguments
-        
-        if op == "fetch":
-            # Simplified HTTP fetch
-            url = args[0]
-            
-            # Check for mock response
-            if url in self.mock_responses:
-                return EffectResult(value=self.mock_responses[url])
-            
-            # In real implementation, would make actual HTTP request
-            return EffectResult(
-                value={"status": 200, "body": f"Mock response for {url}"},
-                metadata={"mocked": True}
+        # Map old operations to new ones for compatibility
+        if request.operation == "fetch":
+            # Map to http-get
+            return self.enhanced_handler.handle(
+                EffectRequest(request.effect_type, "http-get", request.arguments)
             )
-        
-        elif op == "mock":
-            # Set mock response for testing
-            url, response = args[0], args[1]
-            self.mock_responses[url] = response
-            return EffectResult(value=None)
-        
+        elif request.operation == "mock":
+            # Map to mock-response
+            url, response = request.arguments[0], request.arguments[1]
+            return self.enhanced_handler.handle(
+                EffectRequest(request.effect_type, "mock-response", 
+                            ["GET", url, {"body": response, "status": 200}])
+            )
         else:
-            raise ValueError(f"Unknown network operation: {op}")
+            # Pass through to enhanced handler
+            return self.enhanced_handler.handle(request)
+    
+    def cleanup(self):
+        """Clean up resources"""
+        if hasattr(self.enhanced_handler, 'cleanup'):
+            self.enhanced_handler.cleanup()
 
 
 class EffectContext:
@@ -546,13 +546,19 @@ class EffectContext:
 
 def create_default_handler() -> EffectHandler:
     """Create a default effect handler with all standard handlers"""
+    from .async_handler import AsyncHandler
+    from .concurrency_handler import ConcurrencyHandler
+    from .dom_handler import DOMHandler
     return ComposedHandler([
         IOHandler(),
         StateHandler(),
         ErrorHandler(),
         TimeHandler(),
         RandomHandler(),
-        NetworkHandler()
+        NetworkHandler(),
+        DOMHandler(),
+        ConcurrencyHandler(),
+        AsyncHandler()
     ])
 
 
@@ -570,11 +576,17 @@ def create_test_handler(**kwargs) -> EffectHandler:
     else:
         handlers.append(StateHandler())
     
+    from .async_handler import AsyncHandler
+    from .concurrency_handler import ConcurrencyHandler
+    from .dom_handler import DOMHandler
     handlers.extend([
         ErrorHandler(),
         TimeHandler(mock_time=kwargs.get("mock_time")),
         RandomHandler(seed=kwargs.get("seed")),
-        NetworkHandler()
+        NetworkHandler(),
+        DOMHandler(**kwargs.get("dom", {})),
+        ConcurrencyHandler(),
+        AsyncHandler()
     ])
     
     return ComposedHandler(handlers)

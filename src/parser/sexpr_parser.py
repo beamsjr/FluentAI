@@ -53,6 +53,12 @@ class Lexer:
             elif char == ']':
                 self._add_token('RBRACKET', ']')
                 self.pos += 1
+            elif char == '{':
+                self._add_token('LBRACE', '{')
+                self.pos += 1
+            elif char == '}':
+                self._add_token('RBRACE', '}')
+                self.pos += 1
             elif char == ',':
                 self._add_token('COMMA', ',')
                 self.pos += 1
@@ -185,7 +191,7 @@ class Lexer:
         
         while self.pos < len(self.source):
             char = self.source[self.pos]
-            if char.isspace() or char in '()[]";,':
+            if char.isspace() or char in '()[]{}";,':
                 break
             self.pos += 1
         
@@ -255,6 +261,8 @@ class Parser:
             return self._parse_list()
         elif token.type == 'LBRACKET':
             return self._parse_list_literal()
+        elif token.type == 'LBRACE':
+            return self._parse_map_literal()
         elif token.type in ['INT', 'FLOAT', 'STRING', 'BOOL']:
             return self._parse_literal()
         elif token.type == 'SYMBOL':
@@ -347,6 +355,30 @@ class Parser:
                 return self._parse_contract()
             elif symbol == ':':
                 return self._parse_type_ascription()
+            elif symbol == 'async':
+                return self._parse_async_lambda()
+            elif symbol == 'await':
+                return self._parse_await()
+            elif symbol == 'promise':
+                return self._parse_promise()
+            elif symbol == 'go':
+                return self._parse_go()
+            elif symbol == 'chan':
+                return self._parse_channel()
+            elif symbol == 'send!':
+                return self._parse_send()
+            elif symbol == 'receive!':
+                return self._parse_receive()
+            elif symbol == 'select':
+                return self._parse_select()
+            elif symbol == 'ui:component':
+                return self._parse_ui_component()
+            elif symbol == 'ui:if':
+                return self._parse_ui_if()
+            elif symbol == 'ui:for':
+                return self._parse_ui_for()
+            elif symbol == 'ui:when':
+                return self._parse_ui_when()
         
         # Regular function application
         return self._parse_application()
@@ -531,6 +563,9 @@ class Parser:
         # Parse type:operation format
         if ':' in effect_spec:
             effect_str, operation = effect_spec.split(':', 1)
+            # For concurrent effects, keep the full operation
+            if effect_str == 'concurrent':
+                operation = f'concurrent:{operation}'
         else:
             # Legacy format
             effect_str = effect_spec
@@ -544,7 +579,10 @@ class Parser:
             'error': EffectType.ERROR,
             'time': EffectType.TIME,
             'network': EffectType.NETWORK,
-            'random': EffectType.RANDOM
+            'random': EffectType.RANDOM,
+            'concurrent': EffectType.ASYNC,
+            'async': EffectType.ASYNC,
+            'dom': EffectType.DOM
         }
         
         effect_type = effect_map.get(effect_str, EffectType.IO)
@@ -630,6 +668,49 @@ class Parser:
             app = Application(
                 function_id=cons_id,
                 argument_ids=[elem_id, result_id]
+            )
+            result_id = self.graph.add_node(app)
+        
+        return result_id
+    
+    def _parse_map_literal(self) -> str:
+        """Parse map literal: {key value key2 value2 ...}"""
+        self._advance()  # Skip LBRACE
+        
+        pairs = []
+        while self._current() and self._current().type != 'RBRACE':
+            # Parse key (usually a string or keyword)
+            key_id = self._parse_expr()
+            if not key_id:
+                raise SyntaxError("Expected key in map literal")
+            
+            # Parse value
+            if not self._current():
+                raise SyntaxError("Expected value after key in map literal")
+            value_id = self._parse_expr()
+            if not value_id:
+                raise SyntaxError("Expected value in map literal")
+            
+            pairs.append((key_id, value_id))
+        
+        if not self._current() or self._current().type != 'RBRACE':
+            raise SyntaxError("Expected closing brace for map")
+        
+        self._advance()  # Skip RBRACE
+        
+        # Build map using set operations
+        # Start with empty map
+        empty_map = Literal(value={}, literal_type='map')
+        result_id = self.graph.add_node(empty_map)
+        
+        # Build map by adding each key-value pair
+        for key_id, value_id in pairs:
+            set_func = Function(name="set", arity=3, effects={EffectType.PURE})
+            set_id = self.graph.add_node(set_func)
+            
+            app = Application(
+                function_id=set_id,
+                argument_ids=[result_id, key_id, value_id]
             )
             result_id = self.graph.add_node(app)
         
@@ -1123,6 +1204,228 @@ class Parser:
         
         return self.graph.add_node(node)
     
+    def _parse_async_lambda(self) -> str:
+        """Parse async lambda expression: (async (x y) body)"""
+        self._advance()  # Skip 'async'
+        
+        # Parse parameters
+        if not self._current() or self._current().type != 'LPAREN':
+            raise SyntaxError("Expected parameter list")
+        
+        self._advance()  # Skip LPAREN
+        params = []
+        
+        while self._current() and self._current().type == 'SYMBOL':
+            params.append(self._advance().value)
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for parameters")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Parse body
+        body_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for async lambda")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import AsyncLambda
+        node = AsyncLambda(
+            parameter_names=params,
+            parameter_types=[TypeAnnotation("Any") for _ in params],
+            body_id=body_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_await(self) -> str:
+        """Parse await expression: (await promise)"""
+        self._advance()  # Skip 'await'
+        
+        # Parse promise expression
+        promise_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for await")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import Await
+        node = Await(promise_id=promise_id)
+        
+        return self.graph.add_node(node)
+    
+    def _parse_promise(self) -> str:
+        """Parse promise expression: (promise (lambda (resolve reject) ...))"""
+        self._advance()  # Skip 'promise'
+        
+        # Parse executor expression (should be a lambda)
+        executor_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for promise")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import Promise
+        node = Promise(executor_id=executor_id)
+        
+        return self.graph.add_node(node)
+    
+    def _parse_go(self) -> str:
+        """Parse go expression: (go expr)"""
+        self._advance()  # Skip 'go'
+        
+        # Parse expression to run concurrently
+        expr_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for go")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for launching goroutine
+        node = Effect(
+            effect_type=EffectType.ASYNC,
+            operation="concurrent:go",
+            argument_ids=[expr_id]
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_channel(self) -> str:
+        """Parse channel creation: (chan) or (chan capacity)"""
+        self._advance()  # Skip 'chan'
+        
+        # Parse optional capacity
+        capacity_id = None
+        if self._current() and self._current().type != 'RPAREN':
+            capacity_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for chan")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for channel creation
+        if capacity_id:
+            node = Effect(
+                effect_type=EffectType.ASYNC,
+                operation="concurrent:channel",
+                argument_ids=[capacity_id]
+            )
+        else:
+            # Default capacity 0 (unbuffered)
+            zero_node = Literal(value=0, literal_type='int')
+            zero_id = self.graph.add_node(zero_node)
+            node = Effect(
+                effect_type=EffectType.ASYNC,
+                operation="concurrent:channel",
+                argument_ids=[zero_id]
+            )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_send(self) -> str:
+        """Parse send operation: (send! channel value)"""
+        self._advance()  # Skip 'send!'
+        
+        # Parse channel and value
+        channel_id = self._parse_expr()
+        value_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for send!")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for send
+        node = Effect(
+            effect_type=EffectType.ASYNC,
+            operation="concurrent:send",
+            argument_ids=[channel_id, value_id]
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_receive(self) -> str:
+        """Parse receive operation: (receive! channel)"""
+        self._advance()  # Skip 'receive!'
+        
+        # Parse channel
+        channel_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for receive!")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for receive
+        node = Effect(
+            effect_type=EffectType.ASYNC,
+            operation="concurrent:receive",
+            argument_ids=[channel_id]
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_select(self) -> str:
+        """Parse select statement: (select ((receive! ch1) expr1) ((send! ch2 val) expr2) ...)"""
+        self._advance()  # Skip 'select'
+        
+        # Parse cases
+        cases = []
+        while self._current() and self._current().type == 'LPAREN':
+            self._advance()  # Skip LPAREN
+            
+            # Parse case condition (must be channel operation)
+            if not self._current() or self._current().type != 'LPAREN':
+                raise SyntaxError("Expected channel operation in select case")
+            
+            # Save position to parse operation type
+            saved_pos = self.pos
+            self._advance()  # Skip LPAREN
+            
+            if self._current() and self._current().type == 'SYMBOL':
+                op_type = self._current().value
+                if op_type not in ['receive!', 'send!']:
+                    raise SyntaxError("Select case must be receive! or send!")
+            else:
+                raise SyntaxError("Expected channel operation")
+            
+            # Reset and parse the full operation
+            self.pos = saved_pos
+            operation_id = self._parse_expr()
+            
+            # Parse case body
+            body_id = self._parse_expr()
+            
+            if not self._current() or self._current().type != 'RPAREN':
+                raise SyntaxError("Expected closing parenthesis for select case")
+            
+            self._advance()  # Skip RPAREN
+            
+            cases.append({"condition": operation_id, "body": body_id})
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for select")
+        
+        self._advance()  # Skip RPAREN
+        
+        # For now, implement select as a sequence of attempts
+        # In a real implementation, this would be more sophisticated
+        if not cases:
+            # Empty select
+            nil_node = Literal(value=None, literal_type='nil')
+            return self.graph.add_node(nil_node)
+        
+        # Create a simplified select implementation
+        # This is a placeholder - real select would be non-blocking
+        first_case = cases[0]
+        return first_case["condition"]
+    
     def _parse_type_annotation(self) -> TypeAnnotation:
         """Parse a type annotation
         
@@ -1160,6 +1463,178 @@ class Parser:
         
         else:
             raise SyntaxError(f"Expected type annotation, got {self._current()}")
+    
+    def _parse_ui_component(self) -> str:
+        """Parse UI component definition: (ui:component "Name" props render-fn)"""
+        self._advance()  # Skip 'ui:component'
+        
+        # Parse component name
+        if not self._current() or self._current().type != 'STRING':
+            raise SyntaxError("Expected component name string")
+        
+        component_name = self._advance().value
+        
+        # Parse props definition
+        props = {}
+        if self._current() and self._current().type == 'LBRACE':
+            props = self._parse_props_definition()
+        
+        # Parse render function
+        render_fn_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:component")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIComponent
+        node = UIComponent(
+            name=component_name,
+            props=props,
+            render_function_id=render_fn_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_props_definition(self) -> Dict[str, 'PropDefinition']:
+        """Parse component props definition: {:text (prop :string :required true) ...}"""
+        if not self._current() or self._current().type != 'LBRACE':
+            raise SyntaxError("Expected { for props definition")
+        
+        self._advance()  # Skip LBRACE
+        props = {}
+        
+        while self._current() and self._current().type != 'RBRACE':
+            # Parse prop name (keyword)
+            if not self._current() or self._current().type != 'SYMBOL' or not self._current().value.startswith(':'):
+                raise SyntaxError("Expected prop name as keyword")
+            
+            prop_name = self._advance().value[1:]  # Remove the :
+            
+            # Parse prop definition
+            if not self._current() or self._current().type != 'LPAREN':
+                raise SyntaxError("Expected prop definition")
+            
+            prop_def = self._parse_prop_definition()
+            props[prop_name] = prop_def
+        
+        if not self._current() or self._current().type != 'RBRACE':
+            raise SyntaxError("Expected } to close props definition")
+        
+        self._advance()  # Skip RBRACE
+        return props
+    
+    def _parse_prop_definition(self) -> 'PropDefinition':
+        """Parse individual prop definition: (prop :string :required true :default "")"""
+        self._advance()  # Skip LPAREN
+        
+        if not self._current() or self._current().type != 'SYMBOL' or self._current().value != 'prop':
+            raise SyntaxError("Expected 'prop' in prop definition")
+        
+        self._advance()  # Skip 'prop'
+        
+        # Parse prop type
+        if not self._current() or self._current().type != 'SYMBOL' or not self._current().value.startswith(':'):
+            raise SyntaxError("Expected prop type as keyword")
+        
+        prop_type = self._advance().value[1:]  # Remove the :
+        
+        # Parse options
+        required = False
+        default_value = None
+        
+        while self._current() and self._current().type != 'RPAREN':
+            if self._current().type == 'SYMBOL' and self._current().value.startswith(':'):
+                option = self._advance().value
+                
+                if option == ':required':
+                    if not self._current():
+                        raise SyntaxError("Expected value after :required")
+                    required = self._current().value in ['true', True]
+                    self._advance()
+                elif option == ':default':
+                    default_value_id = self._parse_expr()
+                    # For now, store the node ID - in real implementation we'd evaluate it
+                    default_value = default_value_id
+            else:
+                raise SyntaxError(f"Unexpected token in prop definition: {self._current()}")
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for prop definition")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import PropDefinition
+        return PropDefinition(
+            prop_type=prop_type,
+            required=required,
+            default_value=default_value
+        )
+    
+    def _parse_ui_if(self) -> str:
+        """Parse ui:if: (ui:if condition then-node else-node)"""
+        self._advance()  # Skip 'ui:if'
+        
+        condition_id = self._parse_expr()
+        then_id = self._parse_expr()
+        else_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:if")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIControlFlow
+        node = UIControlFlow(
+            flow_type="if",
+            condition_id=condition_id,
+            then_id=then_id,
+            else_id=else_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_ui_for(self) -> str:
+        """Parse ui:for: (ui:for items render-fn)"""
+        self._advance()  # Skip 'ui:for'
+        
+        items_id = self._parse_expr()
+        render_func_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:for")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIControlFlow
+        node = UIControlFlow(
+            flow_type="for",
+            items_id=items_id,
+            render_func_id=render_func_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_ui_when(self) -> str:
+        """Parse ui:when: (ui:when condition node)"""
+        self._advance()  # Skip 'ui:when'
+        
+        condition_id = self._parse_expr()
+        then_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for ui:when")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import UIControlFlow
+        node = UIControlFlow(
+            flow_type="when",
+            condition_id=condition_id,
+            then_id=then_id
+        )
+        
+        return self.graph.add_node(node)
 
 
 def parse(source: str) -> Graph:

@@ -7,6 +7,7 @@ Each primitive is carefully designed to be unambiguous and have explicit effects
 
 from typing import Dict, Callable, Any, List, Set
 from .ast import Function, EffectType, TypeAnnotation
+from .ui_primitives import UI_PRIMITIVES
 
 
 class PrimitiveRegistry:
@@ -16,6 +17,7 @@ class PrimitiveRegistry:
         self.primitives: Dict[str, Function] = {}
         self.implementations: Dict[str, Callable] = {}
         self._register_core_primitives()
+        self._register_ui_primitives()
     
     def register(self, name: str, func: Function, implementation: Callable):
         """Register a primitive operation"""
@@ -304,7 +306,93 @@ class PrimitiveRegistry:
             lambda x: not x
         )
         
+        # Null check
+        self.register(
+            "null?",
+            Function(
+                name="null?",
+                arity=1,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Bool")
+                    ]
+                )
+            ),
+            lambda x: x is None or (isinstance(x, list) and len(x) == 0)
+        )
+        
         # List operations
+        self.register(
+            "sort",
+            Function(
+                name="sort",
+                arity=1,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("List")
+                    ]
+                )
+            ),
+            lambda lst: sorted(lst) if isinstance(lst, list) else lst
+        )
+        
+        self.register(
+            "reverse",
+            Function(
+                name="reverse",
+                arity=1,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("List")
+                    ]
+                )
+            ),
+            lambda lst: list(reversed(lst)) if isinstance(lst, list) else lst
+        )
+        
+        self.register(
+            "car",
+            Function(
+                name="car",
+                arity=1,
+                effects={EffectType.ERROR},  # Empty list error
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("Any")
+                    ]
+                )
+            ),
+            lambda lst: lst[0] if lst else {"error": "Empty list"}
+        )
+        
+        self.register(
+            "cdr",
+            Function(
+                name="cdr",
+                arity=1,
+                effects={EffectType.ERROR},  # Empty list error
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("List")
+                    ]
+                )
+            ),
+            lambda lst: lst[1:] if lst else []
+        )
+        
         self.register(
             "cons",
             Function(
@@ -502,6 +590,44 @@ class PrimitiveRegistry:
             lambda t: t[1]
         )
         
+        # Dictionary operations
+        self.register(
+            "get",
+            Function(
+                name="get",
+                arity=2,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Dict"),
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Any")
+                    ]
+                )
+            ),
+            lambda d, k: d.get(k) if isinstance(d, dict) else None
+        )
+        
+        self.register(
+            "set",
+            Function(
+                name="set",
+                arity=3,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Dict"),
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Dict")
+                    ]
+                )
+            ),
+            lambda d, k, v: {**d, k: v} if isinstance(d, dict) else d
+        )
+        
         # String conversion
         self.register(
             "to-string",
@@ -550,6 +676,11 @@ class PrimitiveRegistry:
             ),
             memoize_impl
         )
+    
+    def _register_ui_primitives(self):
+        """Register UI and DOM primitives"""
+        # Register all UI primitives from the UI module
+        UI_PRIMITIVES.register_all(self)
 
 
 # Global primitive registry

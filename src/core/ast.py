@@ -37,6 +37,11 @@ class NodeType(Enum):
     CONTRACT = auto()
     DATA_DECLARATION = auto()
     TYPE_ASCRIPTION = auto()
+    ASYNC_LAMBDA = auto()
+    AWAIT = auto()
+    PROMISE = auto()
+    UI_COMPONENT = auto()
+    UI_CONTROL_FLOW = auto()
 
 
 class EffectType(Enum):
@@ -48,6 +53,8 @@ class EffectType(Enum):
     TIME = auto()
     NETWORK = auto()
     RANDOM = auto()
+    ASYNC = auto()
+    DOM = auto()
 
 
 @dataclass
@@ -542,3 +549,142 @@ class TypeAscription(ASTNode):
     
     def get_dependencies(self) -> List[str]:
         return [self.expr_id] if self.expr_id else []
+
+
+@dataclass
+class AsyncLambda(ASTNode):
+    """Async lambda abstraction node
+    
+    Example: (async-lambda (x) (await (fetch x)))
+    """
+    parameter_names: List[str] = field(default_factory=list)
+    parameter_types: List[TypeAnnotation] = field(default_factory=list)
+    body_id: str = ""
+    captured_variables: Dict[str, str] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        self.node_type = NodeType.ASYNC_LAMBDA
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="AsyncFunction",
+                effects={EffectType.ASYNC}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        deps = [self.body_id]
+        deps.extend(self.captured_variables.values())
+        return deps
+
+
+@dataclass
+class Await(ASTNode):
+    """Await expression node
+    
+    Example: (await promise)
+    Example: (await (fetch url))
+    """
+    promise_id: str = ""
+    
+    def __post_init__(self):
+        self.node_type = NodeType.AWAIT
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="Awaited",
+                effects={EffectType.ASYNC}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        return [self.promise_id] if self.promise_id else []
+
+
+@dataclass
+class Promise(ASTNode):
+    """Promise/Future node
+    
+    Example: (promise (lambda (resolve reject) ...))
+    """
+    executor_id: str = ""  # Function that takes resolve and reject
+    
+    def __post_init__(self):
+        self.node_type = NodeType.PROMISE
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="Promise",
+                effects={EffectType.ASYNC}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        return [self.executor_id] if self.executor_id else []
+
+
+@dataclass
+class UIComponent(ASTNode):
+    """UI Component definition node
+    
+    Example: (ui:component "TodoItem" {:text (prop :string :required true)} render-fn)
+    """
+    name: str = ""
+    props: Dict[str, 'PropDefinition'] = field(default_factory=dict)  # prop name -> definition
+    render_function_id: str = ""  # Lambda that renders the component
+    lifecycle_hooks: Dict[str, str] = field(default_factory=dict)  # hook name -> function id
+    
+    def __post_init__(self):
+        self.node_type = NodeType.UI_COMPONENT
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="Component",
+                effects={EffectType.PURE}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        deps = [self.render_function_id]
+        deps.extend(self.lifecycle_hooks.values())
+        return deps
+
+
+@dataclass
+class PropDefinition:
+    """Component prop definition"""
+    prop_type: str  # :string, :number, :bool, :function, etc.
+    required: bool = False
+    default_value: Optional[Any] = None
+    validator_id: Optional[str] = None  # Optional custom validator function
+
+
+@dataclass
+class UIControlFlow(ASTNode):
+    """UI control flow node (ui:if, ui:for, ui:when)
+    
+    Examples:
+    - (ui:if condition then-vnode else-vnode)
+    - (ui:for items render-fn)
+    - (ui:when condition vnode)
+    """
+    flow_type: str = ""  # "if", "for", "when"
+    condition_id: Optional[str] = None  # For if/when
+    items_id: Optional[str] = None  # For for loops
+    render_func_id: Optional[str] = None  # For for loops
+    then_id: Optional[str] = None  # For if
+    else_id: Optional[str] = None  # For if
+    
+    def __post_init__(self):
+        self.node_type = NodeType.UI_CONTROL_FLOW
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="VNode",
+                effects={EffectType.PURE}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        deps = []
+        if self.condition_id:
+            deps.append(self.condition_id)
+        if self.items_id:
+            deps.append(self.items_id)
+        if self.render_func_id:
+            deps.append(self.render_func_id)
+        if self.then_id:
+            deps.append(self.then_id)
+        if self.else_id:
+            deps.append(self.else_id)
+        return deps
