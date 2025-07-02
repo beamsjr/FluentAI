@@ -1,6 +1,6 @@
 //! High-performance stack-based virtual machine
 
-use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 
@@ -259,7 +259,134 @@ impl VM {
                 }
             }
             
-            Return => return Ok(VMState::Return),
+            Call => {
+                let arg_count = instruction.arg as usize;
+                let func_val = self.pop()?;
+                
+                match func_val {
+                    // Built-in function names
+                    Value::String(ref name) if name.starts_with("__builtin__") => {
+                        let builtin_name = &name[11..]; // Remove "__builtin__" prefix
+                        
+                        // Handle special built-in functions
+                        match builtin_name {
+                            "cons" => {
+                                if arg_count != 2 {
+                                    return Err(anyhow!("cons requires exactly 2 arguments"));
+                                }
+                                let tail = self.pop()?;
+                                let head = self.pop()?;
+                                
+                                // Build a proper list
+                                match tail {
+                                    Value::List(mut items) => {
+                                        items.insert(0, head);
+                                        self.push(Value::List(items))?;
+                                    }
+                                    _ => return Err(anyhow!("cons requires a list as second argument")),
+                                }
+                            }
+                            _ => return Err(anyhow!("Unknown built-in function: {}", builtin_name)),
+                        }
+                    }
+                    // User-defined functions
+                    Value::Function { chunk_id, env: _ } => {
+                        // Create new call frame
+                        let new_frame = CallFrame {
+                            chunk_id,
+                            ip: 0,
+                            stack_base: self.stack.len() - arg_count,
+                        };
+                        
+                        // TODO: Handle environment/closures
+                        
+                        self.call_stack.push(new_frame);
+                    }
+                    _ => return Err(anyhow!("Attempted to call non-function value")),
+                }
+            }
+            
+            Return => {
+                if self.call_stack.len() <= 1 {
+                    return Ok(VMState::Return);
+                }
+                
+                // Get return value
+                let return_val = self.pop()?;
+                
+                // Pop call frame
+                let frame = self.call_stack.pop().unwrap();
+                
+                // Clean up stack (remove arguments)
+                self.stack.truncate(frame.stack_base);
+                
+                // Push return value
+                self.push(return_val)?;
+            }
+            
+            // Variables
+            Load => {
+                let local_idx = instruction.arg as usize;
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + local_idx;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                let value = self.stack[value_idx].clone();
+                self.push(value)?;
+            }
+            
+            Store => {
+                let local_idx = instruction.arg as usize;
+                let value = self.pop()?;
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + local_idx;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                self.stack[value_idx] = value;
+            }
+            
+            LoadGlobal => {
+                let name_idx = instruction.arg as usize;
+                let name = match &self.bytecode.chunks[chunk_id].constants.get(name_idx) {
+                    Some(Value::String(s)) => s,
+                    _ => return Err(anyhow!("Invalid global name constant")),
+                };
+                
+                // Check if it's a built-in function name
+                let value = if let Some(_) = self.builtin_to_opcode(name) {
+                    // For built-ins, we'll store them as a special string value
+                    Value::String(format!("__builtin__{}", name))
+                } else if name == "cons" {
+                    // Special built-in for list construction
+                    Value::String("__builtin__cons".to_string())
+                } else {
+                    // Look up in globals
+                    self.globals.get(name)
+                        .cloned()
+                        .unwrap_or(Value::Nil)
+                };
+                
+                self.push(value)?;
+            }
+            
+            StoreGlobal => {
+                let name_idx = instruction.arg as usize;
+                let name = match &self.bytecode.chunks[chunk_id].constants.get(name_idx) {
+                    Some(Value::String(s)) => s.clone(),
+                    _ => return Err(anyhow!("Invalid global name constant")),
+                };
+                
+                let value = self.pop()?;
+                self.globals.insert(name, value);
+            }
             
             // Lists
             MakeList => {
@@ -412,6 +539,32 @@ impl VM {
             Value::String(s) => !s.is_empty(),
             Value::List(l) => !l.is_empty(),
             Value::Function { .. } => true,
+        }
+    }
+    
+    fn builtin_to_opcode(&self, name: &str) -> Option<Opcode> {
+        match name {
+            "+" => Some(Opcode::Add),
+            "-" => Some(Opcode::Sub),
+            "*" => Some(Opcode::Mul),
+            "/" => Some(Opcode::Div),
+            "%" => Some(Opcode::Mod),
+            "=" | "==" => Some(Opcode::Eq),
+            "!=" | "<>" => Some(Opcode::Ne),
+            "<" => Some(Opcode::Lt),
+            "<=" => Some(Opcode::Le),
+            ">" => Some(Opcode::Gt),
+            ">=" => Some(Opcode::Ge),
+            "and" => Some(Opcode::And),
+            "or" => Some(Opcode::Or),
+            "not" => Some(Opcode::Not),
+            "list-len" | "length" => Some(Opcode::ListLen),
+            "list-empty?" | "empty?" => Some(Opcode::ListEmpty),
+            "str-len" | "string-length" => Some(Opcode::StrLen),
+            "str-concat" | "string-append" => Some(Opcode::StrConcat),
+            "str-upper" | "string-upcase" => Some(Opcode::StrUpper),
+            "str-lower" | "string-downcase" => Some(Opcode::StrLower),
+            _ => None,
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Compiler from AST to bytecode
 
 use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
-use claudelang_core::ast::{Graph as ASTGraph, Node, NodeId, Literal, Pattern, EffectType};
+use claudelang_core::ast::{Graph as ASTGraph, Node, NodeId, Literal};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 
@@ -25,12 +25,9 @@ impl Compiler {
     }
     
     pub fn compile(mut self, graph: &ASTGraph) -> Result<Bytecode> {
-        if graph.nodes.is_empty() {
-            return Err(anyhow!("Empty AST graph"));
-        }
+        let root_id = graph.root_id
+            .ok_or_else(|| anyhow!("AST graph has no root node"))?;
         
-        // Find the root node (first node in the graph)
-        let root_id = NodeId(0);
         self.compile_node(graph, root_id)?;
         
         // Add halt instruction
@@ -108,11 +105,8 @@ impl Compiler {
     }
     
     fn compile_variable(&mut self, name: &str) -> Result<()> {
-        // Check if it's a built-in function
-        if let Some(_opcode) = self.builtin_to_opcode(name) {
-            // For built-in functions, we'll handle them in application
-            return Err(anyhow!("Built-in function {} used as value", name));
-        }
+        // Built-in functions are valid values in ClaudeLang (first-class functions)
+        // They will be handled specially when applied
         
         // Look up in locals
         for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
@@ -135,13 +129,34 @@ impl Compiler {
         if let Some(node) = graph.nodes.get(&func) {
             if let Node::Variable { name } = node {
                 if let Some(opcode) = self.builtin_to_opcode(name) {
-                    // Compile arguments
-                    for &arg in args {
-                        self.compile_node(graph, arg)?;
+                    // For built-in arithmetic/comparison ops, compile args and emit opcode
+                    match opcode {
+                        // Binary operators
+                        Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod |
+                        Opcode::Eq | Opcode::Ne | Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge |
+                        Opcode::And | Opcode::Or | Opcode::StrConcat => {
+                            if args.len() != 2 {
+                                return Err(anyhow!("{} requires exactly 2 arguments", name));
+                            }
+                            self.compile_node(graph, args[0])?;
+                            self.compile_node(graph, args[1])?;
+                            self.emit(Instruction::new(opcode));
+                            return Ok(());
+                        }
+                        // Unary operators
+                        Opcode::Not | Opcode::ListLen | Opcode::ListEmpty | 
+                        Opcode::StrLen | Opcode::StrUpper | Opcode::StrLower => {
+                            if args.len() != 1 {
+                                return Err(anyhow!("{} requires exactly 1 argument", name));
+                            }
+                            self.compile_node(graph, args[0])?;
+                            self.emit(Instruction::new(opcode));
+                            return Ok(());
+                        }
+                        _ => {
+                            // Other opcodes might need special handling
+                        }
                     }
-                    // Emit the built-in opcode
-                    self.emit(Instruction::new(opcode));
-                    return Ok(());
                 }
             }
         }

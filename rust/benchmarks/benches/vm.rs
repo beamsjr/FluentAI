@@ -7,8 +7,38 @@ use claudelang_vm::{Compiler, VM};
 fn benchmark_vm_arithmetic(c: &mut Criterion) {
     let mut group = c.benchmark_group("vm_arithmetic");
     
-    // For now, skip arithmetic benchmarks until we fix built-in functions
-    // TODO: Fix built-in function compilation
+    // Simple addition
+    group.bench_function("simple_add", |b| {
+        b.iter(|| {
+            let ast = parse("(+ 1 2)").unwrap();
+            let compiler = Compiler::new();
+            let bytecode = compiler.compile(&ast).unwrap();
+            let mut vm = VM::new(bytecode);
+            black_box(vm.run().unwrap())
+        });
+    });
+    
+    // Nested arithmetic
+    group.bench_function("nested_arithmetic", |b| {
+        b.iter(|| {
+            let ast = parse("(* (+ 1 2) (- 4 3))").unwrap();
+            let compiler = Compiler::new();
+            let bytecode = compiler.compile(&ast).unwrap();
+            let mut vm = VM::new(bytecode);
+            black_box(vm.run().unwrap())
+        });
+    });
+    
+    // Complex expression
+    group.bench_function("complex_arithmetic", |b| {
+        b.iter(|| {
+            let ast = parse("(+ (* 2 3) (/ 8 2))").unwrap();
+            let compiler = Compiler::new();
+            let bytecode = compiler.compile(&ast).unwrap();
+            let mut vm = VM::new(bytecode);
+            black_box(vm.run().unwrap())
+        });
+    });
     
     group.finish();
 }

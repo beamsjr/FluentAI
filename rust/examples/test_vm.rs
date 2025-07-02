@@ -12,6 +12,11 @@ fn main() {
         ("String literal", r#""hello world""#),
         ("Boolean true", "true"),
         ("Boolean false", "false"),
+        ("Simple arithmetic", "(+ 1 2)"),
+        ("Nested arithmetic", "(* (+ 1 2) (- 4 3))"),
+        ("Integer operations", "(+ (* 2 3) (/ 8 2))"),
+        ("Comparison", "(< 5 10)"),
+        ("String concat", r#"(str-concat "hello" " world")"#),
         ("List creation", "[1 2 3]"),
     ];
     
