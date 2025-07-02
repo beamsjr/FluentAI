@@ -60,7 +60,8 @@ pub async fn handle_search_docs(state: &ServerState, args: Option<&JsonValue>) -
     
     debug!("Searching documentation for: {}", query);
     
-    let results = state.docs.search(query);
+    // Only show user-facing documentation to the LLM
+    let results = state.docs.search_user_facing(query);
     
     let mut content = String::new();
     content.push_str(&format!("Found {} results for '{}'\n\n", results.len(), query));
@@ -140,7 +141,8 @@ pub async fn handle_get_syntax(state: &ServerState, args: Option<&JsonValue>) ->
 pub async fn handle_list_features(state: &ServerState, _args: Option<&JsonValue>) -> Result<JsonValue> {
     debug!("Listing all features");
     
-    let all_docs = state.docs.list_all();
+    // Only show user-facing documentation to the LLM
+    let all_docs = state.docs.list_user_facing();
     
     let mut content = String::new();
     content.push_str(&format!("# ClaudeLang Features ({} total)\n\n", all_docs.len()));

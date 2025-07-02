@@ -2,6 +2,17 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Visibility level for documentation
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DocumentationVisibility {
+    /// Public API - visible to end users
+    Public,
+    /// Internal implementation detail - hidden from end users
+    Internal,
+    /// Advanced feature - shown with a warning
+    Advanced,
+}
+
 /// Documentation for a language construct
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Documentation {
@@ -11,6 +22,7 @@ pub struct Documentation {
     pub examples: Vec<String>,
     pub category: DocumentationCategory,
     pub see_also: Vec<String>,
+    pub visibility: DocumentationVisibility,
 }
 
 /// Category of documented construct
@@ -41,6 +53,10 @@ pub trait DocumentedNode {
     
     fn category() -> DocumentationCategory;
     
+    fn visibility() -> DocumentationVisibility {
+        DocumentationVisibility::Public
+    }
+    
     fn see_also() -> &'static [&'static str] {
         &[]
     }
@@ -53,6 +69,7 @@ pub trait DocumentedNode {
             examples: Self::examples().iter().map(|s| s.to_string()).collect(),
             category: Self::category(),
             see_also: Self::see_also().iter().map(|s| s.to_string()).collect(),
+            visibility: Self::visibility(),
         }
     }
 }
@@ -122,6 +139,7 @@ impl OperatorDoc {
             examples: self.examples.iter().map(|s| s.to_string()).collect(),
             category: DocumentationCategory::Operator,
             see_also: vec![],
+            visibility: DocumentationVisibility::Public,
         }
     }
 }
@@ -150,7 +168,41 @@ impl KeywordDoc {
             examples: self.examples.iter().map(|s| s.to_string()).collect(),
             category: DocumentationCategory::Keyword,
             see_also: vec![],
+            visibility: DocumentationVisibility::Public,
         }
+    }
+}
+
+/// Trait for user-facing language features that must be documented
+/// This is used to enforce documentation at compile time for features users can directly use
+pub trait UserFacingFeature {
+    /// Get the documentation for this feature
+    fn documentation() -> Documentation;
+    
+    /// Validate that documentation is complete and appropriate for users
+    fn validate_documentation() -> Result<(), &'static str> {
+        let doc = Self::documentation();
+        
+        // Ensure visibility is Public
+        if doc.visibility != DocumentationVisibility::Public {
+            return Err("User-facing features must have Public visibility");
+        }
+        
+        // Ensure required fields are non-empty
+        if doc.name.is_empty() {
+            return Err("Documentation must have a name");
+        }
+        if doc.syntax.is_empty() {
+            return Err("Documentation must have syntax");
+        }
+        if doc.description.is_empty() {
+            return Err("Documentation must have a description");
+        }
+        if doc.examples.is_empty() {
+            return Err("Documentation must have at least one example");
+        }
+        
+        Ok(())
     }
 }
 
@@ -180,6 +232,7 @@ impl BuiltinDoc {
             examples: self.examples.iter().map(|s| s.to_string()).collect(),
             category: DocumentationCategory::Function,
             see_also: vec![],
+            visibility: DocumentationVisibility::Public,
         }
     }
 }

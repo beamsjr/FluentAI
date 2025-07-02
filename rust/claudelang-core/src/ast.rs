@@ -3,7 +3,7 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use crate::documentation::{DocumentedNode, Documentation, DocumentationCategory};
+use crate::documentation::{DocumentedNode, Documentation, DocumentationCategory, DocumentationVisibility};
 
 /// Node identifier in the AST graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -239,6 +239,10 @@ impl DocumentedNode for Node {
         DocumentationCategory::DataStructure
     }
     
+    fn visibility() -> DocumentationVisibility {
+        DocumentationVisibility::Internal
+    }
+    
     fn get_docs() -> Documentation {
         // For the enum itself, we return generic documentation
         // The real documentation comes from get_node_docs() below
@@ -249,6 +253,7 @@ impl DocumentedNode for Node {
             examples: Self::examples().iter().map(|s| s.to_string()).collect(),
             category: Self::category(),
             see_also: vec![],
+            visibility: Self::visibility(),
         }
     }
 }
@@ -265,6 +270,7 @@ impl Node {
                     examples: vec!["42".to_string(), "-17".to_string(), "0".to_string()],
                     category: DocumentationCategory::Literal,
                     see_also: vec![],
+                    visibility: DocumentationVisibility::Public,
                 },
                 Literal::Float(_) => Documentation {
                     name: "Float".to_string(),
@@ -273,6 +279,7 @@ impl Node {
                     examples: vec!["3.14".to_string(), "-2.5".to_string(), "1.23e-4".to_string()],
                     category: DocumentationCategory::Literal,
                     see_also: vec![],
+                    visibility: DocumentationVisibility::Public,
                 },
                 Literal::String(_) => Documentation {
                     name: "String".to_string(),
@@ -281,6 +288,7 @@ impl Node {
                     examples: vec!["\"Hello, World!\"".to_string(), "\"Line 1\\nLine 2\"".to_string()],
                     category: DocumentationCategory::Literal,
                     see_also: vec![],
+                    visibility: DocumentationVisibility::Public,
                 },
                 Literal::Boolean(_) => Documentation {
                     name: "Boolean".to_string(),
@@ -289,6 +297,7 @@ impl Node {
                     examples: vec!["true".to_string(), "false".to_string()],
                     category: DocumentationCategory::Literal,
                     see_also: vec![],
+                    visibility: DocumentationVisibility::Public,
                 },
                 Literal::Nil => Documentation {
                     name: "Nil".to_string(),
@@ -297,6 +306,7 @@ impl Node {
                     examples: vec!["nil".to_string()],
                     category: DocumentationCategory::Literal,
                     see_also: vec![],
+                    visibility: DocumentationVisibility::Public,
                 },
             },
             Node::Variable { name: _ } => Documentation {
@@ -306,6 +316,7 @@ impl Node {
                 examples: vec!["x".to_string(), "count".to_string(), "my_variable".to_string()],
                 category: DocumentationCategory::Variable,
                 see_also: vec!["Let".to_string(), "Lambda".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Lambda { .. } => Documentation {
                 name: "Lambda".to_string(),
@@ -314,6 +325,7 @@ impl Node {
                 examples: vec!["(lambda (x) (+ x 1))".to_string(), "(lambda (x y) (* x y))".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Application".to_string(), "Let".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Let { .. } => Documentation {
                 name: "Let".to_string(),
@@ -322,6 +334,7 @@ impl Node {
                 examples: vec!["(let ((x 5)) (+ x 1))".to_string(), "(let ((x 10) (y 20)) (+ x y))".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Letrec".to_string(), "Lambda".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Letrec { .. } => Documentation {
                 name: "Letrec".to_string(),
@@ -330,6 +343,7 @@ impl Node {
                 examples: vec!["(letrec ((fact (lambda (n) (if (= n 0) 1 (* n (fact (- n 1))))))) (fact 5))".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Let".to_string(), "Lambda".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::If { .. } => Documentation {
                 name: "If".to_string(),
@@ -338,6 +352,7 @@ impl Node {
                 examples: vec!["(if true \"yes\" \"no\")".to_string(), "(if (> x 0) \"positive\" \"non-positive\")".to_string()],
                 category: DocumentationCategory::ControlFlow,
                 see_also: vec!["Match".to_string(), "Boolean".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Application { .. } => Documentation {
                 name: "Application".to_string(),
@@ -346,6 +361,7 @@ impl Node {
                 examples: vec!["(+ 1 2)".to_string(), "(print \"Hello\")".to_string(), "(map square [1 2 3])".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Lambda".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Effect { .. } => Documentation {
                 name: "Effect".to_string(),
@@ -354,6 +370,7 @@ impl Node {
                 examples: vec!["(effect IO print \"Hello\")".to_string(), "(io:print \"Hello\")".to_string()],
                 category: DocumentationCategory::Effect,
                 see_also: vec!["Async".to_string(), "IO".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::List(_) => Documentation {
                 name: "List".to_string(),
@@ -362,6 +379,7 @@ impl Node {
                 examples: vec!["[1 2 3]".to_string(), "[\"a\" \"b\" \"c\"]".to_string(), "[]".to_string()],
                 category: DocumentationCategory::DataStructure,
                 see_also: vec!["cons".to_string(), "car".to_string(), "cdr".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Match { .. } => Documentation {
                 name: "Match".to_string(),
@@ -370,6 +388,7 @@ impl Node {
                 examples: vec!["(match x (0 \"zero\") (1 \"one\") (_ \"other\"))".to_string()],
                 category: DocumentationCategory::PatternMatching,
                 see_also: vec!["If".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Module { .. } => Documentation {
                 name: "Module".to_string(),
@@ -378,6 +397,7 @@ impl Node {
                 examples: vec!["(module math [add subtract] (let ((add +) (subtract -)) ...))".to_string()],
                 category: DocumentationCategory::Module,
                 see_also: vec!["Import".to_string(), "Export".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Import { .. } => Documentation {
                 name: "Import".to_string(),
@@ -386,6 +406,7 @@ impl Node {
                 examples: vec!["(import \"std/math\" [sin cos])".to_string(), "(import \"utils\" *)".to_string()],
                 category: DocumentationCategory::Module,
                 see_also: vec!["Module".to_string(), "Export".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Export { .. } => Documentation {
                 name: "Export".to_string(),
@@ -394,6 +415,7 @@ impl Node {
                 examples: vec!["(export [add subtract multiply])".to_string()],
                 category: DocumentationCategory::Module,
                 see_also: vec!["Module".to_string(), "Import".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::QualifiedVariable { .. } => Documentation {
                 name: "QualifiedVariable".to_string(),
@@ -402,6 +424,7 @@ impl Node {
                 examples: vec!["math/pi".to_string(), "std/print".to_string()],
                 category: DocumentationCategory::Variable,
                 see_also: vec!["Variable".to_string(), "Import".to_string(), "Module".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Async { .. } => Documentation {
                 name: "Async".to_string(),
@@ -410,6 +433,7 @@ impl Node {
                 examples: vec!["(async (http-get \"https://api.example.com\"))".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Await".to_string(), "Spawn".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Await { .. } => Documentation {
                 name: "Await".to_string(),
@@ -418,6 +442,7 @@ impl Node {
                 examples: vec!["(await (async (+ 1 2)))".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Async".to_string(), "Spawn".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Spawn { .. } => Documentation {
                 name: "Spawn".to_string(),
@@ -426,6 +451,7 @@ impl Node {
                 examples: vec!["(spawn (process-data data))".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Async".to_string(), "Channel".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Channel => Documentation {
                 name: "Channel".to_string(),
@@ -434,6 +460,7 @@ impl Node {
                 examples: vec!["(let ((ch (chan))) ...)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Send".to_string(), "Receive".to_string(), "Spawn".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Send { .. } => Documentation {
                 name: "Send".to_string(),
@@ -442,6 +469,7 @@ impl Node {
                 examples: vec!["(send! ch 42)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Receive".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
             Node::Receive { .. } => Documentation {
                 name: "Receive".to_string(),
@@ -450,6 +478,7 @@ impl Node {
                 examples: vec!["(recv! ch)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Send".to_string()],
+                visibility: DocumentationVisibility::Public,
             },
         }
     }
