@@ -431,6 +431,137 @@
         }
     };
 
+    // UI Optimization Support
+    ClaudeLang.optimizations = {
+        components: {}
+    };
+
+    ClaudeLang.renderMetrics = {};
+
+    // Configure optimizations for components
+    ClaudeLang.configureOptimizations = function(config) {
+        if (config.components) {
+            Object.assign(this.optimizations.components, config.components);
+        }
+    };
+
+    // Memoization helper
+    ClaudeLang.memoize = function(component, propKeys) {
+        const cache = new Map();
+        
+        return function(props) {
+            // Create cache key from specified props
+            const key = propKeys.map(k => props[k]).join('|');
+            
+            if (cache.has(key)) {
+                return cache.get(key);
+            }
+            
+            const result = component(props);
+            cache.set(key, result);
+            
+            // Limit cache size
+            if (cache.size > 100) {
+                const firstKey = cache.keys().next().value;
+                cache.delete(firstKey);
+            }
+            
+            return result;
+        };
+    };
+
+    // Lazy loading helper
+    ClaudeLang.lazy = function(loader) {
+        let Component = null;
+        let promise = null;
+        
+        return function LazyComponent(props) {
+            if (Component) {
+                return Component(props);
+            }
+            
+            if (!promise) {
+                promise = loader().then(c => {
+                    Component = c;
+                    return c;
+                });
+            }
+            
+            // Return loading placeholder
+            return ClaudeLang.primitives['dom:h']('div', {}, [
+                ClaudeLang.primitives['dom:text']('Loading...')
+            ]);
+        };
+    };
+
+    // Batch updates configuration
+    ClaudeLang.batchingConfig = {};
+
+    ClaudeLang.configureBatching = function(componentName, config) {
+        this.batchingConfig[componentName] = config;
+    };
+
+    // Enhanced render tracking
+    const originalRender = ClaudeLang.performEffect;
+    ClaudeLang.performEffect = function(effectType, operation, args) {
+        if (effectType === 'DOM' && operation === 'render') {
+            const startTime = performance.now();
+            const [vnode, container] = args;
+            
+            // Apply render optimizations if configured
+            if (vnode && vnode.type && ClaudeLang.optimizations.components[vnode.type]) {
+                const opts = ClaudeLang.optimizations.components[vnode.type];
+                
+                // Apply throttling
+                if (opts.throttle) {
+                    const lastRender = ClaudeLang.renderMetrics[vnode.type]?.lastRender || 0;
+                    const timeSince = startTime - lastRender;
+                    
+                    if (timeSince < opts.throttle) {
+                        return; // Skip render
+                    }
+                }
+            }
+            
+            const result = originalRender.call(this, effectType, operation, args);
+            
+            const endTime = performance.now();
+            const renderTime = endTime - startTime;
+            
+            // Track render metrics
+            if (vnode && vnode.type) {
+                if (!ClaudeLang.renderMetrics[vnode.type]) {
+                    ClaudeLang.renderMetrics[vnode.type] = {
+                        renders: [],
+                        lastRender: 0
+                    };
+                }
+                
+                ClaudeLang.renderMetrics[vnode.type].renders.push({
+                    time: renderTime,
+                    timestamp: startTime,
+                    propsChanged: vnode.propsChanged || []
+                });
+                
+                ClaudeLang.renderMetrics[vnode.type].lastRender = startTime;
+                
+                // Keep only last 100 renders
+                if (ClaudeLang.renderMetrics[vnode.type].renders.length > 100) {
+                    ClaudeLang.renderMetrics[vnode.type].renders.shift();
+                }
+            }
+            
+            return result;
+        } else {
+            return originalRender.call(this, effectType, operation, args);
+        }
+    };
+
+    // Export render metrics for analysis
+    ClaudeLang.getRenderMetrics = function() {
+        return this.renderMetrics;
+    };
+
     // Export to global scope
     global.ClaudeLang = ClaudeLang;
 

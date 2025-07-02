@@ -14,6 +14,7 @@ from enum import Enum, auto
 from ..core.ast import *
 from ..core.graph import Graph
 from ..parser.sexpr_parser import parse
+from ..optimization.ui_optimizer import UIOptimizer, create_ui_optimizer
 
 # Ensure UI node types are imported
 from ..core.ast import UIComponent, UIControlFlow
@@ -39,6 +40,8 @@ class CompilerOptions:
     optimize_bundle_size: bool = True
     tree_shake: bool = True
     target_browsers: List[str] = field(default_factory=lambda: ["defaults"])
+    enable_ui_optimization: bool = True
+    optimization_model_path: Optional[str] = None
 
 
 class UICompiler:
@@ -49,6 +52,16 @@ class UICompiler:
         self.imports: Set[str] = set()
         self.helpers: Set[str] = set()
         self.component_registry: Dict[str, str] = {}
+        
+        # Initialize UI optimizer if enabled
+        self.optimizer: Optional[UIOptimizer] = None
+        if self.options.enable_ui_optimization:
+            self.optimizer = create_ui_optimizer()
+            if self.options.optimization_model_path:
+                try:
+                    self.optimizer.load_model(self.options.optimization_model_path)
+                except:
+                    pass  # Model doesn't exist yet
     
     def compile(self, source: str) -> str:
         """Compile ClaudeLang UI code to JavaScript"""
@@ -339,6 +352,17 @@ function h(tag, props, children) {
     
     def _post_process(self, code: str) -> str:
         """Post-process the generated code"""
+        # Add optimization configuration if enabled
+        if self.optimizer:
+            runtime_config = self.optimizer.get_runtime_optimizations()
+            if runtime_config.get('components'):
+                optimization_setup = f"""
+// UI Optimization Configuration
+ClaudeLang.configureOptimizations({json.dumps(runtime_config, indent=2)});
+
+"""
+                code = optimization_setup + code
+        
         # Add module wrapper if needed
         if self.options.module_format == "commonjs":
             code = f"module.exports = {{\n{code}\n}};"
@@ -376,12 +400,18 @@ function h(tag, props, children) {
                 "default": prop_def.default_value
             }
         
-        # Generate component code
+        # Generate base component code
         component_code = f"""
 ClaudeLang.defineComponent('{node.name}', {{
     props: {json.dumps(prop_defs)},
     render: {render_fn}
 }})"""
+        
+        # Apply optimizations if optimizer is available
+        if self.optimizer:
+            optimization_code = self.optimizer.compile_optimized_component(node, graph)
+            if optimization_code:
+                component_code += f"\n\n{optimization_code}"
         
         # Add to component registry
         self.component_registry[node.name] = component_code
