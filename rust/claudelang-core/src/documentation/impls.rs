@@ -24,6 +24,12 @@ pub struct ChannelDoc;
 pub struct SendDoc;
 pub struct ReceiveDoc;
 
+// Additional constructs
+pub struct DoDoc;
+pub struct MapDoc;
+pub struct TaggedDoc;
+pub struct ListLiteralDoc;
+
 // Literal types
 pub struct IntegerDoc;
 pub struct FloatDoc;
@@ -310,18 +316,22 @@ impl DocumentedNode for ApplicationDoc {
 impl DocumentedNode for EffectDoc {
     fn name() -> &'static str { "Effect" }
     
-    fn syntax() -> &'static str { "(effect <type> <operation> <args>...)" }
+    fn syntax() -> &'static str { "(effect <type> <operation> <args>...) | (<type>:<operation> <args>...)" }
     
     fn description() -> &'static str {
-        "Performs an effectful operation. Effects are tracked by the type system and handled by effect handlers."
+        "Performs an effectful operation. Effects are tracked by the type system and handled by effect handlers. Can be called using explicit effect syntax or shorthand notation with colon."
     }
     
     fn examples() -> &'static [&'static str] {
         &[
             "(effect IO print \"Hello\")",
+            "(io:print \"Hello\")",
             "(effect State get)",
+            "(state:get)",
             "(effect State set 42)",
+            "(state:set 42)",
             "(effect Error raise \"Something went wrong\")",
+            "(error:raise \"Something went wrong\")",
         ]
     }
     
@@ -330,7 +340,7 @@ impl DocumentedNode for EffectDoc {
     }
     
     fn see_also() -> &'static [&'static str] {
-        &["Async", "IO"]
+        &["Async", "IO", "print", "read-line"]
     }
 }
 
@@ -638,5 +648,113 @@ impl DocumentedNode for ReceiveDoc {
     
     fn see_also() -> &'static [&'static str] {
         &["Channel", "Send"]
+    }
+}
+
+impl DocumentedNode for DoDoc {
+    fn name() -> &'static str { "Do" }
+    
+    fn syntax() -> &'static str { "(do <expr1> <expr2> ...)" }
+    
+    fn description() -> &'static str {
+        "Evaluates expressions in sequence from left to right and returns the value of the last expression. Useful for performing side effects in order."
+    }
+    
+    fn examples() -> &'static [&'static str] {
+        &[
+            "(do (print \"Starting\") (+ 1 2))",
+            "(do (print \"Step 1\") (print \"Step 2\") (print \"Step 3\") \"Done\")",
+            "(let ((x 0)) (do (set! x 5) (print x) x))",
+        ]
+    }
+    
+    fn category() -> DocumentationCategory {
+        DocumentationCategory::ControlFlow
+    }
+    
+    fn see_also() -> &'static [&'static str] {
+        &["Let", "Effect"]
+    }
+}
+
+impl DocumentedNode for MapDoc {
+    fn name() -> &'static str { "Map" }
+    
+    fn syntax() -> &'static str { "{<key> <value> ...}" }
+    
+    fn description() -> &'static str {
+        "Map (dictionary/hash table) literal. Creates a key-value data structure. Keys are typically strings or symbols. Maps provide O(1) average-case lookup."
+    }
+    
+    fn examples() -> &'static [&'static str] {
+        &[
+            "{\"name\" \"Alice\" \"age\" 30}",
+            "{:x 10 :y 20}",
+            "(let ((m {\"a\" 1 \"b\" 2})) (map-get m \"a\"))",
+            "{}",
+        ]
+    }
+    
+    fn category() -> DocumentationCategory {
+        DocumentationCategory::DataStructure
+    }
+    
+    fn see_also() -> &'static [&'static str] {
+        &["map-get", "map-set", "map-keys", "map-values"]
+    }
+}
+
+impl DocumentedNode for TaggedDoc {
+    fn name() -> &'static str { "Tagged" }
+    
+    fn syntax() -> &'static str { "(make-tagged <tag> <value1> <value2> ...)" }
+    
+    fn description() -> &'static str {
+        "Tagged values are user-defined data types with a tag (constructor name) and associated values. Used with pattern matching to create algebraic data types."
+    }
+    
+    fn examples() -> &'static [&'static str] {
+        &[
+            "(make-tagged \"Point\" 3 4)",
+            "(make-tagged \"Some\" 42)",
+            "(make-tagged \"None\")",
+            "(match value (\"Some\" x) x (\"None\") 0)",
+        ]
+    }
+    
+    fn category() -> DocumentationCategory {
+        DocumentationCategory::DataStructure
+    }
+    
+    fn see_also() -> &'static [&'static str] {
+        &["Match", "tagged?", "tagged-tag", "tagged-values"]
+    }
+}
+
+impl DocumentedNode for ListLiteralDoc {
+    fn name() -> &'static str { "ListLiteral" }
+    
+    fn syntax() -> &'static str { "[<expr1> <expr2> ...]" }
+    
+    fn description() -> &'static str {
+        "List literal syntax using square brackets. Equivalent to nested cons calls but more convenient. Creates a linked list data structure."
+    }
+    
+    fn examples() -> &'static [&'static str] {
+        &[
+            "[1 2 3]",
+            "[\"a\" \"b\" \"c\"]",
+            "[]",
+            "[x (+ y 1) (* z 2)]",
+            "[[1 2] [3 4] [5 6]]",
+        ]
+    }
+    
+    fn category() -> DocumentationCategory {
+        DocumentationCategory::DataStructure
+    }
+    
+    fn see_also() -> &'static [&'static str] {
+        &["List", "cons", "car", "cdr", "list-ref"]
     }
 }

@@ -1,6 +1,6 @@
 //! Documentation registry for ClaudeLang
 
-use crate::documentation::traits::{Documentation, DocumentedNode, OperatorDoc, KeywordDoc, Associativity};
+use crate::documentation::traits::{Documentation, DocumentedNode, OperatorDoc, KeywordDoc, BuiltinDoc, Associativity};
 use crate::documentation::impls::*;
 use rustc_hash::FxHashMap;
 
@@ -9,6 +9,7 @@ pub struct DocumentationRegistry {
     constructs: FxHashMap<String, Documentation>,
     operators: Vec<OperatorDoc>,
     keywords: Vec<KeywordDoc>,
+    builtins: Vec<BuiltinDoc>,
 }
 
 impl DocumentationRegistry {
@@ -18,6 +19,7 @@ impl DocumentationRegistry {
             constructs: FxHashMap::default(),
             operators: Vec::new(),
             keywords: Vec::new(),
+            builtins: Vec::new(),
         };
         
         registry.register_all();
@@ -46,12 +48,16 @@ impl DocumentationRegistry {
         // Register control flow
         self.register::<IfDoc>();
         self.register::<MatchDoc>();
+        self.register::<DoDoc>();
         
         // Register effects
         self.register::<EffectDoc>();
         
         // Register data structures
         self.register::<ListDoc>();
+        self.register::<ListLiteralDoc>();
+        self.register::<MapDoc>();
+        self.register::<TaggedDoc>();
         
         // Register modules
         self.register::<ModuleDoc>();
@@ -71,6 +77,9 @@ impl DocumentationRegistry {
         
         // Register keywords
         self.register_keywords();
+        
+        // Register built-in functions
+        self.register_builtins();
     }
     
     /// Registers a single construct
@@ -173,9 +182,9 @@ impl DocumentationRegistry {
                 &["(do (print \"Starting\") (compute) (print \"Done\"))"]),
             
             KeywordDoc::new("effect",
-                "Performs an effectful operation.",
-                "(effect <type> <operation> <args>...)",
-                &["(effect IO print \"Hello\")"]),
+                "Performs an effectful operation. Can also use shorthand <type>:<operation> syntax.",
+                "(effect <type> <operation> <args>...) | (<type>:<operation> <args>...)",
+                &["(effect IO print \"Hello\")", "(io:print \"Hello\")"]),
             
             KeywordDoc::new("module",
                 "Defines a module.",
@@ -224,6 +233,143 @@ impl DocumentationRegistry {
         ]);
     }
     
+    /// Registers all built-in functions
+    fn register_builtins(&mut self) {
+        self.builtins.extend(vec![
+            // Core list operations
+            BuiltinDoc::new("cons", 
+                "(cons <item> <list>)",
+                "Constructs a new list by prepending an item to an existing list.",
+                &["(cons 1 [2 3])", "(cons \"a\" [])", "(cons x xs)"],
+                "core"),
+            
+            BuiltinDoc::new("car",
+                "(car <list>)",
+                "Returns the first element of a list. Error if list is empty.",
+                &["(car [1 2 3])", "(car [\"hello\"])", "(car xs)"],
+                "core"),
+            
+            BuiltinDoc::new("cdr",
+                "(cdr <list>)",
+                "Returns the list without its first element. Error if list is empty.",
+                &["(cdr [1 2 3])", "(cdr [\"a\" \"b\"])", "(cdr xs)"],
+                "core"),
+            
+            BuiltinDoc::new("list?",
+                "(list? <value>)",
+                "Tests if a value is a list.",
+                &["(list? [1 2 3])", "(list? \"hello\")", "(list? [])"],
+                "core"),
+            
+            BuiltinDoc::new("null?",
+                "(null? <list>)",
+                "Tests if a list is empty.",
+                &["(null? [])", "(null? [1 2])", "(null? xs)"],
+                "core"),
+            
+            // Map operations
+            BuiltinDoc::new("make-map",
+                "(make-map)",
+                "Creates a new empty map.",
+                &["(make-map)", "(let ((m (make-map))) m)"],
+                "core"),
+            
+            BuiltinDoc::new("map-get",
+                "(map-get <map> <key>)",
+                "Gets a value from a map by key. Returns nil if key not found.",
+                &["(map-get m \"name\")", "(map-get config :debug)"],
+                "core"),
+            
+            BuiltinDoc::new("map-set",
+                "(map-set <map> <key> <value>)",
+                "Sets a key-value pair in a map. Returns the updated map.",
+                &["(map-set m \"name\" \"Alice\")", "(map-set m :count 42)"],
+                "core"),
+            
+            BuiltinDoc::new("map?",
+                "(map? <value>)",
+                "Tests if a value is a map.",
+                &["(map? {\"a\" 1})", "(map? [1 2 3])", "(map? m)"],
+                "core"),
+            
+            // Tagged values
+            BuiltinDoc::new("make-tagged",
+                "(make-tagged <tag> <value> ...)",
+                "Creates a tagged value with the given tag and values.",
+                &["(make-tagged \"Point\" 3 4)", "(make-tagged \"Some\" x)"],
+                "core"),
+            
+            BuiltinDoc::new("tagged?",
+                "(tagged? <value>)",
+                "Tests if a value is a tagged value.",
+                &["(tagged? (make-tagged \"Point\" 1 2))", "(tagged? 42)"],
+                "core"),
+            
+            BuiltinDoc::new("tagged-tag",
+                "(tagged-tag <tagged>)",
+                "Gets the tag of a tagged value.",
+                &["(tagged-tag (make-tagged \"Point\" 1 2))"],
+                "core"),
+            
+            BuiltinDoc::new("tagged-values",
+                "(tagged-values <tagged>)",
+                "Gets the values of a tagged value as a list.",
+                &["(tagged-values (make-tagged \"Point\" 3 4))"],
+                "core"),
+            
+            // String operations
+            BuiltinDoc::new("string-length",
+                "(string-length <string>)",
+                "Returns the length of a string.",
+                &["(string-length \"hello\")", "(string-length \"\")"],
+                "strings"),
+            
+            BuiltinDoc::new("string-concat",
+                "(string-concat <string1> <string2> ...)",
+                "Concatenates multiple strings.",
+                &["(string-concat \"Hello, \" \"World!\")", "(string-concat a b c)"],
+                "strings"),
+            
+            BuiltinDoc::new("substring",
+                "(substring <string> <start> <end>)",
+                "Extracts a substring from start to end indices.",
+                &["(substring \"hello\" 1 4)", "(substring s 0 5)"],
+                "strings"),
+            
+            // IO operations
+            BuiltinDoc::new("print",
+                "(print <value> ...)",
+                "Prints values to standard output with a newline.",
+                &["(print \"Hello, World!\")", "(print x y z)"],
+                "io"),
+            
+            BuiltinDoc::new("read-line",
+                "(read-line)",
+                "Reads a line from standard input.",
+                &["(let ((name (read-line))) (print \"Hello, \" name))"],
+                "io"),
+            
+            // Higher-order functions
+            BuiltinDoc::new("map",
+                "(map <function> <list>)",
+                "Applies a function to each element of a list, returning a new list.",
+                &["(map (lambda (x) (* x 2)) [1 2 3])", "(map string-length [\"a\" \"bb\" \"ccc\"])"],
+                "functional"),
+            
+            BuiltinDoc::new("filter",
+                "(filter <predicate> <list>)",
+                "Returns a new list containing only elements that satisfy the predicate.",
+                &["(filter (lambda (x) (> x 0)) [-1 2 -3 4])", "(filter even? [1 2 3 4])"],
+                "functional"),
+            
+            BuiltinDoc::new("fold",
+                "(fold <function> <initial> <list>)",
+                "Reduces a list to a single value using a binary function.",
+                &["(fold + 0 [1 2 3 4])", "(fold (lambda (acc x) (cons x acc)) [] [1 2 3])"],
+                "functional"),
+        ]);
+    }
+    
     /// Get documentation for a specific construct by name
     pub fn get(&self, name: &str) -> Option<&Documentation> {
         self.constructs.get(name)
@@ -266,6 +412,18 @@ impl DocumentationRegistry {
             }
         }
         
+        // Search builtins
+        for builtin in &self.builtins {
+            if builtin.name.to_lowercase().contains(&query_lower) ||
+               builtin.description.to_lowercase().contains(&query_lower) ||
+               builtin.signature.to_lowercase().contains(&query_lower) {
+                let doc = builtin.to_documentation();
+                if !results.iter().any(|d| d.name == doc.name) {
+                    results.push(doc);
+                }
+            }
+        }
+        
         results
     }
     
@@ -286,6 +444,11 @@ impl DocumentationRegistry {
             all.push(kw.to_documentation());
         }
         
+        // Add all builtins as documentation
+        for builtin in &self.builtins {
+            all.push(builtin.to_documentation());
+        }
+        
         all
     }
     
@@ -297,6 +460,11 @@ impl DocumentationRegistry {
     /// Get all keywords
     pub fn get_keywords(&self) -> &[KeywordDoc] {
         &self.keywords
+    }
+    
+    /// Get all built-in functions
+    pub fn get_builtins(&self) -> &[BuiltinDoc] {
+        &self.builtins
     }
 }
 

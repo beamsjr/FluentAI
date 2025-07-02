@@ -84,6 +84,16 @@ pub struct KeywordDoc {
     pub examples: &'static [&'static str],
 }
 
+/// Documentation for built-in functions
+#[derive(Debug, Clone)]
+pub struct BuiltinDoc {
+    pub name: &'static str,
+    pub signature: &'static str,
+    pub description: &'static str,
+    pub examples: &'static [&'static str],
+    pub module: &'static str,
+}
+
 /// Helper function to create operator documentation
 impl OperatorDoc {
     pub const fn new(
@@ -139,6 +149,36 @@ impl KeywordDoc {
             description: self.description.to_string(),
             examples: self.examples.iter().map(|s| s.to_string()).collect(),
             category: DocumentationCategory::Keyword,
+            see_also: vec![],
+        }
+    }
+}
+
+/// Helper function to create builtin documentation
+impl BuiltinDoc {
+    pub const fn new(
+        name: &'static str,
+        signature: &'static str,
+        description: &'static str,
+        examples: &'static [&'static str],
+        module: &'static str,
+    ) -> Self {
+        Self {
+            name,
+            signature,
+            description,
+            examples,
+            module,
+        }
+    }
+    
+    pub fn to_documentation(&self) -> Documentation {
+        Documentation {
+            name: self.name.to_string(),
+            syntax: self.signature.to_string(),
+            description: self.description.to_string(),
+            examples: self.examples.iter().map(|s| s.to_string()).collect(),
+            category: DocumentationCategory::Function,
             see_also: vec![],
         }
     }
