@@ -204,6 +204,32 @@ class ModuleResolver:
         
         new_graph.root_id = graph.root_id
         return new_graph
+    
+    def resolve_qualified(self, qualified_name: str, env: ModuleEnvironment) -> Optional[Any]:
+        """Resolve a qualified name to its value"""
+        parts = qualified_name.split('.')
+        if len(parts) < 2:
+            return None
+        
+        module_name = parts[0]
+        var_name = '.'.join(parts[1:])
+        
+        # Find the module
+        module_info = None
+        for mod in env.modules.values():
+            if mod.name == module_name:
+                module_info = mod
+                break
+        
+        if not module_info:
+            raise NameError(f"Module '{module_name}' not found")
+        
+        # Check if the variable is exported
+        if var_name not in module_info.exports:
+            raise NameError(f"'{var_name}' is not exported by module '{module_name}'")
+        
+        # Get the value from bindings
+        return env.bindings.get(qualified_name)
 
 
 class ModuleInterpreter:

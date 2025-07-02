@@ -599,8 +599,11 @@ class TestModuleIntegration(unittest.TestCase):
     
     def test_stdlib_module_structure(self):
         """Test standard library module structure"""
-        # Test that stdlib path exists in search paths
-        stdlib_paths = [p for p in self.env.search_paths if "stdlib" in p]
+        # Create a fresh environment with default search paths
+        default_env = ModuleEnvironment()
+        
+        # Test that stdlib path exists in default search paths
+        stdlib_paths = [p for p in default_env.search_paths if "stdlib" in p]
         self.assertGreater(len(stdlib_paths), 0)
     
     def test_module_with_effects(self):

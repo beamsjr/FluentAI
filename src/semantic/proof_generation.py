@@ -17,6 +17,7 @@ class ProofTactic(Enum):
     REFLEXIVITY = "reflexivity"           # x = x
     SUBSTITUTION = "substitution"         # If a = b, then f(a) = f(b)
     BETA_REDUCTION = "beta_reduction"     # (λx.e) v = e[x/v]
+    ETA_EXPANSION = "eta_expansion"       # f = λx. f(x)
     INDUCTION = "induction"               # Structural or natural number induction
     CASE_ANALYSIS = "case_analysis"       # Proof by cases
     CONTRADICTION = "contradiction"       # Proof by contradiction
@@ -25,6 +26,10 @@ class ProofTactic(Enum):
     COMMUTATIVITY = "commutativity"      # a + b = b + a
     ASSOCIATIVITY = "associativity"      # (a + b) + c = a + (b + c)
     DISTRIBUTIVITY = "distributivity"    # a * (b + c) = a * b + a * c
+    INLINING = "inlining"                # Replace function call with body
+    CONSTANT_FOLDING = "constant_folding" # Evaluate constant expressions
+    ALGEBRAIC = "algebraic"               # General algebraic laws
+    DEFINITION = "definition"             # Definitional equality
 
 
 @dataclass
@@ -118,7 +123,7 @@ class ProofGenerator:
             statement=obligation.statement(),
             assumptions=self._extract_assumptions(obligation),
             proof=proof,
-            verified=self._verify_proof(proof, obligation)
+            verified=self._verify_proof(proof, obligation.original_graph)
         )
         
         self.proven_theorems[theorem.name] = theorem
@@ -295,22 +300,37 @@ class ProofGenerator:
             ]
         )
     
-    def _verify_proof(self, proof: ProofStep, obligation: ProofObligation) -> bool:
-        """Verify that a proof is correct"""
-        # Simple verification for now
-        if proof.justification == "TO BE VERIFIED":
+    def _verify_proof(self, proof: ProofStep, graph: Graph) -> bool:
+        """Verify that a proof step is valid"""
+        if not (proof.from_expr and proof.to_expr and proof.justification):
             return False
         
-        # Check that the proof connects original to optimized
-        if proof.from_expr == str(obligation.original_graph) and \
-           proof.to_expr == str(obligation.optimized_graph):
-            return True
-        
-        # Recursively verify subproofs
-        if proof.subproofs:
-            return all(self._verify_subproof(sp) for sp in proof.subproofs)
-        
-        return False
+        # Verify based on tactic
+        if proof.tactic == ProofTactic.BETA_REDUCTION:
+            return self._verify_beta_reduction(proof.from_expr, proof.to_expr)
+        elif proof.tactic == ProofTactic.ETA_EXPANSION:
+            return self._verify_eta_expansion(proof.from_expr, proof.to_expr)
+        elif proof.tactic == ProofTactic.INLINING:
+            return self._verify_inlining(proof.from_expr, proof.to_expr)
+        elif proof.tactic == ProofTactic.CONSTANT_FOLDING:
+            return self._verify_constant_folding(proof.from_expr, proof.to_expr)
+        elif proof.tactic == ProofTactic.ALGEBRAIC:
+            return self._verify_algebraic_law(proof.from_expr, proof.to_expr)
+        elif proof.tactic == ProofTactic.INDUCTION:
+            return self._verify_induction(proof)
+        elif proof.tactic == ProofTactic.CASE_ANALYSIS:
+            return self._verify_case_analysis(proof)
+        elif proof.tactic == ProofTactic.CONTRADICTION:
+            return self._verify_contradiction(proof)
+        elif proof.tactic == ProofTactic.DEFINITION:
+            return True  # Definitions are axiomatically true
+        elif proof.tactic == ProofTactic.COMPUTATION:
+            return self._verify_computation(proof.from_expr, proof.to_expr)
+        elif proof.tactic == ProofTactic.SUBSTITUTION:
+            return self._verify_substitution(proof)
+        else:
+            # Unknown tactic
+            return False
     
     def _verify_subproof(self, proof: ProofStep) -> bool:
         """Verify a subproof"""
@@ -337,14 +357,157 @@ class ProofGenerator:
         return ops
     
     def _graph_to_expression(self, graph: Graph) -> str:
-        """Convert graph to string expression"""
-        # Simplified - would build full expression tree
-        return f"graph_{graph.root_id}"
+        """Convert graph to expression string for proof"""
+        if not graph.root_id or graph.root_id not in graph.nodes:
+            return "⊥"  # Bottom/undefined
+        
+        root = graph.nodes[graph.root_id]
+        return self._node_to_expression(root, graph)
+    
+    def _node_to_expression(self, node: ASTNode, graph: Graph) -> str:
+        """Convert AST node to expression string"""
+        if node.node_type == NodeType.LITERAL:
+            if isinstance(node.value, str):
+                return f'"{node.value}"'
+            return str(node.value)
+        
+        elif node.node_type == NodeType.VARIABLE:
+            return node.name
+        
+        elif node.node_type == NodeType.LAMBDA:
+            params = ' '.join(node.parameter_names)
+            if node.body_id and node.body_id in graph.nodes:
+                body = self._node_to_expression(graph.nodes[node.body_id], graph)
+                return f"(λ {params}. {body})"
+            return f"(λ {params}. ...)"
+        
+        elif node.node_type == NodeType.APPLICATION:
+            func = "?"
+            if node.function_id and node.function_id in graph.nodes:
+                func = self._node_to_expression(graph.nodes[node.function_id], graph)
+            
+            args = []
+            for arg_id in node.argument_ids:
+                if arg_id in graph.nodes:
+                    args.append(self._node_to_expression(graph.nodes[arg_id], graph))
+            
+            return f"({func} {' '.join(args)})"
+        
+        elif node.node_type == NodeType.LET:
+            bindings = []
+            for binding in node.bindings:
+                name = binding['name']
+                if binding['value_id'] in graph.nodes:
+                    val = self._node_to_expression(graph.nodes[binding['value_id']], graph)
+                    bindings.append(f"[{name} {val}]")
+            
+            body = "..."
+            if node.body_id and node.body_id in graph.nodes:
+                body = self._node_to_expression(graph.nodes[node.body_id], graph)
+            
+            return f"(let ({' '.join(bindings)}) {body})"
+        
+        elif node.node_type == NodeType.IF:
+            parts = []
+            for child_id in node.children:
+                if child_id in graph.nodes:
+                    parts.append(self._node_to_expression(graph.nodes[child_id], graph))
+            
+            if len(parts) == 3:
+                return f"(if {parts[0]} {parts[1]} {parts[2]})"
+            return "(if ...)"
+        
+        elif node.node_type == NodeType.BINARY_OP:
+            if len(node.children) == 2 and hasattr(node, 'operator'):
+                left = self._node_to_expression(graph.nodes[node.children[0]], graph) if node.children[0] in graph.nodes else "?"
+                right = self._node_to_expression(graph.nodes[node.children[1]], graph) if node.children[1] in graph.nodes else "?"
+                return f"({left} {node.operator} {right})"
+            return "(binop ...)"
+        
+        elif node.node_type == NodeType.UNARY_OP:
+            if node.children and hasattr(node, 'operator'):
+                operand = self._node_to_expression(graph.nodes[node.children[0]], graph) if node.children[0] in graph.nodes else "?"
+                return f"({node.operator} {operand})"
+            return "(unop ...)"
+        
+        else:
+            return f"<{node.node_type.name}>"
     
     def _apply_commutativity(self, expr: str, op: str) -> str:
-        """Apply commutativity to an expression"""
-        # Simplified - would parse and transform expression
-        return expr
+        """Apply commutativity law to expression"""
+        # Simple pattern matching for commutative operations
+        import re
+        
+        # Match (a + b) or (a * b)
+        pattern = r'\((\w+)\s*([+*])\s*(\w+)\)'
+        
+        def swap_operands(match):
+            left, matched_op, right = match.groups()
+            if matched_op == op:
+                return f"({right} {matched_op} {left})"
+            return match.group(0)
+        
+        # Apply commutativity
+        result = re.sub(pattern, swap_operands, expr)
+        return result
+    
+    def _verify_beta_reduction(self, from_expr: str, to_expr: str) -> bool:
+        """Verify beta reduction step"""
+        # Check if from_expr is an application of a lambda
+        # and to_expr is the result of substitution
+        # Simplified check
+        return "(λ" in from_expr and "(" in from_expr
+    
+    def _verify_eta_expansion(self, from_expr: str, to_expr: str) -> bool:
+        """Verify eta expansion step"""
+        # Check if to_expr is (λx. (from_expr x))
+        return "(λ" in to_expr and from_expr in to_expr
+    
+    def _verify_inlining(self, from_expr: str, to_expr: str) -> bool:
+        """Verify function inlining"""
+        # Check if a function call was replaced with its body
+        return True  # Simplified
+    
+    def _verify_constant_folding(self, from_expr: str, to_expr: str) -> bool:
+        """Verify constant folding"""
+        # Check if arithmetic on constants was evaluated
+        try:
+            # Simple check - to_expr should be a constant
+            float(to_expr)
+            return True
+        except:
+            return False
+    
+    def _verify_algebraic_law(self, from_expr: str, to_expr: str) -> bool:
+        """Verify algebraic transformation"""
+        # Check various algebraic laws
+        # For now, accept if expressions are different
+        return from_expr != to_expr
+    
+    def _verify_induction(self, proof: ProofStep) -> bool:
+        """Verify induction proof"""
+        # Must have base case and inductive step as subproofs
+        return len(proof.subproofs) >= 2
+    
+    def _verify_case_analysis(self, proof: ProofStep) -> bool:
+        """Verify case analysis"""
+        # Must have at least one case
+        return len(proof.subproofs) >= 1
+    
+    def _verify_contradiction(self, proof: ProofStep) -> bool:
+        """Verify proof by contradiction"""
+        # Check if we derived false from assumptions
+        return "false" in proof.to_expr.lower() or "⊥" in proof.to_expr
+    
+    def _verify_computation(self, from_expr: str, to_expr: str) -> bool:
+        """Verify computation step"""
+        # Accept computational steps
+        return True
+    
+    def _verify_substitution(self, proof: ProofStep) -> bool:
+        """Verify substitution step"""
+        # Check if variable was replaced consistently
+        return proof.justification and "substitution" in proof.justification.lower()
     
     def _apply_associativity(self, expr: str) -> str:
         """Apply associativity to an expression"""

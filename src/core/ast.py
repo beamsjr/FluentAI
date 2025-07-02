@@ -42,6 +42,8 @@ class NodeType(Enum):
     PROMISE = auto()
     UI_COMPONENT = auto()
     UI_CONTROL_FLOW = auto()
+    BINARY_OP = auto()
+    UNARY_OP = auto()
 
 
 class EffectType(Enum):
