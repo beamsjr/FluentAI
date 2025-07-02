@@ -546,13 +546,15 @@ class EffectContext:
 
 def create_default_handler() -> EffectHandler:
     """Create a default effect handler with all standard handlers"""
+    from .async_handler import AsyncHandler
     return ComposedHandler([
         IOHandler(),
         StateHandler(),
         ErrorHandler(),
         TimeHandler(),
         RandomHandler(),
-        NetworkHandler()
+        NetworkHandler(),
+        AsyncHandler()
     ])
 
 
@@ -570,11 +572,13 @@ def create_test_handler(**kwargs) -> EffectHandler:
     else:
         handlers.append(StateHandler())
     
+    from .async_handler import AsyncHandler
     handlers.extend([
         ErrorHandler(),
         TimeHandler(mock_time=kwargs.get("mock_time")),
         RandomHandler(seed=kwargs.get("seed")),
-        NetworkHandler()
+        NetworkHandler(),
+        AsyncHandler()
     ])
     
     return ComposedHandler(handlers)

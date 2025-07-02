@@ -304,7 +304,59 @@ class PrimitiveRegistry:
             lambda x: not x
         )
         
+        # Null check
+        self.register(
+            "null?",
+            Function(
+                name="null?",
+                arity=1,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Bool")
+                    ]
+                )
+            ),
+            lambda x: x is None or (isinstance(x, list) and len(x) == 0)
+        )
+        
         # List operations
+        self.register(
+            "car",
+            Function(
+                name="car",
+                arity=1,
+                effects={EffectType.ERROR},  # Empty list error
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("Any")
+                    ]
+                )
+            ),
+            lambda lst: lst[0] if lst else {"error": "Empty list"}
+        )
+        
+        self.register(
+            "cdr",
+            Function(
+                name="cdr",
+                arity=1,
+                effects={EffectType.ERROR},  # Empty list error
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("List")
+                    ]
+                )
+            ),
+            lambda lst: lst[1:] if lst else []
+        )
+        
         self.register(
             "cons",
             Function(

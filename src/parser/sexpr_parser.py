@@ -347,6 +347,12 @@ class Parser:
                 return self._parse_contract()
             elif symbol == ':':
                 return self._parse_type_ascription()
+            elif symbol == 'async':
+                return self._parse_async_lambda()
+            elif symbol == 'await':
+                return self._parse_await()
+            elif symbol == 'promise':
+                return self._parse_promise()
         
         # Regular function application
         return self._parse_application()
@@ -1120,6 +1126,76 @@ class Parser:
             expr_id=expr_id,
             ascribed_type=ascribed_type
         )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_async_lambda(self) -> str:
+        """Parse async lambda expression: (async (x y) body)"""
+        self._advance()  # Skip 'async'
+        
+        # Parse parameters
+        if not self._current() or self._current().type != 'LPAREN':
+            raise SyntaxError("Expected parameter list")
+        
+        self._advance()  # Skip LPAREN
+        params = []
+        
+        while self._current() and self._current().type == 'SYMBOL':
+            params.append(self._advance().value)
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for parameters")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Parse body
+        body_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for async lambda")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import AsyncLambda
+        node = AsyncLambda(
+            parameter_names=params,
+            parameter_types=[TypeAnnotation("Any") for _ in params],
+            body_id=body_id
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_await(self) -> str:
+        """Parse await expression: (await promise)"""
+        self._advance()  # Skip 'await'
+        
+        # Parse promise expression
+        promise_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for await")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import Await
+        node = Await(promise_id=promise_id)
+        
+        return self.graph.add_node(node)
+    
+    def _parse_promise(self) -> str:
+        """Parse promise expression: (promise (lambda (resolve reject) ...))"""
+        self._advance()  # Skip 'promise'
+        
+        # Parse executor expression (should be a lambda)
+        executor_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for promise")
+        
+        self._advance()  # Skip RPAREN
+        
+        from ..core.ast import Promise
+        node = Promise(executor_id=executor_id)
         
         return self.graph.add_node(node)
     

@@ -37,6 +37,9 @@ class NodeType(Enum):
     CONTRACT = auto()
     DATA_DECLARATION = auto()
     TYPE_ASCRIPTION = auto()
+    ASYNC_LAMBDA = auto()
+    AWAIT = auto()
+    PROMISE = auto()
 
 
 class EffectType(Enum):
@@ -48,6 +51,7 @@ class EffectType(Enum):
     TIME = auto()
     NETWORK = auto()
     RANDOM = auto()
+    ASYNC = auto()
 
 
 @dataclass
@@ -542,3 +546,69 @@ class TypeAscription(ASTNode):
     
     def get_dependencies(self) -> List[str]:
         return [self.expr_id] if self.expr_id else []
+
+
+@dataclass
+class AsyncLambda(ASTNode):
+    """Async lambda abstraction node
+    
+    Example: (async-lambda (x) (await (fetch x)))
+    """
+    parameter_names: List[str] = field(default_factory=list)
+    parameter_types: List[TypeAnnotation] = field(default_factory=list)
+    body_id: str = ""
+    captured_variables: Dict[str, str] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        self.node_type = NodeType.ASYNC_LAMBDA
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="AsyncFunction",
+                effects={EffectType.ASYNC}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        deps = [self.body_id]
+        deps.extend(self.captured_variables.values())
+        return deps
+
+
+@dataclass
+class Await(ASTNode):
+    """Await expression node
+    
+    Example: (await promise)
+    Example: (await (fetch url))
+    """
+    promise_id: str = ""
+    
+    def __post_init__(self):
+        self.node_type = NodeType.AWAIT
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="Awaited",
+                effects={EffectType.ASYNC}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        return [self.promise_id] if self.promise_id else []
+
+
+@dataclass
+class Promise(ASTNode):
+    """Promise/Future node
+    
+    Example: (promise (lambda (resolve reject) ...))
+    """
+    executor_id: str = ""  # Function that takes resolve and reject
+    
+    def __post_init__(self):
+        self.node_type = NodeType.PROMISE
+        if not self.type_annotation:
+            self.type_annotation = TypeAnnotation(
+                name="Promise",
+                effects={EffectType.ASYNC}
+            )
+    
+    def get_dependencies(self) -> List[str]:
+        return [self.executor_id] if self.executor_id else []
