@@ -1,7 +1,7 @@
 //! Compiler from AST to bytecode
 
 use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
-use claudelang_core::ast::{Graph as ASTGraph, Node, NodeId, Literal};
+use claudelang_core::ast::{Graph as ASTGraph, Node, NodeId, Literal, Pattern};
 use anyhow::{anyhow, Result};
 use std::collections::{HashMap, HashSet};
 
@@ -87,6 +87,9 @@ impl Compiler {
             }
             Node::Receive { channel } => {
                 self.compile_receive(graph, *channel)?;
+            }
+            Node::Match { expr, branches } => {
+                self.compile_match(graph, *expr, branches)?;
             }
             _ => return Err(anyhow!("Unimplemented node type: {:?}", node)),
         }
@@ -667,5 +670,127 @@ impl Compiler {
         let idx = self.add_constant(Value::String(name.to_string()));
         self.emit(Instruction::with_arg(Opcode::LoadGlobal, idx));
         Ok(())
+    }
+    
+    fn compile_match(&mut self, graph: &ASTGraph, expr: NodeId, branches: &[(Pattern, NodeId)]) -> Result<()> {
+        
+        // Compile the expression to match
+        self.compile_node(graph, expr)?;
+        
+        // We'll compile pattern matching as a series of if-else chains
+        // More sophisticated implementations would use decision trees
+        
+        let mut jump_to_ends = Vec::new();
+        
+        for (i, (pattern, body)) in branches.iter().enumerate() {
+            // Duplicate the value for testing (except for last branch)
+            if i < branches.len() - 1 {
+                self.emit(Instruction::new(Opcode::Dup));
+            }
+            
+            // Compile pattern test
+            let (bindings, test_success) = self.compile_pattern_test(pattern)?;
+            
+            // Jump to next branch if pattern doesn't match
+            let jump_to_next = if test_success {
+                // Pattern always matches (e.g., wildcard or variable)
+                None
+            } else {
+                Some(self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)))
+            };
+            
+            // Pop the duplicated value if pattern matched
+            if i < branches.len() - 1 {
+                self.emit(Instruction::new(Opcode::Pop));
+            }
+            
+            // Create new scope for pattern bindings
+            if !bindings.is_empty() {
+                self.locals.push(HashMap::new());
+                self.captured.push(HashMap::new());
+                self.scope_bases.push(self.stack_depth);
+                let scope_idx = self.locals.len() - 1;
+                
+                // Add pattern bindings
+                for (name, pos) in &bindings {
+                    self.locals[scope_idx].insert(name.clone(), *pos);
+                }
+            }
+            
+            // Compile branch body
+            self.compile_node(graph, *body)?;
+            
+            // Clean up pattern bindings scope
+            if !bindings.is_empty() {
+                self.locals.pop();
+                self.captured.pop();
+                self.scope_bases.pop();
+            }
+            
+            // Jump to end (skip other branches and fallback)
+            jump_to_ends.push(self.emit(Instruction::with_arg(Opcode::Jump, 0)));
+            
+            // Patch jump to next branch
+            if let Some(jump_offset) = jump_to_next {
+                let next_branch = self.current_offset();
+                self.patch_jump(jump_offset, next_branch);
+                
+                // Pop the test result before next branch
+                self.emit(Instruction::new(Opcode::Pop));
+            }
+        }
+        
+        // If we get here and no pattern matched, we need to handle the error case
+        // Check if the last pattern was always-matching
+        let last_always_matches = if let Some((pattern, _)) = branches.last() {
+            matches!(pattern, Pattern::Wildcard | Pattern::Variable(_))
+        } else {
+            false
+        };
+        
+        if !last_always_matches && !branches.is_empty() {
+            // No pattern matched - this is a runtime error
+            // For now, push nil as a fallback
+            self.emit(Instruction::new(Opcode::Pop)); // Pop the unmatched value
+            self.emit(Instruction::new(Opcode::PushNil));
+        }
+        
+        // Patch all jumps to end (after fallback code)
+        let end = self.current_offset();
+        for jump_offset in jump_to_ends {
+            self.patch_jump(jump_offset, end);
+        }
+        
+        Ok(())
+    }
+    
+    fn compile_pattern_test(&mut self, pattern: &Pattern) -> Result<(Vec<(String, usize)>, bool)> {
+        
+        let mut bindings = Vec::new();
+        
+        match pattern {
+            Pattern::Wildcard => {
+                // Always matches, no test needed
+                Ok((bindings, true))
+            }
+            Pattern::Variable(name) => {
+                // Always matches, bind the value
+                let pos = self.stack_depth - 1; // Value is on top of stack
+                bindings.push((name.clone(), pos));
+                Ok((bindings, true))
+            }
+            Pattern::Literal(lit) => {
+                // Push literal and compare
+                self.compile_literal(lit)?;
+                self.emit(Instruction::new(Opcode::Eq));
+                Ok((bindings, false))
+            }
+            Pattern::Constructor { .. } => {
+                // TODO: Implement constructor patterns
+                // For now, just fail
+                self.emit(Instruction::new(Opcode::PushFalse));
+                Ok((bindings, false))
+            }
+        }
     }
 }

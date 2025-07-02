@@ -115,3 +115,15 @@ path = "../examples/test_simple_recursion.rs"
 [[example]]
 name = "test_simple_letrec"
 path = "../examples/test_simple_letrec.rs"
+
+[[example]]
+name = "test_pattern_matching"
+path = "../examples/test_pattern_matching.rs"
+
+[[example]]
+name = "test_simple_match"
+path = "../examples/test_simple_match.rs"
+
+[[example]]
+name = "test_match_debug"
+path = "../examples/test_match_debug.rs"
