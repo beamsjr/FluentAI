@@ -1,0 +1,18 @@
+[package]
+name = "claudelang-types"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+claudelang-core = { path = "../claudelang-core" }
+claudelang-effects = { path = "../claudelang-effects" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+claudelang-parser = { path = "../claudelang-parser" }

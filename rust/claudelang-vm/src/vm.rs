@@ -4,6 +4,8 @@ use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use claudelang_effects::{EffectContext, runtime::EffectRuntime};
+use claudelang_stdlib::{StdlibRegistry, init_stdlib};
+use claudelang_stdlib::value::Value as StdlibValue;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
@@ -29,6 +31,8 @@ pub struct VM {
     channels: HashMap<String, (mpsc::UnboundedSender<Value>, mpsc::UnboundedReceiver<Value>)>,
     // Mutable cells
     cells: Vec<Value>,
+    // Standard library
+    stdlib: StdlibRegistry,
 }
 
 impl VM {
@@ -44,6 +48,7 @@ impl VM {
             promises: HashMap::new(),
             channels: HashMap::new(),
             cells: Vec::new(),
+            stdlib: init_stdlib(),
         }
     }
     
@@ -352,6 +357,111 @@ impl VM {
                 self.stack[value_idx] = value;
             }
             
+            // Fast local variable access opcodes
+            LoadLocal0 => {
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                let value = self.stack[value_idx].clone();
+                self.push(value)?;
+            }
+            
+            LoadLocal1 => {
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + 1;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                let value = self.stack[value_idx].clone();
+                self.push(value)?;
+            }
+            
+            LoadLocal2 => {
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + 2;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                let value = self.stack[value_idx].clone();
+                self.push(value)?;
+            }
+            
+            LoadLocal3 => {
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + 3;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                let value = self.stack[value_idx].clone();
+                self.push(value)?;
+            }
+            
+            StoreLocal0 => {
+                let value = self.pop()?;
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                self.stack[value_idx] = value;
+            }
+            
+            StoreLocal1 => {
+                let value = self.pop()?;
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + 1;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                self.stack[value_idx] = value;
+            }
+            
+            StoreLocal2 => {
+                let value = self.pop()?;
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + 2;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                self.stack[value_idx] = value;
+            }
+            
+            StoreLocal3 => {
+                let value = self.pop()?;
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                let value_idx = frame.stack_base + 3;
+                
+                if value_idx >= self.stack.len() {
+                    return Err(anyhow!("Invalid local variable index"));
+                }
+                
+                self.stack[value_idx] = value;
+            }
+            
             LoadGlobal => {
                 let name_idx = instruction.arg as usize;
                 let name = match &self.bytecode.chunks[chunk_id].constants.get(name_idx) {
@@ -366,6 +476,9 @@ impl VM {
                 } else if name == "cons" {
                     // Special built-in for list construction
                     Value::String("__builtin__cons".to_string())
+                } else if self.stdlib.contains(name) {
+                    // Standard library function
+                    Value::String(format!("__stdlib__{}", name))
                 } else {
                     // Look up in globals
                     self.globals.get(name)
@@ -753,7 +866,7 @@ impl VM {
                 args.reverse();
                 
                 
-                match func {
+                match &func {
                     Value::Function { chunk_id, env } => {
                         // Current IP was already incremented by main loop,
                         // so it's already pointing to the next instruction after Call
@@ -765,13 +878,73 @@ impl VM {
                         
                         // Push new frame
                         self.call_stack.push(CallFrame {
-                            chunk_id,
+                            chunk_id: *chunk_id,
                             ip: 0,
                             stack_base: self.stack.len() - arg_count,
-                            env,
+                            env: env.clone(),
                         });
                     }
-                    _ => return Err(anyhow!("Cannot call non-function value")),
+                    Value::String(s) if s.starts_with("__builtin__") => {
+                        // Handle built-in function calls
+                        let builtin_name = &s[11..]; // Remove "__builtin__" prefix
+                        
+                        // Special handling for cons which needs different argument order
+                        if builtin_name == "cons" {
+                            if args.len() != 2 {
+                                return Err(anyhow!("cons requires exactly 2 arguments"));
+                            }
+                            match &args[1] {
+                                Value::List(items) => {
+                                    let mut new_list = vec![args[0].clone()];
+                                    new_list.extend(items.iter().cloned());
+                                    self.push(Value::List(new_list))?;
+                                }
+                                _ => return Err(anyhow!("cons: second argument must be a list")),
+                            }
+                        } else {
+                            // For other built-ins, generate appropriate instructions
+                            // This is a simplified approach - in a full implementation,
+                            // we might want to directly execute the operations
+                            return Err(anyhow!("Built-in function {} should be optimized by compiler", builtin_name));
+                        }
+                    }
+                    Value::String(s) if s.starts_with("__stdlib__") => {
+                        // Handle stdlib function calls
+                        let func_name = &s[10..]; // Remove "__stdlib__" prefix
+                        
+                        // Check if it's a higher-order function that needs special handling
+                        match func_name {
+                            "map" | "filter" | "fold" => {
+                                // Use the stdlib bridge for higher-order functions
+                                use crate::stdlib_bridge::VMStdlibExt;
+                                let stdlib_args: Vec<StdlibValue> = args.iter()
+                                    .map(|v| self.vm_value_to_stdlib_value(v))
+                                    .collect();
+                                let result = self.call_higher_order_stdlib(func_name, &stdlib_args)?;
+                                let vm_result = self.stdlib_value_to_vm_value(&result);
+                                self.push(vm_result)?;
+                            }
+                            _ => {
+                                // Regular stdlib function
+                                if let Some(stdlib_func) = self.stdlib.get(func_name) {
+                                    // Convert VM values to stdlib values
+                                    let stdlib_args: Vec<StdlibValue> = args.iter()
+                                        .map(|v| self.vm_value_to_stdlib_value(v))
+                                        .collect();
+                                    
+                                    // Call the stdlib function
+                                    let stdlib_result = stdlib_func.call(&stdlib_args)?;
+                                    
+                                    // Convert result back to VM value
+                                    let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
+                                    self.push(vm_result)?;
+                                } else {
+                                    return Err(anyhow!("Unknown stdlib function: {}", func_name));
+                                }
+                            }
+                        }
+                    }
+                    _ => return Err(anyhow!("Cannot call non-function value: {:?}", func)),
                 }
             }
             
@@ -814,6 +987,82 @@ impl VM {
                 }
             }
             
+            // Tagged values
+            MakeTagged => {
+                let arity = instruction.arg as usize;
+                
+                // Pop all values first
+                let mut values = Vec::with_capacity(arity);
+                for _ in 0..arity {
+                    values.push(self.pop()?);
+                }
+                values.reverse();
+                
+                // Then pop the tag
+                let tag_val = self.pop()?;
+                let tag = match tag_val {
+                    Value::String(s) => s,
+                    _ => return Err(anyhow!("MakeTagged requires string tag, got {:?}", tag_val)),
+                };
+                
+                self.push(Value::Tagged { tag, values })?;
+            }
+            
+            GetTag => {
+                let value = self.pop()?;
+                match value {
+                    Value::Tagged { tag, .. } => {
+                        self.push(Value::String(tag))?;
+                    }
+                    _ => return Err(anyhow!("GetTag requires tagged value")),
+                }
+            }
+            
+            GetTaggedField => {
+                let field_idx = instruction.arg as usize;
+                let value = self.pop()?;
+                match value {
+                    Value::Tagged { values, .. } => {
+                        if field_idx < values.len() {
+                            self.push(values[field_idx].clone())?;
+                        } else {
+                            return Err(anyhow!("Tagged field index out of bounds"));
+                        }
+                    }
+                    _ => return Err(anyhow!("GetTaggedField requires tagged value")),
+                }
+            }
+            
+            IsTagged => {
+                let expected_tag_idx = instruction.arg as usize;
+                let expected_tag = match self.bytecode.chunks[chunk_id].constants.get(expected_tag_idx) {
+                    Some(Value::String(s)) => s,
+                    _ => return Err(anyhow!("Invalid tag constant")),
+                };
+                
+                let value = self.peek(0)?;
+                let is_match = match value {
+                    Value::Tagged { tag, .. } => tag == expected_tag,
+                    _ => false,
+                };
+                
+                self.push(Value::Bool(is_match))?;
+            }
+            
+            // Environment management (reserved for future use)
+            MakeEnv => {
+                // MakeEnv could be used for creating dynamic environments
+                // or implementing with-environment constructs
+                // Currently environments are managed through closures
+                // This is a no-op for now
+            }
+            
+            PopEnv => {
+                // PopEnv would restore a previous environment
+                // Currently not used as environments are handled via closures
+                // This is a no-op for now
+            }
+            
             // Special
             Halt => return Ok(VMState::Halt),
             Nop => {}
@@ -825,7 +1074,7 @@ impl VM {
         Ok(VMState::Continue)
     }
     
-    fn push(&mut self, value: Value) -> Result<()> {
+    pub fn push(&mut self, value: Value) -> Result<()> {
         if self.stack.len() >= STACK_SIZE {
             return Err(anyhow!("Stack overflow"));
         }
@@ -833,7 +1082,7 @@ impl VM {
         Ok(())
     }
     
-    fn pop(&mut self) -> Result<Value> {
+    pub fn pop(&mut self) -> Result<Value> {
         self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))
     }
     
@@ -895,6 +1144,10 @@ impl VM {
             (Value::List(x), Value::List(y)) => {
                 x.len() == y.len() && x.iter().zip(y).all(|(a, b)| self.values_equal(a, b))
             }
+            (Value::Tagged { tag: tag1, values: vals1 }, Value::Tagged { tag: tag2, values: vals2 }) => {
+                tag1 == tag2 && vals1.len() == vals2.len() && 
+                vals1.iter().zip(vals2).all(|(a, b)| self.values_equal(a, b))
+            }
             _ => false,
         }
     }
@@ -912,6 +1165,81 @@ impl VM {
             Value::Promise(_) => true,
             Value::Channel(_) => true,
             Value::Cell(_) => true,
+            Value::Tagged { .. } => true,
+        }
+    }
+    
+    pub fn vm_value_to_stdlib_value(&self, value: &Value) -> StdlibValue {
+        match value {
+            Value::Nil => StdlibValue::Nil,
+            Value::Bool(b) => StdlibValue::Bool(*b),
+            Value::Int(i) => StdlibValue::Int(*i),
+            Value::Float(f) => StdlibValue::Float(*f),
+            Value::String(s) => StdlibValue::String(s.clone()),
+            Value::List(items) => {
+                StdlibValue::List(
+                    items.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect()
+                )
+            }
+            Value::Map(map) => {
+                let mut stdlib_map = HashMap::new();
+                for (k, v) in map {
+                    stdlib_map.insert(k.clone(), self.vm_value_to_stdlib_value(v));
+                }
+                StdlibValue::Map(stdlib_map)
+            }
+            Value::Function { chunk_id, env } => {
+                StdlibValue::Function {
+                    chunk_id: *chunk_id,
+                    env: env.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect(),
+                }
+            }
+            Value::Promise(id) => StdlibValue::Promise(id.clone()),
+            Value::Channel(id) => StdlibValue::Channel(id.clone()),
+            Value::Cell(idx) => StdlibValue::Cell(*idx),
+            Value::Tagged { tag, values } => {
+                StdlibValue::Tagged {
+                    tag: tag.clone(),
+                    values: values.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect(),
+                }
+            }
+        }
+    }
+    
+    pub fn stdlib_value_to_vm_value(&self, value: &StdlibValue) -> Value {
+        match value {
+            StdlibValue::Nil => Value::Nil,
+            StdlibValue::Bool(b) => Value::Bool(*b),
+            StdlibValue::Int(i) => Value::Int(*i),
+            StdlibValue::Float(f) => Value::Float(*f),
+            StdlibValue::String(s) => Value::String(s.clone()),
+            StdlibValue::List(items) => {
+                Value::List(
+                    items.iter().map(|v| self.stdlib_value_to_vm_value(v)).collect()
+                )
+            }
+            StdlibValue::Map(map) => {
+                let mut vm_map = HashMap::new();
+                for (k, v) in map {
+                    vm_map.insert(k.clone(), self.stdlib_value_to_vm_value(v));
+                }
+                Value::Map(vm_map)
+            }
+            StdlibValue::Function { chunk_id, env } => {
+                Value::Function {
+                    chunk_id: *chunk_id,
+                    env: env.iter().map(|v| self.stdlib_value_to_vm_value(v)).collect(),
+                }
+            }
+            StdlibValue::Promise(id) => Value::Promise(id.clone()),
+            StdlibValue::Channel(id) => Value::Channel(id.clone()),
+            StdlibValue::Cell(idx) => Value::Cell(*idx),
+            StdlibValue::Tagged { tag, values } => {
+                Value::Tagged {
+                    tag: tag.clone(),
+                    values: values.iter().map(|v| self.stdlib_value_to_vm_value(v)).collect(),
+                }
+            }
         }
     }
     
@@ -938,6 +1266,74 @@ impl VM {
             "str-upper" | "string-upcase" => Some(Opcode::StrUpper),
             "str-lower" | "string-downcase" => Some(Opcode::StrLower),
             _ => None,
+        }
+    }
+    
+    /// Call a value as a function (used by stdlib bridge)
+    pub fn call_value(&mut self, arg_count: usize) -> Result<()> {
+        // Pop arguments
+        let mut args = Vec::with_capacity(arg_count);
+        for _ in 0..arg_count {
+            args.push(self.pop()?);
+        }
+        args.reverse();
+        
+        // Pop function
+        let func = self.pop()?;
+        
+        match func {
+            Value::Function { chunk_id, env } => {
+                // Save current env to stack if needed
+                let stack_base = self.stack.len();
+                
+                // Push arguments back
+                for arg in args {
+                    self.push(arg)?;
+                }
+                
+                // Create new call frame
+                self.call_stack.push(CallFrame {
+                    chunk_id,
+                    ip: 0,
+                    stack_base,
+                    env,
+                });
+                
+                // Continue execution until this call returns
+                let initial_call_depth = self.call_stack.len();
+                while self.call_stack.len() >= initial_call_depth {
+                    let frame = self.call_stack.last().ok_or_else(|| anyhow!("Call stack underflow"))?;
+                    let chunk_id = frame.chunk_id;
+                    let ip = frame.ip;
+                    
+                    if ip >= self.bytecode.chunks[chunk_id].instructions.len() {
+                        return Err(anyhow!("Instruction pointer out of bounds"));
+                    }
+                    
+                    let instruction = self.bytecode.chunks[chunk_id].instructions[ip].clone();
+                    self.call_stack.last_mut().unwrap().ip += 1;
+                    
+                    match self.execute_instruction(&instruction, chunk_id)? {
+                        VMState::Continue => {}
+                        VMState::Return => {
+                            if self.call_stack.len() == initial_call_depth {
+                                // This is our call returning
+                                self.call_stack.pop();
+                                break;
+                            } else {
+                                // Inner call returning
+                                self.call_stack.pop();
+                            }
+                        }
+                        VMState::Halt => {
+                            return Err(anyhow!("Unexpected halt in function call"));
+                        }
+                    }
+                }
+                
+                Ok(())
+            }
+            _ => Err(anyhow!("Cannot call non-function value: {:?}", func)),
         }
     }
     
@@ -972,6 +1368,15 @@ impl VM {
             }
             Value::Cell(idx) => {
                 claudelang_core::value::Value::String(format!("<cell:{}>", idx))
+            }
+            Value::Tagged { tag, values } => {
+                // Convert to a map representation for now
+                let mut map = std::collections::HashMap::new();
+                map.insert("__tag__".to_string(), claudelang_core::value::Value::String(tag.clone()));
+                map.insert("__values__".to_string(), claudelang_core::value::Value::List(
+                    values.iter().map(|v| self.vm_value_to_core_value(v)).collect()
+                ));
+                claudelang_core::value::Value::Map(map)
             }
         }
     }

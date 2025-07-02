@@ -116,6 +116,12 @@ pub enum Opcode {
     CellGet,     // Get value from cell
     CellSet,     // Set value in cell
     
+    // Tagged values (for constructor patterns)
+    MakeTagged,      // Create tagged value: tag(string const), arity -> Tagged
+    GetTag,          // Get tag from tagged value
+    GetTaggedField,  // Get field N from tagged value
+    IsTagged,        // Check if value is tagged with specific tag
+    
     // Special
     Halt,
     Nop,
@@ -153,6 +159,10 @@ pub enum Value {
     Promise(String), // Promise ID
     Channel(String), // Channel ID
     Cell(usize),     // Index into VM's cell storage
+    Tagged {
+        tag: String,
+        values: Vec<Value>,
+    },
 }
 
 impl fmt::Display for Value {
@@ -189,6 +199,20 @@ impl fmt::Display for Value {
             Value::Promise(id) => write!(f, "<promise:{}>", id),
             Value::Channel(id) => write!(f, "<channel:{}>", id),
             Value::Cell(idx) => write!(f, "<cell:{}>", idx),
+            Value::Tagged { tag, values } => {
+                write!(f, "{}", tag)?;
+                if !values.is_empty() {
+                    write!(f, "(")?;
+                    for (i, val) in values.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", val)?;
+                    }
+                    write!(f, ")")?;
+                }
+                Ok(())
+            }
         }
     }
 }
