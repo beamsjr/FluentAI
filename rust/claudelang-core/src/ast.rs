@@ -88,6 +88,25 @@ pub enum Node {
         expr: NodeId,
         branches: Vec<(Pattern, NodeId)>,
     },
+    
+    // Async/concurrent constructs
+    Async {
+        body: NodeId,
+    },
+    Await {
+        expr: NodeId,
+    },
+    Spawn {
+        expr: NodeId,
+    },
+    Channel,
+    Send {
+        channel: NodeId,
+        value: NodeId,
+    },
+    Receive {
+        channel: NodeId,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +138,9 @@ pub enum EffectType {
     Time,
     Network,
     Random,
+    Dom,
+    Async,
+    Concurrent,
 }
 
 impl fmt::Display for EffectType {
@@ -131,6 +153,9 @@ impl fmt::Display for EffectType {
             EffectType::Time => write!(f, "Time"),
             EffectType::Network => write!(f, "Network"),
             EffectType::Random => write!(f, "Random"),
+            EffectType::Dom => write!(f, "Dom"),
+            EffectType::Async => write!(f, "Async"),
+            EffectType::Concurrent => write!(f, "Concurrent"),
         }
     }
 }

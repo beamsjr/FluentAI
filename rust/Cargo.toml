@@ -6,7 +6,7 @@ members = [
     "claudelang-lsp",
     "claudelang-jit",
     "claudelang-py",
-    "benchmarks",
+    "benchmarks", "claudelang-effects",
 ]
 resolver = "2"
 

@@ -80,6 +80,12 @@ impl<'a> Parser<'a> {
                 "do" => return self.parse_sequence(),
                 "effect" => return self.parse_effect(),
                 "match" => return self.parse_match(),
+                "async" => return self.parse_async(),
+                "await" => return self.parse_await(),
+                "spawn" => return self.parse_spawn(),
+                "chan" => return self.parse_channel(),
+                "send!" => return self.parse_send(),
+                "recv!" => return self.parse_receive(),
                 _ => {}
             }
         }
@@ -398,6 +404,60 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParseError::UnexpectedEof)
         }
+    }
+    
+    fn parse_async(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("async")?;
+        let body = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Async { body };
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_await(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("await")?;
+        let expr = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Await { expr };
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_spawn(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("spawn")?;
+        let expr = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Spawn { expr };
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_channel(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("chan")?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Channel;
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_send(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("send!")?;
+        let channel = self.parse_expr()?;
+        let value = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Send { channel, value };
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_receive(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("recv!")?;
+        let channel = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Receive { channel };
+        Ok(self.graph.add_node(node))
     }
     
     fn expect_symbol(&mut self, expected: &str) -> ParseResult<()> {

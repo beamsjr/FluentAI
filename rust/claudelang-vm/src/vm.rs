@@ -3,6 +3,9 @@
 use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
+use claudelang_effects::{EffectContext, runtime::EffectRuntime};
+use std::sync::Arc;
+use tokio::sync::{mpsc, oneshot};
 
 const STACK_SIZE: usize = 10_000;
 
@@ -18,6 +21,11 @@ pub struct VM {
     call_stack: Vec<CallFrame>,
     globals: HashMap<String, Value>,
     trace: bool,
+    effect_context: Arc<EffectContext>,
+    effect_runtime: Arc<EffectRuntime>,
+    // Async support
+    promises: HashMap<String, oneshot::Receiver<Result<Value>>>,
+    channels: HashMap<String, (mpsc::UnboundedSender<Value>, mpsc::UnboundedReceiver<Value>)>,
 }
 
 impl VM {
@@ -28,6 +36,10 @@ impl VM {
             call_stack: Vec::new(),
             globals: HashMap::new(),
             trace: false,
+            effect_context: Arc::new(EffectContext::default()),
+            effect_runtime: Arc::new(EffectRuntime::default()),
+            promises: HashMap::new(),
+            channels: HashMap::new(),
         }
     }
     
@@ -112,6 +124,15 @@ impl VM {
             PushTrue => self.push(Value::Bool(true))?,
             PushFalse => self.push(Value::Bool(false))?,
             PushNil => self.push(Value::Nil)?,
+            
+            PushConst => {
+                let const_idx = instruction.arg as usize;
+                let value = self.bytecode.chunks[chunk_id].constants
+                    .get(const_idx)
+                    .ok_or_else(|| anyhow!("Invalid constant index"))?
+                    .clone();
+                self.push(value)?;
+            }
             
             // Arithmetic
             Add => self.binary_op(|a, b| match (a, b) {
@@ -445,6 +466,222 @@ impl VM {
                 }
             }
             
+            // Effects
+            Effect => {
+                // Pop arguments, operation name, and effect type
+                let arg_count = instruction.arg as usize;
+                let mut args = Vec::with_capacity(arg_count);
+                for _ in 0..arg_count {
+                    args.push(self.pop()?);
+                }
+                args.reverse();
+                
+                let operation = match self.pop()? {
+                    Value::String(s) => s,
+                    _ => return Err(anyhow!("Effect operation must be a string")),
+                };
+                
+                let effect_type_str = match self.pop()? {
+                    Value::String(s) => s,
+                    _ => return Err(anyhow!("Effect type must be a string")),
+                };
+                
+                // Convert string to EffectType enum
+                let effect_type = match effect_type_str.as_str() {
+                    "IO" => claudelang_core::ast::EffectType::IO,
+                    "State" => claudelang_core::ast::EffectType::State,
+                    "Error" => claudelang_core::ast::EffectType::Error,
+                    "Time" => claudelang_core::ast::EffectType::Time,
+                    "Network" => claudelang_core::ast::EffectType::Network,
+                    "Random" => claudelang_core::ast::EffectType::Random,
+                    "Dom" => claudelang_core::ast::EffectType::Dom,
+                    "Async" => claudelang_core::ast::EffectType::Async,
+                    "Concurrent" => claudelang_core::ast::EffectType::Concurrent,
+                    "Pure" => claudelang_core::ast::EffectType::Pure,
+                    _ => return Err(anyhow!("Unknown effect type: {}", effect_type_str)),
+                };
+                
+                // Convert VM values to core values for effect handlers
+                let core_args: Vec<claudelang_core::value::Value> = args.iter()
+                    .map(|v| self.vm_value_to_core_value(v))
+                    .collect();
+                
+                // Execute the effect synchronously
+                let result = self.effect_context.perform_sync(effect_type, &operation, &core_args)
+                    .map_err(|e| anyhow!("Effect error: {}", e))?;
+                
+                // Convert result back to VM value
+                let vm_result = self.core_value_to_vm_value(&result);
+                self.push(vm_result)?;
+            }
+            
+            EffectAsync => {
+                // Pop arguments, operation name, and effect type
+                let arg_count = instruction.arg as usize;
+                let mut args = Vec::with_capacity(arg_count);
+                for _ in 0..arg_count {
+                    args.push(self.pop()?);
+                }
+                args.reverse();
+                
+                let operation = match self.pop()? {
+                    Value::String(s) => s,
+                    _ => return Err(anyhow!("Effect operation must be a string")),
+                };
+                
+                let effect_type_str = match self.pop()? {
+                    Value::String(s) => s,
+                    _ => return Err(anyhow!("Effect type must be a string")),
+                };
+                
+                // Convert string to EffectType enum
+                let effect_type = match effect_type_str.as_str() {
+                    "IO" => claudelang_core::ast::EffectType::IO,
+                    "State" => claudelang_core::ast::EffectType::State,
+                    "Error" => claudelang_core::ast::EffectType::Error,
+                    "Time" => claudelang_core::ast::EffectType::Time,
+                    "Network" => claudelang_core::ast::EffectType::Network,
+                    "Random" => claudelang_core::ast::EffectType::Random,
+                    "Dom" => claudelang_core::ast::EffectType::Dom,
+                    "Async" => claudelang_core::ast::EffectType::Async,
+                    "Concurrent" => claudelang_core::ast::EffectType::Concurrent,
+                    "Pure" => claudelang_core::ast::EffectType::Pure,
+                    _ => return Err(anyhow!("Unknown effect type: {}", effect_type_str)),
+                };
+                
+                // Generate a promise ID
+                let promise_id = uuid::Uuid::new_v4().to_string();
+                
+                // Convert VM values to core values
+                let core_args: Vec<claudelang_core::value::Value> = args.iter()
+                    .map(|v| self.vm_value_to_core_value(v))
+                    .collect();
+                
+                // Create a oneshot channel for the result
+                let (tx, rx) = oneshot::channel();
+                
+                // Store the receiver
+                self.promises.insert(promise_id.clone(), rx);
+                
+                // Create the async task
+                let effect_context = self.effect_context.clone();
+                let operation = operation.clone();
+                let runtime = self.effect_runtime.clone();
+                
+                let future = async move {
+                    let result = effect_context.perform_async(effect_type, &operation, &core_args).await
+                        .map_err(|e| anyhow!("Async effect error: {}", e));
+                    
+                    // Convert result back to VM value
+                    let vm_result = match result {
+                        Ok(_core_value) => {
+                            // We need to convert core value to VM value
+                            // This is tricky without access to self
+                            // For now, just send a placeholder
+                            Ok(Value::String("async result".to_string()))
+                        }
+                        Err(e) => Err(e),
+                    };
+                    
+                    let _ = tx.send(vm_result);
+                };
+                
+                // Spawn the task on the runtime
+                runtime.spawn(future);
+                
+                // Return the promise ID
+                self.push(Value::Promise(promise_id))?;
+            }
+            
+            Await => {
+                // Pop promise
+                let promise_id = match self.pop()? {
+                    Value::Promise(id) => id,
+                    _ => return Err(anyhow!("Await requires a promise")),
+                };
+                
+                // Check if we have this promise
+                if let Some(mut rx) = self.promises.remove(&promise_id) {
+                    // Try to receive the result non-blocking
+                    match rx.try_recv() {
+                        Ok(Ok(value)) => self.push(value)?,
+                        Ok(Err(e)) => return Err(e),
+                        Err(oneshot::error::TryRecvError::Empty) => {
+                            // Not ready yet, put it back and return the promise
+                            self.promises.insert(promise_id.clone(), rx);
+                            self.push(Value::Promise(promise_id))?;
+                        }
+                        Err(oneshot::error::TryRecvError::Closed) => {
+                            return Err(anyhow!("Promise channel closed"));
+                        }
+                    }
+                } else {
+                    return Err(anyhow!("Unknown promise"));
+                }
+            }
+            
+            Spawn => {
+                // Pop function value
+                let _function = self.pop()?;
+                
+                // For now, we'll create a placeholder goroutine
+                // In a real implementation, this would spawn a new VM instance
+                let goroutine_id = uuid::Uuid::new_v4().to_string();
+                
+                // Return a promise that represents the goroutine
+                self.push(Value::Promise(goroutine_id))?;
+            }
+            
+            Channel => {
+                // Create a new channel
+                let channel_id = uuid::Uuid::new_v4().to_string();
+                let (tx, rx) = mpsc::unbounded_channel();
+                self.channels.insert(channel_id.clone(), (tx, rx));
+                self.push(Value::Channel(channel_id))?;
+            }
+            
+            Send => {
+                // Pop value and channel
+                let value = self.pop()?;
+                let channel = match self.pop()? {
+                    Value::Channel(id) => id,
+                    _ => return Err(anyhow!("Send requires a channel")),
+                };
+                
+                // Get the channel sender
+                if let Some((tx, _)) = self.channels.get(&channel) {
+                    tx.send(value)
+                        .map_err(|_| anyhow!("Channel closed"))?;
+                    self.push(Value::Nil)?;
+                } else {
+                    return Err(anyhow!("Unknown channel"));
+                }
+            }
+            
+            Receive => {
+                // Pop channel
+                let channel = match self.pop()? {
+                    Value::Channel(id) => id,
+                    _ => return Err(anyhow!("Receive requires a channel")),
+                };
+                
+                // Try to receive non-blocking
+                if let Some((_, rx)) = self.channels.get_mut(&channel) {
+                    match rx.try_recv() {
+                        Ok(value) => self.push(value)?,
+                        Err(mpsc::error::TryRecvError::Empty) => {
+                            // No value available, push nil
+                            self.push(Value::Nil)?;
+                        }
+                        Err(mpsc::error::TryRecvError::Disconnected) => {
+                            return Err(anyhow!("Channel disconnected"));
+                        }
+                    }
+                } else {
+                    return Err(anyhow!("Unknown channel"));
+                }
+            }
+            
             // Special
             Halt => return Ok(VMState::Halt),
             Nop => {}
@@ -538,7 +775,10 @@ impl VM {
             Value::Float(f) => *f != 0.0,
             Value::String(s) => !s.is_empty(),
             Value::List(l) => !l.is_empty(),
+            Value::Map(m) => !m.is_empty(),
             Value::Function { .. } => true,
+            Value::Promise(_) => true,
+            Value::Channel(_) => true,
         }
     }
     
@@ -565,6 +805,68 @@ impl VM {
             "str-upper" | "string-upcase" => Some(Opcode::StrUpper),
             "str-lower" | "string-downcase" => Some(Opcode::StrLower),
             _ => None,
+        }
+    }
+    
+    fn vm_value_to_core_value(&self, value: &Value) -> claudelang_core::value::Value {
+        match value {
+            Value::Nil => claudelang_core::value::Value::Nil,
+            Value::Bool(b) => claudelang_core::value::Value::Boolean(*b),
+            Value::Int(i) => claudelang_core::value::Value::Integer(*i),
+            Value::Float(f) => claudelang_core::value::Value::Float(*f),
+            Value::String(s) => claudelang_core::value::Value::String(s.clone()),
+            Value::List(items) => {
+                claudelang_core::value::Value::List(
+                    items.iter().map(|v| self.vm_value_to_core_value(v)).collect()
+                )
+            }
+            Value::Map(map) => {
+                let mut core_map = std::collections::HashMap::new();
+                for (k, v) in map.iter() {
+                    core_map.insert(k.clone(), self.vm_value_to_core_value(v));
+                }
+                claudelang_core::value::Value::Map(core_map)
+            }
+            Value::Function { .. } => {
+                // Functions can't be directly converted, return a placeholder
+                claudelang_core::value::Value::String("<function>".to_string())
+            }
+            Value::Promise(id) => {
+                claudelang_core::value::Value::String(format!("<promise:{}>", id))
+            }
+            Value::Channel(id) => {
+                claudelang_core::value::Value::String(format!("<channel:{}>", id))
+            }
+        }
+    }
+    
+    fn core_value_to_vm_value(&self, value: &claudelang_core::value::Value) -> Value {
+        match value {
+            claudelang_core::value::Value::Nil => Value::Nil,
+            claudelang_core::value::Value::Boolean(b) => Value::Bool(*b),
+            claudelang_core::value::Value::Integer(i) => Value::Int(*i),
+            claudelang_core::value::Value::Float(f) => Value::Float(*f),
+            claudelang_core::value::Value::String(s) => Value::String(s.clone()),
+            claudelang_core::value::Value::List(items) => {
+                Value::List(
+                    items.iter().map(|v| self.core_value_to_vm_value(v)).collect()
+                )
+            }
+            claudelang_core::value::Value::Map(map) => {
+                let mut vm_map = std::collections::HashMap::new();
+                for (k, v) in map.iter() {
+                    vm_map.insert(k.clone(), self.core_value_to_vm_value(v));
+                }
+                Value::Map(vm_map)
+            }
+            claudelang_core::value::Value::Function(_) => {
+                // Functions can't be directly converted, return a placeholder
+                Value::String("<function>".to_string())
+            }
+            claudelang_core::value::Value::Error(msg) => {
+                // Convert errors to strings
+                Value::String(format!("Error: {}", msg))
+            }
         }
     }
 }

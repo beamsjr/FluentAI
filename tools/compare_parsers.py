@@ -15,6 +15,8 @@ from src.parser.sexpr_parser import parse as python_parse
 
 # Try to import Rust parser (will fail until built)
 try:
+    import sys
+    sys.path.insert(0, 'rust/target/debug')
     import claudelang_rust
     rust_parse = claudelang_rust.parse
     RUST_AVAILABLE = True

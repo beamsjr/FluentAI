@@ -58,6 +58,27 @@ impl Compiler {
             Node::List(items) => {
                 self.compile_list(graph, items)?;
             }
+            Node::Effect { effect_type, operation, args } => {
+                self.compile_effect(graph, *effect_type, operation, args)?;
+            }
+            Node::Async { body } => {
+                self.compile_async(graph, *body)?;
+            }
+            Node::Await { expr } => {
+                self.compile_await(graph, *expr)?;
+            }
+            Node::Spawn { expr } => {
+                self.compile_spawn(graph, *expr)?;
+            }
+            Node::Channel => {
+                self.emit(Instruction::new(Opcode::Channel));
+            }
+            Node::Send { channel, value } => {
+                self.compile_send(graph, *channel, *value)?;
+            }
+            Node::Receive { channel } => {
+                self.compile_receive(graph, *channel)?;
+            }
             _ => return Err(anyhow!("Unimplemented node type: {:?}", node)),
         }
         
@@ -307,5 +328,66 @@ impl Compiler {
     
     fn patch_jump(&mut self, offset: usize, target: usize) {
         self.bytecode.chunks[self.current_chunk].patch_jump(offset, target);
+    }
+    
+    fn compile_effect(&mut self, graph: &ASTGraph, effect_type: claudelang_core::ast::EffectType, operation: &str, args: &[NodeId]) -> Result<()> {
+        // Push effect type as string
+        let effect_str = format!("{:?}", effect_type);
+        let idx = self.add_constant(Value::String(effect_str));
+        self.emit(Instruction::with_arg(Opcode::PushConst, idx));
+        
+        // Push operation
+        let idx = self.add_constant(Value::String(operation.to_string()));
+        self.emit(Instruction::with_arg(Opcode::PushConst, idx));
+        
+        // Compile arguments
+        for arg in args {
+            self.compile_node(graph, *arg)?;
+        }
+        
+        // Emit effect instruction with argument count
+        self.emit(Instruction::with_arg(Opcode::Effect, args.len() as u32));
+        
+        Ok(())
+    }
+    
+    fn compile_async(&mut self, graph: &ASTGraph, body: NodeId) -> Result<()> {
+        // For now, async just executes the body
+        // In a full implementation, this would create an async context
+        self.compile_node(graph, body)?;
+        Ok(())
+    }
+    
+    fn compile_await(&mut self, graph: &ASTGraph, expr: NodeId) -> Result<()> {
+        // Compile the expression that should return a promise
+        self.compile_node(graph, expr)?;
+        // Emit await instruction
+        self.emit(Instruction::new(Opcode::Await));
+        Ok(())
+    }
+    
+    fn compile_spawn(&mut self, graph: &ASTGraph, expr: NodeId) -> Result<()> {
+        // Compile the expression (should be a function)
+        self.compile_node(graph, expr)?;
+        // Emit spawn instruction
+        self.emit(Instruction::new(Opcode::Spawn));
+        Ok(())
+    }
+    
+    fn compile_send(&mut self, graph: &ASTGraph, channel: NodeId, value: NodeId) -> Result<()> {
+        // Compile channel and value
+        self.compile_node(graph, channel)?;
+        self.compile_node(graph, value)?;
+        // Emit send instruction
+        self.emit(Instruction::new(Opcode::Send));
+        Ok(())
+    }
+    
+    fn compile_receive(&mut self, graph: &ASTGraph, channel: NodeId) -> Result<()> {
+        // Compile channel
+        self.compile_node(graph, channel)?;
+        // Emit receive instruction
+        self.emit(Instruction::new(Opcode::Receive));
+        Ok(())
     }
 }

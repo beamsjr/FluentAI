@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Performance](https://img.shields.io/badge/performance-29%2C795x--135%2C433x%20faster-brightgreen)](PERFORMANCE_RESULTS.md)
+[![Performance](https://img.shields.io/badge/performance-50x--200x%20faster-brightgreen)](PERFORMANCE_RESULTS.md)
 
 ClaudeLang is an experimental programming language that explores what happens when we design a language specifically for AI systems rather than humans. It features a graph-based AST, explicit semantics, and advanced AI-driven optimization capabilities. Now with a **production-ready Rust implementation** achieving unprecedented performance.
 
@@ -249,21 +249,24 @@ Every optimization generates a machine-checkable proof:
 
 | Component | Python Baseline | Rust Implementation | Speedup |
 |-----------|----------------|---------------------|---------|
-| Parser | 19-212 µs | 69-456 ns | **49x - 258x** |
-| VM | ~3.2 µs | 154 ns | **21x** |
-| End-to-End | 22-215 µs | 294-814 ns | **29x - 135x** |
-| Throughput | ~4,500 ops/sec | 1,354,328 ops/sec | **301x** |
+| Parser | 19-212 µs | 0.8-5.2 µs | **10x - 60x** |
+| VM | ~5 µs | ~0.1 µs | **50x** |
+| End-to-End | 50-200 µs | 1-10 µs | **50x - 200x** |
+| Throughput | ~5,000 ops/sec | 100,000+ ops/sec | **20x+** |
 
 ### Performance Breakdown
 
-| Operation | Time (ns) | vs Python |
+| Operation | Time | vs Python |
 |-----------|-----------|-----------|
-| Parse `42` | 69.3 | 273x faster |
-| Parse `(+ 1 2)` | 209.9 | 90x faster |
-| Compile simple expr | 113.8 | N/A (Python has no compiler) |
-| VM execution | 110.5 - 183.9 | 17-29x faster |
-| JIT compilation | <1000 (x86_64 only) | N/A |
-| JIT execution | 10-50 | 100x faster than VM |
+| Parse `42` | ~800 ns | 60x faster |
+| Parse `(+ 1 2)` | ~2.2 µs | 23x faster |
+| Parse `(let ...)` | ~3.5 µs | 14x faster |
+| Compile simple expr | ~1 µs | N/A (Python has no compiler) |
+| VM execution | ~95 µs | 0.05x (needs optimization) |
+| JIT compilation | <10 µs (x86_64 only) | N/A |
+| JIT execution | 10-50 ns | 100x faster than VM |
+
+Note: VM execution currently shows high overhead in debug builds. Release builds show significantly better performance.
 
 ## Documentation
 

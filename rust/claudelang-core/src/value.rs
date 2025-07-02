@@ -2,7 +2,8 @@
 
 use crate::ast::NodeId;
 use std::fmt;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::collections::HashMap;
 
 /// Runtime values in ClaudeLang
 #[derive(Debug, Clone)]
@@ -16,6 +17,7 @@ pub enum Value {
     
     // Compound values
     List(Vec<Value>),
+    Map(HashMap<String, Value>),
     Function(Function),
     
     // Special values
@@ -32,8 +34,8 @@ pub struct Function {
 
 #[derive(Debug, Clone)]
 pub struct Environment {
-    bindings: Rc<FxHashMap<String, Value>>,
-    parent: Option<Rc<Environment>>,
+    bindings: Arc<FxHashMap<String, Value>>,
+    parent: Option<Arc<Environment>>,
 }
 
 use rustc_hash::FxHashMap;
@@ -41,15 +43,15 @@ use rustc_hash::FxHashMap;
 impl Environment {
     pub fn new() -> Self {
         Self {
-            bindings: Rc::new(FxHashMap::default()),
+            bindings: Arc::new(FxHashMap::default()),
             parent: None,
         }
     }
 
     pub fn with_parent(parent: Environment) -> Self {
         Self {
-            bindings: Rc::new(FxHashMap::default()),
-            parent: Some(Rc::new(parent)),
+            bindings: Arc::new(FxHashMap::default()),
+            parent: Some(Arc::new(parent)),
         }
     }
 
@@ -57,7 +59,7 @@ impl Environment {
         let mut new_bindings = (*self.bindings).clone();
         new_bindings.insert(name, value);
         Self {
-            bindings: Rc::new(new_bindings),
+            bindings: Arc::new(new_bindings),
             parent: self.parent.clone(),
         }
     }
@@ -89,6 +91,18 @@ impl fmt::Display for Value {
                 }
                 write!(f, "]")
             }
+            Value::Map(map) => {
+                write!(f, "{{")?;
+                let mut first = true;
+                for (k, v) in map.iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "\"{}\": {}", k, v)?;
+                    first = false;
+                }
+                write!(f, "}}")
+            }
             Value::Function(_) => write!(f, "<function>"),
             Value::Error(msg) => write!(f, "Error: {}", msg),
         }
@@ -104,6 +118,7 @@ impl Value {
             Value::Boolean(_) => "Boolean",
             Value::Nil => "Nil",
             Value::List(_) => "List",
+            Value::Map(_) => "Map",
             Value::Function(_) => "Function",
             Value::Error(_) => "Error",
         }

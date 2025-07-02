@@ -7,11 +7,14 @@ license.workspace = true
 
 [dependencies]
 claudelang-core = { path = "../claudelang-core" }
+claudelang-effects = { path = "../claudelang-effects" }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 byteorder.workspace = true
 rustc-hash.workspace = true
+tokio = { workspace = true, features = ["rt", "sync"] }
+uuid = { version = "1.11", features = ["v4"] }
 
 [dev-dependencies]
 criterion.workspace = true
@@ -20,3 +23,7 @@ claudelang-parser = { path = "../claudelang-parser" }
 [[example]]
 name = "test_vm"
 path = "../examples/test_vm.rs"
+
+[[example]]
+name = "real_performance"
+path = "../examples/real_performance.rs"

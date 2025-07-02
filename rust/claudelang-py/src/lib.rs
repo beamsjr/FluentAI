@@ -2,7 +2,7 @@
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
-use pyo3::types::PyList;
+use pyo3::types::{PyList, PyDict};
 use claudelang_parser::parse as rust_parse;
 use claudelang_core::ast::{Graph, Node, Literal};
 use claudelang_vm::{compiler::Compiler, vm::VM, bytecode::Value};
@@ -124,6 +124,30 @@ impl PyNode {
                     data.insert("branches".to_string(), branches.len().to_object(py));
                     "Match"
                 }
+                Node::Async { body } => {
+                    data.insert("body_id".to_string(), body.to_string().to_object(py));
+                    "Async"
+                }
+                Node::Await { expr } => {
+                    data.insert("expr_id".to_string(), expr.to_string().to_object(py));
+                    "Await"
+                }
+                Node::Spawn { expr } => {
+                    data.insert("expr_id".to_string(), expr.to_string().to_object(py));
+                    "Spawn"
+                }
+                Node::Channel => {
+                    "Channel"
+                }
+                Node::Send { channel, value } => {
+                    data.insert("channel_id".to_string(), channel.to_string().to_object(py));
+                    data.insert("value_id".to_string(), value.to_string().to_object(py));
+                    "Send"
+                }
+                Node::Receive { channel } => {
+                    data.insert("channel_id".to_string(), channel.to_string().to_object(py));
+                    "Receive"
+                }
             };
             
             Self {
@@ -221,6 +245,15 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
             Ok(py_list.to_object(py))
         }
         Value::Function { .. } => Ok("<function>".to_object(py)),
+        Value::Map(map) => {
+            let py_dict = PyDict::new(py);
+            for (k, v) in map {
+                py_dict.set_item(k, value_to_python(py, v)?)?;
+            }
+            Ok(py_dict.to_object(py))
+        }
+        Value::Promise(id) => Ok(format!("<promise:{}>", id).to_object(py)),
+        Value::Channel(id) => Ok(format!("<channel:{}>", id).to_object(py)),
     }
 }
 
@@ -292,9 +325,16 @@ fn opcode_to_u8(opcode: &claudelang_vm::bytecode::Opcode) -> u8 {
         PushTrue => 61,
         PushFalse => 62,
         PushNil => 63,
-        Effect => 64,
-        Halt => 65,
-        Nop => 66,
+        PushConst => 64,
+        Effect => 65,
+        EffectAsync => 66,
+        Await => 67,
+        Spawn => 68,
+        Channel => 69,
+        Send => 70,
+        Receive => 71,
+        Halt => 72,
+        Nop => 73,
     }
 }
 

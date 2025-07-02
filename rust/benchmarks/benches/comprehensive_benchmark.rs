@@ -174,13 +174,13 @@ fn benchmark_all_implementations(c: &mut Criterion) {
     println!("\n=== Performance vs Python Baseline ===\n");
     println!("Component    | Python Baseline | Rust Implementation | Speedup");
     println!("-------------|-----------------|---------------------|--------");
-    println!("Parser       | 19-212 µs       | {:.1}-{:.1} ns       | {}x",
+    println!("Parser       | 19-212 µs       | {:.1}-{:.1} ns       | {:.0}x",
              results[0].parser_ns,
              results[results.len()-1].parser_ns,
-             19000.0 / (avg_parse / 1000.0));
+             19000.0 / avg_parse);  // Fix: avg_parse is already in ns, 19µs = 19000ns
     println!("VM           | ~3.2 µs         | {:.1} ns             | {:.1}x",
              avg_vm,
-             3200.0 / (avg_vm / 1000.0));
+             3200.0 / avg_vm);  // Fix: avg_vm is already in ns, 3.2µs = 3200ns
     if !jit_results.is_empty() {
         println!("JIT Exec     | N/A             | {:.1} ns             | {:.0}x vs VM",
                  avg_jit_exec,
@@ -189,16 +189,16 @@ fn benchmark_all_implementations(c: &mut Criterion) {
     println!("End-to-End   | ~22-215 µs      | {:.1}-{:.1} ns       | {:.0}x",
              results[0].total_ns,
              results[results.len()-1].total_ns,
-             22000.0 / (avg_total / 1000.0));
+             22000.0 / avg_total);  // Fix: avg_total is already in ns, 22µs = 22000ns
     
     println!("\n=== Key Achievements ===");
-    println!("✓ Parser: {:.0}x average speedup", 100000.0 / (avg_parse / 1000.0));
-    println!("✓ VM: {:.1}x average speedup", 3200.0 / (avg_vm / 1000.0));
+    println!("✓ Parser: {:.0}x average speedup", 100000.0 / avg_parse);  // Assuming 100µs baseline
+    println!("✓ VM: {:.1}x average speedup", 3200.0 / avg_vm);
     if !jit_results.is_empty() {
         println!("✓ JIT: {:.0}x speedup over VM execution", avg_vm / avg_jit_exec);
         println!("✓ JIT Compilation overhead: {:.1}ns", avg_jit_compile);
     }
-    println!("✓ Overall: {:.0}x average speedup", 100000.0 / (avg_total / 1000.0));
+    println!("✓ Overall: {:.0}x average speedup", 100000.0 / avg_total);
     println!("✓ Throughput: {:.0} operations/second", avg_throughput);
     
     group.finish();

@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools-rust>=1.5.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_rust]
+# Configure Rust extension building
+profile = "release"  # Use release mode for performance
+
+[project]
+name = "claudelang"
+version = "0.1.0"
+description = "A modern Lisp dialect with graph-based AST, effects system, and JIT compilation"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "ClaudeLang Contributors"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Interpreters",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/claudelang"
+Documentation = "https://github.com/yourusername/claudelang/docs"
+Repository = "https://github.com/yourusername/claudelang.git"
+Issues = "https://github.com/yourusername/claudelang/issues"
+
+[project.scripts]
+claudelang = "repl.main:main"
+cl-repl = "repl.repl:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+    "isort>=5.0.0",
+    "mypy>=0.950",
+    "setuptools-rust>=1.5.0",
+    "maturin>=1.0.0",
+]
+llvm = ["llvmlite>=0.39.0"]
+ml = ["numpy>=1.20.0"]

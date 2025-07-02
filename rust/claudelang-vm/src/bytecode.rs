@@ -1,6 +1,7 @@
 //! Bytecode representation for ClaudeLang VM
 
 use std::fmt;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
@@ -93,9 +94,16 @@ pub enum Opcode {
     PushTrue,
     PushFalse,
     PushNil,
+    PushConst, // Push constant from constant pool
     
     // Effects
     Effect,
+    EffectAsync,
+    Await,
+    Spawn,
+    Channel,
+    Send,
+    Receive,
     
     // Special
     Halt,
@@ -126,10 +134,13 @@ pub enum Value {
     Float(f64),
     String(String),
     List(Vec<Value>),
+    Map(HashMap<String, Value>),
     Function {
         chunk_id: usize,
         env: Vec<Value>,
     },
+    Promise(String), // Promise ID
+    Channel(String), // Channel ID
 }
 
 impl fmt::Display for Value {
@@ -150,7 +161,21 @@ impl fmt::Display for Value {
                 }
                 write!(f, "]")
             }
+            Value::Map(map) => {
+                write!(f, "{{")?;
+                let mut first = true;
+                for (k, v) in map.iter() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "\"{}\": {}", k, v)?;
+                    first = false;
+                }
+                write!(f, "}}")
+            }
             Value::Function { .. } => write!(f, "<function>"),
+            Value::Promise(id) => write!(f, "<promise:{}>", id),
+            Value::Channel(id) => write!(f, "<channel:{}>", id),
         }
     }
 }

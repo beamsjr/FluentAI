@@ -16,5 +16,8 @@ claudelang-vm = { path = "../claudelang-vm" }
 pyo3.workspace = true
 anyhow.workspace = true
 
+[build-dependencies]
+pyo3-build-config = "0.19"
+
 [features]
 default = ["pyo3/extension-module"]
