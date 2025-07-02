@@ -249,9 +249,9 @@ Every optimization generates a machine-checkable proof:
 
 | Component | Python Baseline | Rust Implementation | Speedup |
 |-----------|----------------|---------------------|---------|
-| Parser | 19-212 µs | 69-456 ns | **49,174x - 258,808x** |
-| VM | ~3.2 µs | 154 ns | **20,782x** |
-| End-to-End | 22-215 µs | 294-814 ns | **29,795x - 135,433x** |
+| Parser | 19-212 µs | 69-456 ns | **49x - 258x** |
+| VM | ~3.2 µs | 154 ns | **21x** |
+| End-to-End | 22-215 µs | 294-814 ns | **29x - 135x** |
 | Throughput | ~4,500 ops/sec | 1,354,328 ops/sec | **301x** |
 
 ### Performance Breakdown
