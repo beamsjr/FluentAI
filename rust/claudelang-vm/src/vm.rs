@@ -912,20 +912,36 @@ impl VM {
                         // Handle stdlib function calls
                         let func_name = &s[10..]; // Remove "__stdlib__" prefix
                         
-                        if let Some(stdlib_func) = self.stdlib.get(func_name) {
-                            // Convert VM values to stdlib values
-                            let stdlib_args: Vec<StdlibValue> = args.iter()
-                                .map(|v| self.vm_value_to_stdlib_value(v))
-                                .collect();
-                            
-                            // Call the stdlib function
-                            let stdlib_result = stdlib_func.call(&stdlib_args)?;
-                            
-                            // Convert result back to VM value
-                            let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
-                            self.push(vm_result)?;
-                        } else {
-                            return Err(anyhow!("Unknown stdlib function: {}", func_name));
+                        // Check if it's a higher-order function that needs special handling
+                        match func_name {
+                            "map" | "filter" | "fold" => {
+                                // Use the stdlib bridge for higher-order functions
+                                use crate::stdlib_bridge::VMStdlibExt;
+                                let stdlib_args: Vec<StdlibValue> = args.iter()
+                                    .map(|v| self.vm_value_to_stdlib_value(v))
+                                    .collect();
+                                let result = self.call_higher_order_stdlib(func_name, &stdlib_args)?;
+                                let vm_result = self.stdlib_value_to_vm_value(&result);
+                                self.push(vm_result)?;
+                            }
+                            _ => {
+                                // Regular stdlib function
+                                if let Some(stdlib_func) = self.stdlib.get(func_name) {
+                                    // Convert VM values to stdlib values
+                                    let stdlib_args: Vec<StdlibValue> = args.iter()
+                                        .map(|v| self.vm_value_to_stdlib_value(v))
+                                        .collect();
+                                    
+                                    // Call the stdlib function
+                                    let stdlib_result = stdlib_func.call(&stdlib_args)?;
+                                    
+                                    // Convert result back to VM value
+                                    let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
+                                    self.push(vm_result)?;
+                                } else {
+                                    return Err(anyhow!("Unknown stdlib function: {}", func_name));
+                                }
+                            }
                         }
                     }
                     _ => return Err(anyhow!("Cannot call non-function value: {:?}", func)),
@@ -1058,7 +1074,7 @@ impl VM {
         Ok(VMState::Continue)
     }
     
-    fn push(&mut self, value: Value) -> Result<()> {
+    pub fn push(&mut self, value: Value) -> Result<()> {
         if self.stack.len() >= STACK_SIZE {
             return Err(anyhow!("Stack overflow"));
         }
@@ -1066,7 +1082,7 @@ impl VM {
         Ok(())
     }
     
-    fn pop(&mut self) -> Result<Value> {
+    pub fn pop(&mut self) -> Result<Value> {
         self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))
     }
     
@@ -1153,7 +1169,7 @@ impl VM {
         }
     }
     
-    fn vm_value_to_stdlib_value(&self, value: &Value) -> StdlibValue {
+    pub fn vm_value_to_stdlib_value(&self, value: &Value) -> StdlibValue {
         match value {
             Value::Nil => StdlibValue::Nil,
             Value::Bool(b) => StdlibValue::Bool(*b),
@@ -1190,7 +1206,7 @@ impl VM {
         }
     }
     
-    fn stdlib_value_to_vm_value(&self, value: &StdlibValue) -> Value {
+    pub fn stdlib_value_to_vm_value(&self, value: &StdlibValue) -> Value {
         match value {
             StdlibValue::Nil => Value::Nil,
             StdlibValue::Bool(b) => Value::Bool(*b),
@@ -1250,6 +1266,74 @@ impl VM {
             "str-upper" | "string-upcase" => Some(Opcode::StrUpper),
             "str-lower" | "string-downcase" => Some(Opcode::StrLower),
             _ => None,
+        }
+    }
+    
+    /// Call a value as a function (used by stdlib bridge)
+    pub fn call_value(&mut self, arg_count: usize) -> Result<()> {
+        // Pop arguments
+        let mut args = Vec::with_capacity(arg_count);
+        for _ in 0..arg_count {
+            args.push(self.pop()?);
+        }
+        args.reverse();
+        
+        // Pop function
+        let func = self.pop()?;
+        
+        match func {
+            Value::Function { chunk_id, env } => {
+                // Save current env to stack if needed
+                let stack_base = self.stack.len();
+                
+                // Push arguments back
+                for arg in args {
+                    self.push(arg)?;
+                }
+                
+                // Create new call frame
+                self.call_stack.push(CallFrame {
+                    chunk_id,
+                    ip: 0,
+                    stack_base,
+                    env,
+                });
+                
+                // Continue execution until this call returns
+                let initial_call_depth = self.call_stack.len();
+                while self.call_stack.len() >= initial_call_depth {
+                    let frame = self.call_stack.last().ok_or_else(|| anyhow!("Call stack underflow"))?;
+                    let chunk_id = frame.chunk_id;
+                    let ip = frame.ip;
+                    
+                    if ip >= self.bytecode.chunks[chunk_id].instructions.len() {
+                        return Err(anyhow!("Instruction pointer out of bounds"));
+                    }
+                    
+                    let instruction = self.bytecode.chunks[chunk_id].instructions[ip].clone();
+                    self.call_stack.last_mut().unwrap().ip += 1;
+                    
+                    match self.execute_instruction(&instruction, chunk_id)? {
+                        VMState::Continue => {}
+                        VMState::Return => {
+                            if self.call_stack.len() == initial_call_depth {
+                                // This is our call returning
+                                self.call_stack.pop();
+                                break;
+                            } else {
+                                // Inner call returning
+                                self.call_stack.pop();
+                            }
+                        }
+                        VMState::Halt => {
+                            return Err(anyhow!("Unexpected halt in function call"));
+                        }
+                    }
+                }
+                
+                Ok(())
+            }
+            _ => Err(anyhow!("Cannot call non-function value: {:?}", func)),
         }
     }
     

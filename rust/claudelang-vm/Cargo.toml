@@ -176,3 +176,15 @@ path = "../examples/test_simple_constructor.rs"
 [[example]]
 name = "test_stdlib"
 path = "../examples/test_stdlib.rs"
+
+[[example]]
+name = "test_higher_order"
+path = "../examples/test_higher_order.rs"
+
+[[example]]
+name = "test_io_sandbox"
+path = "../examples/test_io_sandbox.rs"
+
+[[example]]
+name = "test_io_effects_complete"
+path = "../examples/test_io_effects_complete.rs"

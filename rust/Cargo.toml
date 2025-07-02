@@ -3,10 +3,11 @@ members = [
     "claudelang-core",
     "claudelang-parser",
     "claudelang-vm",
+    "claudelang-stdlib",
     "claudelang-lsp",
     "claudelang-jit",
     "claudelang-py",
-    "benchmarks", "claudelang-effects",
+    "benchmarks", "claudelang-effects", "claudelang-types",
 ]
 resolver = "2"
 
