@@ -420,6 +420,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parse;
     
     #[test]
     fn test_parse_arithmetic() {

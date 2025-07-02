@@ -15,3 +15,8 @@ rustc-hash.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
+claudelang-parser = { path = "../claudelang-parser" }
+
+[[example]]
+name = "test_vm"
+path = "../examples/test_vm.rs"

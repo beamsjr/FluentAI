@@ -1,66 +1,207 @@
-//! Bytecode representation for the VM
+//! Bytecode representation for ClaudeLang VM
 
-use serde::{Deserialize, Serialize};
+use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
-    // Stack operations
-    Push = 0x00,
-    Pop = 0x01,
-    Dup = 0x02,
-    Swap = 0x03,
+    // Stack manipulation
+    Push,
+    Pop,
+    Dup,
+    Swap,
     
     // Arithmetic
-    Add = 0x10,
-    Sub = 0x11,
-    Mul = 0x12,
-    Div = 0x13,
-    Mod = 0x14,
-    Neg = 0x15,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Neg,
+    
+    // Type-specialized arithmetic (for performance)
+    AddInt,
+    SubInt,
+    MulInt,
+    DivInt,
     
     // Comparison
-    Eq = 0x20,
-    Ne = 0x21,
-    Lt = 0x22,
-    Le = 0x23,
-    Gt = 0x24,
-    Ge = 0x25,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    
+    // Type-specialized comparison
+    LtInt,
+    LeInt,
+    GtInt,
+    GeInt,
+    
+    // Boolean
+    And,
+    Or,
+    Not,
     
     // Control flow
-    Jump = 0x30,
-    JumpIf = 0x31,
-    JumpIfNot = 0x32,
-    Call = 0x33,
-    Return = 0x34,
+    Jump,
+    JumpIf,
+    JumpIfNot,
+    Call,
+    Return,
     
     // Variables
-    LoadLocal = 0x40,
-    StoreLocal = 0x41,
-    LoadGlobal = 0x42,
-    StoreGlobal = 0x43,
+    Load,
+    Store,
+    LoadGlobal,
+    StoreGlobal,
     
-    // Other
-    Halt = 0xFF,
+    // Fast local variable access
+    LoadLocal0,
+    LoadLocal1,
+    LoadLocal2,
+    LoadLocal3,
+    StoreLocal0,
+    StoreLocal1,
+    StoreLocal2,
+    StoreLocal3,
+    
+    // Functions
+    MakeFunc,
+    MakeEnv,
+    PopEnv,
+    
+    // Lists
+    MakeList,
+    ListHead,
+    ListTail,
+    ListCons,
+    ListLen,
+    ListEmpty,
+    
+    // Strings
+    StrLen,
+    StrConcat,
+    StrUpper,
+    StrLower,
+    
+    // Specialized constants
+    PushInt0,
+    PushInt1,
+    PushInt2,
+    PushIntSmall, // for small integers that fit in arg
+    PushTrue,
+    PushFalse,
+    PushNil,
+    
+    // Effects
+    Effect,
+    
+    // Special
+    Halt,
+    Nop,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Instruction {
     pub opcode: Opcode,
-    pub operand: Option<u32>,
+    pub arg: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Bytecode {
-    pub instructions: Vec<Instruction>,
-    pub constants: Vec<Constant>,
+impl Instruction {
+    pub fn new(opcode: Opcode) -> Self {
+        Self { opcode, arg: 0 }
+    }
+    
+    pub fn with_arg(opcode: Opcode, arg: u32) -> Self {
+        Self { opcode, arg }
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Constant {
-    Integer(i64),
+#[derive(Debug, Clone)]
+pub enum Value {
+    Nil,
+    Bool(bool),
+    Int(i64),
     Float(f64),
     String(String),
-    Boolean(bool),
-    Nil,
+    List(Vec<Value>),
+    Function {
+        chunk_id: usize,
+        env: Vec<Value>,
+    },
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Nil => write!(f, "nil"),
+            Value::Bool(b) => write!(f, "{}", b),
+            Value::Int(i) => write!(f, "{}", i),
+            Value::Float(fl) => write!(f, "{}", fl),
+            Value::String(s) => write!(f, "\"{}\"", s),
+            Value::List(items) => {
+                write!(f, "[")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "]")
+            }
+            Value::Function { .. } => write!(f, "<function>"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BytecodeChunk {
+    pub instructions: Vec<Instruction>,
+    pub constants: Vec<Value>,
+    pub name: Option<String>,
+}
+
+impl BytecodeChunk {
+    pub fn new(name: Option<String>) -> Self {
+        Self {
+            instructions: Vec::new(),
+            constants: Vec::new(),
+            name,
+        }
+    }
+    
+    pub fn add_instruction(&mut self, instruction: Instruction) -> usize {
+        self.instructions.push(instruction);
+        self.instructions.len() - 1
+    }
+    
+    pub fn add_constant(&mut self, value: Value) -> u32 {
+        self.constants.push(value);
+        (self.constants.len() - 1) as u32
+    }
+    
+    pub fn patch_jump(&mut self, offset: usize, target: usize) {
+        self.instructions[offset].arg = target as u32;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Bytecode {
+    pub chunks: Vec<BytecodeChunk>,
+    pub main_chunk: usize,
+}
+
+impl Bytecode {
+    pub fn new() -> Self {
+        Self {
+            chunks: Vec::new(),
+            main_chunk: 0,
+        }
+    }
+    
+    pub fn add_chunk(&mut self, chunk: BytecodeChunk) -> usize {
+        self.chunks.push(chunk);
+        self.chunks.len() - 1
+    }
 }

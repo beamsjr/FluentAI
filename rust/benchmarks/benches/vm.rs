@@ -1,8 +1,85 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+//! Benchmarks for ClaudeLang VM execution performance
 
-fn vm_benchmarks(_c: &mut Criterion) {
-    // TODO: Implement VM benchmarks
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use claudelang_parser::parse;
+use claudelang_vm::{Compiler, VM};
+
+fn benchmark_vm_arithmetic(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vm_arithmetic");
+    
+    // For now, skip arithmetic benchmarks until we fix built-in functions
+    // TODO: Fix built-in function compilation
+    
+    group.finish();
 }
 
-criterion_group!(benches, vm_benchmarks);
+fn benchmark_vm_literals(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vm_literals");
+    
+    group.bench_function("integer", |b| {
+        b.iter(|| {
+            let ast = parse("42").unwrap();
+            let compiler = Compiler::new();
+            let bytecode = compiler.compile(&ast).unwrap();
+            let mut vm = VM::new(bytecode);
+            black_box(vm.run().unwrap())
+        });
+    });
+    
+    group.bench_function("float", |b| {
+        b.iter(|| {
+            let ast = parse("3.14159").unwrap();
+            let compiler = Compiler::new();
+            let bytecode = compiler.compile(&ast).unwrap();
+            let mut vm = VM::new(bytecode);
+            black_box(vm.run().unwrap())
+        });
+    });
+    
+    group.bench_function("string", |b| {
+        b.iter(|| {
+            let ast = parse(r#""hello world""#).unwrap();
+            let compiler = Compiler::new();
+            let bytecode = compiler.compile(&ast).unwrap();
+            let mut vm = VM::new(bytecode);
+            black_box(vm.run().unwrap())
+        });
+    });
+    
+    group.bench_function("list", |b| {
+        b.iter(|| {
+            let ast = parse("[1 2 3 4 5]").unwrap();
+            let compiler = Compiler::new();
+            let bytecode = compiler.compile(&ast).unwrap();
+            let mut vm = VM::new(bytecode);
+            black_box(vm.run().unwrap())
+        });
+    });
+    
+    group.finish();
+}
+
+fn benchmark_vm_control_flow(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vm_control_flow");
+    
+    // TODO: Implement control flow once built-in functions are fixed
+    
+    group.finish();
+}
+
+fn benchmark_vm_functions(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vm_functions");
+    
+    // TODO: Implement function benchmarks once built-in functions are fixed
+    
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    benchmark_vm_arithmetic,
+    benchmark_vm_literals,
+    benchmark_vm_control_flow,
+    benchmark_vm_functions
+);
 criterion_main!(benches);
