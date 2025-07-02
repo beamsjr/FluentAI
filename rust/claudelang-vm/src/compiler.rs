@@ -100,7 +100,7 @@ impl Compiler {
     }
     
     fn compile_literal(&mut self, lit: &Literal) -> Result<()> {
-        self.stack_depth += 1;
+        // Don't increment stack_depth here - emit will handle it
         match lit {
             Literal::Integer(n) => {
                 match *n {
@@ -206,7 +206,7 @@ impl Compiler {
                         // Binary operators
                         Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod |
                         Opcode::Eq | Opcode::Ne | Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge |
-                        Opcode::And | Opcode::Or | Opcode::StrConcat => {
+                        Opcode::And | Opcode::Or | Opcode::StrConcat | Opcode::ListCons => {
                             if args.len() != 2 {
                                 return Err(anyhow!("{} requires exactly 2 arguments", name));
                             }
@@ -217,12 +217,22 @@ impl Compiler {
                         }
                         // Unary operators
                         Opcode::Not | Opcode::ListLen | Opcode::ListEmpty | 
-                        Opcode::StrLen | Opcode::StrUpper | Opcode::StrLower => {
+                        Opcode::StrLen | Opcode::StrUpper | Opcode::StrLower |
+                        Opcode::ListHead | Opcode::ListTail => {
                             if args.len() != 1 {
                                 return Err(anyhow!("{} requires exactly 1 argument", name));
                             }
                             self.compile_node(graph, args[0])?;
                             self.emit(Instruction::new(opcode));
+                            return Ok(());
+                        }
+                        // Variable-arity functions
+                        Opcode::MakeList => {
+                            // Compile all arguments
+                            for &arg in args {
+                                self.compile_node(graph, arg)?;
+                            }
+                            self.emit(Instruction::with_arg(Opcode::MakeList, args.len() as u32));
                             return Ok(());
                         }
                         _ => {
@@ -280,8 +290,17 @@ impl Compiler {
         }
         
         // Add captured variables to captured map
+        // Also track which captured variables are cells
         for (i, var) in free_vars.iter().enumerate() {
             self.captured[0].insert(var.clone(), i);
+            
+            // Check if this variable is a cell in any parent scope
+            for parent_cells in &saved_cell_vars {
+                if parent_cells.contains(var) {
+                    self.cell_vars[0].insert(var.clone());
+                    break;
+                }
+            }
         }
         
         // Compile body
@@ -319,7 +338,7 @@ impl Compiler {
         eprintln!("DEBUG compile_let: new scope {} with base {}", scope_idx, self.stack_depth);
         
         // Compile bindings
-        for (i, (name, value)) in bindings.iter().enumerate() {
+        for (_i, (name, value)) in bindings.iter().enumerate() {
             eprintln!("DEBUG: Before compiling {}: stack_depth={}", name, self.stack_depth);
             let before_depth = self.stack_depth;
             self.compile_node(graph, *value)?;
@@ -382,9 +401,12 @@ impl Compiler {
         }
         
         // Step 2: Compile binding values and store in cells
-        for (i, (_name, value)) in bindings.iter().enumerate() {
-            // Load the cell
-            self.emit(Instruction::with_arg(Opcode::Load, i as u32));
+        for (_i, (name, value)) in bindings.iter().enumerate() {
+            // Load the cell - need to look up actual position from locals
+            let cell_pos = self.locals[scope_idx].get(name)
+                .ok_or_else(|| anyhow!("Cell not found for binding: {}", name))?;
+            // Load uses frame-relative indexing, so we use the stored position directly
+            self.emit(Instruction::with_arg(Opcode::Load, *cell_pos as u32));
             
             // Compile the value
             self.compile_node(graph, *value)?;
@@ -468,10 +490,14 @@ impl Compiler {
             "not" => Some(Opcode::Not),
             "list-len" | "length" => Some(Opcode::ListLen),
             "list-empty?" | "empty?" => Some(Opcode::ListEmpty),
+            "car" | "head" | "first" => Some(Opcode::ListHead),
+            "cdr" | "tail" | "rest" => Some(Opcode::ListTail),
+            "cons" => Some(Opcode::ListCons),
             "str-len" | "string-length" => Some(Opcode::StrLen),
             "str-concat" | "string-append" => Some(Opcode::StrConcat),
             "str-upper" | "string-upcase" => Some(Opcode::StrUpper),
             "str-lower" | "string-downcase" => Some(Opcode::StrLower),
+            "list" => Some(Opcode::MakeList),
             _ => None,
         }
     }
@@ -488,7 +514,7 @@ impl Compiler {
             Opcode::Dup => self.stack_depth += 1,
             Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod |
             Opcode::Eq | Opcode::Ne | Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge |
-            Opcode::And | Opcode::Or | Opcode::StrConcat => self.stack_depth = self.stack_depth.saturating_sub(1), // Binary ops consume 2, produce 1
+            Opcode::And | Opcode::Or | Opcode::StrConcat | Opcode::ListCons => self.stack_depth = self.stack_depth.saturating_sub(1), // Binary ops consume 2, produce 1
             Opcode::MakeList => self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize).saturating_add(1),
             Opcode::Call => {
                 // Call pops: the function + all arguments, then pushes the result
@@ -719,7 +745,7 @@ impl Compiler {
         }
         
         // Check if it's already captured (for nested lambdas)
-        for (_scope_idx, scope) in self.captured.iter().enumerate().rev() {
+        for (scope_idx, scope) in self.captured.iter().enumerate().rev() {
             if let Some(&capture_idx) = scope.get(name) {
                 self.emit(Instruction::with_arg(Opcode::LoadCaptured, capture_idx as u32));
                 return Ok(());

@@ -414,6 +414,45 @@ impl VM {
                 }
             }
             
+            ListHead => {
+                let list = self.pop()?;
+                match list {
+                    Value::List(items) => {
+                        if items.is_empty() {
+                            return Err(anyhow!("Cannot take head of empty list"));
+                        }
+                        self.push(items[0].clone())?;
+                    }
+                    _ => return Err(anyhow!("Type error in list_head: expected list")),
+                }
+            }
+            
+            ListTail => {
+                let list = self.pop()?;
+                match list {
+                    Value::List(items) => {
+                        if items.is_empty() {
+                            return Err(anyhow!("Cannot take tail of empty list"));
+                        }
+                        let tail = items[1..].to_vec();
+                        self.push(Value::List(tail))?;
+                    }
+                    _ => return Err(anyhow!("Type error in list_tail: expected list")),
+                }
+            }
+            
+            ListCons => {
+                let list = self.pop()?;
+                let elem = self.pop()?;
+                match list {
+                    Value::List(mut items) => {
+                        items.insert(0, elem);
+                        self.push(Value::List(items))?;
+                    }
+                    _ => return Err(anyhow!("Type error in list_cons: second argument must be a list")),
+                }
+            }
+            
             // Strings
             StrLen => {
                 let string = self.pop()?;

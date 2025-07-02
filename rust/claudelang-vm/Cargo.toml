@@ -143,3 +143,19 @@ path = "../examples/test_cell_simple.rs"
 [[example]]
 name = "test_cell_debug"
 path = "../examples/test_cell_debug.rs"
+
+[[example]]
+name = "test_recursive_debug"
+path = "../examples/test_recursive_debug.rs"
+
+[[example]]
+name = "test_nested_scopes"
+path = "../examples/test_nested_scopes.rs"
+
+[[example]]
+name = "test_list_operations"
+path = "../examples/test_list_operations.rs"
+
+[[example]]
+name = "test_list_debug"
+path = "../examples/test_list_debug.rs"
