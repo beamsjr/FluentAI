@@ -23,12 +23,12 @@ ClaudeLang is an experimental programming language that explores what happens wh
 ## Key Features
 
 ### 🚀 Rust Performance Implementation
-- **29x - 135x faster** than Python baseline (measured, not theoretical!)
-- **Parser**: 69-456ns (vs 19-212µs in Python) - up to 258,808x speedup
-- **VM**: 154ns average (vs 3.2µs) - 20,782x speedup
+- **10x - 200x faster** than Python baseline (measured, not theoretical!)
+- **Parser**: 0.8-5.2µs (vs 19-212µs in Python) - 10x to 60x speedup
+- **VM**: ~0.1µs average (vs ~5µs) - 50x speedup
 - **Complete Standard Library**: 100% feature parity with 3-5x performance gains
 - **JIT Compiler**: Native code generation with Cranelift (x86_64)
-- **Throughput**: 1.35M operations/second
+- **Throughput**: 100,000+ operations/second
 
 ### 🧠 AI-First Design
 - **Graph-based AST**: Programs as directed graphs, not text
@@ -250,23 +250,23 @@ Every optimization generates a machine-checkable proof:
 
 | Component | Python Baseline | Rust Implementation | Speedup |
 |-----------|----------------|---------------------|---------|
-| Parser | 19-212 µs | 69-456 ns | **29x - 258,808x** |
-| VM | 3.2 µs | 154 ns | **20,782x** |
+| Parser | 19-212 µs | 0.8-5.2 µs | **10x - 60x** |
+| VM | ~5 µs | ~0.1 µs | **50x** |
 | End-to-End | 50-200 µs | 1-10 µs | **50x - 200x** |
-| Throughput | ~5,000 ops/sec | 1,350,000+ ops/sec | **270x+** |
+| Throughput | ~5,000 ops/sec | 100,000+ ops/sec | **20x+** |
 | Stdlib Functions | Varies | 3-5x faster | **3x - 5x** |
 
 ### Performance Breakdown
 
 | Operation | Time | vs Python |
 |-----------|-----------|-----------|
-| Parse `42` | ~69 ns | 275x faster |
-| Parse `(+ 1 2)` | ~200 ns | 95x faster |
-| Parse complex expr | ~456 ns | 464x faster |
-| VM instruction | ~154 ns | 20,782x faster |
+| Parse `42` | ~800 ns | 24x faster |
+| Parse `(+ 1 2)` | ~2.2 µs | 9x faster |
+| Parse complex expr | ~5.2 µs | 40x faster |
+| VM execution | ~100 ns | 50x faster |
 | Stdlib function call | 50-200 ns | 3-5x faster |
 | JIT compilation | <10 µs (x86_64 only) | N/A |
-| JIT execution | 10-50 ns | 100x faster than VM |
+| JIT execution | 10-50 ns | 10x faster than VM |
 
 The Rust implementation achieves these gains through:
 - Zero-copy parsing with the logos crate
@@ -333,8 +333,8 @@ ClaudeLang/
 ## Recent Updates
 
 ### 🚀 Rust Implementation (Latest)
-- **Achieved 29,795x - 135,433x performance improvement**
-- Zero-copy parser with logos crate
+- **Achieved 10x - 200x performance improvement**
+- Zero-copy parser with logos crate  
 - Stack-based VM with specialized opcodes
 - **Complete Standard Library in Rust**:
   - All core functions, collections, strings, math, I/O operations
