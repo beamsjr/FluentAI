@@ -8,6 +8,7 @@
 //! - Error types
 
 pub mod ast;
+pub mod documentation;
 pub mod effects;
 pub mod error;
 pub mod value;
