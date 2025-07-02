@@ -678,3 +678,11 @@ class PrimitiveRegistry:
 
 # Global primitive registry
 PRIMITIVES = PrimitiveRegistry()
+
+# Register UI primitives if available
+try:
+    from ..ui.primitives import register_ui_primitives
+    register_ui_primitives(PRIMITIVES)
+except ImportError:
+    # UI module not available
+    pass

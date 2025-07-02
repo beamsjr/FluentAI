@@ -565,7 +565,8 @@ class Parser:
             'network': EffectType.NETWORK,
             'random': EffectType.RANDOM,
             'concurrent': EffectType.ASYNC,
-            'async': EffectType.ASYNC
+            'async': EffectType.ASYNC,
+            'dom': EffectType.DOM
         }
         
         effect_type = effect_map.get(effect_str, EffectType.IO)

@@ -548,6 +548,7 @@ def create_default_handler() -> EffectHandler:
     """Create a default effect handler with all standard handlers"""
     from .async_handler import AsyncHandler
     from .concurrency_handler import ConcurrencyHandler
+    from .dom_handler import DOMHandler
     return ComposedHandler([
         IOHandler(),
         StateHandler(),
@@ -555,6 +556,7 @@ def create_default_handler() -> EffectHandler:
         TimeHandler(),
         RandomHandler(),
         NetworkHandler(),
+        DOMHandler(),
         ConcurrencyHandler(),
         AsyncHandler()
     ])
@@ -576,11 +578,13 @@ def create_test_handler(**kwargs) -> EffectHandler:
     
     from .async_handler import AsyncHandler
     from .concurrency_handler import ConcurrencyHandler
+    from .dom_handler import DOMHandler
     handlers.extend([
         ErrorHandler(),
         TimeHandler(mock_time=kwargs.get("mock_time")),
         RandomHandler(seed=kwargs.get("seed")),
         NetworkHandler(),
+        DOMHandler(**kwargs.get("dom", {})),
         ConcurrencyHandler(),
         AsyncHandler()
     ])

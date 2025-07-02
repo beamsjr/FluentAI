@@ -52,6 +52,7 @@ class EffectType(Enum):
     NETWORK = auto()
     RANDOM = auto()
     ASYNC = auto()
+    DOM = auto()
 
 
 @dataclass
