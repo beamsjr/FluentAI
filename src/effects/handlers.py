@@ -549,8 +549,10 @@ def create_default_handler() -> EffectHandler:
     from .async_handler import AsyncHandler
     from .concurrency_handler import ConcurrencyHandler
     from .dom_handler import DOMHandler
+    from .reactive import ReactiveHandler
     return ComposedHandler([
         IOHandler(),
+        ReactiveHandler(),  # Put before StateHandler to catch reactive: operations
         StateHandler(),
         ErrorHandler(),
         TimeHandler(),

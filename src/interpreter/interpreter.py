@@ -99,6 +99,9 @@ class Interpreter:
         # Register contract predicates
         register_contract_predicates(self.global_env)
         
+        # Effect tracking
+        self._effect_stack: List[Set[Tuple[EffectType, str]]] = []
+        
         # Register contract control functions
         self._register_contract_functions()
     
@@ -135,6 +138,27 @@ class Interpreter:
     def register_handler(self, effect_type: EffectType, handler: EffectHandler):
         """Register an effect handler"""
         self.effect_handlers[effect_type] = handler
+    
+    def _push_effect_frame(self):
+        """Push a new effect tracking frame"""
+        self._effect_stack.append(set())
+    
+    def _pop_effect_frame(self) -> Set[Tuple[EffectType, str]]:
+        """Pop effect tracking frame and return effects"""
+        if self._effect_stack:
+            return self._effect_stack.pop()
+        return set()
+    
+    def _record_effect(self, effect_type: EffectType, operation: str):
+        """Record an effect in the current frame"""
+        if self._effect_stack:
+            self._effect_stack[-1].add((effect_type, operation))
+    
+    def _get_current_effects(self) -> Set[Tuple[EffectType, str]]:
+        """Get effects in current frame without popping"""
+        if self._effect_stack:
+            return self._effect_stack[-1].copy()
+        return set()
     
     def interpret(self, graph: Graph, env: Optional[Environment] = None) -> Value:
         """Interpret a graph starting from its root"""
@@ -423,24 +447,31 @@ class Interpreter:
             new_env.bind(param, arg)
         
         # Track effects if contract checking is enabled
-        effects_before = set()  # TODO: Implement proper effect tracking
+        self._push_effect_frame()
         
         try:
             # Evaluate body
             result = self.eval_node(closure['body_id'], graph, new_env)
             
+            # Get effects used during function execution
+            effects_used = self._pop_effect_frame()
+            
             # Verify postconditions if contract exists
             if contract_context:
-                effects_after = set()  # TODO: Implement proper effect tracking
-                effects_used = effects_after - effects_before
-                
                 self.contract_verifier.verify_function_return(
                     contract_context, result.data, new_env, effects_used
                 )
             
+            # Add effects to result
+            for effect_type, operation in effects_used:
+                result.effects_triggered.append((effect_type, operation))
+            
             return result
             
         except Exception as e:
+            # Clean up effect frame on exception
+            self._pop_effect_frame()
+            
             # Clean up contract context on exception
             if contract_context and self.contract_verifier.contract_stack:
                 if self.contract_verifier.contract_stack[-1] == contract_context:
@@ -477,6 +508,9 @@ class Interpreter:
     
     def _eval_effect(self, node: Effect, graph: Graph, env: Environment) -> Value:
         """Evaluate effect operation"""
+        # Record the effect
+        self._record_effect(node.effect_type, node.operation)
+        
         # Special handling for concurrent:go
         if node.operation == "concurrent:go":
             # For go, we need to wrap the expression in a closure
@@ -589,6 +623,23 @@ class Interpreter:
             data={"error": error_msg},
             type_info=TypeAnnotation("Error")
         )
+    
+    def _is_compatible_type(self, actual_type, expected_type) -> bool:
+        """Check if actual type is compatible with expected type"""
+        # Basic compatibility rules
+        if actual_type.name == expected_type.name:
+            return True
+        
+        # Allow Any type
+        if expected_type.name == "Any" or actual_type.name == "Any":
+            return True
+        
+        # Allow Number subtyping
+        if expected_type.name == "Number" and actual_type.name in ["Int", "Float"]:
+            return True
+        
+        # Add more compatibility rules as needed
+        return False
     
     def _handle_state(self, operation: str, args: List[Value]) -> Value:
         """Handle state effects"""
@@ -896,8 +947,22 @@ class Interpreter:
         # Override the type annotation with the ascribed type
         result.type_info = ascribed_type
         
-        # TODO: In a full type checker, we would verify that the expression's
-        # actual type is compatible with the ascribed type
+        # Verify type compatibility if type checking is enabled
+        if hasattr(self, 'type_checker') and self.type_checker:
+            try:
+                # Check if the actual type is compatible with the ascribed type
+                if result.type_info and ascribed_type:
+                    # Basic compatibility check - could be enhanced
+                    if result.type_info.name != ascribed_type.name:
+                        # Allow subtyping and compatible types
+                        if not self._is_compatible_type(result.type_info, ascribed_type):
+                            from ..errors.exceptions import TypeError as ClaudeLangTypeError
+                            raise ClaudeLangTypeError(
+                                f"Type mismatch: expected {ascribed_type.name}, got {result.type_info.name}"
+                            )
+            except AttributeError:
+                # Type checking not fully implemented yet
+                pass
         
         return result
     

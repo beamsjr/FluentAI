@@ -54,7 +54,7 @@ class ComponentState:
 class Component(ABC):
     """Base component class"""
     
-    def __init__(self, props: Optional[Dict[str, Any]] = None):
+    def __init__(self, props: Optional[Dict[str, Any]] = None, effect_context=None):
         self._id = str(uuid.uuid4())
         self._props = props or {}
         self._state = {}
@@ -65,6 +65,7 @@ class Component(ABC):
         self._parent = None
         self._context = {}
         self._watchers = []
+        self._effect_context = effect_context
         
         # Validate props
         self._validate_props()
@@ -186,9 +187,10 @@ class Component(ABC):
         self.before_unmount()
         
         # Clean up watchers
-        for watcher in self._watchers:
-            # TODO: Call reactive:unwatch
-            pass
+        for watcher_id in self._watchers:
+            # Call reactive:unwatch through effect system
+            if hasattr(self, '_effect_context'):
+                self._effect_context.perform(EffectType.STATE, 'reactive:unwatch', watcher_id)
         
         # Unmount children
         for child in self._children:
@@ -197,17 +199,48 @@ class Component(ABC):
         self._phase = LifecyclePhase.UNMOUNTED
         self.unmounted()
     
-    def watch(self, deps: List[str], callback: Callable):
+    def watch(self, deps: List[str], callback: Callable, options: Optional[Dict[str, Any]] = None):
         """Watch reactive dependencies"""
-        # TODO: Integrate with reactive system
-        watcher_id = f"watcher_{self._id}_{len(self._watchers)}"
-        self._watchers.append(watcher_id)
-        return watcher_id
+        # Integrate with reactive system through effect context
+        if hasattr(self, '_effect_context'):
+            watcher_id = self._effect_context.perform(
+                EffectType.STATE, 
+                'reactive:watch', 
+                callback, 
+                deps,
+                options or {}
+            )
+            self._watchers.append(watcher_id)
+            return watcher_id
+        else:
+            # Fallback if no effect context
+            watcher_id = f"watcher_{self._id}_{len(self._watchers)}"
+            self._watchers.append(watcher_id)
+            return watcher_id
     
     def emit(self, event: str, data: Any = None):
         """Emit an event to parent"""
         if self._parent and hasattr(self._parent, '_handle_child_event'):
             self._parent._handle_child_event(self, event, data)
+    
+    def set_reactive_state(self, key: str, value: Any):
+        """Set reactive state that triggers watchers"""
+        if self._effect_context:
+            # Create reactive reference if it doesn't exist
+            ref_id = f"{self._id}:{key}"
+            self._effect_context.perform(EffectType.STATE, 'reactive:set', ref_id, value)
+        else:
+            # Fallback to regular state
+            self._state[key] = value
+            self.update()
+    
+    def get_reactive_state(self, key: str) -> Any:
+        """Get reactive state value"""
+        if self._effect_context:
+            ref_id = f"{self._id}:{key}"
+            return self._effect_context.perform(EffectType.STATE, 'reactive:get', ref_id)
+        else:
+            return self._state.get(key)
     
     def _handle_child_event(self, child: 'Component', event: str, data: Any):
         """Handle event from child component"""
