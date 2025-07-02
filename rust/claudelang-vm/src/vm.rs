@@ -13,6 +13,7 @@ pub struct CallFrame {
     chunk_id: usize,
     ip: usize,
     stack_base: usize,
+    env: Vec<Value>, // Captured environment for closures
 }
 
 pub struct VM {
@@ -60,6 +61,7 @@ impl VM {
             chunk_id: self.bytecode.main_chunk,
             ip: 0,
             stack_base: 0,
+            env: Vec::new(),
         });
         
         loop {
@@ -299,52 +301,6 @@ impl VM {
                 }
             }
             
-            Call => {
-                let arg_count = instruction.arg as usize;
-                let func_val = self.pop()?;
-                
-                match func_val {
-                    // Built-in function names
-                    Value::String(ref name) if name.starts_with("__builtin__") => {
-                        let builtin_name = &name[11..]; // Remove "__builtin__" prefix
-                        
-                        // Handle special built-in functions
-                        match builtin_name {
-                            "cons" => {
-                                if arg_count != 2 {
-                                    return Err(anyhow!("cons requires exactly 2 arguments"));
-                                }
-                                let tail = self.pop()?;
-                                let head = self.pop()?;
-                                
-                                // Build a proper list
-                                match tail {
-                                    Value::List(mut items) => {
-                                        items.insert(0, head);
-                                        self.push(Value::List(items))?;
-                                    }
-                                    _ => return Err(anyhow!("cons requires a list as second argument")),
-                                }
-                            }
-                            _ => return Err(anyhow!("Unknown built-in function: {}", builtin_name)),
-                        }
-                    }
-                    // User-defined functions
-                    Value::Function { chunk_id, env: _ } => {
-                        // Create new call frame
-                        let new_frame = CallFrame {
-                            chunk_id,
-                            ip: 0,
-                            stack_base: self.stack.len() - arg_count,
-                        };
-                        
-                        // TODO: Handle environment/closures
-                        
-                        self.call_stack.push(new_frame);
-                    }
-                    _ => return Err(anyhow!("Attempted to call non-function value")),
-                }
-            }
             
             Return => {
                 if self.call_stack.len() <= 1 {
@@ -710,6 +666,37 @@ impl VM {
                 self.push(func)?;
             }
             
+            MakeClosure => {
+                // Unpack chunk_id and capture count
+                let packed = instruction.arg;
+                let chunk_id = (packed >> 16) as usize;
+                let capture_count = (packed & 0xFFFF) as usize;
+                
+                // Pop captured values from stack
+                let mut env = Vec::with_capacity(capture_count);
+                for _ in 0..capture_count {
+                    env.push(self.pop()?);
+                }
+                env.reverse(); // Restore original order
+                
+                let func = Value::Function { chunk_id, env };
+                self.push(func)?;
+            }
+            
+            LoadCaptured => {
+                let capture_idx = instruction.arg as usize;
+                let frame = self.call_stack.last()
+                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                
+                // Load value from captured environment
+                if capture_idx >= frame.env.len() {
+                    return Err(anyhow!("Invalid capture index: {}", capture_idx));
+                }
+                
+                let value = frame.env[capture_idx].clone();
+                self.push(value)?;
+            }
+            
             Call => {
                 let arg_count = instruction.arg as usize;
                 let mut args = Vec::with_capacity(arg_count);
@@ -733,6 +720,7 @@ impl VM {
                             chunk_id,
                             ip: 0,
                             stack_base: self.stack.len() - args.len(),
+                            env,
                         });
                         
                         // Arguments are already on the stack

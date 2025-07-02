@@ -3,12 +3,15 @@
 use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
 use claudelang_core::ast::{Graph as ASTGraph, Node, NodeId, Literal};
 use anyhow::{anyhow, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct Compiler {
     bytecode: Bytecode,
     current_chunk: usize,
     locals: Vec<HashMap<String, usize>>,
+    captured: Vec<HashMap<String, usize>>, // Captured variables per scope
+    stack_depth: usize, // Track current stack depth
+    scope_bases: Vec<usize>, // Base stack position for each scope
 }
 
 impl Compiler {
@@ -21,6 +24,9 @@ impl Compiler {
             bytecode,
             current_chunk: main_chunk,
             locals: vec![HashMap::new()],
+            captured: vec![HashMap::new()],
+            stack_depth: 0,
+            scope_bases: vec![0],
         }
     }
     
@@ -86,7 +92,7 @@ impl Compiler {
     }
     
     fn compile_literal(&mut self, lit: &Literal) -> Result<()> {
-        
+        self.stack_depth += 1;
         match lit {
             Literal::Integer(n) => {
                 match *n {
@@ -135,6 +141,14 @@ impl Compiler {
                 // For now, using Load with local index
                 // TODO: Implement proper local variable opcodes
                 self.emit(Instruction::with_arg(Opcode::Load, local_idx as u32));
+                return Ok(());
+            }
+        }
+        
+        // Look up in captured variables
+        for (_scope_idx, scope) in self.captured.iter().enumerate().rev() {
+            if let Some(&capture_idx) = scope.get(name) {
+                self.emit(Instruction::with_arg(Opcode::LoadCaptured, capture_idx as u32));
                 return Ok(());
             }
         }
@@ -193,6 +207,14 @@ impl Compiler {
     }
     
     fn compile_lambda(&mut self, graph: &ASTGraph, params: &[String], body: NodeId) -> Result<()> {
+        // Find free variables - variables used in body but not defined as parameters
+        let free_vars = self.find_free_variables(graph, body, params)?;
+        
+        // Emit code to push captured values onto stack
+        for var in &free_vars {
+            self.compile_captured_variable(var)?;
+        }
+        
         // Create a new chunk for the lambda
         let lambda_chunk = BytecodeChunk::new(Some("lambda".to_string()));
         let chunk_id = self.bytecode.add_chunk(lambda_chunk);
@@ -200,14 +222,25 @@ impl Compiler {
         // Save current context
         let saved_chunk = self.current_chunk;
         let saved_locals = self.locals.clone();
+        let saved_captured = self.captured.clone();
+        let saved_stack_depth = self.stack_depth;
+        let saved_scope_bases = self.scope_bases.clone();
         
         // Switch to lambda chunk
         self.current_chunk = chunk_id;
         self.locals = vec![HashMap::new()];
+        self.captured = vec![HashMap::new()];
+        self.stack_depth = 0; // Lambda starts with fresh stack
+        self.scope_bases = vec![0];
         
         // Add parameters to locals
         for (i, param) in params.iter().enumerate() {
             self.locals[0].insert(param.clone(), i);
+        }
+        
+        // Add captured variables to captured map
+        for (i, var) in free_vars.iter().enumerate() {
+            self.captured[0].insert(var.clone(), i);
         }
         
         // Compile body
@@ -217,9 +250,19 @@ impl Compiler {
         // Restore context
         self.current_chunk = saved_chunk;
         self.locals = saved_locals;
+        self.captured = saved_captured;
+        self.stack_depth = saved_stack_depth;
+        self.scope_bases = saved_scope_bases;
         
-        // Push function value
-        self.emit(Instruction::with_arg(Opcode::MakeFunc, chunk_id as u32));
+        // Push function value with captures
+        if free_vars.is_empty() {
+            self.emit(Instruction::with_arg(Opcode::MakeFunc, chunk_id as u32));
+        } else {
+            // Pack chunk_id and capture count into arg
+            // Upper 16 bits: chunk_id, Lower 16 bits: capture count
+            let packed = ((chunk_id as u32) << 16) | (free_vars.len() as u32);
+            self.emit(Instruction::with_arg(Opcode::MakeClosure, packed));
+        }
         
         Ok(())
     }
@@ -227,12 +270,17 @@ impl Compiler {
     fn compile_let(&mut self, graph: &ASTGraph, bindings: &[(String, NodeId)], body: NodeId) -> Result<()> {
         // Create new scope
         self.locals.push(HashMap::new());
+        self.captured.push(HashMap::new());
+        self.scope_bases.push(self.stack_depth);
         let scope_idx = self.locals.len() - 1;
         
         // Compile bindings
         for (i, (name, value)) in bindings.iter().enumerate() {
             self.compile_node(graph, *value)?;
-            self.locals[scope_idx].insert(name.clone(), i);
+            // Store absolute position on stack
+            let abs_pos = self.scope_bases[scope_idx] + i;
+            self.locals[scope_idx].insert(name.clone(), abs_pos);
+            self.stack_depth += 1;
         }
         
         // Compile body
@@ -241,10 +289,13 @@ impl Compiler {
         // Clean up bindings while preserving the result
         if !bindings.is_empty() {
             self.emit(Instruction::with_arg(Opcode::PopN, bindings.len() as u32));
+            self.stack_depth -= bindings.len();
         }
         
         // Pop scope
         self.locals.pop();
+        self.captured.pop();
+        self.scope_bases.pop();
         
         Ok(())
     }
@@ -315,6 +366,28 @@ impl Compiler {
     }
     
     fn emit(&mut self, instruction: Instruction) -> usize {
+        // Adjust stack depth based on instruction
+        match instruction.opcode {
+            Opcode::Pop => self.stack_depth = self.stack_depth.saturating_sub(1),
+            Opcode::PopN => {
+                if instruction.arg > 0 {
+                    self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize - 1); // PopN keeps top value
+                }
+            }
+            Opcode::Dup => self.stack_depth += 1,
+            Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod |
+            Opcode::Eq | Opcode::Ne | Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge |
+            Opcode::And | Opcode::Or | Opcode::StrConcat => self.stack_depth = self.stack_depth.saturating_sub(1), // Binary ops consume 2, produce 1
+            Opcode::MakeList => self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize).saturating_add(1),
+            Opcode::Call => self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize), // Pop args, push result
+            Opcode::MakeClosure => {
+                // MakeClosure consumes N captured values and produces 1 function
+                let capture_count = (instruction.arg & 0xFFFF) as usize;
+                self.stack_depth = self.stack_depth.saturating_sub(capture_count).saturating_add(1);
+            },
+            Opcode::MakeFunc => self.stack_depth += 1,
+            _ => {} // Most instructions don't change stack depth
+        }
         self.bytecode.chunks[self.current_chunk].add_instruction(instruction)
     }
     
@@ -388,6 +461,116 @@ impl Compiler {
         self.compile_node(graph, channel)?;
         // Emit receive instruction
         self.emit(Instruction::new(Opcode::Receive));
+        Ok(())
+    }
+    
+    fn find_free_variables(&self, graph: &ASTGraph, node_id: NodeId, params: &[String]) -> Result<Vec<String>> {
+        let mut free_vars = HashSet::new();
+        let mut bound_vars = HashSet::new();
+        
+        // Parameters are bound
+        for param in params {
+            bound_vars.insert(param.clone());
+        }
+        
+        self.collect_free_variables(graph, node_id, &mut free_vars, &mut bound_vars)?;
+        
+        // Return in deterministic order
+        let mut result: Vec<_> = free_vars.into_iter().collect();
+        result.sort();
+        Ok(result)
+    }
+    
+    fn collect_free_variables(&self, graph: &ASTGraph, node_id: NodeId, free_vars: &mut HashSet<String>, bound_vars: &mut HashSet<String>) -> Result<()> {
+        let node = graph.nodes.get(&node_id)
+            .ok_or_else(|| anyhow!("Invalid node ID: {:?}", node_id))?;
+        
+        match node {
+            Node::Variable { name } => {
+                // If not bound in lambda, check if it's in outer scope
+                if !bound_vars.contains(name) {
+                    // Check if it's in our locals (outer scope)
+                    for scope in self.locals.iter().rev() {
+                        if scope.contains_key(name) {
+                            free_vars.insert(name.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+            Node::Lambda { params, body } => {
+                // Create new bound set with lambda params
+                let mut new_bound = bound_vars.clone();
+                for param in params {
+                    new_bound.insert(param.clone());
+                }
+                self.collect_free_variables(graph, *body, free_vars, &mut new_bound)?;
+            }
+            Node::Let { bindings, body } => {
+                // Let bindings are evaluated in sequence
+                let mut new_bound = bound_vars.clone();
+                for (name, value) in bindings {
+                    // Value can reference previous bindings
+                    self.collect_free_variables(graph, *value, free_vars, &mut new_bound)?;
+                    new_bound.insert(name.clone());
+                }
+                self.collect_free_variables(graph, *body, free_vars, &mut new_bound)?;
+            }
+            Node::Application { function, args } => {
+                self.collect_free_variables(graph, *function, free_vars, bound_vars)?;
+                for arg in args {
+                    self.collect_free_variables(graph, *arg, free_vars, bound_vars)?;
+                }
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                self.collect_free_variables(graph, *condition, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *then_branch, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *else_branch, free_vars, bound_vars)?;
+            }
+            Node::List(items) => {
+                for item in items {
+                    self.collect_free_variables(graph, *item, free_vars, bound_vars)?;
+                }
+            }
+            Node::Effect { args, .. } => {
+                for arg in args {
+                    self.collect_free_variables(graph, *arg, free_vars, bound_vars)?;
+                }
+            }
+            Node::Async { body } => {
+                self.collect_free_variables(graph, *body, free_vars, bound_vars)?;
+            }
+            Node::Await { expr } => {
+                self.collect_free_variables(graph, *expr, free_vars, bound_vars)?;
+            }
+            Node::Spawn { expr } => {
+                self.collect_free_variables(graph, *expr, free_vars, bound_vars)?;
+            }
+            Node::Send { channel, value } => {
+                self.collect_free_variables(graph, *channel, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *value, free_vars, bound_vars)?;
+            }
+            Node::Receive { channel } => {
+                self.collect_free_variables(graph, *channel, free_vars, bound_vars)?;
+            }
+            _ => {} // Literals, Channel, etc. have no variables
+        }
+        
+        Ok(())
+    }
+    
+    fn compile_captured_variable(&mut self, name: &str) -> Result<()> {
+        // Find the variable in outer scopes and emit code to load it
+        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
+            if let Some(&local_idx) = scope.get(name) {
+                self.emit(Instruction::with_arg(Opcode::Load, local_idx as u32));
+                return Ok(());
+            }
+        }
+        
+        // If not found in locals, it might be a global
+        let idx = self.add_constant(Value::String(name.to_string()));
+        self.emit(Instruction::with_arg(Opcode::LoadGlobal, idx));
         Ok(())
     }
 }

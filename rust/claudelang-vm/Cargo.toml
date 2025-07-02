@@ -55,3 +55,19 @@ path = "../examples/test_simple_effect.rs"
 [[example]]
 name = "test_effects_working"
 path = "../examples/test_effects_working.rs"
+
+[[example]]
+name = "test_closure_capture"
+path = "../examples/test_closure_capture.rs"
+
+[[example]]
+name = "test_simple_closure"
+path = "../examples/test_simple_closure.rs"
+
+[[example]]
+name = "test_scoped_lookup"
+path = "../examples/test_scoped_lookup.rs"
+
+[[example]]
+name = "test_scope_issue"
+path = "../examples/test_scope_issue.rs"

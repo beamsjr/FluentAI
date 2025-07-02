@@ -69,6 +69,8 @@ pub enum Opcode {
     
     // Functions
     MakeFunc,
+    MakeClosure,  // Like MakeFunc but captures N values from stack
+    LoadCaptured, // Load value from captured environment
     MakeEnv,
     PopEnv,
     
