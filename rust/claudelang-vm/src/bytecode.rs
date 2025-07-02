@@ -111,6 +111,11 @@ pub enum Opcode {
     Send,
     Receive,
     
+    // Mutable cells
+    MakeCell,    // Create a cell with initial value
+    CellGet,     // Get value from cell
+    CellSet,     // Set value in cell
+    
     // Special
     Halt,
     Nop,
@@ -147,6 +152,7 @@ pub enum Value {
     },
     Promise(String), // Promise ID
     Channel(String), // Channel ID
+    Cell(usize),     // Index into VM's cell storage
 }
 
 impl fmt::Display for Value {
@@ -182,6 +188,7 @@ impl fmt::Display for Value {
             Value::Function { .. } => write!(f, "<function>"),
             Value::Promise(id) => write!(f, "<promise:{}>", id),
             Value::Channel(id) => write!(f, "<channel:{}>", id),
+            Value::Cell(idx) => write!(f, "<cell:{}>", idx),
         }
     }
 }

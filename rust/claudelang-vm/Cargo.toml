@@ -127,3 +127,19 @@ path = "../examples/test_simple_match.rs"
 [[example]]
 name = "test_match_debug"
 path = "../examples/test_match_debug.rs"
+
+[[example]]
+name = "test_pattern_edge_cases"
+path = "../examples/test_pattern_edge_cases.rs"
+
+[[example]]
+name = "test_load_store"
+path = "../examples/test_load_store.rs"
+
+[[example]]
+name = "test_cell_simple"
+path = "../examples/test_cell_simple.rs"
+
+[[example]]
+name = "test_cell_debug"
+path = "../examples/test_cell_debug.rs"

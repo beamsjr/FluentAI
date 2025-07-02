@@ -12,6 +12,7 @@ pub struct Compiler {
     captured: Vec<HashMap<String, usize>>, // Captured variables per scope
     stack_depth: usize, // Track current stack depth
     scope_bases: Vec<usize>, // Base stack position for each scope
+    cell_vars: Vec<HashSet<String>>, // Variables that are cells (for letrec)
 }
 
 impl Compiler {
@@ -27,6 +28,7 @@ impl Compiler {
             captured: vec![HashMap::new()],
             stack_depth: 0,
             scope_bases: vec![0],
+            cell_vars: vec![HashSet::new()],
         }
     }
     
@@ -142,7 +144,7 @@ impl Compiler {
         // They will be handled specially when applied
         
         // Look up in locals
-        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
+        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&abs_pos) = scope.get(name) {
                 // Convert absolute position to frame-relative
                 // In the main chunk, frame base is 0
@@ -154,14 +156,36 @@ impl Compiler {
                 };
                 let rel_pos = abs_pos - frame_base;
                 self.emit(Instruction::with_arg(Opcode::Load, rel_pos as u32));
+                
+                // If this is a cell variable (from letrec), dereference it
+                if self.cell_vars[scope_idx].contains(name) {
+                    self.emit(Instruction::new(Opcode::CellGet));
+                }
+                
                 return Ok(());
             }
         }
         
         // Look up in captured variables
-        for (_scope_idx, scope) in self.captured.iter().enumerate().rev() {
+        for (scope_idx, scope) in self.captured.iter().enumerate().rev() {
             if let Some(&capture_idx) = scope.get(name) {
                 self.emit(Instruction::with_arg(Opcode::LoadCaptured, capture_idx as u32));
+                
+                // Check if this captured variable is a cell
+                // This is tricky - we need to know if the captured variable was a cell
+                // For now, we'll check if the name exists in any parent scope's cell_vars
+                let mut is_cell = false;
+                for parent_cells in &self.cell_vars {
+                    if parent_cells.contains(name) {
+                        is_cell = true;
+                        break;
+                    }
+                }
+                
+                if is_cell {
+                    self.emit(Instruction::new(Opcode::CellGet));
+                }
+                
                 return Ok(());
             }
         }
@@ -240,6 +264,7 @@ impl Compiler {
         let saved_captured = self.captured.clone();
         let saved_stack_depth = self.stack_depth;
         let saved_scope_bases = self.scope_bases.clone();
+        let saved_cell_vars = self.cell_vars.clone();
         
         // Switch to lambda chunk
         self.current_chunk = chunk_id;
@@ -247,6 +272,7 @@ impl Compiler {
         self.captured = vec![HashMap::new()];
         self.stack_depth = 0; // Lambda starts with fresh stack
         self.scope_bases = vec![0];
+        self.cell_vars = vec![HashSet::new()];
         
         // Add parameters to locals
         for (i, param) in params.iter().enumerate() {
@@ -268,6 +294,7 @@ impl Compiler {
         self.captured = saved_captured;
         self.stack_depth = saved_stack_depth;
         self.scope_bases = saved_scope_bases;
+        self.cell_vars = saved_cell_vars;
         
         // Push function value with captures
         if free_vars.is_empty() {
@@ -287,6 +314,7 @@ impl Compiler {
         self.locals.push(HashMap::new());
         self.captured.push(HashMap::new());
         self.scope_bases.push(self.stack_depth);
+        self.cell_vars.push(HashSet::new());
         let scope_idx = self.locals.len() - 1;
         eprintln!("DEBUG compile_let: new scope {} with base {}", scope_idx, self.stack_depth);
         
@@ -322,6 +350,7 @@ impl Compiler {
         self.locals.pop();
         self.captured.pop();
         self.scope_bases.pop();
+        self.cell_vars.pop();
         
         Ok(())
     }
@@ -331,30 +360,41 @@ impl Compiler {
         self.locals.push(HashMap::new());
         self.captured.push(HashMap::new());
         self.scope_bases.push(self.stack_depth);
+        self.cell_vars.push(HashSet::new());
         let scope_idx = self.locals.len() - 1;
         
-        // For letrec, we use a different strategy:
-        // 1. First pass: compile all values as if they were regular let bindings
-        // 2. This means recursive calls will be compiled as free variable captures
-        // 3. At runtime, we'll need to patch these captures
+        // Strategy for proper letrec using cells:
+        // 1. Create cells for all bindings (initialized with nil)
+        // 2. Add bindings to locals pointing to the cells
+        // 3. Compile binding values
+        // 4. Store values in the cells
+        // 5. When accessing a letrec binding, use CellGet
         
-        // For now, let's implement a simpler version that only works for direct recursion
-        // where functions reference themselves by name
-        
-        // Compile bindings
-        for (_i, (name, value)) in bindings.iter().enumerate() {
-            // Add the name to locals BEFORE compiling the value
-            // This allows self-reference
-            let pos = self.stack_depth;
+        // Step 1: Create cells for all bindings
+        let binding_names: Vec<String> = bindings.iter().map(|(name, _)| name.clone()).collect();
+        for name in &binding_names {
+            self.emit(Instruction::new(Opcode::PushNil));
+            self.emit(Instruction::new(Opcode::MakeCell));
+            // Cell is now on stack
+            let pos = self.stack_depth - 1;
             self.locals[scope_idx].insert(name.clone(), pos);
-            
-            // Now compile the value
-            self.compile_node(graph, *value)?;
-            
-            // The value is now on top of stack at the position we recorded
+            self.cell_vars[scope_idx].insert(name.clone());
         }
         
-        // Compile body
+        // Step 2: Compile binding values and store in cells
+        for (i, (_name, value)) in bindings.iter().enumerate() {
+            // Load the cell
+            self.emit(Instruction::with_arg(Opcode::Load, i as u32));
+            
+            // Compile the value
+            self.compile_node(graph, *value)?;
+            
+            // Store in cell: [cell, value] -> CellSet -> nil
+            self.emit(Instruction::new(Opcode::CellSet));
+            self.emit(Instruction::new(Opcode::Pop)); // Pop the nil
+        }
+        
+        // Step 3: Compile body
         self.compile_node(graph, body)?;
         
         // Clean up bindings while preserving the result
@@ -366,6 +406,7 @@ impl Compiler {
         self.locals.pop();
         self.captured.pop();
         self.scope_bases.pop();
+        self.cell_vars.pop();
         
         Ok(())
     }
@@ -468,6 +509,23 @@ impl Compiler {
             Opcode::Load | Opcode::LoadGlobal | Opcode::LoadCaptured => {
                 self.stack_depth += 1;
                 eprintln!("DEBUG emit {:?}: stack_depth -> {}", instruction.opcode, self.stack_depth);
+            }
+            Opcode::MakeCell => {
+                // Consumes initial value, produces cell
+                // No net stack change, but we still have a value on stack
+            }
+            Opcode::CellGet => {
+                // Consumes cell, produces value
+                // No net stack change
+            }
+            Opcode::CellSet => {
+                // Consumes cell and value, produces nil
+                self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
+            // Push instructions
+            Opcode::Push | Opcode::PushConst | Opcode::PushNil | Opcode::PushTrue | Opcode::PushFalse |
+            Opcode::PushInt0 | Opcode::PushInt1 | Opcode::PushInt2 | Opcode::PushIntSmall => {
+                self.stack_depth += 1;
             }
             _ => {} // Most instructions don't change stack depth
         }
@@ -651,9 +709,11 @@ impl Compiler {
     
     fn compile_captured_variable(&mut self, name: &str) -> Result<()> {
         // Find the variable in outer scopes and emit code to load it
-        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
+        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&local_idx) = scope.get(name) {
                 self.emit(Instruction::with_arg(Opcode::Load, local_idx as u32));
+                // Don't dereference cells when capturing - we want to capture the cell itself
+                // The dereference will happen when the variable is used
                 return Ok(());
             }
         }
@@ -678,43 +738,50 @@ impl Compiler {
         self.compile_node(graph, expr)?;
         
         // We'll compile pattern matching as a series of if-else chains
-        // More sophisticated implementations would use decision trees
+        // Key insight: for literal patterns, we need to preserve the value being matched
+        // across multiple tests. We'll use a different strategy:
+        // 1. Keep the value on stack throughout
+        // 2. For literal patterns, dup the value, push literal, compare
+        // 3. Only consume the value when we find a match
         
         let mut jump_to_ends = Vec::new();
         
         for (i, (pattern, body)) in branches.iter().enumerate() {
-            // Duplicate the value for testing (except for last branch)
-            if i < branches.len() - 1 {
-                self.emit(Instruction::new(Opcode::Dup));
-            }
+            let is_last = i == branches.len() - 1;
             
             // Compile pattern test
-            let (bindings, test_success) = self.compile_pattern_test(pattern)?;
+            // This will leave a boolean on the stack for conditional patterns
+            // For always-matching patterns (variable/wildcard), no test is generated
+            let (bindings, always_matches) = self.compile_pattern_test(pattern)?;
             
-            // Jump to next branch if pattern doesn't match
-            let jump_to_next = if test_success {
-                // Pattern always matches (e.g., wildcard or variable)
+            // Handle the test result
+            let jump_to_next = if always_matches {
+                // Pattern always matches - no jump needed
                 None
             } else {
+                // We have a boolean on the stack from the pattern test
+                // Jump to next branch if false
                 Some(self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)))
             };
             
-            // Pop the duplicated value if pattern matched
-            if i < branches.len() - 1 {
-                self.emit(Instruction::new(Opcode::Pop));
-            }
+            // At this point, pattern matched (or always matches)
+            // The matched value is still on the stack
             
             // Create new scope for pattern bindings
             if !bindings.is_empty() {
                 self.locals.push(HashMap::new());
                 self.captured.push(HashMap::new());
                 self.scope_bases.push(self.stack_depth);
+                self.cell_vars.push(HashSet::new());
                 let scope_idx = self.locals.len() - 1;
                 
                 // Add pattern bindings
                 for (name, pos) in &bindings {
                     self.locals[scope_idx].insert(name.clone(), *pos);
                 }
+            } else {
+                // No bindings - pop the matched value
+                self.emit(Instruction::new(Opcode::Pop));
             }
             
             // Compile branch body
@@ -728,15 +795,17 @@ impl Compiler {
             }
             
             // Jump to end (skip other branches and fallback)
-            jump_to_ends.push(self.emit(Instruction::with_arg(Opcode::Jump, 0)));
+            if !is_last || jump_to_next.is_some() {
+                jump_to_ends.push(self.emit(Instruction::with_arg(Opcode::Jump, 0)));
+            }
             
             // Patch jump to next branch
             if let Some(jump_offset) = jump_to_next {
                 let next_branch = self.current_offset();
                 self.patch_jump(jump_offset, next_branch);
                 
-                // Pop the test result before next branch
-                self.emit(Instruction::new(Opcode::Pop));
+                // JumpIfNot already consumed the boolean
+                // The value remains on stack for the next pattern test
             }
         }
         
@@ -771,6 +840,7 @@ impl Compiler {
         match pattern {
             Pattern::Wildcard => {
                 // Always matches, no test needed
+                // Value remains on stack
                 Ok((bindings, true))
             }
             Pattern::Variable(name) => {
@@ -780,9 +850,14 @@ impl Compiler {
                 Ok((bindings, true))
             }
             Pattern::Literal(lit) => {
+                // Duplicate the value for comparison
+                self.emit(Instruction::new(Opcode::Dup));
                 // Push literal and compare
                 self.compile_literal(lit)?;
                 self.emit(Instruction::new(Opcode::Eq));
+                // Stack now has: [value, bool]
+                // The boolean will be consumed by JumpIfNot
+                // The original value remains for the next test or for the body
                 Ok((bindings, false))
             }
             Pattern::Constructor { .. } => {

@@ -27,6 +27,8 @@ pub struct VM {
     // Async support
     promises: HashMap<String, oneshot::Receiver<Result<Value>>>,
     channels: HashMap<String, (mpsc::UnboundedSender<Value>, mpsc::UnboundedReceiver<Value>)>,
+    // Mutable cells
+    cells: Vec<Value>,
 }
 
 impl VM {
@@ -41,6 +43,7 @@ impl VM {
             effect_runtime: Arc::new(EffectRuntime::default()),
             promises: HashMap::new(),
             channels: HashMap::new(),
+            cells: Vec::new(),
         }
     }
     
@@ -733,6 +736,45 @@ impl VM {
                 }
             }
             
+            // Mutable cells
+            MakeCell => {
+                let initial_value = self.pop()?;
+                let cell_idx = self.cells.len();
+                self.cells.push(initial_value);
+                self.push(Value::Cell(cell_idx))?;
+            }
+            
+            CellGet => {
+                let cell = self.pop()?;
+                match cell {
+                    Value::Cell(idx) => {
+                        if idx < self.cells.len() {
+                            let value = self.cells[idx].clone();
+                            self.push(value)?;
+                        } else {
+                            return Err(anyhow!("Invalid cell index"));
+                        }
+                    }
+                    _ => return Err(anyhow!("CellGet requires a cell")),
+                }
+            }
+            
+            CellSet => {
+                let value = self.pop()?;
+                let cell = self.pop()?;
+                match cell {
+                    Value::Cell(idx) => {
+                        if idx < self.cells.len() {
+                            self.cells[idx] = value;
+                            self.push(Value::Nil)?; // CellSet returns nil
+                        } else {
+                            return Err(anyhow!("Invalid cell index"));
+                        }
+                    }
+                    _ => return Err(anyhow!("CellSet requires a cell")),
+                }
+            }
+            
             // Special
             Halt => return Ok(VMState::Halt),
             Nop => {}
@@ -830,6 +872,7 @@ impl VM {
             Value::Function { .. } => true,
             Value::Promise(_) => true,
             Value::Channel(_) => true,
+            Value::Cell(_) => true,
         }
     }
     
@@ -887,6 +930,9 @@ impl VM {
             }
             Value::Channel(id) => {
                 claudelang_core::value::Value::String(format!("<channel:{}>", id))
+            }
+            Value::Cell(idx) => {
+                claudelang_core::value::Value::String(format!("<cell:{}>", idx))
             }
         }
     }
