@@ -76,6 +76,7 @@ impl<'a> Parser<'a> {
             match *sym {
                 "lambda" => return self.parse_lambda(),
                 "let" => return self.parse_let(),
+                "letrec" => return self.parse_letrec(),
                 "if" => return self.parse_if(),
                 "do" => return self.parse_sequence(),
                 "effect" => return self.parse_effect(),
@@ -154,6 +155,34 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Let { bindings, body };
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_letrec(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("letrec")?;
+        self.expect_token(Token::LParen)?;
+        
+        // Parse bindings
+        let mut bindings = Vec::new();
+        while matches!(self.lexer.peek_token(), Some(Token::LParen)) {
+            self.lexer.next_token(); // consume LParen
+            
+            if let Some(Token::Symbol(name)) = self.lexer.next_token() {
+                let value = self.parse_expr()?;
+                bindings.push((name.to_string(), value));
+                self.expect_token(Token::RParen)?;
+            } else {
+                return Err(ParseError::InvalidSyntax("Expected binding name".to_string()));
+            }
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        // Parse body
+        let body = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Letrec { bindings, body };
         Ok(self.graph.add_node(node))
     }
     

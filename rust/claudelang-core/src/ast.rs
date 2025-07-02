@@ -59,6 +59,10 @@ pub enum Node {
         bindings: Vec<(String, NodeId)>,
         body: NodeId,
     },
+    Letrec {
+        bindings: Vec<(String, NodeId)>,
+        body: NodeId,
+    },
     
     // Control flow
     If {

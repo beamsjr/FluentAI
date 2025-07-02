@@ -103,3 +103,15 @@ path = "../examples/test_debug_stack.rs"
 [[example]]
 name = "test_minimal_closure"
 path = "../examples/test_minimal_closure.rs"
+
+[[example]]
+name = "test_letrec"
+path = "../examples/test_letrec.rs"
+
+[[example]]
+name = "test_simple_recursion"
+path = "../examples/test_simple_recursion.rs"
+
+[[example]]
+name = "test_simple_letrec"
+path = "../examples/test_simple_letrec.rs"

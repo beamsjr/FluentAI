@@ -58,6 +58,9 @@ impl Compiler {
             Node::Let { bindings, body } => {
                 self.compile_let(graph, bindings, *body)?;
             }
+            Node::Letrec { bindings, body } => {
+                self.compile_letrec(graph, bindings, *body)?;
+            }
             Node::If { condition, then_branch, else_branch } => {
                 self.compile_if(graph, *condition, *then_branch, *else_branch)?;
             }
@@ -136,11 +139,18 @@ impl Compiler {
         // They will be handled specially when applied
         
         // Look up in locals
-        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
-            if let Some(&local_idx) = scope.get(name) {
-                // For now, using Load with local index
-                // TODO: Implement proper local variable opcodes
-                self.emit(Instruction::with_arg(Opcode::Load, local_idx as u32));
+        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
+            if let Some(&abs_pos) = scope.get(name) {
+                // Convert absolute position to frame-relative
+                // In the main chunk, frame base is 0
+                // In lambdas, frame base is where parameters start (also 0 for the lambda's frame)
+                let frame_base = if self.current_chunk == self.bytecode.main_chunk {
+                    0
+                } else {
+                    0 // Lambda frames start at 0 too
+                };
+                let rel_pos = abs_pos - frame_base;
+                self.emit(Instruction::with_arg(Opcode::Load, rel_pos as u32));
                 return Ok(());
             }
         }
@@ -303,6 +313,50 @@ impl Compiler {
         if !bindings.is_empty() {
             self.emit(Instruction::with_arg(Opcode::PopN, bindings.len() as u32));
             // PopN already adjusts stack_depth in emit()
+        }
+        
+        // Pop scope
+        self.locals.pop();
+        self.captured.pop();
+        self.scope_bases.pop();
+        
+        Ok(())
+    }
+    
+    fn compile_letrec(&mut self, graph: &ASTGraph, bindings: &[(String, NodeId)], body: NodeId) -> Result<()> {
+        // Create new scope
+        self.locals.push(HashMap::new());
+        self.captured.push(HashMap::new());
+        self.scope_bases.push(self.stack_depth);
+        let scope_idx = self.locals.len() - 1;
+        
+        // For letrec, we use a different strategy:
+        // 1. First pass: compile all values as if they were regular let bindings
+        // 2. This means recursive calls will be compiled as free variable captures
+        // 3. At runtime, we'll need to patch these captures
+        
+        // For now, let's implement a simpler version that only works for direct recursion
+        // where functions reference themselves by name
+        
+        // Compile bindings
+        for (_i, (name, value)) in bindings.iter().enumerate() {
+            // Add the name to locals BEFORE compiling the value
+            // This allows self-reference
+            let pos = self.stack_depth;
+            self.locals[scope_idx].insert(name.clone(), pos);
+            
+            // Now compile the value
+            self.compile_node(graph, *value)?;
+            
+            // The value is now on top of stack at the position we recorded
+        }
+        
+        // Compile body
+        self.compile_node(graph, body)?;
+        
+        // Clean up bindings while preserving the result
+        if !bindings.is_empty() {
+            self.emit(Instruction::with_arg(Opcode::PopN, bindings.len() as u32));
         }
         
         // Pop scope
