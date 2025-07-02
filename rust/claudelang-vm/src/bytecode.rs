@@ -72,6 +72,10 @@ pub enum Opcode {
     MakeEnv,
     PopEnv,
     
+    // Let binding cleanup
+    // Removes N values from stack but preserves the top value
+    PopN,
+    
     // Lists
     MakeList,
     ListHead,

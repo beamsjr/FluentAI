@@ -238,9 +238,9 @@ impl Compiler {
         // Compile body
         self.compile_node(graph, body)?;
         
-        // Clean up bindings
-        for _ in bindings {
-            self.emit(Instruction::new(Opcode::Pop));
+        // Clean up bindings while preserving the result
+        if !bindings.is_empty() {
+            self.emit(Instruction::with_arg(Opcode::PopN, bindings.len() as u32));
         }
         
         // Pop scope

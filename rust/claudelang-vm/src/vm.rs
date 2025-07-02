@@ -47,6 +47,14 @@ impl VM {
         self.trace = true;
     }
     
+    pub fn set_effect_runtime(&mut self, runtime: Arc<EffectRuntime>) {
+        self.effect_runtime = runtime;
+    }
+    
+    pub fn set_effect_context(&mut self, context: Arc<EffectContext>) {
+        self.effect_context = context;
+    }
+    
     pub fn run(&mut self) -> Result<Value> {
         self.call_stack.push(CallFrame {
             chunk_id: self.bytecode.main_chunk,
@@ -103,6 +111,17 @@ impl VM {
             }
             Pop => {
                 self.pop()?;
+            }
+            PopN => {
+                // Pop N values but preserve the top value
+                let n = instruction.arg as usize;
+                if n > 0 {
+                    let top = self.pop()?;
+                    for _ in 0..n {
+                        self.pop()?;
+                    }
+                    self.push(top)?;
+                }
             }
             Dup => {
                 let value = self.peek(0)?.clone();
@@ -679,6 +698,47 @@ impl VM {
                     }
                 } else {
                     return Err(anyhow!("Unknown channel"));
+                }
+            }
+            
+            // Functions
+            MakeFunc => {
+                let chunk_id = instruction.arg as usize;
+                // Capture current environment (for closures)
+                let env = Vec::new(); // TODO: Capture free variables
+                let func = Value::Function { chunk_id, env };
+                self.push(func)?;
+            }
+            
+            Call => {
+                let arg_count = instruction.arg as usize;
+                let mut args = Vec::with_capacity(arg_count);
+                
+                // Pop arguments
+                for _ in 0..arg_count {
+                    args.push(self.pop()?);
+                }
+                args.reverse();
+                
+                // Pop function
+                let func = self.pop()?;
+                
+                match func {
+                    Value::Function { chunk_id, env } => {
+                        // Current IP was already incremented by main loop,
+                        // so it's already pointing to the next instruction after Call
+                        
+                        // Push new frame
+                        self.call_stack.push(CallFrame {
+                            chunk_id,
+                            ip: 0,
+                            stack_base: self.stack.len() - args.len(),
+                        });
+                        
+                        // Arguments are already on the stack
+                        // TODO: Handle environment
+                    }
+                    _ => return Err(anyhow!("Cannot call non-function value")),
                 }
             }
             

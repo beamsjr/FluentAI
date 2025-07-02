@@ -27,3 +27,31 @@ path = "../examples/test_vm.rs"
 [[example]]
 name = "real_performance"
 path = "../examples/real_performance.rs"
+
+[[example]]
+name = "test_async_runtime"
+path = "../examples/test_async_runtime.rs"
+
+[[example]]
+name = "test_async_basic"
+path = "../examples/test_async_basic.rs"
+
+[[example]]
+name = "test_effects_basic"
+path = "../examples/test_effects_basic.rs"
+
+[[example]]
+name = "test_async_ready"
+path = "../examples/test_async_ready.rs"
+
+[[example]]
+name = "test_effects_demo"
+path = "../examples/test_effects_demo.rs"
+
+[[example]]
+name = "test_simple_effect"
+path = "../examples/test_simple_effect.rs"
+
+[[example]]
+name = "test_effects_working"
+path = "../examples/test_effects_working.rs"
