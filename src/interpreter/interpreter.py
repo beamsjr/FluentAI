@@ -477,7 +477,28 @@ class Interpreter:
     
     def _eval_effect(self, node: Effect, graph: Graph, env: Environment) -> Value:
         """Evaluate effect operation"""
-        # Evaluate arguments
+        # Special handling for concurrent:go
+        if node.operation == "concurrent:go":
+            # For go, we need to wrap the expression in a closure
+            expr_id = node.argument_ids[0]
+            interpreter = self
+            
+            def goroutine_func():
+                # Evaluate the expression in a new thread
+                return interpreter.eval_node(expr_id, graph, env).data
+            
+            # Perform the go effect with the closure
+            result_data = self.effect_context.perform(
+                node.effect_type, node.operation, goroutine_func
+            )
+            
+            return Value(
+                data=result_data,
+                type_info=node.type_annotation,
+                effects_triggered=[(node.effect_type, node.operation)]
+            )
+        
+        # Evaluate arguments for other effects
         arg_vals = []
         for arg_id in node.argument_ids:
             val = self.eval_node(arg_id, graph, env)

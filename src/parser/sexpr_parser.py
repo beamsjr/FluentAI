@@ -353,6 +353,16 @@ class Parser:
                 return self._parse_await()
             elif symbol == 'promise':
                 return self._parse_promise()
+            elif symbol == 'go':
+                return self._parse_go()
+            elif symbol == 'chan':
+                return self._parse_channel()
+            elif symbol == 'send!':
+                return self._parse_send()
+            elif symbol == 'receive!':
+                return self._parse_receive()
+            elif symbol == 'select':
+                return self._parse_select()
         
         # Regular function application
         return self._parse_application()
@@ -537,6 +547,9 @@ class Parser:
         # Parse type:operation format
         if ':' in effect_spec:
             effect_str, operation = effect_spec.split(':', 1)
+            # For concurrent effects, keep the full operation
+            if effect_str == 'concurrent':
+                operation = f'concurrent:{operation}'
         else:
             # Legacy format
             effect_str = effect_spec
@@ -550,7 +563,9 @@ class Parser:
             'error': EffectType.ERROR,
             'time': EffectType.TIME,
             'network': EffectType.NETWORK,
-            'random': EffectType.RANDOM
+            'random': EffectType.RANDOM,
+            'concurrent': EffectType.ASYNC,
+            'async': EffectType.ASYNC
         }
         
         effect_type = effect_map.get(effect_str, EffectType.IO)
@@ -1198,6 +1213,158 @@ class Parser:
         node = Promise(executor_id=executor_id)
         
         return self.graph.add_node(node)
+    
+    def _parse_go(self) -> str:
+        """Parse go expression: (go expr)"""
+        self._advance()  # Skip 'go'
+        
+        # Parse expression to run concurrently
+        expr_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for go")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for launching goroutine
+        node = Effect(
+            effect_type=EffectType.ASYNC,
+            operation="concurrent:go",
+            argument_ids=[expr_id]
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_channel(self) -> str:
+        """Parse channel creation: (chan) or (chan capacity)"""
+        self._advance()  # Skip 'chan'
+        
+        # Parse optional capacity
+        capacity_id = None
+        if self._current() and self._current().type != 'RPAREN':
+            capacity_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for chan")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for channel creation
+        if capacity_id:
+            node = Effect(
+                effect_type=EffectType.ASYNC,
+                operation="concurrent:channel",
+                argument_ids=[capacity_id]
+            )
+        else:
+            # Default capacity 0 (unbuffered)
+            zero_node = Literal(value=0, literal_type='int')
+            zero_id = self.graph.add_node(zero_node)
+            node = Effect(
+                effect_type=EffectType.ASYNC,
+                operation="concurrent:channel",
+                argument_ids=[zero_id]
+            )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_send(self) -> str:
+        """Parse send operation: (send! channel value)"""
+        self._advance()  # Skip 'send!'
+        
+        # Parse channel and value
+        channel_id = self._parse_expr()
+        value_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for send!")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for send
+        node = Effect(
+            effect_type=EffectType.ASYNC,
+            operation="concurrent:send",
+            argument_ids=[channel_id, value_id]
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_receive(self) -> str:
+        """Parse receive operation: (receive! channel)"""
+        self._advance()  # Skip 'receive!'
+        
+        # Parse channel
+        channel_id = self._parse_expr()
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for receive!")
+        
+        self._advance()  # Skip RPAREN
+        
+        # Create effect node for receive
+        node = Effect(
+            effect_type=EffectType.ASYNC,
+            operation="concurrent:receive",
+            argument_ids=[channel_id]
+        )
+        
+        return self.graph.add_node(node)
+    
+    def _parse_select(self) -> str:
+        """Parse select statement: (select ((receive! ch1) expr1) ((send! ch2 val) expr2) ...)"""
+        self._advance()  # Skip 'select'
+        
+        # Parse cases
+        cases = []
+        while self._current() and self._current().type == 'LPAREN':
+            self._advance()  # Skip LPAREN
+            
+            # Parse case condition (must be channel operation)
+            if not self._current() or self._current().type != 'LPAREN':
+                raise SyntaxError("Expected channel operation in select case")
+            
+            # Save position to parse operation type
+            saved_pos = self.pos
+            self._advance()  # Skip LPAREN
+            
+            if self._current() and self._current().type == 'SYMBOL':
+                op_type = self._current().value
+                if op_type not in ['receive!', 'send!']:
+                    raise SyntaxError("Select case must be receive! or send!")
+            else:
+                raise SyntaxError("Expected channel operation")
+            
+            # Reset and parse the full operation
+            self.pos = saved_pos
+            operation_id = self._parse_expr()
+            
+            # Parse case body
+            body_id = self._parse_expr()
+            
+            if not self._current() or self._current().type != 'RPAREN':
+                raise SyntaxError("Expected closing parenthesis for select case")
+            
+            self._advance()  # Skip RPAREN
+            
+            cases.append({"condition": operation_id, "body": body_id})
+        
+        if not self._current() or self._current().type != 'RPAREN':
+            raise SyntaxError("Expected closing parenthesis for select")
+        
+        self._advance()  # Skip RPAREN
+        
+        # For now, implement select as a sequence of attempts
+        # In a real implementation, this would be more sophisticated
+        if not cases:
+            # Empty select
+            nil_node = Literal(value=None, literal_type='nil')
+            return self.graph.add_node(nil_node)
+        
+        # Create a simplified select implementation
+        # This is a placeholder - real select would be non-blocking
+        first_case = cases[0]
+        return first_case["condition"]
     
     def _parse_type_annotation(self) -> TypeAnnotation:
         """Parse a type annotation

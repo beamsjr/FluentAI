@@ -324,6 +324,40 @@ class PrimitiveRegistry:
         
         # List operations
         self.register(
+            "sort",
+            Function(
+                name="sort",
+                arity=1,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("List")
+                    ]
+                )
+            ),
+            lambda lst: sorted(lst) if isinstance(lst, list) else lst
+        )
+        
+        self.register(
+            "reverse",
+            Function(
+                name="reverse",
+                arity=1,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("List"),
+                        TypeAnnotation("List")
+                    ]
+                )
+            ),
+            lambda lst: list(reversed(lst)) if isinstance(lst, list) else lst
+        )
+        
+        self.register(
             "car",
             Function(
                 name="car",
@@ -552,6 +586,44 @@ class PrimitiveRegistry:
                 )
             ),
             lambda t: t[1]
+        )
+        
+        # Dictionary operations
+        self.register(
+            "get",
+            Function(
+                name="get",
+                arity=2,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Dict"),
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Any")
+                    ]
+                )
+            ),
+            lambda d, k: d.get(k) if isinstance(d, dict) else None
+        )
+        
+        self.register(
+            "set",
+            Function(
+                name="set",
+                arity=3,
+                effects={EffectType.PURE},
+                type_annotation=TypeAnnotation(
+                    name="Function",
+                    parameters=[
+                        TypeAnnotation("Dict"),
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Any"),
+                        TypeAnnotation("Dict")
+                    ]
+                )
+            ),
+            lambda d, k, v: {**d, k: v} if isinstance(d, dict) else d
         )
         
         # String conversion

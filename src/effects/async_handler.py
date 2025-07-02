@@ -157,7 +157,7 @@ class AsyncHandler(EffectHandler):
             time.sleep(0.01)
     
     def can_handle(self, effect_type: EffectType, operation: str) -> bool:
-        return effect_type == EffectType.ASYNC
+        return effect_type == EffectType.ASYNC and not operation.startswith("concurrent:")
     
     def handle(self, request: EffectRequest) -> EffectResult:
         op = request.operation
