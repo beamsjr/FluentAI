@@ -1,0 +1,59 @@
+{
+  "name": "claudelang",
+  "version": "0.1.0",
+  "description": "A modern Lisp dialect designed for AI-first development",
+  "author": "ClaudeLang Contributors",
+  "license": "MIT",
+  "homepage": "https://github.com/beamsjr/claudelang",
+  "repository": "https://github.com/beamsjr/claudelang",
+  "keywords": [
+    "lisp",
+    "ai",
+    "programming-language",
+    "functional-programming"
+  ],
+  "main": "src/main.cl",
+  "bin": {
+    "claude": "bin/claude.cl",
+    "claude-pkg": "src/package_manager/cli.py"
+  },
+  "dependencies": {
+    "semver": "^2.13.0"
+  },
+  "devDependencies": {
+    "pytest": "^7.0.0",
+    "black": "^22.0.0"
+  },
+  "claudeVersion": ">=0.1.0",
+  "effects": [
+    "IO",
+    "STATE",
+    "TIME",
+    "NETWORK",
+    "DOM"
+  ],
+  "platforms": [
+    "node",
+    "browser",
+    "python"
+  ],
+  "scripts": {
+    "test": "python -m pytest tests/",
+    "lint": "python -m black src/",
+    "build": "python -m src.compiler.ui_compiler"
+  },
+  "include": [
+    "src/**/*.py",
+    "src/**/*.cl",
+    "examples/**/*.cl",
+    "README.md",
+    "LICENSE"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/*.pyc",
+    ".git",
+    "claude_modules",
+    "*.log"
+  ]
+}
