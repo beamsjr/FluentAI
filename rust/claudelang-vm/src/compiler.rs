@@ -201,6 +201,7 @@ impl Compiler {
             self.compile_node(graph, arg)?;
         }
         self.compile_node(graph, func)?;
+        eprintln!("DEBUG compile_application: before Call, stack_depth={}, arg_count={}", self.stack_depth, args.len());
         self.emit(Instruction::with_arg(Opcode::Call, args.len() as u32));
         
         Ok(())
@@ -209,6 +210,7 @@ impl Compiler {
     fn compile_lambda(&mut self, graph: &ASTGraph, params: &[String], body: NodeId) -> Result<()> {
         // Find free variables - variables used in body but not defined as parameters
         let free_vars = self.find_free_variables(graph, body, params)?;
+        eprintln!("DEBUG compile_lambda: found {} free vars: {:?}", free_vars.len(), free_vars);
         
         // Emit code to push captured values onto stack
         for var in &free_vars {
@@ -273,14 +275,25 @@ impl Compiler {
         self.captured.push(HashMap::new());
         self.scope_bases.push(self.stack_depth);
         let scope_idx = self.locals.len() - 1;
+        eprintln!("DEBUG compile_let: new scope {} with base {}", scope_idx, self.stack_depth);
         
         // Compile bindings
         for (i, (name, value)) in bindings.iter().enumerate() {
+            eprintln!("DEBUG: Before compiling {}: stack_depth={}", name, self.stack_depth);
+            let before_depth = self.stack_depth;
             self.compile_node(graph, *value)?;
-            // Store absolute position on stack
-            let abs_pos = self.scope_bases[scope_idx] + i;
+            eprintln!("DEBUG: After compiling {}: stack_depth={}", name, self.stack_depth);
+            
+            // After compiling the value, it should be on top of the stack
+            // We expect exactly one value to be added
+            if self.stack_depth != before_depth + 1 {
+                eprintln!("WARNING: Expected stack_depth {} but got {}", before_depth + 1, self.stack_depth);
+            }
+            
+            // The value is at position stack_depth - 1
+            let abs_pos = self.stack_depth - 1;
             self.locals[scope_idx].insert(name.clone(), abs_pos);
-            // Don't increment stack_depth here - compile_node already did it!
+            eprintln!("DEBUG: Stored {} at position {}", name, abs_pos);
         }
         
         // Compile body
@@ -379,14 +392,25 @@ impl Compiler {
             Opcode::Eq | Opcode::Ne | Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge |
             Opcode::And | Opcode::Or | Opcode::StrConcat => self.stack_depth = self.stack_depth.saturating_sub(1), // Binary ops consume 2, produce 1
             Opcode::MakeList => self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize).saturating_add(1),
-            Opcode::Call => self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize), // Pop args, push result
+            Opcode::Call => {
+                // Call pops: the function + all arguments, then pushes the result
+                // Net effect: -(arg_count + 1) + 1 = -arg_count
+                self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize);
+                eprintln!("DEBUG emit Call: arg_count={}, new stack_depth={}", instruction.arg, self.stack_depth);
+            }
             Opcode::MakeClosure => {
                 // MakeClosure consumes N captured values and produces 1 function
                 let capture_count = (instruction.arg & 0xFFFF) as usize;
+                let old_depth = self.stack_depth;
                 self.stack_depth = self.stack_depth.saturating_sub(capture_count).saturating_add(1);
+                eprintln!("DEBUG emit MakeClosure: captures={}, stack_depth {} -> {}", capture_count, old_depth, self.stack_depth);
             },
             Opcode::MakeFunc => {
                 self.stack_depth += 1;
+            }
+            Opcode::Load | Opcode::LoadGlobal | Opcode::LoadCaptured => {
+                self.stack_depth += 1;
+                eprintln!("DEBUG emit {:?}: stack_depth -> {}", instruction.opcode, self.stack_depth);
             }
             _ => {} // Most instructions don't change stack depth
         }
@@ -498,6 +522,13 @@ impl Compiler {
                             break;
                         }
                     }
+                    // Also check if it's in captured variables (for nested lambdas)
+                    for scope in self.captured.iter().rev() {
+                        if scope.contains_key(name) {
+                            free_vars.insert(name.clone());
+                            break;
+                        }
+                    }
                 }
             }
             Node::Lambda { params, body } => {
@@ -570,7 +601,15 @@ impl Compiler {
             }
         }
         
-        // If not found in locals, it might be a global
+        // Check if it's already captured (for nested lambdas)
+        for (_scope_idx, scope) in self.captured.iter().enumerate().rev() {
+            if let Some(&capture_idx) = scope.get(name) {
+                self.emit(Instruction::with_arg(Opcode::LoadCaptured, capture_idx as u32));
+                return Ok(());
+            }
+        }
+        
+        // If not found in locals or captured, it might be a global
         let idx = self.add_constant(Value::String(name.to_string()));
         self.emit(Instruction::with_arg(Opcode::LoadGlobal, idx));
         Ok(())

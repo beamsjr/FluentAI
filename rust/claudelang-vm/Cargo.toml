@@ -79,3 +79,27 @@ path = "../examples/test_compiler_debug.rs"
 [[example]]
 name = "test_nested_closure"
 path = "../examples/test_nested_closure.rs"
+
+[[example]]
+name = "test_nested_closure_detailed"
+path = "../examples/test_nested_closure_detailed.rs"
+
+[[example]]
+name = "test_let_positions"
+path = "../examples/test_let_positions.rs"
+
+[[example]]
+name = "test_step3_only"
+path = "../examples/test_step3_only.rs"
+
+[[example]]
+name = "test_step4_only"
+path = "../examples/test_step4_only.rs"
+
+[[example]]
+name = "test_debug_stack"
+path = "../examples/test_debug_stack.rs"
+
+[[example]]
+name = "test_minimal_closure"
+path = "../examples/test_minimal_closure.rs"
