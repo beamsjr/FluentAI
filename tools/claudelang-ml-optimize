@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""
+ClaudeLang ML Optimization Tool
+
+This tool demonstrates ML-driven optimization learning by:
+1. Running benchmark programs
+2. Learning optimization patterns
+3. Applying learned optimizations to new programs
+"""
+
+import sys
+import os
+import argparse
+import json
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.parser.sexpr_parser import parse
+from src.ml.optimization_learner import create_ml_optimization_engine
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='ML-driven optimization for ClaudeLang',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Commands')
+    
+    # Train command
+    train_parser = subparsers.add_parser('train', help='Train ML models on benchmarks')
+    train_parser.add_argument(
+        'benchmark_dir',
+        help='Directory containing benchmark programs'
+    )
+    train_parser.add_argument(
+        '--models-dir',
+        default='models/optimization',
+        help='Directory to save trained models'
+    )
+    
+    # Optimize command
+    opt_parser = subparsers.add_parser('optimize', help='Optimize a program using ML')
+    opt_parser.add_argument(
+        'file',
+        help='ClaudeLang file to optimize'
+    )
+    opt_parser.add_argument(
+        '-o', '--output',
+        help='Output optimized program to file'
+    )
+    opt_parser.add_argument(
+        '--models-dir',
+        default='models/optimization',
+        help='Directory containing trained models'
+    )
+    
+    # Report command
+    report_parser = subparsers.add_parser('report', help='Generate optimization report')
+    report_parser.add_argument(
+        '--models-dir',
+        default='models/optimization',
+        help='Directory containing trained models'
+    )
+    report_parser.add_argument(
+        '--export',
+        help='Export training data to JSON file'
+    )
+    
+    # Demo command
+    demo_parser = subparsers.add_parser('demo', help='Run optimization demo')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        return 1
+    
+    # Create ML optimization engine
+    engine = create_ml_optimization_engine()
+    
+    if args.command == 'train':
+        # Train on benchmarks
+        if not os.path.exists(args.benchmark_dir):
+            print(f"Error: Benchmark directory not found: {args.benchmark_dir}")
+            return 1
+        
+        engine.models_dir = args.models_dir
+        engine.train_from_benchmark_suite(args.benchmark_dir)
+        
+        print("\nTraining complete!")
+        print(engine.generate_optimization_report())
+        
+    elif args.command == 'optimize':
+        # Optimize a single program
+        if not os.path.exists(args.file):
+            print(f"Error: File not found: {args.file}")
+            return 1
+        
+        with open(args.file, 'r') as f:
+            source = f.read()
+        
+        try:
+            # Parse program
+            graph = parse(source)
+            program_id = os.path.basename(args.file)
+            
+            # Optimize with ML
+            print(f"Optimizing {program_id}...")
+            optimized_graph, experiment = engine.optimize_with_ml(graph, program_id)
+            
+            print(f"\nResults:")
+            print(f"  Baseline time: {experiment.baseline_time:.6f}s")
+            print(f"  Optimized time: {experiment.optimized_time:.6f}s")
+            print(f"  Speedup: {experiment.speedup:.2f}x")
+            print(f"  Applied optimizations:")
+            for opt in experiment.successful_optimizations:
+                print(f"    - {opt}")
+            
+            if args.output:
+                # TODO: Serialize optimized graph
+                print(f"\nOptimized program would be saved to: {args.output}")
+                
+        except Exception as e:
+            print(f"Error: {e}")
+            return 1
+    
+    elif args.command == 'report':
+        # Generate report
+        engine.models_dir = args.models_dir
+        print(engine.generate_optimization_report())
+        
+        if args.export:
+            engine.export_training_data(args.export)
+            print(f"\nTraining data exported to: {args.export}")
+    
+    elif args.command == 'demo':
+        # Run demo with example programs
+        print("ML Optimization Demo")
+        print("=" * 40)
+        
+        # Example 1: Factorial
+        print("\n1. Factorial function:")
+        factorial_code = """
+        (let ((factorial (lambda (n)
+                          (if (= n 0)
+                              1
+                              (* n (factorial (- n 1)))))))
+          (factorial 10))
+        """
+        
+        try:
+            graph = parse(factorial_code)
+            _, exp = engine.optimize_with_ml(graph, "factorial_demo")
+            print(f"   Speedup: {exp.speedup:.2f}x")
+            for opt in exp.successful_optimizations[:3]:
+                print(f"   - {opt}")
+        except Exception as e:
+            print(f"   Error: {e}")
+        
+        # Example 2: List operations
+        print("\n2. List operations:")
+        list_code = """
+        (let ((sum-list (lambda (lst)
+                         (if (null? lst)
+                             0
+                             (+ (car lst) (sum-list (cdr lst)))))))
+          (sum-list [1 2 3 4 5 6 7 8 9 10]))
+        """
+        
+        try:
+            graph = parse(list_code)
+            _, exp = engine.optimize_with_ml(graph, "list_demo")
+            print(f"   Speedup: {exp.speedup:.2f}x")
+            for opt in exp.successful_optimizations[:3]:
+                print(f"   - {opt}")
+        except Exception as e:
+            print(f"   Error: {e}")
+        
+        # Example 3: Nested loops
+        print("\n3. Nested computation:")
+        nested_code = """
+        (let ((compute (lambda (n)
+                        (let ((sum 0))
+                          (do
+                            (set! sum (+ sum (* n n)))
+                            (set! n (- n 1))
+                            (if (> n 0)
+                                (compute (- n 1))
+                                sum))))))
+          (compute 100))
+        """
+        
+        try:
+            graph = parse(nested_code)
+            _, exp = engine.optimize_with_ml(graph, "nested_demo")
+            print(f"   Speedup: {exp.speedup:.2f}x")
+            for opt in exp.successful_optimizations[:3]:
+                print(f"   - {opt}")
+        except Exception as e:
+            print(f"   Error: {e}")
+        
+        print("\n" + engine.generate_optimization_report())
+    
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -6,11 +6,30 @@ based on program behavior and performance characteristics.
 """
 
 import json
-import numpy as np
 from typing import Dict, List, Tuple, Optional, Any, Set
 from dataclasses import dataclass, field
 from enum import Enum
 from collections import defaultdict
+
+# Try to import numpy
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    # Basic list-based fallback
+    class FakeNumpy:
+        @staticmethod
+        def array(lst):
+            return lst
+        @staticmethod
+        def dot(a, b):
+            return sum(x * y for x, y in zip(a, b))
+        @staticmethod
+        def tanh(x):
+            import math
+            return math.tanh(x)
+    np = FakeNumpy()
 
 from ..core.ast import Graph, ASTNode, NodeType
 from ..optimizer.graph_optimizer import GraphOptimizer
@@ -68,7 +87,7 @@ class ProgramFeatures:
     data_size_hint: Optional[int] = None
     hotness_score: float = 0.0
     
-    def to_vector(self) -> np.ndarray:
+    def to_vector(self):
         """Convert features to ML feature vector"""
         return np.array([
             self.node_count,
@@ -325,9 +344,9 @@ class FeatureExtractor:
             has_loops=self._has_loops(graph),
             has_map_pattern=self._has_pattern(graph, "map"),
             has_reduce_pattern=self._has_pattern(graph, "reduce"),
-            uses_integers=self._uses_type(graph, "Int"),
-            uses_floats=self._uses_type(graph, "Float"),
-            uses_lists=self._uses_type(graph, "List"),
+            uses_integers=self._uses_type(graph, "int"),
+            uses_floats=self._uses_type(graph, "float"),
+            uses_lists=self._uses_type(graph, "list"),
             uses_higher_order=self._uses_higher_order(graph)
         )
     
@@ -435,8 +454,19 @@ class FeatureExtractor:
     def _uses_type(self, graph: Graph, type_name: str) -> bool:
         """Check if graph uses a specific type"""
         for node in graph.nodes.values():
+            # Check type annotations
             if node.type_annotation and type_name in str(node.type_annotation):
                 return True
+            # Check literal types
+            if hasattr(node, 'literal_type'):
+                if type_name.lower() == "int" and node.literal_type == "int":
+                    return True
+                elif type_name.lower() == "float" and node.literal_type == "float":
+                    return True
+                elif type_name.lower() == "string" and node.literal_type == "string":
+                    return True
+                elif type_name.lower() == "list" and node.literal_type == "list":
+                    return True
         return False
     
     def _uses_higher_order(self, graph: Graph) -> bool:

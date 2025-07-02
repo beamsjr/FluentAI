@@ -38,6 +38,7 @@ class VM:
         self.jit_compiler = JITCompiler() if enable_jit else None
         self.current_function_id: Optional[str] = None
         self.function_entry_time: Optional[float] = None
+        self.tracer: Optional[Any] = None  # ExecutionTracer
     
     def execute(self, chunk: BytecodeChunk, function_id: Optional[str] = None) -> Any:
         """Execute bytecode chunk with optional JIT compilation"""
@@ -315,6 +316,38 @@ class VM:
         if not self.stack:
             raise VMError("Stack underflow")
         return self.stack.pop()
+    
+    def set_tracer(self, tracer: Any):
+        """Set execution tracer"""
+        self.tracer = tracer
+    
+    def reset(self):
+        """Reset VM state"""
+        self.stack.clear()
+        self.call_stack.clear()
+        self.ip = 0
+        self.chunk = None
+    
+    def load_bytecode(self, chunk: BytecodeChunk):
+        """Load bytecode chunk"""
+        self.chunk = chunk
+        self.ip = 0
+    
+    def push(self, value: Any):
+        """Push value onto stack (public API)"""
+        self._push(value)
+    
+    def run(self) -> Any:
+        """Run loaded bytecode"""
+        if not self.chunk:
+            raise VMError("No bytecode loaded")
+        
+        while self.ip < len(self.chunk.instructions):
+            self._execute_instruction()
+            self.ip += 1
+        
+        # Return top of stack if anything
+        return self.stack[-1] if self.stack else None
     
     def _peek(self, offset: int = 0) -> Any:
         """Peek at stack value"""
