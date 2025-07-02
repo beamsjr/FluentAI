@@ -221,7 +221,7 @@ Probabilistic programming:
   (0.1 "rainy"))  ; Weather prediction
 ```
 
-### Pattern Matching (Future)
+### Pattern Matching
 
 Exhaustive pattern matching:
 
@@ -316,8 +316,8 @@ claudelang compile program.cl --target wasm
 ## Next Steps
 
 1. Explore the [examples](../examples/) directory
-2. Read the [language specification](./language_spec.md)
+2. Read the [language specification](./LANGUAGE_SPECIFICATION.md)
 3. Learn about [AI integration](./ai_integration.md)
-4. Contribute to the [standard library](../stdlib/)
+4. Contribute to the [standard library](../src/stdlib/)
 
 Remember: ClaudeLang is designed for clarity and machine understanding. When in doubt, be explicit!

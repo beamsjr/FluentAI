@@ -255,7 +255,7 @@ print(result)  # 5
 
 1. Explore the [examples/](../examples/) directory
 2. Read the [Language Specification](LANGUAGE_SPECIFICATION.md)
-3. Learn about [optimization](OPTIMIZATION_GUIDE.md)
+3. Learn about [optimization](OPTIMIZATION_JOURNEY.md)
 4. Contribute to the project!
 
 ## Common Issues

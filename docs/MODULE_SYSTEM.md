@@ -26,7 +26,7 @@ Use the `import` form to bring module exports into scope:
 ; Import all exports
 (import "path/to/module" *)
 
-; Import with renaming (planned feature)
+; Import with renaming
 (import "path/to/module" ((original-name as new-name)))
 ```
 
