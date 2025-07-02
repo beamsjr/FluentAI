@@ -122,6 +122,14 @@ pub enum Opcode {
     GetTaggedField,  // Get field N from tagged value
     IsTagged,        // Check if value is tagged with specific tag
     
+    // Module operations
+    LoadModule,      // Load module by name (string const)
+    ImportBinding,   // Import specific binding from module
+    LoadQualified,   // Load qualified variable (module.name)
+    BeginModule,     // Mark beginning of module scope
+    EndModule,       // Mark end of module scope
+    ExportBinding,   // Export a binding from current module
+    
     // Special
     Halt,
     Nop,
@@ -162,6 +170,10 @@ pub enum Value {
     Tagged {
         tag: String,
         values: Vec<Value>,
+    },
+    Module {
+        name: String,
+        exports: HashMap<String, Value>,
     },
 }
 
@@ -212,6 +224,9 @@ impl fmt::Display for Value {
                     write!(f, ")")?;
                 }
                 Ok(())
+            }
+            Value::Module { name, exports } => {
+                write!(f, "<module {} with {} exports>", name, exports.len())
             }
         }
     }

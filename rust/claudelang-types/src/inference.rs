@@ -128,6 +128,14 @@ impl TypeInferencer {
             Node::Channel => self.infer_channel()?,
             Node::Send { channel, value } => self.infer_send(graph, *channel, *value)?,
             Node::Receive { channel } => self.infer_receive(graph, *channel)?,
+            // Module-related nodes - for now, return unit type
+            Node::Module { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::Import { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::Export { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::QualifiedVariable { .. } => {
+                // TODO: Implement proper module type inference
+                self.env.fresh_type("T")
+            }
         };
 
         // Store the inferred type

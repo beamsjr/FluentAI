@@ -93,6 +93,25 @@ pub enum Node {
         branches: Vec<(Pattern, NodeId)>,
     },
     
+    // Module system
+    Module {
+        name: String,
+        exports: Vec<String>,
+        body: NodeId,
+    },
+    Import {
+        module_path: String,
+        import_list: Vec<ImportItem>,
+        import_all: bool,
+    },
+    Export {
+        export_list: Vec<ExportItem>,
+    },
+    QualifiedVariable {
+        module_name: String,
+        variable_name: String,
+    },
+    
     // Async/concurrent constructs
     Async {
         body: NodeId,
@@ -162,4 +181,16 @@ impl fmt::Display for EffectType {
             EffectType::Concurrent => write!(f, "Concurrent"),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportItem {
+    pub name: String,
+    pub alias: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportItem {
+    pub name: String,
+    pub alias: Option<String>,
 }

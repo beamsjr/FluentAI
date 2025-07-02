@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
     let runtime = Arc::new(EffectRuntime::new()?);
     
     // Register handlers
-    context.register_handler(Arc::new(IoHandler::new()));
+    context.register_handler(Arc::new(IOHandler::new()));
     context.register_handler(Arc::new(TimeHandler::new()));
     context.register_handler(Arc::new(NetworkHandler::new()));
     context.register_handler(Arc::new(AsyncHandler::new()));
