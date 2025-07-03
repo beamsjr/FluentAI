@@ -9,6 +9,7 @@ license.workspace = true
 claudelang-core = { path = "../claudelang-core" }
 claudelang-effects = { path = "../claudelang-effects" }
 claudelang-stdlib = { path = "../claudelang-stdlib" }
+claudelang-modules = { path = "../claudelang-modules" }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
@@ -188,3 +189,11 @@ path = "../examples/test_io_sandbox.rs"
 [[example]]
 name = "test_io_effects_complete"
 path = "../examples/test_io_effects_complete.rs"
+
+[[example]]
+name = "test_module_basic"
+path = "../examples/test_module_basic.rs"
+
+[[example]]
+name = "test_module_import"
+path = "../examples/test_module_import.rs"

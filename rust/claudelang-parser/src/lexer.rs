@@ -38,7 +38,11 @@ pub enum Token<'a> {
     #[token("#f", |_| false)]
     Boolean(bool),
     
-    // Symbols (lower priority to avoid conflicts with numbers)
+    // Qualified variables (module.name) - higher priority than regular symbols
+    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*", priority = 2, callback = |lex| lex.slice())]
+    QualifiedSymbol(&'a str),
+    
+    // Symbols (lower priority to avoid conflicts with numbers and qualified symbols)
     #[regex(r"[a-zA-Z_+\-*/=<>!?][a-zA-Z0-9_+\-*/=<>!?]*", priority = 1, callback = |lex| lex.slice())]
     Symbol(&'a str),
     
@@ -155,5 +159,12 @@ mod tests {
         let mut lexer = Lexer::new("3.14 -2.5e10");
         assert_eq!(lexer.next_token(), Some(Token::Float(3.14)));
         assert_eq!(lexer.next_token(), Some(Token::Float(-2.5e10)));
+    }
+    
+    #[test]
+    fn test_lexer_qualified_symbols() {
+        let mut lexer = Lexer::new("math.sin module.export");
+        assert_eq!(lexer.next_token(), Some(Token::QualifiedSymbol("math.sin")));
+        assert_eq!(lexer.next_token(), Some(Token::QualifiedSymbol("module.export")));
     }
 }

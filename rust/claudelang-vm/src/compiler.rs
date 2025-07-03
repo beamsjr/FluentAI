@@ -93,6 +93,18 @@ impl Compiler {
             Node::Match { expr, branches } => {
                 self.compile_match(graph, *expr, branches)?;
             }
+            Node::Module { name, exports, body } => {
+                self.compile_module(graph, name, exports, *body)?;
+            }
+            Node::Import { module_path, import_list, import_all } => {
+                self.compile_import(module_path, import_list, *import_all)?;
+            }
+            Node::Export { export_list } => {
+                self.compile_export(export_list)?;
+            }
+            Node::QualifiedVariable { module_name, variable_name } => {
+                self.compile_qualified_variable(module_name, variable_name)?;
+            }
             _ => return Err(anyhow!("Unimplemented node type: {:?}", node)),
         }
         
@@ -965,5 +977,93 @@ impl Compiler {
                 Ok((bindings, false))
             }
         }
+    }
+    
+    // Module compilation methods
+    fn compile_module(&mut self, graph: &ASTGraph, name: &str, exports: &[String], body: NodeId) -> Result<()> {
+        // Begin module scope
+        let name_idx = self.add_constant(Value::String(name.to_string()));
+        self.emit(Instruction::with_arg(Opcode::BeginModule, name_idx));
+        
+        // Compile the module body
+        self.compile_node(graph, body)?;
+        
+        // Export each binding
+        for export in exports {
+            let export_idx = self.add_constant(Value::String(export.clone()));
+            // Look up the binding value
+            self.compile_variable(export)?;
+            self.emit(Instruction::with_arg(Opcode::ExportBinding, export_idx));
+            self.emit(Instruction::new(Opcode::Pop)); // ExportBinding doesn't consume the value
+        }
+        
+        // End module scope
+        self.emit(Instruction::new(Opcode::EndModule));
+        
+        Ok(())
+    }
+    
+    fn compile_import(&mut self, module_path: &str, import_list: &[claudelang_core::ast::ImportItem], import_all: bool) -> Result<()> {
+        // Load the module
+        let module_idx = self.add_constant(Value::String(module_path.to_string()));
+        self.emit(Instruction::with_arg(Opcode::LoadModule, module_idx));
+        
+        if import_all {
+            // TODO: Implement import * functionality
+            // This would require runtime support to enumerate all exports
+            return Err(anyhow!("Import * not yet implemented"));
+        } else {
+            // Import specific bindings
+            for item in import_list {
+                let binding_idx = self.add_constant(Value::String(item.name.clone()));
+                // Encode both module and binding indices in arg
+                let arg = ((module_idx as u32) << 16) | (binding_idx as u32);
+                self.emit(Instruction::with_arg(Opcode::ImportBinding, arg));
+                
+                // Store in local scope
+                let local_name = item.alias.as_ref().unwrap_or(&item.name);
+                let local_idx = self.add_local(local_name.clone())?;
+                self.emit(Instruction::with_arg(Opcode::Store, local_idx as u32));
+            }
+        }
+        
+        Ok(())
+    }
+    
+    fn compile_export(&mut self, export_list: &[claudelang_core::ast::ExportItem]) -> Result<()> {
+        for item in export_list {
+            // Load the value to export
+            self.compile_variable(&item.name)?;
+            
+            // Export it
+            let export_name = item.alias.as_ref().unwrap_or(&item.name);
+            let export_idx = self.add_constant(Value::String(export_name.clone()));
+            self.emit(Instruction::with_arg(Opcode::ExportBinding, export_idx));
+            self.emit(Instruction::new(Opcode::Pop)); // ExportBinding doesn't consume the value
+        }
+        
+        Ok(())
+    }
+    
+    fn compile_qualified_variable(&mut self, module_name: &str, variable_name: &str) -> Result<()> {
+        let module_idx = self.add_constant(Value::String(module_name.to_string()));
+        let var_idx = self.add_constant(Value::String(variable_name.to_string()));
+        
+        // Encode both indices in arg
+        let arg = ((module_idx as u32) << 16) | (var_idx as u32);
+        self.emit(Instruction::with_arg(Opcode::LoadQualified, arg));
+        
+        Ok(())
+    }
+    
+    fn add_local(&mut self, name: String) -> Result<usize> {
+        let scope_idx = self.locals.len() - 1;
+        let pos = if self.stack_depth > 0 {
+            self.stack_depth - 1 // Current value on stack
+        } else {
+            0 // No value on stack yet
+        };
+        self.locals[scope_idx].insert(name, pos);
+        Ok(pos)
     }
 }

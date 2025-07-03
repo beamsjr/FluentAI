@@ -25,3 +25,7 @@ harness = false
 [[example]]
 name = "test_parser"
 path = "../examples/test_parser.rs"
+
+[[example]]
+name = "test_parser_modules"
+path = "../examples/test_parser_modules.rs"

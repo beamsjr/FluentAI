@@ -2,7 +2,7 @@
 
 use crate::error::ParseError;
 use crate::lexer::{Lexer, Token};
-use claudelang_core::ast::{EffectType, Graph, Literal, Node, NodeId, Pattern};
+use claudelang_core::ast::{EffectType, Graph, Literal, Node, NodeId, Pattern, ImportItem, ExportItem};
 use bumpalo::Bump;
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -56,6 +56,7 @@ impl<'a> Parser<'a> {
             Some(Token::String(_)) => self.parse_string(),
             Some(Token::Boolean(_)) => self.parse_boolean(),
             Some(Token::Symbol(_)) => self.parse_symbol(),
+            Some(Token::QualifiedSymbol(_)) => self.parse_qualified_symbol(),
             Some(_) => Err(ParseError::InvalidSyntax("Expected expression".to_string())),
             None => Err(ParseError::UnexpectedEof),
         }
@@ -87,6 +88,9 @@ impl<'a> Parser<'a> {
                 "chan" => return self.parse_channel(),
                 "send!" => return self.parse_send(),
                 "recv!" => return self.parse_receive(),
+                "module" => return self.parse_module(),
+                "import" => return self.parse_import(),
+                "export" => return self.parse_export(),
                 _ => {}
             }
         }
@@ -504,6 +508,154 @@ impl<'a> Parser<'a> {
             Err(ParseError::InvalidSyntax(format!("Expected symbol '{}'", expected)))
         }
     }
+    
+    fn parse_qualified_symbol(&mut self) -> ParseResult<NodeId> {
+        if let Some(Token::QualifiedSymbol(qualified)) = self.lexer.next_token() {
+            let parts: Vec<&str> = qualified.split('.').collect();
+            if parts.len() == 2 {
+                let node = Node::QualifiedVariable {
+                    module_name: parts[0].to_string(),
+                    variable_name: parts[1].to_string(),
+                };
+                Ok(self.graph.add_node(node))
+            } else {
+                Err(ParseError::InvalidSyntax("Invalid qualified symbol".to_string()))
+            }
+        } else {
+            Err(ParseError::InvalidSyntax("Expected qualified symbol".to_string()))
+        }
+    }
+    
+    fn parse_module(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("module")?;
+        
+        // Parse module name
+        let name = if let Some(Token::Symbol(n)) = self.lexer.next_token() {
+            n.to_string()
+        } else {
+            return Err(ParseError::InvalidSyntax("Expected module name".to_string()));
+        };
+        
+        // Parse optional export list
+        let mut exports = Vec::new();
+        if matches!(self.lexer.peek_token(), Some(Token::LParen)) {
+            // Check if this is an export list
+            self.lexer.next_token(); // consume (
+            if matches!(self.lexer.peek_token(), Some(Token::Symbol("export"))) {
+                self.expect_symbol("export")?;
+                
+                while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+                    if let Some(Token::Symbol(export_name)) = self.lexer.next_token() {
+                        exports.push(export_name.to_string());
+                    } else {
+                        return Err(ParseError::InvalidSyntax("Expected export name".to_string()));
+                    }
+                }
+                self.expect_token(Token::RParen)?;
+            } else {
+                // This was the start of the body, put the paren back
+                // Since we can't put tokens back, we'll parse the body as a list starting here
+                let body = self.parse_application()?;
+                self.expect_token(Token::RParen)?;
+                
+                let node = Node::Module { name, exports, body };
+                return Ok(self.graph.add_node(node));
+            }
+        }
+        
+        // Parse body
+        let body = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Module { name, exports, body };
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_import(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("import")?;
+        
+        // Parse module path (string)
+        let module_path = if let Some(Token::String(path)) = self.lexer.next_token() {
+            path
+        } else {
+            return Err(ParseError::InvalidSyntax("Expected module path string".to_string()));
+        };
+        
+        // Parse import list or *
+        let mut import_list = Vec::new();
+        let mut import_all = false;
+        
+        if matches!(self.lexer.peek_token(), Some(Token::Symbol("*"))) {
+            self.lexer.next_token();
+            import_all = true;
+        } else if matches!(self.lexer.peek_token(), Some(Token::LParen)) {
+            self.lexer.next_token(); // consume (
+            
+            while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+                if let Some(Token::Symbol(name)) = self.lexer.next_token() {
+                    // Check for 'as' syntax
+                    let mut alias = None;
+                    if matches!(self.lexer.peek_token(), Some(Token::Symbol("as"))) {
+                        self.lexer.next_token(); // consume 'as'
+                        if let Some(Token::Symbol(alias_name)) = self.lexer.next_token() {
+                            alias = Some(alias_name.to_string());
+                        } else {
+                            return Err(ParseError::InvalidSyntax("Expected alias name".to_string()));
+                        }
+                    }
+                    import_list.push(ImportItem {
+                        name: name.to_string(),
+                        alias,
+                    });
+                } else {
+                    return Err(ParseError::InvalidSyntax("Expected import name".to_string()));
+                }
+            }
+            self.expect_token(Token::RParen)?;
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Import {
+            module_path,
+            import_list,
+            import_all,
+        };
+        Ok(self.graph.add_node(node))
+    }
+    
+    fn parse_export(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("export")?;
+        
+        let mut export_list = Vec::new();
+        
+        // Parse export list
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            if let Some(Token::Symbol(name)) = self.lexer.next_token() {
+                // Check for 'as' syntax
+                let mut alias = None;
+                if matches!(self.lexer.peek_token(), Some(Token::Symbol("as"))) {
+                    self.lexer.next_token(); // consume 'as'
+                    if let Some(Token::Symbol(alias_name)) = self.lexer.next_token() {
+                        alias = Some(alias_name.to_string());
+                    } else {
+                        return Err(ParseError::InvalidSyntax("Expected alias name".to_string()));
+                    }
+                }
+                export_list.push(ExportItem {
+                    name: name.to_string(),
+                    alias,
+                });
+            } else {
+                return Err(ParseError::InvalidSyntax("Expected export name".to_string()));
+            }
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Export { export_list };
+        Ok(self.graph.add_node(node))
+    }
 }
 
 #[cfg(test)]
@@ -533,5 +685,159 @@ mod tests {
     fn test_parse_list_literal() {
         let result = parse("[1 2 3]").unwrap();
         assert!(result.root_id.is_some());
+    }
+    
+    #[test]
+    fn test_parse_module() {
+        let result = parse(r#"(module math (export sin cos) (lambda (x) x))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Module { name, exports, body: _ } => {
+                assert_eq!(name, "math");
+                assert_eq!(exports, &vec!["sin".to_string(), "cos".to_string()]);
+            }
+            _ => panic!("Expected Module node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_module_no_exports() {
+        let result = parse(r#"(module utils (+ 1 2))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Module { name, exports, body: _ } => {
+                assert_eq!(name, "utils");
+                assert!(exports.is_empty());
+            }
+            _ => panic!("Expected Module node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_import_all() {
+        let result = parse(r#"(import "math" *)"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Import { module_path, import_list, import_all } => {
+                assert_eq!(module_path, "math");
+                assert!(import_list.is_empty());
+                assert!(*import_all);
+            }
+            _ => panic!("Expected Import node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_import_list() {
+        let result = parse(r#"(import "math" (sin cos))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Import { module_path, import_list, import_all } => {
+                assert_eq!(module_path, "math");
+                assert_eq!(import_list.len(), 2);
+                assert_eq!(import_list[0].name, "sin");
+                assert!(import_list[0].alias.is_none());
+                assert_eq!(import_list[1].name, "cos");
+                assert!(import_list[1].alias.is_none());
+                assert!(!*import_all);
+            }
+            _ => panic!("Expected Import node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_import_with_alias() {
+        let result = parse(r#"(import "math" (sin as sine))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Import { module_path, import_list, import_all } => {
+                assert_eq!(module_path, "math");
+                assert_eq!(import_list.len(), 1);
+                assert_eq!(import_list[0].name, "sin");
+                assert_eq!(import_list[0].alias, Some("sine".to_string()));
+                assert!(!*import_all);
+            }
+            _ => panic!("Expected Import node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_export() {
+        let result = parse(r#"(export foo bar)"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Export { export_list } => {
+                assert_eq!(export_list.len(), 2);
+                assert_eq!(export_list[0].name, "foo");
+                assert!(export_list[0].alias.is_none());
+                assert_eq!(export_list[1].name, "bar");
+                assert!(export_list[1].alias.is_none());
+            }
+            _ => panic!("Expected Export node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_export_with_alias() {
+        let result = parse(r#"(export internal-fn as public-fn)"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Export { export_list } => {
+                assert_eq!(export_list.len(), 1);
+                assert_eq!(export_list[0].name, "internal-fn");
+                assert_eq!(export_list[0].alias, Some("public-fn".to_string()));
+            }
+            _ => panic!("Expected Export node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_qualified_variable() {
+        let result = parse(r#"math.sin"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::QualifiedVariable { module_name, variable_name } => {
+                assert_eq!(module_name, "math");
+                assert_eq!(variable_name, "sin");
+            }
+            _ => panic!("Expected QualifiedVariable node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_qualified_in_expression() {
+        let result = parse(r#"(math.sin 3.14)"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Application { function, args } => {
+                assert_eq!(args.len(), 1);
+                match result.get_node(*function).unwrap() {
+                    Node::QualifiedVariable { module_name, variable_name } => {
+                        assert_eq!(module_name, "math");
+                        assert_eq!(variable_name, "sin");
+                    }
+                    _ => panic!("Expected QualifiedVariable node"),
+                }
+            }
+            _ => panic!("Expected Application node"),
+        }
     }
 }

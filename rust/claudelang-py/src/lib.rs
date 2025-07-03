@@ -148,6 +148,40 @@ impl PyNode {
                     data.insert("channel_id".to_string(), channel.to_string().to_object(py));
                     "Receive"
                 }
+                Node::Letrec { bindings, body } => {
+                    let py_bindings: Vec<HashMap<String, String>> = bindings.iter()
+                        .map(|(name, id)| {
+                            let mut binding = HashMap::new();
+                            binding.insert("name".to_string(), name.clone());
+                            binding.insert("value_id".to_string(), id.to_string());
+                            binding
+                        })
+                        .collect();
+                    data.insert("bindings".to_string(), py_bindings.to_object(py));
+                    data.insert("body_id".to_string(), body.to_string().to_object(py));
+                    "Letrec"
+                }
+                Node::Module { name, exports, body } => {
+                    data.insert("name".to_string(), name.to_object(py));
+                    data.insert("exports".to_string(), exports.to_object(py));
+                    data.insert("body_id".to_string(), body.to_string().to_object(py));
+                    "Module"
+                }
+                Node::Import { module_path, import_list, import_all } => {
+                    data.insert("module_path".to_string(), module_path.to_object(py));
+                    data.insert("import_list".to_string(), import_list.len().to_object(py));
+                    data.insert("import_all".to_string(), import_all.to_object(py));
+                    "Import"
+                }
+                Node::Export { export_list } => {
+                    data.insert("export_list".to_string(), export_list.len().to_object(py));
+                    "Export"
+                }
+                Node::QualifiedVariable { module_name, variable_name } => {
+                    data.insert("module".to_string(), module_name.to_object(py));
+                    data.insert("name".to_string(), variable_name.to_object(py));
+                    "QualifiedVariable"
+                }
             };
             
             Self {
@@ -254,6 +288,27 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
         }
         Value::Promise(id) => Ok(format!("<promise:{}>", id).to_object(py)),
         Value::Channel(id) => Ok(format!("<channel:{}>", id).to_object(py)),
+        Value::Cell(id) => Ok(format!("<cell:{}>", id).to_object(py)),
+        Value::Tagged { tag, values } => {
+            let py_dict = PyDict::new(py);
+            py_dict.set_item("tag", tag)?;
+            let py_values = PyList::empty(py);
+            for val in values {
+                py_values.append(value_to_python(py, val)?)?;
+            }
+            py_dict.set_item("values", py_values)?;
+            Ok(py_dict.to_object(py))
+        }
+        Value::Module { name, exports } => {
+            let py_dict = PyDict::new(py);
+            py_dict.set_item("name", name)?;
+            let py_exports = PyDict::new(py);
+            for (key, val) in exports {
+                py_exports.set_item(key, value_to_python(py, val)?)?;
+            }
+            py_dict.set_item("exports", py_exports)?;
+            Ok(py_dict.to_object(py))
+        }
     }
 }
 
@@ -335,6 +390,22 @@ fn opcode_to_u8(opcode: &claudelang_vm::bytecode::Opcode) -> u8 {
         Receive => 71,
         Halt => 72,
         Nop => 73,
+        MakeClosure => 74,
+        LoadCaptured => 75,
+        PopN => 76,
+        MakeCell => 77,
+        CellGet => 78,
+        CellSet => 79,
+        MakeTagged => 80,
+        GetTag => 81,
+        GetTaggedField => 82,
+        IsTagged => 83,
+        LoadModule => 84,
+        ImportBinding => 85,
+        LoadQualified => 86,
+        BeginModule => 87,
+        EndModule => 88,
+        ExportBinding => 89,
     }
 }
 

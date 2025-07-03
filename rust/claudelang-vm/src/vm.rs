@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use claudelang_effects::{EffectContext, runtime::EffectRuntime};
 use claudelang_stdlib::{StdlibRegistry, init_stdlib};
 use claudelang_stdlib::value::Value as StdlibValue;
+use claudelang_modules::{ModuleLoader, ModuleResolver};
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
@@ -33,6 +34,12 @@ pub struct VM {
     cells: Vec<Value>,
     // Standard library
     stdlib: StdlibRegistry,
+    // Module system
+    module_loader: ModuleLoader,
+    module_resolver: ModuleResolver,
+    loaded_modules: HashMap<String, Value>, // Cache of loaded modules
+    current_module: Option<String>, // Name of currently executing module
+    module_stack: Vec<String>, // Stack of module names for nested module execution
 }
 
 impl VM {
@@ -49,6 +56,11 @@ impl VM {
             channels: HashMap::new(),
             cells: Vec::new(),
             stdlib: init_stdlib(),
+            module_loader: ModuleLoader::new(claudelang_modules::ModuleConfig::default()),
+            module_resolver: ModuleResolver::new(ModuleLoader::new(claudelang_modules::ModuleConfig::default())),
+            loaded_modules: HashMap::new(),
+            current_module: None,
+            module_stack: Vec::new(),
         }
     }
     
@@ -1063,6 +1075,83 @@ impl VM {
                 // This is a no-op for now
             }
             
+            // Module operations
+            LoadModule => {
+                let module_name = self.get_constant_string(instruction.arg)?;
+                self.load_module(&module_name)?;
+            }
+            
+            ImportBinding => {
+                // arg encodes module_idx (high 16 bits) and binding_idx (low 16 bits)
+                let module_idx = (instruction.arg >> 16) as usize;
+                let binding_idx = (instruction.arg & 0xFFFF) as usize;
+                
+                let module_name = self.get_constant_string(module_idx as u32)?;
+                let binding_name = self.get_constant_string(binding_idx as u32)?;
+                
+                if let Some(Value::Module { exports, .. }) = self.loaded_modules.get(&module_name) {
+                    if let Some(value) = exports.get(&binding_name) {
+                        self.push(value.clone())?;
+                    } else {
+                        return Err(anyhow!("Module '{}' does not export '{}'", module_name, binding_name));
+                    }
+                } else {
+                    return Err(anyhow!("Module '{}' not loaded", module_name));
+                }
+            }
+            
+            LoadQualified => {
+                // arg encodes module_idx (high 16 bits) and var_idx (low 16 bits)
+                let module_idx = (instruction.arg >> 16) as usize;
+                let var_idx = (instruction.arg & 0xFFFF) as usize;
+                
+                let module_name = self.get_constant_string(module_idx as u32)?;
+                let var_name = self.get_constant_string(var_idx as u32)?;
+                
+                if let Some(Value::Module { exports, .. }) = self.loaded_modules.get(&module_name) {
+                    if let Some(value) = exports.get(&var_name) {
+                        self.push(value.clone())?;
+                    } else {
+                        return Err(anyhow!("Module '{}' does not export '{}'", module_name, var_name));
+                    }
+                } else {
+                    return Err(anyhow!("Module '{}' not found", module_name));
+                }
+            }
+            
+            BeginModule => {
+                let module_name = self.get_constant_string(instruction.arg)?;
+                self.module_stack.push(self.current_module.clone().unwrap_or_default());
+                self.current_module = Some(module_name);
+            }
+            
+            EndModule => {
+                if let Some(prev_module) = self.module_stack.pop() {
+                    self.current_module = if prev_module.is_empty() { None } else { Some(prev_module) };
+                }
+            }
+            
+            ExportBinding => {
+                let binding_name = self.get_constant_string(instruction.arg)?;
+                if let Some(current_module_name) = &self.current_module {
+                    let value = self.peek(0)?.clone();
+                    
+                    // Get or create the module in loaded_modules
+                    let module = self.loaded_modules.entry(current_module_name.clone())
+                        .or_insert_with(|| Value::Module {
+                            name: current_module_name.clone(),
+                            exports: HashMap::new(),
+                        });
+                    
+                    // Add the export
+                    if let Value::Module { exports, .. } = module {
+                        exports.insert(binding_name, value);
+                    }
+                } else {
+                    return Err(anyhow!("Cannot export outside of module context"));
+                }
+            }
+            
             // Special
             Halt => return Ok(VMState::Halt),
             Nop => {}
@@ -1148,6 +1237,7 @@ impl VM {
                 tag1 == tag2 && vals1.len() == vals2.len() && 
                 vals1.iter().zip(vals2).all(|(a, b)| self.values_equal(a, b))
             }
+            (Value::Module { name: n1, .. }, Value::Module { name: n2, .. }) => n1 == n2,
             _ => false,
         }
     }
@@ -1166,6 +1256,7 @@ impl VM {
             Value::Channel(_) => true,
             Value::Cell(_) => true,
             Value::Tagged { .. } => true,
+            Value::Module { .. } => true,
         }
     }
     
@@ -1202,6 +1293,10 @@ impl VM {
                     tag: tag.clone(),
                     values: values.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect(),
                 }
+            }
+            Value::Module { name, .. } => {
+                // No direct stdlib equivalent, use string representation
+                StdlibValue::String(format!("<module {}>", name))
             }
         }
     }
@@ -1378,6 +1473,17 @@ impl VM {
                 ));
                 claudelang_core::value::Value::Map(map)
             }
+            Value::Module { name, exports } => {
+                // Convert to a map representation  
+                let mut map = std::collections::HashMap::new();
+                map.insert("__module__".to_string(), claudelang_core::value::Value::String(name.clone()));
+                let mut export_map = std::collections::HashMap::new();
+                for (key, val) in exports {
+                    export_map.insert(key.clone(), self.vm_value_to_core_value(val));
+                }
+                map.insert("__exports__".to_string(), claudelang_core::value::Value::Map(export_map));
+                claudelang_core::value::Value::Map(map)
+            }
         }
     }
     
@@ -1409,6 +1515,51 @@ impl VM {
                 Value::String(format!("Error: {}", msg))
             }
         }
+    }
+    
+    // Module system helper methods
+    fn get_constant_string(&self, idx: u32) -> Result<String> {
+        let value = self.bytecode.chunks[self.current_chunk()].constants
+            .get(idx as usize)
+            .ok_or_else(|| anyhow!("Invalid constant index: {}", idx))?;
+            
+        match value {
+            Value::String(s) => Ok(s.clone()),
+            _ => Err(anyhow!("Expected string constant at index {}", idx)),
+        }
+    }
+    
+    fn load_module(&mut self, module_name: &str) -> Result<()> {
+        // Check if already loaded
+        if self.loaded_modules.contains_key(module_name) {
+            return Ok(());
+        }
+        
+        // Load the module file
+        let module_info = self.module_loader.load_module(module_name)?;
+        
+        // Create a module value with empty exports initially
+        let module_value = Value::Module {
+            name: module_name.to_string(),
+            exports: HashMap::new(),
+        };
+        
+        self.loaded_modules.insert(module_name.to_string(), module_value);
+        
+        // TODO: Actually compile and execute the module to populate exports
+        // This would involve:
+        // 1. Parsing the module file
+        // 2. Compiling it to bytecode
+        // 3. Executing it in a module context
+        // 4. Collecting the exports
+        
+        Ok(())
+    }
+    
+    fn current_chunk(&self) -> usize {
+        self.call_stack.last()
+            .map(|frame| frame.chunk_id)
+            .unwrap_or(self.bytecode.main_chunk)
     }
 }
 

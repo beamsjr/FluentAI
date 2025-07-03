@@ -1,0 +1,20 @@
+[package]
+name = "claudelang-modules"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+claudelang-core = { path = "../claudelang-core" }
+claudelang-parser = { path = "../claudelang-parser" }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+rustc-hash = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"
