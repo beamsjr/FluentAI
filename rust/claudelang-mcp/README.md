@@ -72,6 +72,30 @@ cargo run --bin claudelang-mcp
 
 The server listens on stdin/stdout following the MCP protocol.
 
+## Using with Claude Desktop
+
+To configure the ClaudeLang MCP server as a local tool for Claude Desktop:
+
+1. Build your binary:
+   ```bash
+   cargo build --release --bin claudelang-mcp
+   ```
+
+2. Create a `claude-tools.json` file in the same directory as your compiled binary:
+   ```json
+   {
+     "name": "ClaudeLang",
+     "command": "./claude-lang-mcp",
+     "protocol": "stdio"
+   }
+   ```
+
+   > Replace `./claude-lang-mcp` with the correct relative path to your binary.
+
+3. Launch Claude Desktop. It should detect your tool and make it available under "Local Tools."
+
+4. You can now call any tool (e.g., `eval`, `search_docs`) from within Claude Desktop.
+
 ## Documentation Coverage
 
 The server provides comprehensive documentation for:
