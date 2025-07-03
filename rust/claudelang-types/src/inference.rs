@@ -26,30 +26,41 @@ pub struct TypeInferencer {
 /// Type errors that can occur during inference
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum TypeError {
+    /// Variable is not bound in the current scope
     #[error("Unbound variable: {0}")]
     UnboundVariable(String),
     
+    /// Type mismatch between expected and found types
     #[error("Type mismatch: expected {expected}, found {found}")]
     TypeMismatch {
+        /// The expected type
         expected: String,
+        /// The type that was found
         found: String,
     },
     
+    /// Type unification failed between two types
     #[error("Cannot unify types: {0} and {1}")]
     UnificationFailure(String, String),
     
+    /// Wrong number of arguments provided to a function
     #[error("Wrong number of arguments: expected {expected}, found {found}")]
     ArityMismatch {
+        /// The expected number of arguments
         expected: usize,
+        /// The actual number of arguments found
         found: usize,
     },
     
+    /// Invalid literal type encountered
     #[error("Invalid literal type")]
     InvalidLiteral,
     
+    /// Pattern matching failed
     #[error("Pattern match failure: {0}")]
     PatternMatchFailure(String),
     
+    /// Effect constraint was violated
     #[error("Effect constraint violation: {0}")]
     EffectConstraintViolation(String),
 }
@@ -135,6 +146,10 @@ impl TypeInferencer {
             Node::QualifiedVariable { .. } => {
                 // TODO: Implement proper module type inference
                 self.env.fresh_type("T")
+            }
+            Node::Contract { .. } => {
+                // Contracts are metadata, not runtime values
+                TypedValue::primitive(PrimitiveType::unit())
             }
         };
 

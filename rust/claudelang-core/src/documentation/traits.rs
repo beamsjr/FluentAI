@@ -39,6 +39,7 @@ pub enum DocumentationCategory {
     Effect,
     Operator,
     Keyword,
+    Verification,
 }
 
 /// Trait that all AST nodes must implement for documentation

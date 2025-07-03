@@ -92,6 +92,7 @@ impl<'a> Parser<'a> {
                 "module" => return self.parse_module(),
                 "import" => return self.parse_import(),
                 "export" => return self.parse_export(),
+                "spec:contract" => return self.parse_contract(),
                 _ => {}
             }
         }
@@ -657,6 +658,89 @@ impl<'a> Parser<'a> {
         let node = Node::Export { export_list };
         Ok(self.graph.add_node(node))
     }
+    
+    fn parse_contract(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("spec:contract")?;
+        
+        // Parse function name
+        let function_name = match self.lexer.next_token() {
+            Some(Token::Symbol(name)) => name.to_string(),
+            _ => return Err(ParseError::InvalidSyntax("Expected function name in contract".to_string())),
+        };
+        
+        let mut preconditions = Vec::new();
+        let mut postconditions = Vec::new();
+        let mut invariants = Vec::new();
+        let mut complexity = None;
+        let mut pure = true; // Default to pure
+        
+        // Parse contract clauses
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            match self.lexer.next_token() {
+                Some(Token::Keyword(keyword)) => {
+                    match keyword {
+                        ":requires" | ":pre" => {
+                            // Parse preconditions list
+                            self.expect_token(Token::LBracket)?;
+                            while !matches!(self.lexer.peek_token(), Some(Token::RBracket)) {
+                                let expr = self.parse_expr()?;
+                                preconditions.push(expr);
+                            }
+                            self.expect_token(Token::RBracket)?;
+                        }
+                        ":ensures" | ":post" => {
+                            // Parse postconditions list
+                            self.expect_token(Token::LBracket)?;
+                            while !matches!(self.lexer.peek_token(), Some(Token::RBracket)) {
+                                let expr = self.parse_expr()?;
+                                postconditions.push(expr);
+                            }
+                            self.expect_token(Token::RBracket)?;
+                        }
+                        ":invariant" => {
+                            // Parse invariants list
+                            self.expect_token(Token::LBracket)?;
+                            while !matches!(self.lexer.peek_token(), Some(Token::RBracket)) {
+                                let expr = self.parse_expr()?;
+                                invariants.push(expr);
+                            }
+                            self.expect_token(Token::RBracket)?;
+                        }
+                        ":complexity" => {
+                            // Parse complexity string
+                            match self.lexer.next_token() {
+                                Some(Token::String(s)) => complexity = Some(s.to_string()),
+                                _ => return Err(ParseError::InvalidSyntax("Expected string for complexity".to_string())),
+                            }
+                        }
+                        ":pure" => {
+                            // Parse purity boolean
+                            match self.lexer.next_token() {
+                                Some(Token::Boolean(b)) => pure = b,
+                                Some(Token::Symbol("true")) => pure = true,
+                                Some(Token::Symbol("false")) => pure = false,
+                                _ => return Err(ParseError::InvalidSyntax("Expected boolean for :pure".to_string())),
+                            }
+                        }
+                        _ => return Err(ParseError::InvalidSyntax(format!("Unknown contract keyword: {}", keyword))),
+                    }
+                }
+                _ => return Err(ParseError::InvalidSyntax("Expected contract keyword".to_string())),
+            }
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            invariants,
+            complexity,
+            pure,
+        };
+        Ok(self.graph.add_node(node))
+    }
 }
 
 #[cfg(test)]
@@ -803,6 +887,64 @@ mod tests {
                 assert_eq!(export_list[0].alias, Some("public-fn".to_string()));
             }
             _ => panic!("Expected Export node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_simple_contract() {
+        let result = parse(r#"(spec:contract add
+            :requires [(>= x 0) (>= y 0)]
+            :ensures [(>= result 0)]
+            :complexity "O(1)")"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Contract { function_name, preconditions, postconditions, invariants, complexity, pure } => {
+                assert_eq!(function_name, "add");
+                assert_eq!(preconditions.len(), 2);
+                assert_eq!(postconditions.len(), 1);
+                assert!(invariants.is_empty());
+                assert_eq!(complexity, &Some("O(1)".to_string()));
+                assert_eq!(*pure, true);
+            }
+            _ => panic!("Expected Contract node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_contract_with_pre_post() {
+        let result = parse(r#"(spec:contract divide
+            :pre [(not= y 0)]
+            :post [(= result (/ x y))])"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Contract { function_name, preconditions, postconditions, .. } => {
+                assert_eq!(function_name, "divide");
+                assert_eq!(preconditions.len(), 1);
+                assert_eq!(postconditions.len(), 1);
+            }
+            _ => panic!("Expected Contract node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_impure_contract() {
+        let result = parse(r#"(spec:contract read-file
+            :requires [(file-exists? path)]
+            :ensures [(string? result)]
+            :pure false)"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Contract { function_name, pure, .. } => {
+                assert_eq!(function_name, "read-file");
+                assert_eq!(*pure, false);
+            }
+            _ => panic!("Expected Contract node"),
         }
     }
     

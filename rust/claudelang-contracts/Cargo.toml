@@ -1,0 +1,27 @@
+[package]
+name = "claudelang-contracts"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+claudelang-core = { path = "../claudelang-core" }
+claudelang-types = { path = "../claudelang-types" }
+z3 = { version = "0.12", features = ["static-link-z3"], optional = true }
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+claudelang-parser = { path = "../claudelang-parser" }
+
+[features]
+default = ["runtime"]
+runtime = []
+static = ["z3"]
+proof = ["static"]
+full = ["runtime", "static", "proof"]

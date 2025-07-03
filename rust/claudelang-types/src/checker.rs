@@ -22,12 +22,16 @@ pub struct TypeChecker {
 /// Source location for error reporting
 #[derive(Debug, Clone)]
 pub struct SourceLocation {
+    /// Source file name
     pub file: String,
+    /// Line number (1-based)
     pub line: usize,
+    /// Column number (1-based)
     pub column: usize,
 }
 
 impl SourceLocation {
+    /// Create an unknown source location
     pub fn unknown() -> Self {
         Self {
             file: "<unknown>".to_string(),
@@ -53,8 +57,11 @@ pub struct TypeCheckResult {
 /// Type check error with source location
 #[derive(Debug, Clone)]
 pub struct TypeCheckError {
+    /// Location where the error occurred
     pub location: SourceLocation,
+    /// The underlying type error
     pub error: TypeError,
+    /// Additional context for the error
     pub context: String,
 }
 
@@ -75,7 +82,9 @@ impl std::fmt::Display for TypeCheckError {
 /// Type check warning
 #[derive(Debug, Clone)]
 pub struct TypeCheckWarning {
+    /// Location where the warning occurred
     pub location: SourceLocation,
+    /// Warning message
     pub message: String,
 }
 
@@ -307,28 +316,33 @@ pub struct TypeCheckerBuilder {
 }
 
 impl TypeCheckerBuilder {
+    /// Create a new type checker builder
     pub fn new() -> Self {
         Self {
             checker: TypeChecker::new(),
         }
     }
 
+    /// Create a builder with a custom environment
     pub fn with_env(env: TypeEnvironment) -> Self {
         Self {
             checker: TypeChecker::with_env(env),
         }
     }
 
+    /// Add a source location for a node
     pub fn with_location(mut self, node_id: NodeId, location: SourceLocation) -> Self {
         self.checker.add_location(node_id, location);
         self
     }
 
+    /// Add a type annotation for a node
     pub fn with_annotation(mut self, node_id: NodeId, ty: TypedValue) -> Self {
         self.checker.add_annotation(node_id, ty);
         self
     }
 
+    /// Build the type checker
     pub fn build(self) -> TypeChecker {
         self.checker
     }

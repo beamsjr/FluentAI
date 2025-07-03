@@ -70,8 +70,11 @@ pub trait TypeTrait {
 /// Base type structure
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Type {
+    /// The kind of type (primitive, function, etc.)
     pub kind: TypeKind,
+    /// Set of effects this type may perform
     pub effects: HashSet<EffectType>,
+    /// Additional metadata for the type
     pub metadata: FxHashMap<String, String>,
 }
 
@@ -88,30 +91,37 @@ impl Default for Type {
 /// Primitive types like Int, Float, String, Bool
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PrimitiveType {
+    /// Name of the primitive type (e.g., "Int", "Float", "String", "Bool")
     pub name: String,
 }
 
 impl PrimitiveType {
+    /// Create a new primitive type with the given name
     pub fn new(name: impl Into<String>) -> Self {
         Self { name: name.into() }
     }
 
+    /// Create an Int primitive type
     pub fn int() -> Self {
         Self::new("Int")
     }
 
+    /// Create a Float primitive type
     pub fn float() -> Self {
         Self::new("Float")
     }
 
+    /// Create a String primitive type
     pub fn string() -> Self {
         Self::new("String")
     }
 
+    /// Create a Bool primitive type
     pub fn bool() -> Self {
         Self::new("Bool")
     }
 
+    /// Create a Unit primitive type
     pub fn unit() -> Self {
         Self::new("Unit")
     }
@@ -126,12 +136,16 @@ impl fmt::Display for PrimitiveType {
 /// Function types with explicit effects
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionType {
+    /// Parameter types for the function
     pub params: Vec<TypedValue>,
+    /// Return type of the function
     pub result: Box<TypedValue>,
+    /// Whether this function is pure (no side effects)
     pub is_pure: bool,
 }
 
 impl FunctionType {
+    /// Create a new function type with the given parameters and return type
     pub fn new(params: Vec<TypedValue>, result: TypedValue) -> Self {
         Self {
             params,
@@ -140,6 +154,7 @@ impl FunctionType {
         }
     }
 
+    /// Create a TypedValue from this function type with the given effects
     pub fn with_effects(mut self, effects: HashSet<EffectType>) -> TypedValue {
         self.is_pure = effects.is_empty() || 
             (effects.len() == 1 && effects.contains(&EffectType::Pure));
@@ -164,10 +179,12 @@ impl fmt::Display for FunctionType {
 /// Product types (tuples)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TupleType {
+    /// Types of each element in the tuple
     pub elements: Vec<TypedValue>,
 }
 
 impl TupleType {
+    /// Create a new tuple type with the given element types
     pub fn new(elements: Vec<TypedValue>) -> Self {
         Self { elements }
     }
@@ -186,10 +203,12 @@ impl fmt::Display for TupleType {
 /// Homogeneous list type
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ListType {
+    /// Type of elements in the list
     pub element_type: Box<TypedValue>,
 }
 
 impl ListType {
+    /// Create a new list type with the given element type
     pub fn new(element_type: TypedValue) -> Self {
         Self {
             element_type: Box::new(element_type),
@@ -206,16 +225,19 @@ impl fmt::Display for ListType {
 /// Record types with named fields
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordType {
+    /// Map of field names to their types
     pub fields: FxHashMap<String, TypedValue>,
 }
 
 impl RecordType {
+    /// Create a new empty record type
     pub fn new() -> Self {
         Self {
             fields: FxHashMap::default(),
         }
     }
 
+    /// Add a field to the record type
     pub fn with_field(mut self, name: impl Into<String>, ty: TypedValue) -> Self {
         self.fields.insert(name.into(), ty);
         self
@@ -235,16 +257,19 @@ impl fmt::Display for RecordType {
 /// Sum types (variants/enums)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariantType {
+    /// Map of variant names to their optional payload types
     pub variants: FxHashMap<String, Option<TypedValue>>,
 }
 
 impl VariantType {
+    /// Create a new empty variant type
     pub fn new() -> Self {
         Self {
             variants: FxHashMap::default(),
         }
     }
 
+    /// Add a variant to the type
     pub fn with_variant(mut self, tag: impl Into<String>, payload: Option<TypedValue>) -> Self {
         self.variants.insert(tag.into(), payload);
         self
@@ -270,11 +295,14 @@ impl fmt::Display for VariantType {
 /// Effect types for tracking side effects
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EffectTypeWrapper {
+    /// The kind of effect (IO, State, etc.)
     pub effect_kind: EffectType,
+    /// Optional payload type for the effect
     pub payload_type: Option<Box<TypedValue>>,
 }
 
 impl EffectTypeWrapper {
+    /// Create a new effect type with the given kind
     pub fn new(effect_kind: EffectType) -> Self {
         Self {
             effect_kind,
@@ -282,6 +310,7 @@ impl EffectTypeWrapper {
         }
     }
 
+    /// Set the payload type for this effect
     pub fn with_payload(mut self, payload: TypedValue) -> Self {
         self.payload_type = Some(Box::new(payload));
         self
@@ -301,12 +330,16 @@ impl fmt::Display for EffectTypeWrapper {
 /// Probabilistic types with confidence
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UncertainType {
+    /// The base type that this is uncertain about
     pub base_type: Box<TypedValue>,
+    /// Confidence level (0.0 to 1.0)
     pub confidence: f64,
+    /// Name of the probability distribution
     pub distribution: String,
 }
 
 impl UncertainType {
+    /// Create a new uncertain type with the given base type and confidence
     pub fn new(base_type: TypedValue, confidence: f64) -> Self {
         Self {
             base_type: Box::new(base_type),
@@ -315,6 +348,7 @@ impl UncertainType {
         }
     }
 
+    /// Set the probability distribution for this uncertain type
     pub fn with_distribution(mut self, distribution: impl Into<String>) -> Self {
         self.distribution = distribution.into();
         self
@@ -330,11 +364,14 @@ impl fmt::Display for UncertainType {
 /// Temporal types with time constraints
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TemporalType {
+    /// The base type that changes over time
     pub base_type: Box<TypedValue>,
+    /// Temporal constraint expression
     pub constraint: String,
 }
 
 impl TemporalType {
+    /// Create a new temporal type with the given base type and constraint
     pub fn new(base_type: TypedValue, constraint: impl Into<String>) -> Self {
         Self {
             base_type: Box::new(base_type),
@@ -352,11 +389,14 @@ impl fmt::Display for TemporalType {
 /// Type variables for polymorphism
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TypeVariable {
+    /// Name of the type variable (e.g., "T", "a")
     pub name: String,
+    /// Constraints on this type variable
     pub constraints: Vec<TypeConstraint>,
 }
 
 impl TypeVariable {
+    /// Create a new type variable with the given name
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -364,6 +404,7 @@ impl TypeVariable {
         }
     }
 
+    /// Add a constraint to this type variable
     pub fn with_constraint(mut self, constraint: TypeConstraint) -> Self {
         self.constraints.push(constraint);
         self
@@ -411,26 +452,39 @@ impl fmt::Display for TypeConstraint {
 /// Inner type representation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypedValueInner {
+    /// Primitive type variant
     Primitive(PrimitiveType),
+    /// Function type variant
     Function(FunctionType),
+    /// Tuple type variant
     Tuple(TupleType),
+    /// List type variant
     List(ListType),
+    /// Record type variant
     Record(RecordType),
+    /// Variant type variant
     Variant(VariantType),
+    /// Effect type variant
     Effect(EffectTypeWrapper),
+    /// Uncertain type variant
     Uncertain(UncertainType),
+    /// Temporal type variant
     Temporal(TemporalType),
+    /// Type variable variant
     Variable(TypeVariable),
 }
 
 /// A typed value with effect information
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypedValue {
+    /// The inner type representation
     pub inner: TypedValueInner,
+    /// Set of effects this type may perform
     pub effects: HashSet<EffectType>,
 }
 
 impl TypedValue {
+    /// Create a primitive typed value
     pub fn primitive(prim: PrimitiveType) -> Self {
         Self {
             inner: TypedValueInner::Primitive(prim),
@@ -438,6 +492,7 @@ impl TypedValue {
         }
     }
 
+    /// Create a function typed value with inferred effects
     pub fn function(func: FunctionType) -> Self {
         let mut effects = HashSet::new();
         
@@ -460,6 +515,7 @@ impl TypedValue {
         }
     }
 
+    /// Create a tuple typed value with combined effects
     pub fn tuple(tuple: TupleType) -> Self {
         let mut effects = HashSet::new();
         for elem in &tuple.elements {
@@ -472,6 +528,7 @@ impl TypedValue {
         }
     }
 
+    /// Create a list typed value with element effects
     pub fn list(list: ListType) -> Self {
         let effects = list.element_type.effects.clone();
         Self {
@@ -480,6 +537,7 @@ impl TypedValue {
         }
     }
 
+    /// Create a record typed value with combined field effects
     pub fn record(record: RecordType) -> Self {
         let mut effects = HashSet::new();
         for field_type in record.fields.values() {
@@ -492,6 +550,7 @@ impl TypedValue {
         }
     }
 
+    /// Create a variant typed value with combined payload effects
     pub fn variant(variant: VariantType) -> Self {
         let mut effects = HashSet::new();
         for payload in variant.variants.values() {
@@ -506,6 +565,7 @@ impl TypedValue {
         }
     }
 
+    /// Create an effect typed value
     pub fn effect(effect: EffectTypeWrapper) -> Self {
         let mut effects = HashSet::new();
         effects.insert(effect.effect_kind);
@@ -520,6 +580,7 @@ impl TypedValue {
         }
     }
 
+    /// Create an uncertain typed value (adds Random effect)
     pub fn uncertain(uncertain: UncertainType) -> Self {
         let mut effects = uncertain.base_type.effects.clone();
         effects.insert(EffectType::Random);
@@ -530,6 +591,7 @@ impl TypedValue {
         }
     }
 
+    /// Create a temporal typed value (adds Time effect)
     pub fn temporal(temporal: TemporalType) -> Self {
         let mut effects = temporal.base_type.effects.clone();
         effects.insert(EffectType::Time);
@@ -540,6 +602,7 @@ impl TypedValue {
         }
     }
 
+    /// Create a type variable typed value
     pub fn variable(var: TypeVariable) -> Self {
         Self {
             inner: TypedValueInner::Variable(var),
@@ -547,6 +610,7 @@ impl TypedValue {
         }
     }
 
+    /// Get the kind of this type
     pub fn kind(&self) -> TypeKind {
         match &self.inner {
             TypedValueInner::Primitive(_) => TypeKind::Primitive,
@@ -562,16 +626,19 @@ impl TypedValue {
         }
     }
 
+    /// Check if this type is pure (has no effects)
     pub fn is_pure(&self) -> bool {
         self.effects.is_empty() || 
         (self.effects.len() == 1 && self.effects.contains(&EffectType::Pure))
     }
 
+    /// Set the effects for this type
     pub fn with_effects(mut self, effects: HashSet<EffectType>) -> Self {
         self.effects = effects;
         self
     }
 
+    /// Add an effect to this type
     pub fn add_effect(mut self, effect: EffectType) -> Self {
         // If we add any non-pure effect, remove Pure
         if effect != EffectType::Pure && self.effects.contains(&EffectType::Pure) {

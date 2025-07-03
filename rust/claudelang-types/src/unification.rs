@@ -128,27 +128,37 @@ impl Default for Substitution {
 /// Unification errors
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum UnificationError {
+    /// Cannot unify two incompatible types
     #[error("Cannot unify {0} with {1}")]
     TypeMismatch(String, String),
     
+    /// Occurs check failed - would create infinite type
     #[error("Occurs check failed: {0} occurs in {1}")]
     OccursCheck(String, String),
     
+    /// Type kinds don't match
     #[error("Kind mismatch: expected {expected}, found {found}")]
     KindMismatch {
+        /// The expected type kind
         expected: TypeKind,
+        /// The found type kind
         found: TypeKind,
     },
     
+    /// Function or tuple arity mismatch
     #[error("Arity mismatch: expected {expected} arguments, found {found}")]
     ArityMismatch {
+        /// Expected number of arguments/elements
         expected: usize,
+        /// Found number of arguments/elements
         found: usize,
     },
     
+    /// Record fields don't match
     #[error("Record field mismatch")]
     RecordFieldMismatch,
     
+    /// Variant types don't match
     #[error("Variant mismatch")]
     VariantMismatch,
 }

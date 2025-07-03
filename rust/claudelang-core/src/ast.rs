@@ -131,6 +131,16 @@ pub enum Node {
     Receive {
         channel: NodeId,
     },
+    
+    // Contract specification
+    Contract {
+        function_name: String,
+        preconditions: Vec<NodeId>,
+        postconditions: Vec<NodeId>,
+        invariants: Vec<NodeId>,
+        complexity: Option<String>,
+        pure: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -410,18 +420,18 @@ impl Node {
             },
             Node::Export { .. } => Documentation {
                 name: "Export".to_string(),
-                syntax: "(export [<name> ...] | [<name> as <alias> ...])".to_string(),
+                syntax: "(export <name1> <name2> ... | <name> as <alias> ...)".to_string(),
                 description: "Exports items from the current module. Can optionally rename exports with aliases.".to_string(),
-                examples: vec!["(export [add subtract multiply])".to_string()],
+                examples: vec!["(export add subtract multiply)".to_string()],
                 category: DocumentationCategory::Module,
                 see_also: vec!["Module".to_string(), "Import".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::QualifiedVariable { .. } => Documentation {
                 name: "QualifiedVariable".to_string(),
-                syntax: "<module>/<variable>".to_string(),
+                syntax: "<module>.<variable>".to_string(),
                 description: "References a variable from a specific module namespace.".to_string(),
-                examples: vec!["math/pi".to_string(), "std/print".to_string()],
+                examples: vec!["math.pi".to_string(), "std.print".to_string()],
                 category: DocumentationCategory::Variable,
                 see_also: vec!["Variable".to_string(), "Import".to_string(), "Module".to_string()],
                 visibility: DocumentationVisibility::Public,
@@ -478,6 +488,18 @@ impl Node {
                 examples: vec!["(recv! ch)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Send".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Contract { .. } => Documentation {
+                name: "Contract".to_string(),
+                syntax: "(spec:contract <function-name> :requires [...] :ensures [...] :invariant [...] :complexity \"...\" :pure <bool>)".to_string(),
+                description: "Specifies formal contracts for functions including preconditions, postconditions, invariants, complexity bounds, and purity constraints.".to_string(),
+                examples: vec![
+                    "(spec:contract factorial :requires [(>= n 0)] :ensures [(>= result 1)] :complexity \"O(n)\" :pure true)".to_string(),
+                    "(spec:contract sort :requires [(list? input)] :ensures [(sorted? result) (= (length result) (length input))] :pure true)".to_string()
+                ],
+                category: DocumentationCategory::Verification,
+                see_also: vec!["Lambda".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
         }

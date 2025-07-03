@@ -400,16 +400,17 @@ impl DocumentedNode for MatchDoc {
 impl DocumentedNode for ModuleDoc {
     fn name() -> &'static str { "Module" }
     
-    fn syntax() -> &'static str { "(module <name> <exports> <body>)" }
+    fn syntax() -> &'static str { "(module <name> (export <names>...) <body>)" }
     
     fn description() -> &'static str {
-        "Defines a module with a name, list of exports, and body. Modules provide namespace isolation."
+        "Defines a module with a name, list of exports, and body. Modules provide namespace isolation and encapsulation. Only exported symbols are accessible from outside the module."
     }
     
     fn examples() -> &'static [&'static str] {
         &[
-            "(module math [add subtract] (let ((add +) (subtract -)) ...))",
-            "(module utils [helper] (let ((helper (lambda (x) (* x 2)))) ...))",
+            "(module math (export add multiply pi) (let ((pi 3.14159) (add +) (multiply *)) nil))",
+            "(module utils (export helper) (let ((helper (lambda (x) (* x 2))) (internal (lambda () \"private\"))) nil))",
+            "(module counter (export make-counter) (let ((make-counter (lambda () (let ((count 0)) (lambda () (set! count (+ count 1))))))) nil))",
         ]
     }
     
@@ -418,24 +419,26 @@ impl DocumentedNode for ModuleDoc {
     }
     
     fn see_also() -> &'static [&'static str] {
-        &["Import", "Export"]
+        &["Import", "Export", "QualifiedVariable"]
     }
 }
 
 impl DocumentedNode for ImportDoc {
     fn name() -> &'static str { "Import" }
     
-    fn syntax() -> &'static str { "(import <module-path> [<items>...] | *)" }
+    fn syntax() -> &'static str { "(import \"<module-path>\" (<items>...) | *)" }
     
     fn description() -> &'static str {
-        "Imports items from a module. Can import specific items or all exports with *."
+        "Imports items from a module. Can import specific items with a list or all exports with *. Imported items become available in the current scope. Supports aliasing with 'as'."
     }
     
     fn examples() -> &'static [&'static str] {
         &[
-            "(import \"std/math\" [sin cos])",
+            "(import \"math\" (sin cos))",
             "(import \"utils\" *)",
-            "(import \"./local-module\" [helper])",
+            "(import \"./local-module\" (helper))",
+            "(import \"math\" (sin as sine cos as cosine))",
+            "(import \"collections\" (map filter reduce))",
         ]
     }
     
@@ -451,7 +454,7 @@ impl DocumentedNode for ImportDoc {
 impl DocumentedNode for ExportDoc {
     fn name() -> &'static str { "Export" }
     
-    fn syntax() -> &'static str { "(export [<name> ...] | [<name> as <alias> ...])" }
+    fn syntax() -> &'static str { "(export <name1> <name2> ... | <name> as <alias> ...)" }
     
     fn description() -> &'static str {
         "Exports items from the current module. Can optionally rename exports with aliases."
@@ -459,9 +462,9 @@ impl DocumentedNode for ExportDoc {
     
     fn examples() -> &'static [&'static str] {
         &[
-            "(export [add subtract multiply])",
-            "(export [internal-helper as helper])",
-            "(export [x y z])",
+            "(export add subtract multiply)",
+            "(export internal-helper as helper)",
+            "(export x y z)",
         ]
     }
     
@@ -477,7 +480,7 @@ impl DocumentedNode for ExportDoc {
 impl DocumentedNode for QualifiedVariableDoc {
     fn name() -> &'static str { "QualifiedVariable" }
     
-    fn syntax() -> &'static str { "<module>/<variable>" }
+    fn syntax() -> &'static str { "<module>.<variable>" }
     
     fn description() -> &'static str {
         "References a variable from a specific module namespace."
@@ -485,9 +488,9 @@ impl DocumentedNode for QualifiedVariableDoc {
     
     fn examples() -> &'static [&'static str] {
         &[
-            "math/pi",
-            "std/print",
-            "utils/helper",
+            "math.pi",
+            "std.print",
+            "utils.helper",
         ]
     }
     
