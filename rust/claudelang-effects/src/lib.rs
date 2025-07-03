@@ -11,9 +11,11 @@ use std::sync::Arc;
 
 pub mod handlers;
 pub mod runtime;
+pub mod provider;
 
 pub use handlers::*;
 pub use runtime::EffectRuntime;
+pub use provider::{EffectHandlerProvider, EffectHandlerBuilder, EffectHandlerFactory};
 
 /// Effect operation result
 pub type EffectResult = Result<Value>;

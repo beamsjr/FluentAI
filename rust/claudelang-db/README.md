@@ -2,6 +2,8 @@
 
 A functional database effect system for ClaudeLang that provides type-safe, composable database operations while maintaining functional purity.
 
+> **🛡️ Security Note**: This module uses parameterized queries exclusively to prevent SQL injection. See [SECURITY.md](SECURITY.md) for security best practices.
+
 ## Features
 
 - **Effect-based database operations** - All database operations are tracked as effects

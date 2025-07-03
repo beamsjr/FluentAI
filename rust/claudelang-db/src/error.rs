@@ -30,6 +30,9 @@ pub enum DbError {
     #[error("Constraint violation: {0}")]
     ConstraintViolation(String),
     
+    #[error("Invalid parameter: {0}")]
+    InvalidParameter(String),
+    
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
     

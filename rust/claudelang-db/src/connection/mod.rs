@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use sqlx::AnyPool;
+use sqlx::{AnyPool, Any};
 use crate::error::{DbError, DbResult};
 use crate::DbConfig;
 
@@ -24,31 +24,104 @@ impl DbConnection {
         &self.pool
     }
     
-    /// Execute a query
-    pub async fn execute(&self, query: &str, _params: Vec<sqlx::any::AnyValue>) -> DbResult<u64> {
-        // TODO: Bind parameters properly
+    /// Execute a parameterized query safely
+    pub async fn execute(&self, query: &str, params: Vec<claudelang_vm::bytecode::Value>) -> DbResult<u64> {
+        let mut q = sqlx::query(query);
+        
+        // Bind all parameters safely
+        for param in params {
+            q = match param {
+                claudelang_vm::bytecode::Value::Nil => q.bind(None::<i32>),
+                claudelang_vm::bytecode::Value::Bool(b) => q.bind(b),
+                claudelang_vm::bytecode::Value::Int(i) => q.bind(i),
+                claudelang_vm::bytecode::Value::Float(f) => q.bind(f),
+                claudelang_vm::bytecode::Value::String(s) => q.bind(s),
+                // For binary data, we can use a List of integers and convert
+                claudelang_vm::bytecode::Value::List(bytes) => {
+                    let byte_vec: Result<Vec<u8>, _> = bytes.iter()
+                        .map(|v| match v {
+                            claudelang_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                            _ => Err(DbError::Query("Binary data must be a list of integers".into())),
+                        })
+                        .collect();
+                    q.bind(byte_vec?)
+                }
+                _ => return Err(DbError::Query(format!("Cannot bind value type: {:?}", param))),
+            };
+        }
+        
+        let result = q.execute(&self.pool).await?;
+        Ok(result.rows_affected())
+    }
+    
+    /// Fetch one row with parameterized query
+    pub async fn fetch_one(&self, query: &str, params: Vec<claudelang_vm::bytecode::Value>) -> DbResult<sqlx::any::AnyRow> {
+        let mut q = sqlx::query(query);
+        
+        // Bind all parameters safely
+        for param in params {
+            q = match param {
+                claudelang_vm::bytecode::Value::Nil => q.bind(None::<i32>),
+                claudelang_vm::bytecode::Value::Bool(b) => q.bind(b),
+                claudelang_vm::bytecode::Value::Int(i) => q.bind(i),
+                claudelang_vm::bytecode::Value::Float(f) => q.bind(f),
+                claudelang_vm::bytecode::Value::String(s) => q.bind(s),
+                // For binary data, we can use a List of integers and convert
+                claudelang_vm::bytecode::Value::List(bytes) => {
+                    let byte_vec: Result<Vec<u8>, _> = bytes.iter()
+                        .map(|v| match v {
+                            claudelang_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                            _ => Err(DbError::Query("Binary data must be a list of integers".into())),
+                        })
+                        .collect();
+                    q.bind(byte_vec?)
+                }
+                _ => return Err(DbError::Query(format!("Cannot bind value type: {:?}", param))),
+            };
+        }
+        
+        let row = q.fetch_one(&self.pool).await?;
+        Ok(row)
+    }
+    
+    /// Fetch all rows with parameterized query
+    pub async fn fetch_all(&self, query: &str, params: Vec<claudelang_vm::bytecode::Value>) -> DbResult<Vec<sqlx::any::AnyRow>> {
+        let mut q = sqlx::query(query);
+        
+        // Bind all parameters safely
+        for param in params {
+            q = match param {
+                claudelang_vm::bytecode::Value::Nil => q.bind(None::<i32>),
+                claudelang_vm::bytecode::Value::Bool(b) => q.bind(b),
+                claudelang_vm::bytecode::Value::Int(i) => q.bind(i),
+                claudelang_vm::bytecode::Value::Float(f) => q.bind(f),
+                claudelang_vm::bytecode::Value::String(s) => q.bind(s),
+                // For binary data, we can use a List of integers and convert
+                claudelang_vm::bytecode::Value::List(bytes) => {
+                    let byte_vec: Result<Vec<u8>, _> = bytes.iter()
+                        .map(|v| match v {
+                            claudelang_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                            _ => Err(DbError::Query("Binary data must be a list of integers".into())),
+                        })
+                        .collect();
+                    q.bind(byte_vec?)
+                }
+                _ => return Err(DbError::Query(format!("Cannot bind value type: {:?}", param))),
+            };
+        }
+        
+        let rows = q.fetch_all(&self.pool).await?;
+        Ok(rows)
+    }
+    
+    /// Execute a raw query WITHOUT parameters - DANGEROUS!
+    /// Only use this for DDL statements or when you're absolutely sure the query is safe
+    pub async fn execute_raw_unsafe(&self, query: &str) -> DbResult<u64> {
+        eprintln!("WARNING: Using raw SQL execution without parameters. Ensure this query is safe!");
         let result = sqlx::query(query)
             .execute(&self.pool)
             .await?;
         Ok(result.rows_affected())
-    }
-    
-    /// Fetch one row
-    pub async fn fetch_one(&self, query: &str, _params: Vec<sqlx::any::AnyValue>) -> DbResult<sqlx::any::AnyRow> {
-        // TODO: Bind parameters properly
-        let row = sqlx::query(query)
-            .fetch_one(&self.pool)
-            .await?;
-        Ok(row)
-    }
-    
-    /// Fetch all rows
-    pub async fn fetch_all(&self, query: &str, _params: Vec<sqlx::any::AnyValue>) -> DbResult<Vec<sqlx::any::AnyRow>> {
-        // TODO: Bind parameters properly
-        let rows = sqlx::query(query)
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(rows)
     }
     
     /// Check if connected
@@ -161,51 +234,90 @@ pub fn register_db_services(builder: &mut claudelang_di::builder::ContainerBuild
     Ok(())
 }
 
-/// Transaction handle
-pub struct Transaction {
-    // TODO: Implement actual transaction handling with SQLX
-    connection: DbConnection,
-    active: bool,
+/// Transaction handle with RAII semantics
+pub struct Transaction<'a> {
+    connection: &'a DbConnection,
+    tx: Option<sqlx::Transaction<'a, Any>>,
+    committed: bool,
 }
 
-impl Transaction {
-    pub async fn begin(connection: DbConnection) -> DbResult<Self> {
-        // TODO: Begin actual transaction
+impl<'a> Transaction<'a> {
+    /// Begin a new transaction
+    pub async fn begin(connection: &'a DbConnection) -> DbResult<Self> {
+        let tx = connection.pool().begin().await?;
         Ok(Self {
             connection,
-            active: true,
+            tx: Some(tx),
+            committed: false,
         })
     }
     
-    pub async fn commit(mut self) -> DbResult<()> {
-        if !self.active {
-            return Err(DbError::Transaction("Transaction already completed".into()));
+    /// Execute a parameterized query within the transaction
+    pub async fn execute(&mut self, query: &str, params: Vec<claudelang_vm::bytecode::Value>) -> DbResult<u64> {
+        if let Some(tx) = &mut self.tx {
+            let mut q = sqlx::query(query);
+            
+            // Bind parameters safely
+            for param in params {
+                q = match param {
+                    claudelang_vm::bytecode::Value::Nil => q.bind(None::<i32>),
+                    claudelang_vm::bytecode::Value::Bool(b) => q.bind(b),
+                    claudelang_vm::bytecode::Value::Int(i) => q.bind(i),
+                    claudelang_vm::bytecode::Value::Float(f) => q.bind(f),
+                    claudelang_vm::bytecode::Value::String(s) => q.bind(s),
+                    // For binary data, we can use a List of integers and convert
+                    claudelang_vm::bytecode::Value::List(bytes) => {
+                        let byte_vec: Result<Vec<u8>, _> = bytes.iter()
+                            .map(|v| match v {
+                                claudelang_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                                _ => Err(DbError::Transaction("Binary data must be a list of integers".into())),
+                            })
+                            .collect();
+                        q.bind(byte_vec?)
+                    }
+                    _ => return Err(DbError::Transaction(format!("Cannot bind value type: {:?}", param))),
+                };
+            }
+            
+            let result = q.execute(&mut **tx).await?;
+            Ok(result.rows_affected())
+        } else {
+            Err(DbError::Transaction("Transaction already completed".into()))
         }
-        // TODO: Commit actual transaction
-        self.active = false;
-        Ok(())
     }
     
-    pub async fn rollback(mut self) -> DbResult<()> {
-        if !self.active {
-            return Err(DbError::Transaction("Transaction already completed".into()));
+    /// Commit the transaction
+    pub async fn commit(mut self) -> DbResult<()> {
+        if let Some(tx) = self.tx.take() {
+            tx.commit().await?;
+            self.committed = true;
+            Ok(())
+        } else {
+            Err(DbError::Transaction("Transaction already completed".into()))
         }
-        // TODO: Rollback actual transaction
-        self.active = false;
-        Ok(())
+    }
+    
+    /// Rollback the transaction
+    pub async fn rollback(mut self) -> DbResult<()> {
+        if let Some(tx) = self.tx.take() {
+            tx.rollback().await?;
+            Ok(())
+        } else {
+            Err(DbError::Transaction("Transaction already completed".into()))
+        }
     }
     
     pub fn connection(&self) -> &DbConnection {
-        &self.connection
+        self.connection
     }
 }
 
-impl Drop for Transaction {
+impl<'a> Drop for Transaction<'a> {
     fn drop(&mut self) {
-        if self.active {
+        if self.tx.is_some() && !self.committed {
             // Transaction was not explicitly committed or rolled back
-            // In production, this should rollback the transaction
-            eprintln!("Warning: Transaction dropped without explicit commit or rollback");
+            // The SQLX transaction will automatically rollback on drop
+            eprintln!("Warning: Transaction dropped without explicit commit or rollback - rolling back");
         }
     }
 }

@@ -3,6 +3,13 @@
 use claudelang_vm::bytecode::Value;
 use crate::error::DbResult;
 
+/// Parameter value for safe query building
+#[derive(Debug, Clone)]
+pub struct Parameter {
+    pub index: usize,
+    pub value: Value,
+}
+
 /// Query expression types
 #[derive(Debug, Clone)]
 pub enum QueryExpr {
@@ -10,8 +17,8 @@ pub enum QueryExpr {
     Table(String),
     /// Column reference
     Column(String),
-    /// Literal value
-    Literal(Value),
+    /// Parameter placeholder (?, $1, :name etc)
+    Parameter(Parameter),
     /// Binary operation
     BinOp {
         op: BinOp,
@@ -129,20 +136,40 @@ impl Query {
         }
     }
     
-    /// Convert to SQL string
-    pub fn to_sql(&self) -> DbResult<String> {
+    /// Convert to parameterized SQL string
+    pub fn to_parameterized_sql(&mut self) -> DbResult<(String, Vec<Value>)> {
+        let mut builder = SqlBuilder::new();
+        let sql = builder.build_sql(self)?;
+        Ok((sql, builder.parameters))
+    }
+}
+
+/// Helper struct to build SQL and collect parameters
+struct SqlBuilder {
+    parameters: Vec<Value>,
+}
+
+impl SqlBuilder {
+    fn new() -> Self {
+        Self {
+            parameters: Vec::new(),
+        }
+    }
+    
+    /// Build SQL with parameter placeholders
+    fn build_sql(&mut self, query: &Query) -> DbResult<String> {
         let mut sql = String::new();
         
         // SELECT clause
-        if self.select.is_empty() {
+        if query.select.is_empty() {
             sql.push_str("SELECT *");
         } else {
             sql.push_str("SELECT ");
-            for (i, (expr, alias)) in self.select.iter().enumerate() {
+            for (i, (expr, alias)) in query.select.iter().enumerate() {
                 if i > 0 {
                     sql.push_str(", ");
                 }
-                sql.push_str(&expr_to_sql(expr)?);
+                sql.push_str(&self.expr_to_sql(expr)?);
                 if let Some(alias) = alias {
                     sql.push_str(" AS ");
                     sql.push_str(alias);
@@ -151,55 +178,55 @@ impl Query {
         }
         
         // FROM clause
-        if let Some(from) = &self.from {
+        if let Some(from) = &query.from {
             sql.push_str(" FROM ");
-            sql.push_str(&expr_to_sql(from)?);
+            sql.push_str(&self.expr_to_sql(from)?);
         }
         
         // JOIN clauses
-        for (join_type, table, condition) in &self.joins {
+        for (join_type, table, condition) in &query.joins {
             match join_type {
                 JoinType::Inner => sql.push_str(" INNER JOIN "),
                 JoinType::Left => sql.push_str(" LEFT JOIN "),
                 JoinType::Right => sql.push_str(" RIGHT JOIN "),
                 JoinType::Full => sql.push_str(" FULL JOIN "),
             }
-            sql.push_str(&expr_to_sql(table)?);
+            sql.push_str(&self.expr_to_sql(table)?);
             sql.push_str(" ON ");
-            sql.push_str(&expr_to_sql(condition)?);
+            sql.push_str(&self.expr_to_sql(condition)?);
         }
         
         // WHERE clause
-        if let Some(where_clause) = &self.where_clause {
+        if let Some(where_clause) = &query.where_clause {
             sql.push_str(" WHERE ");
-            sql.push_str(&expr_to_sql(where_clause)?);
+            sql.push_str(&self.expr_to_sql(where_clause)?);
         }
         
         // GROUP BY clause
-        if !self.group_by.is_empty() {
+        if !query.group_by.is_empty() {
             sql.push_str(" GROUP BY ");
-            for (i, expr) in self.group_by.iter().enumerate() {
+            for (i, expr) in query.group_by.iter().enumerate() {
                 if i > 0 {
                     sql.push_str(", ");
                 }
-                sql.push_str(&expr_to_sql(expr)?);
+                sql.push_str(&self.expr_to_sql(expr)?);
             }
         }
         
         // HAVING clause
-        if let Some(having) = &self.having {
+        if let Some(having) = &query.having {
             sql.push_str(" HAVING ");
-            sql.push_str(&expr_to_sql(having)?);
+            sql.push_str(&self.expr_to_sql(having)?);
         }
         
         // ORDER BY clause
-        if !self.order_by.is_empty() {
+        if !query.order_by.is_empty() {
             sql.push_str(" ORDER BY ");
-            for (i, (expr, dir)) in self.order_by.iter().enumerate() {
+            for (i, (expr, dir)) in query.order_by.iter().enumerate() {
                 if i > 0 {
                     sql.push_str(", ");
                 }
-                sql.push_str(&expr_to_sql(expr)?);
+                sql.push_str(&self.expr_to_sql(expr)?);
                 match dir {
                     OrderDir::Asc => sql.push_str(" ASC"),
                     OrderDir::Desc => sql.push_str(" DESC"),
@@ -208,77 +235,83 @@ impl Query {
         }
         
         // LIMIT clause
-        if let Some(limit) = self.limit {
+        if let Some(limit) = query.limit {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
         
         // OFFSET clause
-        if let Some(offset) = self.offset {
+        if let Some(offset) = query.offset {
             sql.push_str(&format!(" OFFSET {}", offset));
         }
         
         Ok(sql)
     }
-}
-
-/// Convert expression to SQL
-fn expr_to_sql(expr: &QueryExpr) -> DbResult<String> {
-    match expr {
-        QueryExpr::Table(name) => Ok(name.clone()),
-        QueryExpr::Column(name) => Ok(name.clone()),
-        QueryExpr::Literal(value) => Ok(value_to_sql(value)),
-        QueryExpr::BinOp { op, left, right } => {
-            Ok(format!(
-                "({} {} {})",
-                expr_to_sql(left)?,
-                binop_to_sql(*op),
-                expr_to_sql(right)?
-            ))
-        }
-        QueryExpr::UnaryOp { op, expr } => {
-            match op {
-                UnaryOp::Not => Ok(format!("NOT ({})", expr_to_sql(expr)?)),
-                UnaryOp::IsNull => Ok(format!("({} IS NULL)", expr_to_sql(expr)?)),
-                UnaryOp::IsNotNull => Ok(format!("({} IS NOT NULL)", expr_to_sql(expr)?)),
+    
+    /// Convert expression to SQL with parameter placeholders
+    fn expr_to_sql(&mut self, expr: &QueryExpr) -> DbResult<String> {
+        match expr {
+            QueryExpr::Table(name) => Ok(escape_identifier(name)),
+            QueryExpr::Column(name) => Ok(escape_identifier(name)),
+            QueryExpr::Parameter(param) => {
+                self.parameters.push(param.value.clone());
+                // Use ? for parameter placeholder (works with most databases)
+                // Could be adapted for specific databases ($1, $2 for Postgres, etc)
+                Ok("?".to_string())
             }
-        }
-        QueryExpr::Function { name, args } => {
-            let args_sql: Result<Vec<_>, _> = args.iter().map(expr_to_sql).collect();
-            Ok(format!("{}({})", name, args_sql?.join(", ")))
-        }
-        QueryExpr::Aggregate { func, expr } => {
-            Ok(format!("{}({})", aggregate_to_sql(*func), expr_to_sql(expr)?))
-        }
-        QueryExpr::Case { conditions, else_expr } => {
-            let mut sql = String::from("CASE");
-            for (cond, result) in conditions {
-                sql.push_str(&format!(
-                    " WHEN {} THEN {}",
-                    expr_to_sql(cond)?,
-                    expr_to_sql(result)?
-                ));
+            QueryExpr::BinOp { op, left, right } => {
+                Ok(format!(
+                    "({} {} {})",
+                    self.expr_to_sql(left)?,
+                    binop_to_sql(*op),
+                    self.expr_to_sql(right)?
+                ))
             }
-            if let Some(else_expr) = else_expr {
-                sql.push_str(&format!(" ELSE {}", expr_to_sql(else_expr)?));
+            QueryExpr::UnaryOp { op, expr } => {
+                match op {
+                    UnaryOp::Not => Ok(format!("NOT ({})", self.expr_to_sql(expr)?)),
+                    UnaryOp::IsNull => Ok(format!("({} IS NULL)", self.expr_to_sql(expr)?)),
+                    UnaryOp::IsNotNull => Ok(format!("({} IS NOT NULL)", self.expr_to_sql(expr)?)),
+                }
             }
-            sql.push_str(" END");
-            Ok(sql)
-        }
-        QueryExpr::Subquery(query) => {
-            Ok(format!("({})", query.to_sql()?))
+            QueryExpr::Function { name, args } => {
+                let args_sql: Result<Vec<_>, _> = args.iter()
+                    .map(|arg| self.expr_to_sql(arg))
+                    .collect();
+                Ok(format!("{}({})", name, args_sql?.join(", ")))
+            }
+            QueryExpr::Aggregate { func, expr } => {
+                Ok(format!("{}({})", aggregate_to_sql(*func), self.expr_to_sql(expr)?))
+            }
+            QueryExpr::Case { conditions, else_expr } => {
+                let mut sql = String::from("CASE");
+                for (cond, result) in conditions {
+                    sql.push_str(&format!(
+                        " WHEN {} THEN {}",
+                        self.expr_to_sql(cond)?,
+                        self.expr_to_sql(result)?
+                    ));
+                }
+                if let Some(else_expr) = else_expr {
+                    sql.push_str(&format!(" ELSE {}", self.expr_to_sql(else_expr)?));
+                }
+                sql.push_str(" END");
+                Ok(sql)
+            }
+            QueryExpr::Subquery(query) => {
+                let mut subquery = (**query).clone();
+                let (subsql, subparams) = subquery.to_parameterized_sql()?;
+                // Add subquery parameters to our parameter list
+                self.parameters.extend(subparams);
+                Ok(format!("({})", subsql))
+            }
         }
     }
 }
 
-fn value_to_sql(value: &Value) -> String {
-    match value {
-        Value::Nil => "NULL".to_string(),
-        Value::Bool(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
-        Value::Int(i) => i.to_string(),
-        Value::Float(f) => f.to_string(),
-        Value::String(s) => format!("'{}'", s.replace('\'', "''")),
-        _ => "NULL".to_string(), // Other types not directly supported in SQL
-    }
+/// Escape SQL identifier to prevent injection
+fn escape_identifier(name: &str) -> String {
+    // Simple escaping - in production, use database-specific escaping
+    format!("\"{}\"", name.replace('"', "\"\""))
 }
 
 fn binop_to_sql(op: BinOp) -> &'static str {
@@ -316,13 +349,24 @@ fn aggregate_to_sql(func: AggregateFunc) -> &'static str {
 /// Query builder for fluent API
 pub struct QueryBuilder {
     query: Query,
+    param_counter: usize,
 }
 
 impl QueryBuilder {
     pub fn new() -> Self {
         Self {
             query: Query::new(),
+            param_counter: 0,
         }
+    }
+    
+    pub fn next_param(&mut self, value: Value) -> QueryExpr {
+        let param = Parameter {
+            index: self.param_counter,
+            value,
+        };
+        self.param_counter += 1;
+        QueryExpr::Parameter(param)
     }
     
     pub fn from(mut self, table: &str) -> Self {
@@ -374,13 +418,16 @@ impl QueryBuilder {
     }
 }
 
-/// Helper functions for building expressions
+/// Helper functions for building expressions safely
 pub fn col(name: &str) -> QueryExpr {
     QueryExpr::Column(name.to_string())
 }
 
-pub fn val(value: Value) -> QueryExpr {
-    QueryExpr::Literal(value)
+pub fn param(value: Value) -> Parameter {
+    Parameter {
+        index: 0, // Will be set by builder
+        value,
+    }
 }
 
 pub fn eq(left: QueryExpr, right: QueryExpr) -> QueryExpr {
@@ -405,4 +452,26 @@ pub fn and(left: QueryExpr, right: QueryExpr) -> QueryExpr {
         left: Box::new(left),
         right: Box::new(right),
     }
+}
+
+/// Safe query builder example
+pub fn safe_user_query(age_threshold: i64, active: bool) -> Query {
+    QueryBuilder::new()
+        .from("users")
+        .select(vec!["id", "name", "email"])
+        .where_clause(
+            and(
+                gt(col("age"), QueryExpr::Parameter(Parameter {
+                    index: 0,
+                    value: Value::Int(age_threshold),
+                })),
+                eq(col("active"), QueryExpr::Parameter(Parameter {
+                    index: 1,
+                    value: Value::Bool(active),
+                }))
+            )
+        )
+        .order_by("created_at", OrderDir::Desc)
+        .limit(100)
+        .build()
 }

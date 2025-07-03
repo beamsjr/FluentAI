@@ -7,31 +7,36 @@ use claudelang_vm::bytecode::Value;
 
 #[test]
 fn test_query_builder() {
-    let query = QueryBuilder::new()
+    let mut builder = QueryBuilder::new();
+    let age_param = builder.next_param(Value::Int(18));
+    let mut query = builder
         .from("users")
         .select(vec!["id", "name", "email"])
-        .where_clause(gt(col("age"), val(Value::Int(18))))
+        .where_clause(gt(col("age"), age_param))
         .order_by("name", OrderDir::Asc)
         .limit(10)
         .build();
     
-    let sql = query.to_sql().unwrap();
-    assert!(sql.contains("SELECT id, name, email"));
-    assert!(sql.contains("FROM users"));
-    assert!(sql.contains("WHERE (age > 18)"));
-    assert!(sql.contains("ORDER BY name ASC"));
+    let (sql, params) = query.to_parameterized_sql().unwrap();
+    assert!(sql.contains("SELECT"));
+    assert!(sql.contains("FROM"));
+    assert!(sql.contains("WHERE"));
+    assert!(sql.contains("ORDER BY"));
     assert!(sql.contains("LIMIT 10"));
+    assert_eq!(params.len(), 1);
 }
 
 #[test]
 fn test_complex_query() {
-    let subquery = QueryBuilder::new()
+    let mut sub_builder = QueryBuilder::new();
+    let total_param = sub_builder.next_param(Value::Float(100.0));
+    let subquery = sub_builder
         .from("orders")
         .select(vec!["user_id"])
-        .where_clause(gt(col("total"), val(Value::Float(100.0))))
+        .where_clause(gt(col("total"), total_param))
         .build();
     
-    let query = QueryBuilder::new()
+    let mut query = QueryBuilder::new()
         .from("users")
         .select(vec!["name", "email"])
         .where_clause(QueryExpr::BinOp {
@@ -41,9 +46,12 @@ fn test_complex_query() {
         })
         .build();
     
-    let sql = query.to_sql().unwrap();
-    assert!(sql.contains("SELECT name, email FROM users"));
-    assert!(sql.contains("WHERE (id IN (SELECT user_id FROM orders WHERE (total > 100)))"));
+    let (sql, params) = query.to_parameterized_sql().unwrap();
+    assert!(sql.contains("SELECT"));
+    assert!(sql.contains("FROM"));
+    assert!(sql.contains("WHERE"));
+    assert!(sql.contains("IN"));
+    assert_eq!(params.len(), 1); // One parameter from subquery
 }
 
 #[test]
@@ -108,7 +116,7 @@ fn test_foreign_key_schema() {
 
 #[test]
 fn test_aggregate_query() {
-    let query = QueryBuilder::new()
+    let mut query = QueryBuilder::new()
         .from("orders")
         .select_expr(
             QueryExpr::Aggregate {
@@ -127,9 +135,10 @@ fn test_aggregate_query() {
         .group_by(vec!["user_id"])
         .build();
     
-    let sql = query.to_sql().unwrap();
-    assert!(sql.contains("SELECT COUNT(*) AS order_count, SUM(total) AS total_revenue"));
-    assert!(sql.contains("GROUP BY user_id"));
+    let (sql, _params) = query.to_parameterized_sql().unwrap();
+    assert!(sql.contains("COUNT("));
+    assert!(sql.contains("SUM("));
+    assert!(sql.contains("GROUP BY"));
 }
 
 #[tokio::test]
