@@ -54,6 +54,7 @@ ClaudeLang is an experimental programming language that explores what happens wh
 - **Formal Contract System**: Runtime verification of preconditions, postconditions, and invariants
 - **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications
 - **Purity Tracking**: Enforce and verify side-effect-free functions
+- **Structured Logging**: Log levels, structured data, and custom handlers
 - **Property-based testing**: Automatic test generation with Hypothesis
 - **LSP Support**: Full IDE integration with <5ms response times
 - **Graph queries**: Analyze and transform program structure
@@ -266,6 +267,44 @@ python -m unittest discover tests -v
   ((receive! ch1) (lambda (v) (str "From ch1: " v)))
   ((receive! ch2) (lambda (v) (str "From ch2: " v)))
   ((send! ch3 42) (lambda () "Sent to ch3")))
+```
+
+### Logging
+```lisp
+;; Import the logger module
+(import "logger" *)
+
+;; Log at different levels with structured data
+(logger:info "User logged in" {:user-id 123 :ip "192.168.1.1"})
+(logger:warn "Rate limit approaching" {:requests 95 :limit 100})
+(logger:error "Database connection failed" {:host "db.example.com" :retry-count 3})
+(logger:debug "Processing item" {:id "abc-123" :size 1024})
+
+;; Set log level (DEBUG, INFO, WARN, ERROR)
+(logger:set-log-level logger:WARN)  ; Only WARN and ERROR will be shown
+
+;; Simple messages without structured data
+(logger:info "Application started")
+(logger:error "Critical failure!")
+
+;; Logging in error handlers
+(handler
+  ((error (lambda (err)
+            (logger:error "Operation failed" 
+              {:error (get err :message)
+               :type (get err :type)
+               :timestamp (effect time:now)})
+            nil)))
+  (risky-operation))
+
+;; Custom log formatting with handler
+(handler
+  ((io (lambda (op . args)
+         (if (= op "print-line")
+             ;; Custom formatting or routing
+             (send-to-log-server (first args))
+             (apply effect io op args)))))
+  (logger:info "This goes through custom handler"))
 ```
 
 ### Error Handling

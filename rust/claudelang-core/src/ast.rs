@@ -143,7 +143,7 @@ pub enum Node {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Literal {
     Integer(i64),
     Float(f64),

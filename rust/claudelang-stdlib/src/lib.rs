@@ -14,6 +14,7 @@ pub mod functional;
 pub mod datetime;
 pub mod registry;
 pub mod vm_bridge;
+pub mod logger;
 
 // Re-export the registry for convenience
 pub use registry::{StdlibFunction, StdlibRegistry};
@@ -36,6 +37,7 @@ pub fn init_stdlib() -> StdlibRegistry {
     io::register(&mut registry);
     functional::register(&mut registry);
     datetime::register(&mut registry);
+    logger::register(&mut registry);
     
     registry
 }
