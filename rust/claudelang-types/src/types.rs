@@ -15,15 +15,25 @@ use std::fmt;
 /// Kinds of types in the type system
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeKind {
+    /// Basic types like integers, floats, strings, booleans
     Primitive,
+    /// Function types with parameters and return type
     Function,
+    /// Fixed-size collections of heterogeneous types
     Tuple,
+    /// Variable-size collections of homogeneous types
     List,
+    /// Named fields with associated types
     Record,
+    /// Sum types with tagged alternatives
     Variant,
+    /// Effect types for computational effects
     Effect,
+    /// Types with uncertainty/probability information
     Uncertain,
+    /// Types with temporal constraints
     Temporal,
+    /// Type variables for polymorphism
     TypeVariable,
 }
 
@@ -46,8 +56,11 @@ impl fmt::Display for TypeKind {
 
 /// Base trait for all types
 pub trait TypeTrait {
+    /// Get the kind of this type
     fn kind(&self) -> TypeKind;
+    /// Get the effects associated with this type
     fn effects(&self) -> &HashSet<EffectType>;
+    /// Check if this type has no effects (is pure)
     fn is_pure(&self) -> bool {
         self.effects().is_empty() || 
         (self.effects().len() == 1 && self.effects().contains(&EffectType::Pure))

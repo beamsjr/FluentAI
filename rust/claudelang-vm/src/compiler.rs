@@ -105,7 +105,7 @@ impl Compiler {
             Node::QualifiedVariable { module_name, variable_name } => {
                 self.compile_qualified_variable(module_name, variable_name)?;
             }
-            _ => return Err(anyhow!("Unimplemented node type: {:?}", node)),
+            // The match is exhaustive for all Node variants
         }
         
         Ok(())
@@ -156,7 +156,7 @@ impl Compiler {
         // They will be handled specially when applied
         
         // Look up in locals
-        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
+        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&abs_pos) = scope.get(name) {
                 // Convert absolute position to frame-relative
                 // In the main chunk, frame base is 0
@@ -186,7 +186,7 @@ impl Compiler {
         }
         
         // Look up in captured variables
-        for (scope_idx, scope) in self.captured.iter().enumerate().rev() {
+        for (_scope_idx, scope) in self.captured.iter().enumerate().rev() {
             if let Some(&capture_idx) = scope.get(name) {
                 self.emit(Instruction::with_arg(Opcode::LoadCaptured, capture_idx as u32));
                 
@@ -771,7 +771,7 @@ impl Compiler {
     
     fn compile_captured_variable(&mut self, name: &str) -> Result<()> {
         // Find the variable in outer scopes and emit code to load it
-        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
+        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&local_idx) = scope.get(name) {
                 self.emit(Instruction::with_arg(Opcode::Load, local_idx as u32));
                 // Don't dereference cells when capturing - we want to capture the cell itself
@@ -781,7 +781,7 @@ impl Compiler {
         }
         
         // Check if it's already captured (for nested lambdas)
-        for (scope_idx, scope) in self.captured.iter().enumerate().rev() {
+        for (_scope_idx, scope) in self.captured.iter().enumerate().rev() {
             if let Some(&capture_idx) = scope.get(name) {
                 self.emit(Instruction::with_arg(Opcode::LoadCaptured, capture_idx as u32));
                 return Ok(());
@@ -943,7 +943,7 @@ impl Compiler {
                     bindings.extend(sub_bindings);
                     
                     // If sub-pattern failed, clean up stack and fail
-                    let sub_fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    let _sub_fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
                     self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
                     
                     // Pop the test result (keep the value for next field or body)

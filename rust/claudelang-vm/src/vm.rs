@@ -36,6 +36,7 @@ pub struct VM {
     stdlib: StdlibRegistry,
     // Module system
     module_loader: ModuleLoader,
+    #[allow(dead_code)]
     module_resolver: ModuleResolver,
     loaded_modules: HashMap<String, Value>, // Cache of loaded modules
     current_module: Option<String>, // Name of currently executing module
@@ -1156,8 +1157,7 @@ impl VM {
             Halt => return Ok(VMState::Halt),
             Nop => {}
             
-            // TODO: Implement remaining opcodes
-            _ => return Err(anyhow!("Unimplemented opcode: {:?}", instruction.opcode)),
+            // All opcodes are handled exhaustively
         }
         
         Ok(VMState::Continue)
@@ -1536,7 +1536,7 @@ impl VM {
         }
         
         // Load the module file
-        let module_info = self.module_loader.load_module(module_name)?;
+        let _module_info = self.module_loader.load_module(module_name)?;
         
         // Create a module value with empty exports initially
         let module_value = Value::Module {

@@ -18,6 +18,7 @@ use crate::handlers::{handle_eval, handle_search_docs, handle_get_syntax, handle
 pub struct ServerState {
     pub vm: VM,
     pub docs: DocumentationRegistry,
+    #[allow(dead_code)]
     pub stdlib: StdlibRegistry,
 }
 
@@ -28,6 +29,7 @@ pub struct McpServer {
 
 #[derive(Debug, Deserialize)]
 struct Request {
+    #[allow(dead_code)]
     jsonrpc: String,
     method: String,
     params: Option<JsonValue>,

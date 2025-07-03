@@ -10,6 +10,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     graph: Graph,
+    #[allow(dead_code)]
     arena: Option<&'a Bump>,
 }
 
