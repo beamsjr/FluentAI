@@ -62,7 +62,7 @@ fn main() {
     
     add_contract.add_postcondition(
         ContractCondition::new(postcond, ContractKind::Postcondition)
-            .with_message("Result must be >= both inputs".to_string())
+            .with_blame("Result must be >= both inputs".to_string())
     );
     contracts.insert("add_contract".to_string(), add_contract);
     
@@ -84,7 +84,7 @@ fn main() {
     
     double_contract.add_postcondition(
         ContractCondition::new(double_postcond, ContractKind::Postcondition)
-            .with_message("Result must equal 2 * n".to_string())
+            .with_blame("Result must equal 2 * n".to_string())
     );
     contracts.insert("double_contract".to_string(), double_contract);
     

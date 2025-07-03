@@ -137,10 +137,18 @@ mod tests {
 
     #[test]
     fn test_async_spawn() {
+        use std::sync::Arc;
+        
         let runtime = AsyncRuntime::new().unwrap();
         
-        let handle = runtime.spawn(async {
-            Ok(Value::from_integer(42))
+        // Since Value is not Send, we need to construct it outside the async block
+        // and share only Send-safe data
+        let value = Arc::new(42i64);
+        let value_clone = value.clone();
+        
+        let handle = runtime.spawn(async move {
+            // Create the Value inside the spawned task
+            Ok(Value::from_integer(*value_clone))
         });
         
         let result = runtime.block_on(handle);

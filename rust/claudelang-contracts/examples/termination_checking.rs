@@ -101,7 +101,7 @@ fn demo_factorial() {
     });
     contract.add_precondition(
         ContractCondition::new(precond, ContractKind::Precondition)
-            .with_message("n must be non-negative".to_string())
+            .with_blame("n must be non-negative".to_string())
     );
     
     // Create termination checker and add measure

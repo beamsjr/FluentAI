@@ -45,7 +45,7 @@ fn test_forall_quantifier() {
     
     contract.add_postcondition(
         ContractCondition::new(quantified, ContractKind::Postcondition)
-            .with_message("All elements must be positive".to_string())
+            .with_blame("All elements must be positive".to_string())
     );
     
     assert_eq!(contract.postconditions.len(), 1);
@@ -81,7 +81,7 @@ fn test_exists_quantifier() {
     
     contract.add_precondition(
         ContractCondition::new(quantified, ContractKind::Precondition)
-            .with_message("Target must exist in list".to_string())
+            .with_blame("Target must exist in list".to_string())
     );
     
     assert_eq!(contract.preconditions.len(), 1);

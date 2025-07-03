@@ -68,7 +68,7 @@ fn demo_all_positive() {
     // Create contract
     let mut contract = Contract::new("all_positive".to_string(), NodeId::new(NonZeroU32::new(1).unwrap()));
     contract.add_postcondition(ContractCondition::new(contract_expr, ContractKind::Postcondition)
-        .with_message("All array elements must be positive".to_string()));
+        .with_blame("All array elements must be positive".to_string()));
     
     println!("Contract: forall i in indices(arr), arr[i] > 0");
     
@@ -141,7 +141,7 @@ fn demo_sorted_array() {
     
     let mut contract = Contract::new("is_sorted".to_string(), NodeId::new(NonZeroU32::new(1).unwrap()));
     contract.add_postcondition(ContractCondition::new(contract_expr, ContractKind::Postcondition)
-        .with_message("Array must be sorted in ascending order".to_string()));
+        .with_blame("Array must be sorted in ascending order".to_string()));
     
     println!("Contract: forall i, (i + 1 < length(arr)) => (arr[i] <= arr[i+1])");
     
@@ -180,7 +180,7 @@ fn demo_exists_element() {
     
     let mut contract = Contract::new("contains".to_string(), NodeId::new(NonZeroU32::new(1).unwrap()));
     contract.add_postcondition(ContractCondition::new(contract_expr, ContractKind::Postcondition)
-        .with_message("Target element must exist in array".to_string()));
+        .with_blame("Target element must exist in array".to_string()));
     
     println!("Contract: exists i in indices(arr), arr[i] = target");
     
@@ -227,7 +227,7 @@ fn demo_bounded_array() {
     
     let mut contract = Contract::new("bounded_values".to_string(), NodeId::new(NonZeroU32::new(1).unwrap()));
     contract.add_precondition(ContractCondition::new(contract_expr, ContractKind::Precondition)
-        .with_message("All array values must be within bounds".to_string()));
+        .with_blame("All array values must be within bounds".to_string()));
     
     println!("Contract: forall x in arr, min <= x <= max");
     

@@ -207,15 +207,16 @@ mod tests {
 
     #[test]
     fn test_provenance_chain() {
-        let p1 = ProvenanceInfo::new(NodeId(1));
-        let p2 = ProvenanceInfo::new(NodeId(2)).with_parent(p1);
-        let p3 = ProvenanceInfo::new(NodeId(3)).with_parent(p2);
+        use std::num::NonZeroU32;
+        let p1 = ProvenanceInfo::new(NodeId(NonZeroU32::new(1).unwrap()));
+        let p2 = ProvenanceInfo::new(NodeId(NonZeroU32::new(2).unwrap())).with_parent(p1);
+        let p3 = ProvenanceInfo::new(NodeId(NonZeroU32::new(3).unwrap())).with_parent(p2);
 
         let chain = p3.chain();
         assert_eq!(chain.len(), 3);
-        assert_eq!(chain[0].node_id, NodeId(3));
-        assert_eq!(chain[1].node_id, NodeId(2));
-        assert_eq!(chain[2].node_id, NodeId(1));
+        assert_eq!(chain[0].node_id, NodeId(NonZeroU32::new(3).unwrap()));
+        assert_eq!(chain[1].node_id, NodeId(NonZeroU32::new(2).unwrap()));
+        assert_eq!(chain[2].node_id, NodeId(NonZeroU32::new(1).unwrap()));
     }
 
     #[test]

@@ -73,7 +73,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
         });
         contract.add_precondition(
             ContractCondition::new(precond1, ContractKind::Precondition)
-                .with_message("x must be non-negative".to_string())
+                .with_blame("x must be non-negative".to_string())
         );
         
         // y >= 0
@@ -83,7 +83,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
         });
         contract.add_precondition(
             ContractCondition::new(precond2, ContractKind::Precondition)
-                .with_message("y must be non-negative".to_string())
+                .with_blame("y must be non-negative".to_string())
         );
         
         // Add postconditions
@@ -94,7 +94,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
         });
         contract.add_postcondition(
             ContractCondition::new(postcond1, ContractKind::Postcondition)
-                .with_message("result must be >= x".to_string())
+                .with_blame("result must be >= x".to_string())
         );
         
         // Add more conditions for some contracts to vary complexity
@@ -106,7 +106,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
             });
             contract.add_postcondition(
                 ContractCondition::new(postcond2, ContractKind::Postcondition)
-                    .with_message("result must be >= y".to_string())
+                    .with_blame("result must be >= y".to_string())
             );
         }
         

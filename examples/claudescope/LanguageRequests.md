@@ -74,6 +74,30 @@ For features not yet available, we implement workarounds:
 4. **FFI**: Mock interfaces with ClaudeLang implementations
 5. **Pattern Guards**: Nested if-expressions in match arms
 
+## Implementation Insights
+
+After building ClaudeScope, additional observations about useful language features:
+
+### Contract System Enhancements
+1. **Contract Inheritance**: Ability to extend contracts in derived types
+2. **Contract Composition**: Combine multiple contracts with logical operators
+3. **Temporal Contracts**: Express properties over time (e.g., "eventually", "always")
+4. **Contract Debugging**: Better error messages showing which part of contract failed
+
+### Type System Observations
+1. **Phantom Types**: For compile-time unit checking (e.g., Mbps vs Kbps)
+2. **Newtype Pattern**: Zero-cost type wrappers for domain modeling
+3. **Type Classes**: For ad-hoc polymorphism in network protocols
+4. **Row Polymorphism**: For extensible packet headers
+
+### Performance Considerations
+1. **Tail Call Optimization**: Essential for packet processing loops
+2. **Unboxed Types**: For efficient numeric computations
+3. **Memory Pools**: For packet buffer management
+4. **Lock-Free Data Structures**: For concurrent packet queues
+
 ## Notes
 
 These features would make ClaudeLang more suitable for systems programming and network analysis tasks. The current implementation works around these limitations but would benefit significantly from native support.
+
+ClaudeScope demonstrates that even without these features, ClaudeLang's contract system provides significant value for building reliable network security tools. The ability to formally specify and verify security properties at compile time is a major advantage over traditional approaches.
