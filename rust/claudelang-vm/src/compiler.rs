@@ -156,7 +156,7 @@ impl Compiler {
         // They will be handled specially when applied
         
         // Look up in locals
-        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
+        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&abs_pos) = scope.get(name) {
                 // Convert absolute position to frame-relative
                 // In the main chunk, frame base is 0
