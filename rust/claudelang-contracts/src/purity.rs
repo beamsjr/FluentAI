@@ -82,6 +82,11 @@ impl<'a> PurityChecker<'a> {
             "old", "result", "forall", "exists", "implies", "∀", "∃",
             "range", "in", "indices",
         ].iter().map(|s| s.to_string()));
+        
+        // Ghost state functions (pure for verification)
+        self.pure_functions.extend([
+            "ghost", "history", "model", "invariant", "at",
+        ].iter().map(|s| s.to_string()));
     }
     
     /// Register known impure built-in functions

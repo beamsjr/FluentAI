@@ -103,6 +103,12 @@ pub struct Contract {
     /// - Are required for use in contract expressions
     pub pure: bool,
     
+    /// Frame condition (what this function may modify)
+    /// 
+    /// If None, the function may modify anything (conservative).
+    /// If Some, specifies exactly what the function is allowed to modify.
+    pub frame_condition: Option<crate::frame_conditions::FrameCondition>,
+    
     /// Location information for error reporting
     pub node_id: NodeId,
 }
@@ -178,6 +184,7 @@ impl Contract {
             invariants: Vec::new(),
             complexity: None,
             pure: false,
+            frame_condition: None,
             node_id,
         }
     }

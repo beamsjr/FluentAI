@@ -140,6 +140,8 @@ pub mod implementation {
                     
                     // Contract-specific functions
                     "old" => self.convert_old(args),
+                    "ghost" => self.convert_ghost(args),
+                    "history" => self.convert_history(args),
                     
                     // Quantifiers
                     "forall" | "∀" => self.convert_forall(args),
@@ -641,6 +643,44 @@ pub mod implementation {
                     "Quantifier body must be a boolean expression".to_string()
                 ))
             }
+        }
+        
+        /// Convert ghost variable declaration
+        fn convert_ghost(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.is_empty() {
+                return Err(ContractError::InvalidExpression(
+                    "ghost() function expects at least 1 argument".to_string()
+                ));
+            }
+            
+            // Ghost variables are handled as regular variables during verification
+            // The first argument is the variable itself
+            if args.len() == 1 {
+                self.convert_node(args[0])
+            } else {
+                // If there's an initial value, use it
+                self.convert_node(args[1])
+            }
+        }
+        
+        /// Convert history tracking
+        fn convert_history(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() < 2 {
+                return Err(ContractError::InvalidExpression(
+                    "history() function expects at least 2 arguments".to_string()
+                ));
+            }
+            
+            // For now, history variables are represented as arrays
+            // In a full implementation, this would create an array to track values
+            let history_array = z3::ast::Array::new_const(
+                self.context,
+                "history_array",
+                &z3::Sort::int(self.context),
+                &z3::Sort::int(self.context),
+            );
+            
+            Ok(Z3Expr::Array(history_array))
         }
     }
     

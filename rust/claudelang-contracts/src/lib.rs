@@ -6,10 +6,15 @@
 pub mod contract;
 pub mod errors;
 pub mod evaluator;
+pub mod frame_conditions;
+pub mod ghost_state;
+pub mod incremental;
+pub mod parallel_verification;
 pub mod purity;
 pub mod quantifiers;
 pub mod runtime;
 pub mod static_verification;
+pub mod termination;
 pub mod proof;
 pub mod proof_generator;
 pub mod vm_integration;
@@ -39,6 +44,18 @@ pub use vm_integration::{ContractVM, ContractRegistry};
 pub use symbolic_execution::{SymbolicExecutor, SymbolicValue, SymbolicState};
 pub use symbolic_verification::{SymbolicContractVerifier, SymbolicVerificationResult};
 pub use quantifiers::{QuantifierBuilder, QuantifierParser, QuantifiedExpression, QuantifierDomain};
+pub use incremental::{IncrementalVerifier, DependencyAnalyzer, IncrementalStats};
+pub use termination::{TerminationChecker, TerminationMeasure, TerminationResult, TerminationMeasureBuilder};
+pub use parallel_verification::{
+    ParallelVerifier, ParallelVerificationConfig, ParallelCoordinator, ParallelVerificationStats
+};
+pub use ghost_state::{
+    GhostStateManager, GhostVariable, OldValue, GhostFunction, HistoryVariable, GhostStateBuilder
+};
+pub use frame_conditions::{
+    FrameConditionManager, FrameCondition, FieldAccess, IndexAccess, IndexExpr, HeapRegion,
+    Modification, FrameConditionBuilder
+};
 
 #[cfg(feature = "static")]
 pub use static_verification::{StaticVerifier, VerificationResult};
