@@ -15,7 +15,7 @@ claudelang-di = { path = "../claudelang-di" }
 claudelang-vm = { path = "../claudelang-vm" }
 
 # Database connectivity
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "sqlite", "mysql", "any", "chrono"] }
+sqlx = { version = "0.8.1", features = ["runtime-tokio-native-tls", "postgres", "sqlite", "mysql", "any", "chrono"] }
 tokio = { version = "1.35", features = ["full"] }
 async-trait = "0.1"
 
