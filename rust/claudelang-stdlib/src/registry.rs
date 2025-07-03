@@ -1,6 +1,6 @@
 //! Function registry for the ClaudeLang standard library
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use crate::value::Value;
 use claudelang_core::ast::EffectType;
 use anyhow::Result;
@@ -98,14 +98,14 @@ impl StdlibFunction {
 /// Registry for standard library functions
 #[derive(Clone)]
 pub struct StdlibRegistry {
-    functions: Arc<RwLock<HashMap<String, StdlibFunction>>>,
+    functions: Arc<RwLock<FxHashMap<String, StdlibFunction>>>,
 }
 
 impl StdlibRegistry {
     /// Create a new empty registry
     pub fn new() -> Self {
         Self {
-            functions: Arc::new(RwLock::new(HashMap::new())),
+            functions: Arc::new(RwLock::new(FxHashMap::default())),
         }
     }
     

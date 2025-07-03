@@ -829,19 +829,15 @@ impl VM {
                 runtime.spawn(future);
                 
                 // Return the promise ID as string for compatibility
-                self.push(Value::Promise(promise_id.to_string()))?;
+                self.push(Value::Promise(promise_id))?;
             }
             
             Await => {
                 // Pop promise
-                let promise_id_str = match self.pop()? {
+                let promise_id = match self.pop()? {
                     Value::Promise(id) => id,
                     _ => return Err(anyhow!("Await requires a promise")),
                 };
-                
-                // Convert string ID to typed ID
-                let promise_id = PromiseId::from_string(&promise_id_str)
-                    .ok_or_else(|| anyhow!("Invalid promise ID format: {}", promise_id_str))?;
                 
                 // Check if we have this promise
                 if let Some(mut rx) = self.promises.remove(&promise_id) {
@@ -852,7 +848,7 @@ impl VM {
                         Err(oneshot::error::TryRecvError::Empty) => {
                             // Not ready yet, put it back and return the promise
                             self.promises.insert(promise_id, rx);
-                            self.push(Value::Promise(promise_id_str))?;
+                            self.push(Value::Promise(promise_id))?;
                         }
                         Err(oneshot::error::TryRecvError::Closed) => {
                             return Err(anyhow!("Promise channel closed"));
@@ -885,20 +881,16 @@ impl VM {
                 let channel_id = self.id_generator.next_channel_id();
                 let (tx, rx) = mpsc::channel(self.resource_limits.channel_buffer_size);
                 self.channels.insert(channel_id, (tx, rx));
-                self.push(Value::Channel(channel_id.to_string()))?;
+                self.push(Value::Channel(channel_id))?;
             }
             
             Send => {
                 // Pop value and channel
                 let value = self.pop()?;
-                let channel_str = match self.pop()? {
+                let channel_id = match self.pop()? {
                     Value::Channel(id) => id,
                     _ => return Err(anyhow!("Send requires a channel")),
                 };
-                
-                // Convert string ID to typed ID
-                let channel_id = ChannelId::from_string(&channel_str)
-                    .ok_or_else(|| anyhow!("Invalid channel ID format: {}", channel_str))?;
                 
                 // Get the channel sender
                 if let Some((tx, _)) = self.channels.get(&channel_id) {
@@ -909,20 +901,16 @@ impl VM {
                         })?;
                     self.push(Value::Nil)?;
                 } else {
-                    return Err(anyhow!("Unknown channel: {}", channel_str));
+                    return Err(anyhow!("Unknown channel: {}", channel_id));
                 }
             }
             
             Receive => {
                 // Pop channel
-                let channel_str = match self.pop()? {
+                let channel_id = match self.pop()? {
                     Value::Channel(id) => id,
                     _ => return Err(anyhow!("Receive requires a channel")),
                 };
-                
-                // Convert string ID to typed ID
-                let channel_id = ChannelId::from_string(&channel_str)
-                    .ok_or_else(|| anyhow!("Invalid channel ID format: {}", channel_str))?;
                 
                 // Try to receive non-blocking
                 if let Some((_, rx)) = self.channels.get_mut(&channel_id) {
@@ -937,7 +925,7 @@ impl VM {
                         }
                     }
                 } else {
-                    return Err(anyhow!("Unknown channel: {}", channel_str));
+                    return Err(anyhow!("Unknown channel: {}", channel_id));
                 }
             }
             
@@ -1423,8 +1411,8 @@ impl VM {
                     env: env.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect(),
                 }
             }
-            Value::Promise(id) => StdlibValue::Promise(id.clone()),
-            Value::Channel(id) => StdlibValue::Channel(id.clone()),
+            Value::Promise(id) => StdlibValue::Promise(id.0),
+            Value::Channel(id) => StdlibValue::Channel(id.0),
             Value::Cell(idx) => StdlibValue::Cell(*idx),
             Value::Tagged { tag, values } => {
                 StdlibValue::Tagged {
@@ -1452,7 +1440,7 @@ impl VM {
                 )
             }
             StdlibValue::Map(map) => {
-                let mut vm_map = HashMap::new();
+                let mut vm_map = FxHashMap::default();
                 for (k, v) in map {
                     vm_map.insert(k.clone(), self.stdlib_value_to_vm_value(v));
                 }
@@ -1464,8 +1452,8 @@ impl VM {
                     env: env.iter().map(|v| self.stdlib_value_to_vm_value(v)).collect(),
                 }
             }
-            StdlibValue::Promise(id) => Value::Promise(id.clone()),
-            StdlibValue::Channel(id) => Value::Channel(id.clone()),
+            StdlibValue::Promise(id) => Value::Promise(PromiseId(*id)),
+            StdlibValue::Channel(id) => Value::Channel(ChannelId(*id)),
             StdlibValue::Cell(idx) => Value::Cell(*idx),
             StdlibValue::Tagged { tag, values } => {
                 Value::Tagged {
@@ -1657,6 +1645,16 @@ impl VM {
                     tag: tag.clone(),
                     values: values.iter().map(|v| self.core_value_to_vm_value(v)).collect(),
                 }
+            }
+            claudelang_core::value::Value::Symbol(s) => {
+                // Convert symbols to strings in VM representation
+                Value::String(s.clone())
+            }
+            claudelang_core::value::Value::Vector(items) => {
+                // Convert vectors to lists in VM representation
+                Value::List(
+                    items.iter().map(|v| self.core_value_to_vm_value(v)).collect()
+                )
             }
         }
     }

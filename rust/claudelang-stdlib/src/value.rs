@@ -1,7 +1,7 @@
 //! Temporary Value type definition to avoid circular dependency
 //! TODO: Move this to a shared crate that both VM and stdlib can depend on
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -12,13 +12,13 @@ pub enum Value {
     Float(f64),
     String(String),
     List(Vec<Value>),
-    Map(HashMap<String, Value>),
+    Map(FxHashMap<String, Value>),
     Function {
         chunk_id: usize,
         env: Vec<Value>,
     },
-    Promise(String), // Promise ID
-    Channel(String), // Channel ID
+    Promise(u64), // Promise ID (numeric for compatibility)
+    Channel(u64), // Channel ID (numeric for compatibility)
     Cell(usize),     // Index into VM's cell storage
     Tagged {
         tag: String,

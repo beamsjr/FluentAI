@@ -1,7 +1,7 @@
 //! VM Builder for dependency injection
 
 use std::sync::Arc;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use anyhow::Result;
 
 use crate::vm::VM;
@@ -31,7 +31,7 @@ pub struct VMBuilder {
     /// Module configuration
     module_config: Option<ModuleConfig>,
     /// Initial global values
-    initial_globals: HashMap<String, Value>,
+    initial_globals: FxHashMap<String, Value>,
     /// Stack size
     stack_size: Option<usize>,
     /// Enable trace mode
@@ -47,7 +47,7 @@ impl VMBuilder {
             effect_runtime: None,
             stdlib_registry: None,
             module_config: None,
-            initial_globals: HashMap::new(),
+            initial_globals: FxHashMap::default(),
             stack_size: None,
             trace_mode: false,
         }

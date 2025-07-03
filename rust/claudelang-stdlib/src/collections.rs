@@ -3,7 +3,7 @@
 use crate::registry::{StdlibFunction, StdlibRegistry};
 use crate::value::Value;
 use anyhow::{anyhow, Result};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Register all collection functions
 pub fn register(registry: &mut StdlibRegistry) {
@@ -146,7 +146,7 @@ fn list_sort(args: &[Value]) -> Result<Value> {
 fn list_unique(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::List(items) => {
-            let mut seen = HashSet::new();
+            let mut seen = FxHashSet::default();
             let mut result = Vec::new();
             
             for item in items {
@@ -168,7 +168,7 @@ fn list_unique(args: &[Value]) -> Result<Value> {
 fn set_new(args: &[Value]) -> Result<Value> {
     let items: Vec<Value> = args.to_vec();
     let mut unique = Vec::new();
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     
     for item in items {
         let key = format!("{:?}", item);
@@ -228,7 +228,7 @@ fn set_contains(args: &[Value]) -> Result<Value> {
 
 fn set_union(args: &[Value]) -> Result<Value> {
     let mut result_items = Vec::new();
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     
     for arg in args {
         match arg {
@@ -291,7 +291,7 @@ fn set_difference(args: &[Value]) -> Result<Value> {
         _ => return Err(anyhow!("set-difference: expected set (list)")),
     };
     
-    let mut second_keys = HashSet::new();
+    let mut second_keys = FxHashSet::default();
     for item in second_set {
         second_keys.insert(format!("{:?}", item));
     }
@@ -318,7 +318,7 @@ fn list_to_set(args: &[Value]) -> Result<Value> {
 // Map/Dictionary operations
 
 fn dict_new(args: &[Value]) -> Result<Value> {
-    let mut map = HashMap::new();
+    let mut map = FxHashMap::default();
     
     // Process key-value pairs if provided
     let mut i = 0;
@@ -425,7 +425,7 @@ fn dict_values(args: &[Value]) -> Result<Value> {
 }
 
 fn dict_merge(args: &[Value]) -> Result<Value> {
-    let mut result = HashMap::new();
+    let mut result = FxHashMap::default();
     
     for arg in args {
         match arg {
@@ -459,7 +459,7 @@ fn dict_to_list(args: &[Value]) -> Result<Value> {
 fn list_to_dict(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::List(items) => {
-            let mut map = HashMap::new();
+            let mut map = FxHashMap::default();
             
             for item in items {
                 match item {

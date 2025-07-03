@@ -511,7 +511,7 @@ fn flatten(args: &[Value]) -> Result<Value> {
 // Map operations
 
 fn make_map(_args: &[Value]) -> Result<Value> {
-    Ok(Value::Map(std::collections::HashMap::new()))
+    Ok(Value::Map(rustc_hash::FxHashMap::default()))
 }
 
 fn map_set(args: &[Value]) -> Result<Value> {

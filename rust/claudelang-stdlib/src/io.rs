@@ -207,7 +207,7 @@ fn json_to_value(json: &serde_json::Value) -> Result<Value> {
             Ok(Value::List(values))
         }
         serde_json::Value::Object(obj) => {
-            let mut map = std::collections::HashMap::new();
+            let mut map = rustc_hash::FxHashMap::default();
             for (key, val) in obj {
                 map.insert(key.clone(), json_to_value(val)?);
             }

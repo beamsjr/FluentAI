@@ -1,6 +1,6 @@
 //! Debug support for the interpreter
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use claudelang_core::ast::NodeId;
 use crate::value::Value;
 use crate::environment::Environment;
@@ -14,7 +14,7 @@ pub struct DebugMode {
     /// Current step mode
     pub step_mode: StepMode,
     /// Active breakpoints
-    pub breakpoints: HashMap<String, Breakpoint>,
+    pub breakpoints: FxHashMap<String, Breakpoint>,
     /// Watch expressions
     pub watches: Vec<WatchExpression>,
     /// Maximum call depth to track
@@ -28,7 +28,7 @@ impl Default for DebugMode {
         Self {
             enabled: false,
             step_mode: StepMode::Continue,
-            breakpoints: HashMap::new(),
+            breakpoints: FxHashMap::default(),
             watches: Vec::new(),
             max_call_depth: 100,
             track_variables: false,
@@ -154,7 +154,7 @@ pub struct DebugContext {
     /// Call stack
     pub call_stack: Vec<StackFrame>,
     /// Local variables
-    pub locals: HashMap<String, Value>,
+    pub locals: FxHashMap<String, Value>,
 }
 
 /// Debug handler trait

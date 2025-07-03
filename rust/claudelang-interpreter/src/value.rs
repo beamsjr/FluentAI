@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fmt;
 
 use claudelang_core::ast::{NodeId, Literal};
@@ -41,7 +41,7 @@ pub enum ValueData {
     /// List of values
     List(Vec<Value>),
     /// Map/dictionary
-    Map(HashMap<String, Value>),
+    Map(FxHashMap<String, Value>),
     /// Function closure
     Closure(Rc<Closure>),
     /// Built-in function
@@ -53,7 +53,7 @@ pub enum ValueData {
     /// Module value
     Module {
         name: String,
-        exports: HashMap<String, Value>,
+        exports: FxHashMap<String, Value>,
     },
     // /// Promise/Future for async
     // #[cfg(feature = "async")]

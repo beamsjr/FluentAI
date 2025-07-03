@@ -110,7 +110,7 @@ pub fn register(registry: &mut StdlibRegistry) {
 
 // Datetime representation as a Map with fields
 fn create_datetime_value(dt: DateTime<Utc>) -> Value {
-    let mut map = std::collections::HashMap::new();
+    let mut map = rustc_hash::FxHashMap::default();
     map.insert("year".to_string(), Value::Int(dt.year() as i64));
     map.insert("month".to_string(), Value::Int(dt.month() as i64));
     map.insert("day".to_string(), Value::Int(dt.day() as i64));
@@ -157,7 +157,7 @@ fn datetime_utcnow(_args: &[Value]) -> Result<Value> {
 
 fn datetime_today(_args: &[Value]) -> Result<Value> {
     let today = Local::now().date_naive();
-    let mut map = std::collections::HashMap::new();
+    let mut map = rustc_hash::FxHashMap::default();
     map.insert("year".to_string(), Value::Int(today.year() as i64));
     map.insert("month".to_string(), Value::Int(today.month() as i64));
     map.insert("day".to_string(), Value::Int(today.day() as i64));
@@ -238,7 +238,7 @@ fn date_create(args: &[Value]) -> Result<Value> {
     let _date = NaiveDate::from_ymd_opt(year, month, day)
         .ok_or_else(|| anyhow!("date:create: invalid date"))?;
     
-    let mut map = std::collections::HashMap::new();
+    let mut map = rustc_hash::FxHashMap::default();
     map.insert("year".to_string(), Value::Int(year as i64));
     map.insert("month".to_string(), Value::Int(month as i64));
     map.insert("day".to_string(), Value::Int(day as i64));
