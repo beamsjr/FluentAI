@@ -46,7 +46,7 @@ ClaudeLang is an experimental programming language that explores what happens wh
 ### 🔧 Core Language Features
 - **Pattern matching**: ML-style with exhaustiveness checking
 - **Algebraic data types**: Sum and product types with pattern matching
-- **Effect system**: Explicit tracking of IO, State, Error, DOM, Network, etc.
+- **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling
 - **Module system**: Full namespace support with imports, exports, and qualified references
 - **Type annotations**: Optional type ascription for clarity and optimization
 
@@ -99,11 +99,15 @@ ClaudeLang is an experimental programming language that explores what happens wh
       (h "button" {:onClick (lambda () (emit :increment))}
         "Increment"))))
 
-;; Async/await with module reference
+;; Async/await with error handling
 (import "network" *)
 (async (lambda ()
-  (let ((data (await (network:fetch "https://api.example.com/data"))))
-    (effect dom:update (get data :result)))))
+  (handler
+    ((error (lambda (err)
+              (print "Network error:" (get err :message))
+              (effect dom:update "Failed to load data"))))
+    (let ((data (await (network:fetch "https://api.example.com/data"))))
+      (effect dom:update (get data :result))))))
 
 ;; Concurrent programming with qualified names
 (import "concurrent" (chan go))
@@ -262,6 +266,43 @@ python -m unittest discover tests -v
   ((receive! ch1) (lambda (v) (str "From ch1: " v)))
   ((receive! ch2) (lambda (v) (str "From ch2: " v)))
   ((send! ch3 42) (lambda () "Sent to ch3")))
+```
+
+### Error Handling
+```lisp
+;; Error handling uses the handler construct instead of try/catch
+(handler
+  ((error (lambda (err)
+            (print "Error occurred:" (get err :message))
+            "default-value")))
+  (risky-operation))
+
+;; Raise errors using the error effect
+(when (= denominator 0)
+  (effect error:raise "divide-by-zero" 
+    {:message "Cannot divide by zero"
+     :numerator numerator
+     :denominator denominator}))
+
+;; Network requests with error handling
+(handler
+  ((error (lambda (err)
+            (case (get err :type)
+              "timeout" (retry-request)
+              "network" (use-cached-data)
+              _ (show-error-message)))))
+  (await (network:fetch api-url)))
+
+;; Composable error handling in UI components
+(ui:component "DataDisplay" {:url (prop :string :required true)}
+  (lambda (props)
+    (handler
+      ((error (lambda (err) 
+                (h "div" {:className "error"} 
+                  (str "Failed to load: " (get err :message))))))
+      (let ((data (await (fetch (get props :url)))))
+        (h "div" {:className "data"} 
+          (render-data data))))))
 ```
 
 ### Formal Contracts and Verification
