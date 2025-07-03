@@ -51,7 +51,9 @@ ClaudeLang is an experimental programming language that explores what happens wh
 - **Type annotations**: Optional type ascription for clarity and optimization
 
 ### 📊 Advanced Capabilities
-- **Behavioral contracts**: Pre/postconditions and invariants
+- **Formal Contract System**: Runtime verification of preconditions, postconditions, and invariants
+- **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications
+- **Purity Tracking**: Enforce and verify side-effect-free functions
 - **Property-based testing**: Automatic test generation with Hypothesis
 - **LSP Support**: Full IDE integration with <5ms response times
 - **Graph queries**: Analyze and transform program structure
@@ -216,6 +218,40 @@ python -m unittest discover tests -v
   ((send! ch3 42) (lambda () "Sent to ch3")))
 ```
 
+### Formal Contracts and Verification
+```lisp
+;; Define contracts with preconditions and postconditions
+(spec:contract factorial
+  :requires [(>= n 0)]              ; Precondition: n must be non-negative
+  :ensures [(>= result 1)]          ; Postcondition: result is at least 1
+  :complexity "O(n)"                ; Complexity specification
+  :pure true)                       ; Function has no side effects
+
+(define factorial (lambda (n)
+  (if (= n 0)
+      1
+      (* n (factorial (- n 1))))))
+
+;; Contracts are verified at runtime (and optionally statically)
+(spec:contract safe-divide
+  :requires [(and (number? x) (number? y) (not= y 0))]
+  :ensures [(number? result)])
+
+;; Contracts support complex conditions
+(spec:contract binary-search
+  :requires [(sorted? arr)]
+  :ensures [(or (= result -1) 
+               (= (nth arr result) target))]
+  :invariant [(>= high low)]        ; Loop invariants
+  :complexity "O(log n)")
+
+;; Type predicates available in contracts
+;; number?, int?, float?, string?, list?, nil?
+;; Comparison: =, !=, <, >, <=, >=
+;; List operations: length, nth, empty?, sorted?
+;; Logical: and, or, not
+```
+
 ## AI-First Features
 
 ### Graph-Based AST
@@ -317,6 +353,7 @@ ClaudeLang/
 │   ├── claudelang-stdlib/  # Complete standard library in Rust
 │   ├── claudelang-effects/ # Effect system implementation
 │   ├── claudelang-types/   # Type system implementation
+│   ├── claudelang-contracts/ # Formal contract verification system
 │   ├── claudelang-jit/     # Cranelift JIT compiler
 │   ├── claudelang-lsp/     # Language Server Protocol
 │   ├── claudelang-py/      # Python bindings
