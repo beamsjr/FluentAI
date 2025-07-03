@@ -18,6 +18,7 @@ serde_json = "1.0"
 lru = "0.12"
 rayon = "1.7"
 num_cpus = "1.16"
+rustc-hash.workspace = true
 
 [dev-dependencies]
 claudelang-parser = { path = "../claudelang-parser" }

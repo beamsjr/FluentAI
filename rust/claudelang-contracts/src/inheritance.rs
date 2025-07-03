@@ -462,6 +462,7 @@ impl ContractHierarchy {
             invariants: Vec::new(),
             complexity: None,
             pure: contracts.iter().all(|c| c.pure),
+            frame_condition: None,
             node_id: contracts[0].node_id, // Dummy
         };
         
@@ -495,6 +496,7 @@ impl ContractHierarchy {
             invariants: Vec::new(),
             complexity: None,
             pure: contracts.iter().all(|c| c.pure),
+            frame_condition: None,
             node_id: contracts[0].node_id,
         };
         
@@ -516,6 +518,7 @@ impl ContractHierarchy {
             invariants: Vec::new(),
             complexity: None,
             pure: contracts.iter().all(|c| c.pure),
+            frame_condition: None,
             node_id: contracts[0].node_id,
         };
         

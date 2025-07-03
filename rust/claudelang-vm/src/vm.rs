@@ -865,10 +865,10 @@ impl VM {
                 
                 // For now, we'll create a placeholder goroutine
                 // In a real implementation, this would spawn a new VM instance
-                let task_id = self.id_generator.next_task_id();
+                let promise_id = self.id_generator.next_promise_id();
                 
                 // Return a promise that represents the goroutine
-                self.push(Value::Promise(task_id.to_string()))?;
+                self.push(Value::Promise(promise_id))?;
             }
             
             Channel => {
@@ -1250,7 +1250,7 @@ impl VM {
                     let module = self.loaded_modules.entry(current_module_name.clone())
                         .or_insert_with(|| Value::Module {
                             name: current_module_name.clone(),
-                            exports: HashMap::new(),
+                            exports: FxHashMap::default(),
                         });
                     
                     // Add the export
@@ -1399,7 +1399,7 @@ impl VM {
                 )
             }
             Value::Map(map) => {
-                let mut stdlib_map = HashMap::new();
+                let mut stdlib_map = FxHashMap::default();
                 for (k, v) in map {
                     stdlib_map.insert(k.clone(), self.vm_value_to_stdlib_value(v));
                 }
@@ -1683,7 +1683,7 @@ impl VM {
         // Create a module value with empty exports initially
         let module_value = Value::Module {
             name: module_name.to_string(),
-            exports: HashMap::new(),
+            exports: FxHashMap::default(),
         };
         
         self.loaded_modules.insert(module_name.to_string(), module_value);

@@ -123,7 +123,7 @@ impl<'a> GhostStateManager<'a> {
     fn create_old_node(&self, _expr: NodeId) -> NodeId {
         // In a real implementation, this would create a special node
         // that the evaluator knows to handle as a pre-state value
-        NodeId::new(std::num::NonZeroU32::new(999999).unwrap())
+        NodeId::new(999999).unwrap()
     }
     
     /// Add a ghost function

@@ -8,13 +8,13 @@ use anyhow::{anyhow, Result};
 
 /// Type-safe ID generation for promises, channels, etc.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PromiseId(u64);
+pub struct PromiseId(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ChannelId(u64);
+pub struct ChannelId(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TaskId(u64);
+pub struct TaskId(pub u64);
 
 /// ID generator using atomic counter
 pub struct IdGenerator {

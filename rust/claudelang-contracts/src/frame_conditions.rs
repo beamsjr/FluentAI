@@ -27,7 +27,7 @@ pub struct FrameConditionManager<'a> {
 }
 
 /// A frame condition specifying what a function may modify
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FrameCondition {
     /// Variables that may be modified
     pub modifies: FxHashSet<String>,
@@ -49,7 +49,7 @@ pub struct FrameCondition {
 }
 
 /// Represents access to an object field
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FieldAccess {
     /// Object expression (simplified to string for now)
     pub object: String,
@@ -59,7 +59,7 @@ pub struct FieldAccess {
 }
 
 /// Represents access to an array/list index
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct IndexAccess {
     /// Array/list expression
     pub array: String,
@@ -69,7 +69,7 @@ pub struct IndexAccess {
 }
 
 /// Index expression for arrays
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum IndexExpr {
     /// Constant index
     Constant(i64),
@@ -85,7 +85,7 @@ pub enum IndexExpr {
 }
 
 /// Heap region identifier
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HeapRegion {
     /// Named region
     Named(String),
@@ -124,10 +124,9 @@ impl<'a> FrameConditionManager<'a> {
         // In a real implementation, this would parse contract annotations
         
         // For now, analyze the function body to infer modifications
-        if let Some(func_name) = &contract.function_name {
-            self.analyze_modifications(contract.body, &mut frame)?;
-            self.frame_conditions.insert(func_name.clone(), frame.clone());
-        }
+        let func_name = &contract.function_name;
+        self.analyze_modifications(contract.node_id, &mut frame)?;
+        self.frame_conditions.insert(func_name.clone(), frame.clone());
         
         Ok(frame)
     }

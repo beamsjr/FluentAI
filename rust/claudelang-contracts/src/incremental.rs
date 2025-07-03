@@ -4,13 +4,13 @@
 //! and functions, enabling incremental re-verification only when dependencies change.
 
 use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use claudelang_core::ast::{Graph, Node, NodeId};
 use crate::{
     contract::Contract,
     errors::{ContractError, ContractResult},
     static_verification::{StaticVerifier, VerificationResult},
 };
-use rustc_hash::FxHashMap;
 
 /// Tracks dependencies and manages incremental verification
 pub struct IncrementalVerifier<'a> {
@@ -102,12 +102,11 @@ impl<'a> IncrementalVerifier<'a> {
         self.contract_deps.insert(name.to_string(), deps.clone());
         
         // Update function to contracts mapping
-        if let Some(func_name) = contract.function_name.as_ref() {
-            self.function_contracts
-                .entry(func_name.clone())
-                .or_insert_with(HashSet::new)
-                .insert(name.to_string());
-        }
+        let func_name = &contract.function_name;
+        self.function_contracts
+            .entry(func_name.clone())
+            .or_insert_with(HashSet::new)
+            .insert(name.to_string());
         
         Ok(())
     }
@@ -206,7 +205,7 @@ impl<'a> IncrementalVerifier<'a> {
         
         // Copy cached results for unchanged contracts
         for (name, result) in &self.verification_cache {
-            if !contracts_to_verify.contains(name) {
+            if !contracts_to_verify.contains(name.as_str()) {
                 results.insert(name.clone(), result.clone());
             }
         }

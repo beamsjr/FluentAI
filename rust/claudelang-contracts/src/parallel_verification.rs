@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use crate::{
     contract::Contract,
     errors::{ContractError, ContractResult},
-    static_verification::{StaticVerifier, VerificationResult, ResourceLimits},
+    static_verification::{StaticVerifier, VerificationResult},
     incremental::IncrementalVerifier,
 };
 use claudelang_core::ast::Graph;
@@ -130,14 +130,11 @@ impl<'a> ParallelVerifier<'a> {
     /// Verify a single contract (thread-safe)
     fn verify_single_contract(&self, contract: &Contract) -> VerificationResult {
         // Create thread-local verifier
-        let mut verifier = StaticVerifier::new(self.graph);
-        verifier.set_resource_limits(self.resource_limits.clone());
+        let mut verifier = StaticVerifier::new();
         
         match verifier.verify_contract(contract) {
             Ok(result) => result,
-            Err(e) => VerificationResult::Error {
-                message: format!("Verification error: {}", e),
-            },
+            Err(e) => VerificationResult::Unknown(format!("Verification error: {}", e)),
         }
     }
     

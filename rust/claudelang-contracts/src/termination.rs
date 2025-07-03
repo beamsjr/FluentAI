@@ -4,7 +4,7 @@
 //! which is essential for sound contract verification.
 
 use std::collections::{HashMap, HashSet};
-use claudelang_core::ast::{Graph, Node, NodeId, Literal};
+use claudelang_core::ast::{Graph, Node, NodeId, Literal, Pattern};
 use crate::{
     contract::Contract,
     errors::{ContractError, ContractResult},
@@ -69,10 +69,7 @@ impl<'a> TerminationChecker<'a> {
     
     /// Analyze termination for a contract
     pub fn analyze_contract(&mut self, contract: &Contract) -> ContractResult<TerminationResult> {
-        let func_name = contract.function_name.as_ref()
-            .ok_or_else(|| ContractError::VerificationError(
-                "Contract must have associated function".to_string()
-            ))?;
+        let func_name = &contract.function_name;
         
         // Check cache
         if let Some(result) = self.termination_cache.get(func_name) {
@@ -152,12 +149,12 @@ impl<'a> TerminationChecker<'a> {
         }
         
         // 2. Try to infer termination from recursive structure
-        if let Some(result) = self.infer_structural_termination(func_name, contract.body)? {
+        if let Some(result) = self.infer_structural_termination(func_name, contract.node_id)? {
             return Ok(result);
         }
         
         // 3. Try to find decreasing parameter
-        if let Some(result) = self.find_decreasing_parameter(func_name, contract.body)? {
+        if let Some(result) = self.find_decreasing_parameter(func_name, contract.node_id)? {
             return Ok(result);
         }
         
@@ -224,7 +221,7 @@ impl<'a> TerminationChecker<'a> {
             Node::Match { expr: _, branches } => {
                 // Pattern matching often indicates structural recursion
                 for (pattern, _body) in branches {
-                    if self.is_structural_pattern(*pattern)? {
+                    if self.is_structural_pattern_check(pattern)? {
                         return Ok(Some("pattern match".to_string()));
                     }
                 }
@@ -265,6 +262,15 @@ impl<'a> TerminationChecker<'a> {
         Ok(false)
     }
     
+    fn is_structural_pattern_check(&self, pattern: &Pattern) -> ContractResult<bool> {
+        use claudelang_core::ast::Pattern;
+        match pattern {
+            Pattern::Constructor { .. } => Ok(true),
+            Pattern::Literal(_) => Ok(true),
+            _ => Ok(false),
+        }
+    }
+    
     /// Try to find a decreasing parameter
     fn find_decreasing_parameter(&self, func_name: &str, body: NodeId) -> ContractResult<Option<TerminationResult>> {
         // Look for parameters that decrease in recursive calls
@@ -296,8 +302,8 @@ impl<'a> TerminationChecker<'a> {
     
     /// Add a user-provided termination measure
     pub fn add_termination_measure(&mut self, func_name: String, measure: TerminationMeasure) {
-        self.termination_measures.insert(func_name, measure);
         self.termination_cache.remove(&func_name); // Invalidate cache
+        self.termination_measures.insert(func_name, measure);
     }
 }
 
