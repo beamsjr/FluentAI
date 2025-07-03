@@ -56,6 +56,8 @@ ClaudeLang is an experimental programming language that explores what happens wh
 - **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications
 - **Purity Tracking**: Enforce and verify side-effect-free functions
 - **Structured Logging**: Log levels, structured data, and custom handlers
+- **Dependency Injection**: Full DI container with service lifetimes and modular architecture
+- **Database Effect System**: Functional database operations with connection pooling and transactions
 - **Property-based testing**: Automatic test generation with Hypothesis
 - **LSP Support**: Full IDE integration with <5ms response times
 - **Graph queries**: Analyze and transform program structure
@@ -396,6 +398,73 @@ python -m unittest discover tests -v
 ;; Logical: and, or, not
 ```
 
+### Database Operations
+```lisp
+;; Connect to database using effects
+(effect db:connect "postgresql://localhost/myapp")
+
+;; Execute queries with parameters
+(effect db:query "SELECT * FROM users WHERE age > ?" [18])
+
+;; Build queries functionally
+(db:from 'users
+  (db:where (db:and 
+    (db:gt 'age 18)
+    (db:eq 'active true)))
+  (db:select '(id name email))
+  (db:order-by 'created_at :desc))
+
+;; Transactions with automatic rollback on error
+(handler
+  ((error (lambda (err)
+            (effect db:rollback-transaction)
+            (logger:error "Transaction failed" {:error err}))))
+  (effect db:begin-transaction)
+  (effect db:execute "INSERT INTO accounts (id, balance) VALUES (?, ?)" [1 1000])
+  (effect db:execute "UPDATE accounts SET balance = balance - 100 WHERE id = 1")
+  (effect db:execute "UPDATE accounts SET balance = balance + 100 WHERE id = 2")
+  (effect db:commit-transaction))
+
+;; Define type-safe schemas
+(define-schema user
+  {:id {:type :int :primary-key true}
+   :email {:type :string :unique true :not-null true}
+   :age {:type :int :check "age >= 0"}
+   :created_at {:type :timestamp :default :current-timestamp}})
+```
+
+### Dependency Injection
+```rust
+// Use the DI container for service registration
+let container = ContainerBuilder::new()
+    .register_singleton(|| Logger::new("app"))
+    .register_transient(|| RequestHandler::new())
+    .register_scoped(|| DatabaseConnection::new())
+    .build();
+
+// Use VMBuilder for flexible VM configuration
+let vm = VMBuilder::new()
+    .with_bytecode(bytecode)
+    .with_effect_context(custom_effects)
+    .with_module_loader(custom_loader)
+    .with_trace_mode(true)
+    .with_config(ProductionConfig { stack_size: 1024 * 1024 })
+    .build()?;
+
+// Service lifetimes
+// - Singleton: One instance for the container lifetime
+// - Transient: New instance for each request
+// - Scoped: One instance per scope
+
+// Module-based registration
+struct CoreModule;
+impl Module for CoreModule {
+    fn configure(&self, builder: &mut ContainerBuilder) {
+        builder.register_singleton(|| StdlibRegistry::new());
+    }
+}
+```
+
 ## AI-First Features
 
 ### Graph-Based AST
@@ -528,6 +597,8 @@ ClaudeLang/
 │   ├── claudelang-types/   # Type system implementation
 │   ├── claudelang-contracts/ # Formal contract verification system
 │   ├── claudelang-optimizer/ # Advanced optimization framework
+│   ├── claudelang-di/       # Dependency injection framework
+│   ├── claudelang-db/       # Database effect system
 │   ├── claudelang-modules/ # Module system implementation
 │   ├── claudelang-jit/     # Cranelift JIT compiler
 │   ├── claudelang-lsp/     # Language Server Protocol
@@ -544,7 +615,15 @@ ClaudeLang/
 
 ## Recent Updates
 
-### 🎯 Advanced Optimization Framework (New!)
+### 🗄️ Database Effect System (New!)
+- **Functional database operations as effects**
+- Query DSL for building SQL queries functionally
+- Type-safe schema definitions with migrations
+- Connection pooling integrated with DI container
+- Transaction support with automatic rollback
+- Support for PostgreSQL, MySQL, and SQLite
+
+### 🎯 Advanced Optimization Framework
 - **Multi-pass optimizer achieving 80-95% AST reduction**
 - Constant folding, dead code elimination, CSE
 - Effect-aware optimization preserving program semantics
