@@ -5,7 +5,8 @@
 #[cfg(feature = "static")]
 use z3::{Context, Solver, ast::{Ast, Bool as Z3Bool, Int as Z3Int, Dynamic as Z3Expr}};
 
-use crate::symbolic_execution::{SymbolicValue, PathConstraint, SymbolicState};
+use crate::symbolic_execution::{SymbolicValue, PathConstraint, SymbolicState, SymbolicType};
+use crate::simplify::simplify;
 use crate::errors::{ContractError, ContractResult};
 use std::collections::HashMap;
 
@@ -33,7 +34,9 @@ impl<'ctx> SymbolicSolver<'ctx> {
     pub fn check_state(&mut self, state: &SymbolicState) -> ContractResult<bool> {
         // Add all path constraints
         for constraint in &state.path_constraints {
-            let z3_constraint = self.symbolic_to_z3(&constraint.constraint)?;
+            // Simplify constraint before converting to Z3
+            let simplified = simplify(&constraint.constraint);
+            let z3_constraint = self.symbolic_to_z3(&simplified)?;
             let bool_constraint = z3_constraint.as_bool()
                 .ok_or_else(|| ContractError::Other("Expected boolean constraint".to_string()))?;
             
@@ -68,14 +71,29 @@ impl<'ctx> SymbolicSolver<'ctx> {
                 }
             }
             
-            SymbolicValue::Symbolic(name) => {
+            SymbolicValue::Symbolic { name, ty } => {
                 // Get or create Z3 variable
                 if let Some(var) = self.variables.get(name) {
                     Ok(var.clone())
                 } else {
-                    // Create new integer variable by default
-                    let var = Z3Int::new_const(self.context, name.clone());
-                    let dynamic_var: Z3Expr = var.into();
+                    // Create Z3 variable based on type hint
+                    let dynamic_var: Z3Expr = match ty {
+                        Some(SymbolicType::Boolean) => {
+                            Z3Bool::new_const(self.context, name.clone()).into()
+                        }
+                        Some(SymbolicType::Float) => {
+                            use z3::ast::Real as Z3Real;
+                            Z3Real::new_const(self.context, name.clone()).into()
+                        }
+                        Some(SymbolicType::String) => {
+                            use z3::ast::String as Z3String;
+                            Z3String::new_const(self.context, name.clone()).into()
+                        }
+                        _ => {
+                            // Default to integer for unknown types
+                            Z3Int::new_const(self.context, name.clone()).into()
+                        }
+                    };
                     self.variables.insert(name.clone(), dynamic_var.clone());
                     Ok(dynamic_var)
                 }
@@ -181,6 +199,46 @@ impl<'ctx> SymbolicSolver<'ctx> {
                     .ok_or_else(|| ContractError::Other("Expected bool condition".to_string()))?;
                 
                 Ok(bool_cond.ite(&then_expr, &else_expr))
+            }
+            
+            SymbolicValue::StringConcat(parts) => {
+                if parts.is_empty() {
+                    use z3::ast::String as Z3String;
+                    Ok(Z3String::from_str(self.context, "").unwrap().into())
+                } else {
+                    // Convert all parts to Z3 strings and concatenate
+                    let mut result = self.symbolic_to_z3(&parts[0])?;
+                    for part in &parts[1..] {
+                        let part_expr = self.symbolic_to_z3(part)?;
+                        // Note: Z3 string concatenation would require the string theory solver
+                        // For now, we'll return an error for symbolic string operations
+                        return Err(ContractError::Other(
+                            "String concatenation not yet supported in Z3 solver".to_string()
+                        ));
+                    }
+                    Ok(result)
+                }
+            }
+            
+            SymbolicValue::List(_) => {
+                // Lists would require Z3's array/sequence theory
+                Err(ContractError::Other(
+                    "List operations not yet supported in Z3 solver".to_string()
+                ))
+            }
+            
+            SymbolicValue::Map(_) => {
+                // Maps would require Z3's array theory
+                Err(ContractError::Other(
+                    "Map operations not yet supported in Z3 solver".to_string()
+                ))
+            }
+            
+            SymbolicValue::ListOp { .. } => {
+                // List operations would require Z3's array/sequence theory
+                Err(ContractError::Other(
+                    "List operations not yet supported in Z3 solver".to_string()
+                ))
             }
             
             _ => Err(ContractError::Other(

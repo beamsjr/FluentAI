@@ -4,6 +4,10 @@
 mod implementation {
     use z3::{Config, Context, Solver, SatResult, ast::Ast};
     use claudelang_core::ast::{Graph, NodeId};
+    use lru::LruCache;
+    use std::num::NonZeroUsize;
+    use std::hash::{Hash, Hasher};
+    use std::collections::hash_map::DefaultHasher;
 
     use crate::{
         contract::Contract,
@@ -11,13 +15,50 @@ mod implementation {
         z3_converter::{Z3Converter, Z3Sort, Z3Expr},
     };
 
+    /// Cache key for verification results
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+    struct CacheKey {
+        contract_hash: u64,
+        graph_hash: u64,
+    }
+    
+    /// Resource limits for verification
+    #[derive(Debug, Clone)]
+    pub struct ResourceLimits {
+        /// Timeout in seconds
+        pub timeout: u64,
+        /// Memory limit in MB
+        pub memory_limit_mb: usize,
+        /// Maximum solver iterations
+        pub max_iterations: Option<usize>,
+        /// Maximum depth for recursive verification
+        pub max_depth: usize,
+    }
+    
+    impl Default for ResourceLimits {
+        fn default() -> Self {
+            Self {
+                timeout: 30,
+                memory_limit_mb: 512,
+                max_iterations: None,
+                max_depth: 100,
+            }
+        }
+    }
+
     /// Static contract verifier using Z3
     pub struct StaticVerifier {
         /// Z3 context
         context: Context,
         
-        /// Timeout for verification (in seconds)
-        timeout: u64,
+        /// Resource limits
+        limits: ResourceLimits,
+        
+        /// Cache for verification results
+        cache: LruCache<CacheKey, VerificationResult>,
+        
+        /// Current recursion depth
+        current_depth: std::cell::Cell<usize>,
     }
 
     /// Result of static verification
@@ -57,22 +98,152 @@ mod implementation {
             
             Self {
                 context,
-                timeout: 30, // Default 30 second timeout
+                limits: ResourceLimits::default(),
+                cache: LruCache::new(NonZeroUsize::new(100).unwrap()), // Cache up to 100 results
+                current_depth: std::cell::Cell::new(0),
+            }
+        }
+        
+        /// Create a new static verifier with custom cache size
+        pub fn with_cache_size(cache_size: usize) -> Self {
+            let config = Config::new();
+            let context = Context::new(&config);
+            
+            Self {
+                context,
+                limits: ResourceLimits::default(),
+                cache: LruCache::new(NonZeroUsize::new(cache_size.max(1)).unwrap()),
+                current_depth: std::cell::Cell::new(0),
+            }
+        }
+        
+        /// Create with custom resource limits
+        pub fn with_limits(limits: ResourceLimits) -> Self {
+            let mut config = Config::new();
+            // Set Z3 memory limit
+            config.set_param_value("memory_high_watermark", &limits.memory_limit_mb.to_string());
+            let context = Context::new(&config);
+            
+            Self {
+                context,
+                limits,
+                cache: LruCache::new(NonZeroUsize::new(100).unwrap()),
+                current_depth: std::cell::Cell::new(0),
             }
         }
         
         /// Set verification timeout in seconds
         pub fn set_timeout(&mut self, timeout: u64) {
-            self.timeout = timeout;
+            self.limits.timeout = timeout;
+        }
+        
+        /// Set memory limit in MB
+        pub fn set_memory_limit(&mut self, memory_mb: usize) {
+            self.limits.memory_limit_mb = memory_mb;
+        }
+        
+        /// Get current resource limits
+        pub fn limits(&self) -> &ResourceLimits {
+            &self.limits
+        }
+        
+        /// Clear the verification cache
+        pub fn clear_cache(&mut self) {
+            self.cache.clear();
+        }
+        
+        /// Get cache statistics
+        pub fn cache_stats(&self) -> (usize, usize) {
+            (self.cache.len(), self.cache.cap().get())
+        }
+        
+        /// Compute hash for a contract
+        fn hash_contract(contract: &Contract) -> u64 {
+            let mut hasher = DefaultHasher::new();
+            // Hash relevant contract fields
+            contract.function_name.hash(&mut hasher);
+            contract.preconditions.len().hash(&mut hasher);
+            contract.postconditions.len().hash(&mut hasher);
+            contract.invariants.len().hash(&mut hasher);
+            contract.pure.hash(&mut hasher);
+            // Hash condition expressions
+            for cond in &contract.preconditions {
+                cond.expression.get().hash(&mut hasher);
+                cond.kind.hash(&mut hasher);
+            }
+            for cond in &contract.postconditions {
+                cond.expression.get().hash(&mut hasher);
+                cond.kind.hash(&mut hasher);
+            }
+            for cond in &contract.invariants {
+                cond.expression.get().hash(&mut hasher);
+                cond.kind.hash(&mut hasher);
+            }
+            hasher.finish()
+        }
+        
+        /// Compute hash for a graph (simplified)
+        fn hash_graph(graph: &Graph) -> u64 {
+            let mut hasher = DefaultHasher::new();
+            graph.nodes.len().hash(&mut hasher);
+            if let Some(root) = graph.root_id {
+                root.get().hash(&mut hasher);
+            }
+            hasher.finish()
         }
         
         /// Verify a contract statically (requires the AST graph)
-        pub fn verify_contract(&self, contract: &Contract, graph: &Graph) -> ContractResult<VerificationResult> {
+        pub fn verify_contract(&mut self, contract: &Contract, graph: &Graph) -> ContractResult<VerificationResult> {
+            // Check recursion depth
+            let depth = self.current_depth.get();
+            if depth >= self.limits.max_depth {
+                return Ok(VerificationResult::Unknown(
+                    format!("Maximum recursion depth {} exceeded", self.limits.max_depth)
+                ));
+            }
+            
+            // Increment depth
+            self.current_depth.set(depth + 1);
+            
+            // Check cache first
+            let cache_key = CacheKey {
+                contract_hash: Self::hash_contract(contract),
+                graph_hash: Self::hash_graph(graph),
+            };
+            
+            if let Some(cached_result) = self.cache.get(&cache_key) {
+                tracing::debug!("Cache hit for contract verification");
+                self.current_depth.set(depth); // Restore depth
+                return Ok(cached_result.clone());
+            }
+            
+            tracing::debug!("Cache miss for contract verification, computing...");
+            let result = self.verify_contract_uncached(contract, graph);
+            
+            // Restore depth
+            self.current_depth.set(depth);
+            
+            // Store in cache if successful
+            if let Ok(ref res) = result {
+                self.cache.put(cache_key, res.clone());
+            }
+            
+            result
+        }
+        
+        /// Internal verification without caching
+        fn verify_contract_uncached(&self, contract: &Contract, graph: &Graph) -> ContractResult<VerificationResult> {
             let solver = Solver::new(&self.context);
             
-            // Set timeout
+            // Set timeout and other solver parameters
             let params = z3::Params::new(&self.context);
-            params.set_u32("timeout", self.timeout as u32 * 1000);
+            params.set_u32("timeout", self.limits.timeout as u32 * 1000);
+            
+            // Set max iterations if specified
+            if let Some(max_iter) = self.limits.max_iterations {
+                params.set_u32("max_iterations", max_iter as u32);
+            }
+            
             solver.set_params(&params);
             
             // If no conditions, trivially verified

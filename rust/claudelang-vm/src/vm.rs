@@ -2,7 +2,10 @@
 
 use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
 use crate::debug::{VMDebugEvent, DebugConfig, StepMode};
+use crate::safety::{IdGenerator, PromiseId, ChannelId, ResourceLimits, checked_ops};
+use crate::error::{StackTrace, StackFrame};
 use anyhow::{anyhow, Result};
+use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 use claudelang_effects::{EffectContext, runtime::EffectRuntime};
 use claudelang_stdlib::{StdlibRegistry, init_stdlib};
@@ -24,13 +27,14 @@ pub struct VM {
     bytecode: Bytecode,
     stack: Vec<Value>,
     call_stack: Vec<CallFrame>,
-    globals: HashMap<String, Value>,
+    globals: FxHashMap<String, Value>,
     trace: bool,
     effect_context: Arc<EffectContext>,
     effect_runtime: Arc<EffectRuntime>,
-    // Async support
-    promises: HashMap<String, oneshot::Receiver<Result<Value>>>,
-    channels: HashMap<String, (mpsc::UnboundedSender<Value>, mpsc::UnboundedReceiver<Value>)>,
+    // Async support with typed IDs
+    id_generator: IdGenerator,
+    promises: FxHashMap<PromiseId, oneshot::Receiver<Result<Value>>>,
+    channels: FxHashMap<ChannelId, (mpsc::Sender<Value>, mpsc::Receiver<Value>)>,
     // Mutable cells
     cells: Vec<Value>,
     // Standard library
@@ -39,12 +43,14 @@ pub struct VM {
     module_loader: ModuleLoader,
     #[allow(dead_code)]
     module_resolver: ModuleResolver,
-    loaded_modules: HashMap<String, Value>, // Cache of loaded modules
+    loaded_modules: FxHashMap<String, Value>, // Cache of loaded modules
     current_module: Option<String>, // Name of currently executing module
     module_stack: Vec<String>, // Stack of module names for nested module execution
     // Debug support
     debug_config: DebugConfig,
     instruction_count: u64,
+    // Resource limits
+    resource_limits: ResourceLimits,
 }
 
 impl VM {
@@ -53,21 +59,23 @@ impl VM {
             bytecode,
             stack: Vec::with_capacity(STACK_SIZE),
             call_stack: Vec::new(),
-            globals: HashMap::new(),
+            globals: FxHashMap::default(),
             trace: false,
             effect_context: Arc::new(EffectContext::default()),
             effect_runtime: Arc::new(EffectRuntime::default()),
-            promises: HashMap::new(),
-            channels: HashMap::new(),
+            id_generator: IdGenerator::new(),
+            promises: FxHashMap::default(),
+            channels: FxHashMap::default(),
             cells: Vec::new(),
             stdlib: init_stdlib(),
             module_loader: ModuleLoader::new(claudelang_modules::ModuleConfig::default()),
             module_resolver: ModuleResolver::new(ModuleLoader::new(claudelang_modules::ModuleConfig::default())),
-            loaded_modules: HashMap::new(),
+            loaded_modules: FxHashMap::default(),
             current_module: None,
             module_stack: Vec::new(),
             debug_config: DebugConfig::default(),
             instruction_count: 0,
+            resource_limits: ResourceLimits::default(),
         }
     }
     
@@ -111,7 +119,7 @@ impl VM {
         &self.stack
     }
     
-    pub fn get_globals(&self) -> &HashMap<String, Value> {
+    pub fn get_globals(&self) -> &FxHashMap<String, Value> {
         &self.globals
     }
     
@@ -282,67 +290,52 @@ impl VM {
             
             // Arithmetic
             Add => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => Ok(Value::Int(x + y)),
+                (Value::Int(x), Value::Int(y)) => checked_ops::add_i64(x, y).map(Value::Int),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x + y)),
                 (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
                 _ => Err(anyhow!("Type error in add")),
             })?,
             
             Sub => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => Ok(Value::Int(x - y)),
+                (Value::Int(x), Value::Int(y)) => checked_ops::sub_i64(x, y).map(Value::Int),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x - y)),
                 _ => Err(anyhow!("Type error in sub")),
             })?,
             
             Mul => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => Ok(Value::Int(x * y)),
+                (Value::Int(x), Value::Int(y)) => checked_ops::mul_i64(x, y).map(Value::Int),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x * y)),
                 _ => Err(anyhow!("Type error in mul")),
             })?,
             
             Div => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => {
-                    if y == 0 {
-                        Err(anyhow!("Division by zero"))
-                    } else {
-                        Ok(Value::Int(x / y))
-                    }
-                }
+                (Value::Int(x), Value::Int(y)) => checked_ops::div_i64(x, y).map(Value::Int),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x / y)),
                 _ => Err(anyhow!("Type error in div")),
             })?,
             
             Mod => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => {
-                    if y == 0 {
-                        Err(anyhow!("Modulo by zero"))
-                    } else {
-                        Ok(Value::Int(x % y))
-                    }
-                }
+                (Value::Int(x), Value::Int(y)) => checked_ops::mod_i64(x, y).map(Value::Int),
                 _ => Err(anyhow!("Type error in mod")),
             })?,
             
             Neg => {
                 let value = self.pop()?;
                 match value {
-                    Value::Int(x) => self.push(Value::Int(-x))?,
+                    Value::Int(x) => {
+                        let negated = checked_ops::neg_i64(x)?;
+                        self.push(Value::Int(negated))?
+                    }
                     Value::Float(x) => self.push(Value::Float(-x))?,
                     _ => return Err(anyhow!("Type error in neg")),
                 }
             }
             
             // Type-specialized arithmetic
-            AddInt => self.binary_int_op(|x, y| Ok(x + y))?,
-            SubInt => self.binary_int_op(|x, y| Ok(x - y))?,
-            MulInt => self.binary_int_op(|x, y| Ok(x * y))?,
-            DivInt => self.binary_int_op(|x, y| {
-                if y == 0 {
-                    Err(anyhow!("Division by zero"))
-                } else {
-                    Ok(x / y)
-                }
-            })?,
+            AddInt => self.binary_int_op(|x, y| checked_ops::add_i64(x, y))?,
+            SubInt => self.binary_int_op(|x, y| checked_ops::sub_i64(x, y))?,
+            MulInt => self.binary_int_op(|x, y| checked_ops::mul_i64(x, y))?,
+            DivInt => self.binary_int_op(|x, y| checked_ops::div_i64(x, y))?,
             
             // Comparison
             Eq => {
@@ -797,7 +790,7 @@ impl VM {
                 };
                 
                 // Generate a promise ID
-                let promise_id = uuid::Uuid::new_v4().to_string();
+                let promise_id = self.id_generator.next_promise_id();
                 
                 // Convert VM values to core values
                 let core_args: Vec<claudelang_core::value::Value> = args.iter()
@@ -808,7 +801,7 @@ impl VM {
                 let (tx, rx) = oneshot::channel();
                 
                 // Store the receiver
-                self.promises.insert(promise_id.clone(), rx);
+                self.promises.insert(promise_id, rx);
                 
                 // Create the async task
                 let effect_context = self.effect_context.clone();
@@ -836,16 +829,20 @@ impl VM {
                 // Spawn the task on the runtime
                 runtime.spawn(future);
                 
-                // Return the promise ID
-                self.push(Value::Promise(promise_id))?;
+                // Return the promise ID as string for compatibility
+                self.push(Value::Promise(promise_id.to_string()))?;
             }
             
             Await => {
                 // Pop promise
-                let promise_id = match self.pop()? {
+                let promise_id_str = match self.pop()? {
                     Value::Promise(id) => id,
                     _ => return Err(anyhow!("Await requires a promise")),
                 };
+                
+                // Convert string ID to typed ID
+                let promise_id = PromiseId::from_string(&promise_id_str)
+                    .ok_or_else(|| anyhow!("Invalid promise ID format: {}", promise_id_str))?;
                 
                 // Check if we have this promise
                 if let Some(mut rx) = self.promises.remove(&promise_id) {
@@ -855,8 +852,8 @@ impl VM {
                         Ok(Err(e)) => return Err(e),
                         Err(oneshot::error::TryRecvError::Empty) => {
                             // Not ready yet, put it back and return the promise
-                            self.promises.insert(promise_id.clone(), rx);
-                            self.push(Value::Promise(promise_id))?;
+                            self.promises.insert(promise_id, rx);
+                            self.push(Value::Promise(promise_id_str))?;
                         }
                         Err(oneshot::error::TryRecvError::Closed) => {
                             return Err(anyhow!("Promise channel closed"));
@@ -873,47 +870,63 @@ impl VM {
                 
                 // For now, we'll create a placeholder goroutine
                 // In a real implementation, this would spawn a new VM instance
-                let goroutine_id = uuid::Uuid::new_v4().to_string();
+                let task_id = self.id_generator.next_task_id();
                 
                 // Return a promise that represents the goroutine
-                self.push(Value::Promise(goroutine_id))?;
+                self.push(Value::Promise(task_id.to_string()))?;
             }
             
             Channel => {
-                // Create a new channel
-                let channel_id = uuid::Uuid::new_v4().to_string();
-                let (tx, rx) = mpsc::unbounded_channel();
-                self.channels.insert(channel_id.clone(), (tx, rx));
-                self.push(Value::Channel(channel_id))?;
+                // Check resource limit
+                if self.channels.len() >= self.resource_limits.max_channels {
+                    return Err(anyhow!("Channel limit exceeded: {}", self.resource_limits.max_channels));
+                }
+                
+                // Create a new channel with bounded capacity
+                let channel_id = self.id_generator.next_channel_id();
+                let (tx, rx) = mpsc::channel(self.resource_limits.channel_buffer_size);
+                self.channels.insert(channel_id, (tx, rx));
+                self.push(Value::Channel(channel_id.to_string()))?;
             }
             
             Send => {
                 // Pop value and channel
                 let value = self.pop()?;
-                let channel = match self.pop()? {
+                let channel_str = match self.pop()? {
                     Value::Channel(id) => id,
                     _ => return Err(anyhow!("Send requires a channel")),
                 };
                 
+                // Convert string ID to typed ID
+                let channel_id = ChannelId::from_string(&channel_str)
+                    .ok_or_else(|| anyhow!("Invalid channel ID format: {}", channel_str))?;
+                
                 // Get the channel sender
-                if let Some((tx, _)) = self.channels.get(&channel) {
-                    tx.send(value)
-                        .map_err(|_| anyhow!("Channel closed"))?;
+                if let Some((tx, _)) = self.channels.get(&channel_id) {
+                    tx.try_send(value)
+                        .map_err(|e| match e {
+                            mpsc::error::TrySendError::Full(_) => anyhow!("Channel buffer full"),
+                            mpsc::error::TrySendError::Closed(_) => anyhow!("Channel closed"),
+                        })?;
                     self.push(Value::Nil)?;
                 } else {
-                    return Err(anyhow!("Unknown channel"));
+                    return Err(anyhow!("Unknown channel: {}", channel_str));
                 }
             }
             
             Receive => {
                 // Pop channel
-                let channel = match self.pop()? {
+                let channel_str = match self.pop()? {
                     Value::Channel(id) => id,
                     _ => return Err(anyhow!("Receive requires a channel")),
                 };
                 
+                // Convert string ID to typed ID
+                let channel_id = ChannelId::from_string(&channel_str)
+                    .ok_or_else(|| anyhow!("Invalid channel ID format: {}", channel_str))?;
+                
                 // Try to receive non-blocking
-                if let Some((_, rx)) = self.channels.get_mut(&channel) {
+                if let Some((_, rx)) = self.channels.get_mut(&channel_id) {
                     match rx.try_recv() {
                         Ok(value) => self.push(value)?,
                         Err(mpsc::error::TryRecvError::Empty) => {
@@ -925,7 +938,7 @@ impl VM {
                         }
                     }
                 } else {
-                    return Err(anyhow!("Unknown channel"));
+                    return Err(anyhow!("Unknown channel: {}", channel_str));
                 }
             }
             
@@ -1067,6 +1080,11 @@ impl VM {
             
             // Mutable cells
             MakeCell => {
+                // Check resource limit
+                if self.cells.len() >= self.resource_limits.max_cells {
+                    return Err(anyhow!("Cell limit exceeded: {}", self.resource_limits.max_cells));
+                }
+                
                 let initial_value = self.pop()?;
                 let cell_idx = self.cells.len();
                 self.cells.push(initial_value);
@@ -1690,6 +1708,31 @@ impl VM {
     
     pub fn get_global(&self, name: &str) -> Option<&Value> {
         self.globals.get(name)
+    }
+    
+    /// Build a stack trace from current call stack
+    pub fn build_stack_trace(&self) -> StackTrace {
+        let mut trace = StackTrace::new();
+        
+        for frame in &self.call_stack {
+            let function_name = self.bytecode.chunks.get(frame.chunk_id)
+                .and_then(|chunk| chunk.name.clone())
+                .unwrap_or_else(|| format!("<anonymous:{}>", frame.chunk_id));
+            
+            trace.push_frame(StackFrame {
+                function_name,
+                chunk_id: frame.chunk_id,
+                ip: frame.ip,
+                location: None, // TODO: Add source mapping
+            });
+        }
+        
+        trace
+    }
+    
+    /// Set resource limits
+    pub fn set_resource_limits(&mut self, limits: ResourceLimits) {
+        self.resource_limits = limits;
     }
 }
 

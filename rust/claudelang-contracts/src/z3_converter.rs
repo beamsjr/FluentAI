@@ -20,6 +20,8 @@ pub mod implementation {
         Bool(Bool<'ctx>),
         Int(Int<'ctx>),
         Real(Real<'ctx>),
+        Array(z3::ast::Array<'ctx>),
+        String(z3::ast::String<'ctx>),
     }
     
     impl<'ctx> Z3Converter<'ctx> {
@@ -38,6 +40,7 @@ pub mod implementation {
                 Z3Sort::Bool => Z3Expr::Bool(Bool::new_const(self.context, name)),
                 Z3Sort::Int => Z3Expr::Int(Int::new_const(self.context, name)),
                 Z3Sort::Real => Z3Expr::Real(Real::new_const(self.context, name)),
+                Z3Sort::String => Z3Expr::String(z3::ast::String::new_const(self.context, name)),
             };
             self.variables.insert(name.to_string(), expr.clone());
             expr
@@ -99,9 +102,14 @@ pub mod implementation {
                     "-" => self.convert_binary_arith(args, |a, b| a - b),
                     "*" => self.convert_binary_arith(args, |a, b| a * b),
                     "/" => self.convert_binary_arith(args, |a, b| a / b),
+                    "mod" | "modulo" | "%" => self.convert_modulo(args),
+                    "abs" => self.convert_abs(args),
+                    "min" => self.convert_min_max(args, true),
+                    "max" => self.convert_min_max(args, false),
                     
                     // Comparison operators
-                    "=" | "==" => self.convert_comparison(args, |a, b| a._eq(&b)),
+                    "=" | "==" | "eq?" => self.convert_comparison(args, |a, b| a._eq(&b)),
+                    "!=" | "<>" | "not=" => self.convert_not_equal(args),
                     "<" => self.convert_comparison(args, |a, b| a.lt(&b)),
                     "<=" => self.convert_comparison(args, |a, b| a.le(&b)),
                     ">" => self.convert_comparison(args, |a, b| a.gt(&b)),
@@ -111,6 +119,24 @@ pub mod implementation {
                     "and" => self.convert_logical(args, |a, b| a & b),
                     "or" => self.convert_logical(args, |a, b| a | b),
                     "not" => self.convert_not(args),
+                    "xor" => self.convert_logical(args, |a, b| a.xor(&b)),
+                    "implies" | "=>" => self.convert_logical(args, |a, b| a.implies(&b)),
+                    
+                    // Predicates
+                    "zero?" => self.convert_zero_pred(args),
+                    "positive?" => self.convert_positive_pred(args),
+                    "negative?" => self.convert_negative_pred(args),
+                    "even?" => self.convert_even_pred(args),
+                    "odd?" => self.convert_odd_pred(args),
+                    
+                    // List/Array operations
+                    "length" | "list-length" => self.convert_length(args),
+                    "nth" | "list-ref" => self.convert_nth(args),
+                    "member?" | "member" => self.convert_member(args),
+                    "null?" | "empty?" => self.convert_null_pred(args),
+                    
+                    // Contract-specific functions
+                    "old" => self.convert_old(args),
                     
                     _ => Err(ContractError::InvalidExpression(
                         format!("Unknown operator: {}", name)
@@ -206,6 +232,286 @@ pub mod implementation {
                 ))
             }
         }
+        
+        /// Convert modulo operation
+        fn convert_modulo(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Modulo operator expects 2 arguments, got {}", args.len())
+                ));
+            }
+            
+            let left = self.convert_node(args[0])?;
+            let right = self.convert_node(args[1])?;
+            
+            match (left, right) {
+                (Z3Expr::Int(l), Z3Expr::Int(r)) => Ok(Z3Expr::Int(l.rem(&r))),
+                _ => Err(ContractError::InvalidExpression(
+                    "Modulo operator requires integer arguments".to_string()
+                ))
+            }
+        }
+        
+        /// Convert absolute value
+        fn convert_abs(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Abs function expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            let arg = self.convert_node(args[0])?;
+            
+            match arg {
+                Z3Expr::Int(n) => {
+                    let zero = Int::from_i64(self.context, 0);
+                    let neg_n = -n.clone();
+                    let cond = n.ge(&zero);
+                    Ok(Z3Expr::Int(cond.ite(&n, &neg_n)))
+                }
+                Z3Expr::Real(r) => {
+                    let zero = Real::from_real(self.context, 0, 1);
+                    let neg_r = -r.clone();
+                    let cond = r.ge(&zero);
+                    Ok(Z3Expr::Real(cond.ite(&r, &neg_r)))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "Abs function requires numeric argument".to_string()
+                ))
+            }
+        }
+        
+        /// Convert min/max functions
+        fn convert_min_max(&self, args: &[NodeId], is_min: bool) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("{} function expects 2 arguments, got {}", 
+                        if is_min { "Min" } else { "Max" }, args.len())
+                ));
+            }
+            
+            let left = self.convert_node(args[0])?;
+            let right = self.convert_node(args[1])?;
+            
+            match (left, right) {
+                (Z3Expr::Int(l), Z3Expr::Int(r)) => {
+                    let cond = if is_min { l.le(&r) } else { l.ge(&r) };
+                    Ok(Z3Expr::Int(cond.ite(&l, &r)))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    format!("{} function requires integer arguments", 
+                        if is_min { "Min" } else { "Max" })
+                ))
+            }
+        }
+        
+        /// Convert not-equal comparison
+        fn convert_not_equal(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Not-equal operator expects 2 arguments, got {}", args.len())
+                ));
+            }
+            
+            let left = self.convert_node(args[0])?;
+            let right = self.convert_node(args[1])?;
+            
+            match (left, right) {
+                (Z3Expr::Int(l), Z3Expr::Int(r)) => Ok(Z3Expr::Bool(l._eq(&r).not())),
+                (Z3Expr::Bool(l), Z3Expr::Bool(r)) => Ok(Z3Expr::Bool(l._eq(&r).not())),
+                _ => Err(ContractError::InvalidExpression(
+                    "Not-equal operator requires matching argument types".to_string()
+                ))
+            }
+        }
+        
+        /// Convert zero predicate
+        fn convert_zero_pred(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("zero? predicate expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            let arg = self.convert_node(args[0])?;
+            
+            match arg {
+                Z3Expr::Int(n) => {
+                    let zero = Int::from_i64(self.context, 0);
+                    Ok(Z3Expr::Bool(n._eq(&zero)))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "zero? predicate requires integer argument".to_string()
+                ))
+            }
+        }
+        
+        /// Convert positive predicate
+        fn convert_positive_pred(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("positive? predicate expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            let arg = self.convert_node(args[0])?;
+            
+            match arg {
+                Z3Expr::Int(n) => {
+                    let zero = Int::from_i64(self.context, 0);
+                    Ok(Z3Expr::Bool(n.gt(&zero)))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "positive? predicate requires integer argument".to_string()
+                ))
+            }
+        }
+        
+        /// Convert negative predicate
+        fn convert_negative_pred(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("negative? predicate expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            let arg = self.convert_node(args[0])?;
+            
+            match arg {
+                Z3Expr::Int(n) => {
+                    let zero = Int::from_i64(self.context, 0);
+                    Ok(Z3Expr::Bool(n.lt(&zero)))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "negative? predicate requires integer argument".to_string()
+                ))
+            }
+        }
+        
+        /// Convert even predicate
+        fn convert_even_pred(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("even? predicate expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            let arg = self.convert_node(args[0])?;
+            
+            match arg {
+                Z3Expr::Int(n) => {
+                    let two = Int::from_i64(self.context, 2);
+                    let zero = Int::from_i64(self.context, 0);
+                    let remainder = n.rem(&two);
+                    Ok(Z3Expr::Bool(remainder._eq(&zero)))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "even? predicate requires integer argument".to_string()
+                ))
+            }
+        }
+        
+        /// Convert odd predicate
+        fn convert_odd_pred(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("odd? predicate expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            let arg = self.convert_node(args[0])?;
+            
+            match arg {
+                Z3Expr::Int(n) => {
+                    let two = Int::from_i64(self.context, 2);
+                    let zero = Int::from_i64(self.context, 0);
+                    let remainder = n.rem(&two);
+                    Ok(Z3Expr::Bool(remainder._eq(&zero).not()))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "odd? predicate requires integer argument".to_string()
+                ))
+            }
+        }
+        
+        /// Convert old() function (placeholder - needs proper implementation)
+        fn convert_old(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("old() function expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            // For now, we'll just convert the argument normally
+            // In a full implementation, this would look up the pre-state value
+            self.convert_node(args[0])
+        }
+        
+        /// Convert length function (simplified - returns symbolic length)
+        fn convert_length(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("length function expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            // For now, we'll create a symbolic integer representing the length
+            // In a full implementation, this would track array/list lengths
+            let length_var = Int::new_const(self.context, "list_length");
+            let zero = Int::from_i64(self.context, 0);
+            
+            // Add constraint that length >= 0
+            // This would be asserted in the solver
+            Ok(Z3Expr::Int(length_var))
+        }
+        
+        /// Convert nth/list-ref function (simplified)
+        fn convert_nth(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("nth function expects 2 arguments, got {}", args.len())
+                ));
+            }
+            
+            // For now, return a symbolic value
+            // In a full implementation, this would use Z3 array theory
+            Ok(Z3Expr::Int(Int::new_const(self.context, "list_element")))
+        }
+        
+        /// Convert member predicate (simplified)
+        fn convert_member(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("member? predicate expects 2 arguments, got {}", args.len())
+                ));
+            }
+            
+            // For now, return a symbolic boolean
+            // In a full implementation, this would use quantifiers
+            Ok(Z3Expr::Bool(Bool::new_const(self.context, "is_member")))
+        }
+        
+        /// Convert null/empty predicate
+        fn convert_null_pred(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("null? predicate expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            // For now, check if length is zero
+            // In a full implementation, this would check the actual list
+            let length = self.convert_length(args)?;
+            match length {
+                Z3Expr::Int(len) => {
+                    let zero = Int::from_i64(self.context, 0);
+                    Ok(Z3Expr::Bool(len._eq(&zero)))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "Invalid list for null? check".to_string()
+                ))
+            }
+        }
     }
     
     /// Z3 sort types
@@ -214,6 +520,9 @@ pub mod implementation {
         Bool,
         Int,
         Real,
+        String,
+        // Note: Array sorts would need to store index and element sorts
+        // For now we keep it simple
     }
     
     impl<'ctx> Clone for Z3Expr<'ctx> {
@@ -222,6 +531,8 @@ pub mod implementation {
                 Z3Expr::Bool(b) => Z3Expr::Bool(b.clone()),
                 Z3Expr::Int(i) => Z3Expr::Int(i.clone()),
                 Z3Expr::Real(r) => Z3Expr::Real(r.clone()),
+                Z3Expr::Array(a) => Z3Expr::Array(a.clone()),
+                Z3Expr::String(s) => Z3Expr::String(s.clone()),
             }
         }
     }

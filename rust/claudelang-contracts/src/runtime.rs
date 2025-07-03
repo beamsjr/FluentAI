@@ -13,6 +13,7 @@ use crate::{
     contract::{Contract, ContractCondition},
     errors::{ContractError, ContractResult, ContractViolation},
     evaluator::ConditionEvaluator,
+    purity::PurityChecker,
 };
 
 /// Runtime contract verifier
@@ -88,6 +89,22 @@ impl RuntimeVerifier {
     pub fn register_contract(&mut self, contract: Contract) {
         debug!("Registering contract for function: {}", contract.function_name);
         self.contracts.insert(contract.function_name.clone(), contract);
+    }
+    
+    /// Register a contract with purity validation
+    pub fn register_contract_validated(&mut self, contract: Contract) -> ContractResult<()> {
+        debug!("Registering and validating contract for function: {}", contract.function_name);
+        
+        // Validate purity of contract expressions if we have an AST graph
+        if let Some(ref graph) = self.ast_graph {
+            let mut purity_checker = PurityChecker::new(graph);
+            purity_checker.validate_contract_purity(&contract)?;
+        } else {
+            debug!("Skipping purity validation - no AST graph available");
+        }
+        
+        self.contracts.insert(contract.function_name.clone(), contract);
+        Ok(())
     }
     
     /// Check if a function has a contract
@@ -196,11 +213,13 @@ impl RuntimeVerifier {
                 let message = condition.message.clone()
                     .unwrap_or_else(|| format!("Contract {:?} violated", condition.kind));
                 
-                Err(ContractError::Violation(ContractViolation::new(
+                Err(ContractError::Violation(ContractViolation::with_details(
                     condition.kind,
                     Some(contract.function_name.clone()),
                     message,
                     condition.expression,
+                    condition.span,
+                    condition.blame_label.clone(),
                 )))
             }
             Err(e) => Err(e),
@@ -226,6 +245,8 @@ impl RuntimeVerifier {
                 function: function_name.to_string(),
                 message: "Function marked as pure but had side effects".to_string(),
                 node_id: contract.node_id,
+                span: None,
+                blame_label: None,
             }));
         }
         

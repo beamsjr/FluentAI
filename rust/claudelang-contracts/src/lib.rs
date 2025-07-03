@@ -6,12 +6,19 @@
 pub mod contract;
 pub mod errors;
 pub mod evaluator;
+pub mod purity;
 pub mod runtime;
 pub mod static_verification;
 pub mod proof;
 pub mod proof_generator;
 pub mod vm_integration;
 pub mod symbolic_execution;
+pub mod simplify;
+pub mod test_generation;
+pub mod visualization;
+pub mod symbolic_verification;
+pub mod counterexample;
+pub mod parallel_execution;
 pub mod inheritance;
 
 #[cfg(feature = "static")]
@@ -20,11 +27,16 @@ pub mod z3_converter;
 #[cfg(feature = "static")]
 pub mod symbolic_z3;
 
+#[cfg(feature = "static")]
+pub mod incremental_solver;
+
 pub use contract::{Contract, ContractCondition, ContractKind};
 pub use errors::{ContractError, ContractViolation};
+pub use purity::PurityChecker;
 pub use runtime::{RuntimeVerifier, VerificationContext};
 pub use vm_integration::{ContractVM, ContractRegistry};
-pub use symbolic_execution::{SymbolicExecutor, SymbolicValue, SymbolicState, SymbolicVerificationResult};
+pub use symbolic_execution::{SymbolicExecutor, SymbolicValue, SymbolicState};
+pub use symbolic_verification::{SymbolicContractVerifier, SymbolicVerificationResult};
 
 #[cfg(feature = "static")]
 pub use static_verification::{StaticVerifier, VerificationResult};

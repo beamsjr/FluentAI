@@ -9,6 +9,8 @@ pub mod stdlib_bridge;
 pub mod builder;
 pub mod di;
 pub mod debug;
+pub mod safety;
+pub mod error;
 
 pub use vm::VM;
 pub use bytecode::{Bytecode, Opcode};

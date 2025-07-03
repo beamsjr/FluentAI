@@ -13,8 +13,11 @@ use crate::contract::{Contract, ContractCondition};
 pub enum SymbolicValue {
     /// Concrete value
     Concrete(Literal),
-    /// Symbolic variable with a unique identifier
-    Symbolic(String),
+    /// Symbolic variable with a unique identifier and optional type hint
+    Symbolic {
+        name: String,
+        ty: Option<SymbolicType>,
+    },
     /// Binary operation on symbolic values
     BinOp {
         op: String,
@@ -39,8 +42,42 @@ pub enum SymbolicValue {
     },
     /// List of symbolic values
     List(Vec<SymbolicValue>),
+    /// Map/Dictionary of symbolic values
+    Map(Vec<(SymbolicValue, SymbolicValue)>),
+    /// String concatenation
+    StringConcat(Vec<SymbolicValue>),
+    /// List operations
+    ListOp {
+        op: ListOperation,
+        args: Vec<SymbolicValue>,
+    },
     /// Unknown/undefined value
     Unknown,
+}
+
+/// Types for symbolic values
+#[derive(Debug, Clone, PartialEq)]
+pub enum SymbolicType {
+    Integer,
+    Float,
+    Boolean,
+    String,
+    List(Box<SymbolicType>),
+    Map(Box<SymbolicType>, Box<SymbolicType>),
+    Any,
+}
+
+/// List operations for symbolic execution
+#[derive(Debug, Clone, PartialEq)]
+pub enum ListOperation {
+    Cons,
+    Head,
+    Tail,
+    Length,
+    Nth,
+    Append,
+    Filter,
+    Map,
 }
 
 /// Path constraint for symbolic execution
@@ -77,7 +114,14 @@ impl SymbolicState {
     pub fn fresh_symbol(&mut self, prefix: &str) -> SymbolicValue {
         let name = format!("{}_{}", prefix, self.symbol_counter);
         self.symbol_counter += 1;
-        SymbolicValue::Symbolic(name)
+        SymbolicValue::Symbolic { name, ty: None }
+    }
+    
+    /// Generate a fresh symbolic variable with type hint
+    pub fn fresh_symbol_typed(&mut self, prefix: &str, ty: SymbolicType) -> SymbolicValue {
+        let name = format!("{}_{}", prefix, self.symbol_counter);
+        self.symbol_counter += 1;
+        SymbolicValue::Symbolic { name, ty: Some(ty) }
     }
     
     /// Add a path constraint
@@ -281,7 +325,10 @@ impl SymbolicExecutor {
             Node::Variable { name } => {
                 let value = state.bindings.get(name)
                     .cloned()
-                    .unwrap_or(SymbolicValue::Symbolic(name.clone()));
+                    .unwrap_or(SymbolicValue::Symbolic { 
+                        name: name.clone(), 
+                        ty: None 
+                    });
                 Ok(ExecutionResult::Value(state.clone(), value))
             }
             
@@ -352,7 +399,7 @@ impl SymbolicExecutor {
         }
         
         // Handle built-in operations
-        if let SymbolicValue::Symbolic(func_name) = &func_value {
+        if let SymbolicValue::Symbolic { name: func_name, .. } = &func_value {
             match func_name.as_str() {
                 "+" | "-" | "*" | "/" | "%" | 
                 "=" | "!=" | "<" | ">" | "<=" | ">=" |
@@ -375,13 +422,62 @@ impl SymbolicExecutor {
                         return Ok(ExecutionResult::Value(new_state, result));
                     }
                 }
+                // String operations
+                "string-append" | "string-concat" => {
+                    let result = SymbolicValue::StringConcat(arg_values);
+                    return Ok(ExecutionResult::Value(new_state, result));
+                }
+                // List operations
+                "cons" => {
+                    if arg_values.len() == 2 {
+                        let result = SymbolicValue::ListOp {
+                            op: ListOperation::Cons,
+                            args: arg_values,
+                        };
+                        return Ok(ExecutionResult::Value(new_state, result));
+                    }
+                }
+                "car" | "head" => {
+                    if arg_values.len() == 1 {
+                        let result = SymbolicValue::ListOp {
+                            op: ListOperation::Head,
+                            args: arg_values,
+                        };
+                        return Ok(ExecutionResult::Value(new_state, result));
+                    }
+                }
+                "cdr" | "tail" => {
+                    if arg_values.len() == 1 {
+                        let result = SymbolicValue::ListOp {
+                            op: ListOperation::Tail,
+                            args: arg_values,
+                        };
+                        return Ok(ExecutionResult::Value(new_state, result));
+                    }
+                }
+                "length" => {
+                    if arg_values.len() == 1 {
+                        let result = SymbolicValue::ListOp {
+                            op: ListOperation::Length,
+                            args: arg_values,
+                        };
+                        return Ok(ExecutionResult::Value(new_state, result));
+                    }
+                }
+                "append" => {
+                    let result = SymbolicValue::ListOp {
+                        op: ListOperation::Append,
+                        args: arg_values,
+                    };
+                    return Ok(ExecutionResult::Value(new_state, result));
+                }
                 _ => {}
             }
         }
         
         // For other functions, create a symbolic application
         let func_name = match func_value {
-            SymbolicValue::Symbolic(name) => name,
+            SymbolicValue::Symbolic { name, .. } => name,
             _ => "unknown".to_string(),
         };
         

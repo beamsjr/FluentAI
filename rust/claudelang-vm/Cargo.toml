@@ -18,7 +18,6 @@ serde.workspace = true
 byteorder.workspace = true
 rustc-hash.workspace = true
 tokio = { workspace = true, features = ["rt", "sync"] }
-uuid = { version = "1.11", features = ["v4"] }
 
 [dev-dependencies]
 criterion.workspace = true
