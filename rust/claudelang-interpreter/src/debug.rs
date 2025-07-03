@@ -186,7 +186,7 @@ pub struct InteractiveDebugHandler {
     /// Whether we're paused
     paused: bool,
     /// Breakpoints that have been hit
-    hit_breakpoints: HashSet<String>,
+    hit_breakpoints: FxHashSet<String>,
 }
 
 impl InteractiveDebugHandler {
@@ -194,7 +194,7 @@ impl InteractiveDebugHandler {
         Self {
             current_action: DebugAction::Continue,
             paused: false,
-            hit_breakpoints: HashSet::new(),
+            hit_breakpoints: FxHashSet::default(),
         }
     }
 

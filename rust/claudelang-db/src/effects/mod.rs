@@ -4,7 +4,7 @@ use claudelang_effects::EffectHandler;
 use claudelang_core::ast::EffectType;
 use claudelang_core::value::Value as CoreValue;
 use claudelang_core::Result as CoreResult;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
 use tokio::runtime::Handle;
@@ -64,7 +64,7 @@ pub struct DbHandler {
     connection_pool: Arc<RwLock<Option<ConnectionPool>>>,
     current_transaction: Arc<Mutex<Option<Arc<Transaction>>>>,
     transaction_depth: Arc<RwLock<usize>>,
-    prepared_statements: Arc<RwLock<HashMap<String, String>>>,
+    prepared_statements: Arc<RwLock<FxHashMap<String, String>>>,
 }
 
 impl DbHandler {
@@ -73,7 +73,7 @@ impl DbHandler {
             connection_pool: Arc::new(RwLock::new(None)),
             current_transaction: Arc::new(Mutex::new(None)),
             transaction_depth: Arc::new(RwLock::new(0)),
-            prepared_statements: Arc::new(RwLock::new(HashMap::new())),
+            prepared_statements: Arc::new(RwLock::new(FxHashMap::default())),
         }
     }
     
@@ -82,7 +82,7 @@ impl DbHandler {
             connection_pool: Arc::new(RwLock::new(Some(pool))),
             current_transaction: Arc::new(Mutex::new(None)),
             transaction_depth: Arc::new(RwLock::new(0)),
-            prepared_statements: Arc::new(RwLock::new(HashMap::new())),
+            prepared_statements: Arc::new(RwLock::new(FxHashMap::default())),
         }
     }
     
@@ -116,7 +116,7 @@ impl DbHandler {
         let mut result = Vec::new();
         
         for row in rows {
-            let mut row_map = HashMap::new();
+            let mut row_map = FxHashMap::default();
             
             // Iterate through columns
             for (idx, column) in row.columns().iter().enumerate() {
@@ -365,7 +365,7 @@ impl EffectHandler for DbHandler {
                 }
                 
                 DbEffectType::Stats => {
-                    let mut stats = HashMap::new();
+                    let mut stats = FxHashMap::default();
                     let pool_lock = self.connection_pool.read().await;
                     stats.insert("connected".to_string(), CoreValue::Boolean(pool_lock.is_some()));
                     

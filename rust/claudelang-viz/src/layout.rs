@@ -82,18 +82,18 @@ impl ASTLayouter {
                 if let Some(node) = graph.get_node(node_id) {
                     let children = self.get_children(node);
                     nodes.push(NodeLayout {
-                        id: node_id.0,
+                        id: node_id.get(),
                         position,
                         label: self.get_node_label(node),
                         node_type: self.get_node_type(node),
-                        children: children.iter().map(|id| id.0).collect(),
+                        children: children.iter().map(|id| id.get()).collect(),
                     });
                     
                     // Create edges
                     for child_id in children {
                         edges.push(Edge {
-                            source: node_id.0,
-                            target: child_id.0,
+                            source: node_id.get(),
+                            target: child_id.get(),
                             label: None,
                         });
                     }

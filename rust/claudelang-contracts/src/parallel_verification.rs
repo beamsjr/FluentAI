@@ -49,7 +49,6 @@ impl Default for ParallelVerificationConfig {
 pub struct ParallelVerifier<'a> {
     graph: &'a Graph,
     config: ParallelVerificationConfig,
-    resource_limits: ResourceLimits,
 }
 
 impl<'a> ParallelVerifier<'a> {
@@ -58,7 +57,6 @@ impl<'a> ParallelVerifier<'a> {
         Self {
             graph,
             config: ParallelVerificationConfig::default(),
-            resource_limits: ResourceLimits::default(),
         }
     }
     
@@ -68,11 +66,6 @@ impl<'a> ParallelVerifier<'a> {
         self
     }
     
-    /// Set resource limits
-    pub fn with_resource_limits(mut self, limits: ResourceLimits) -> Self {
-        self.resource_limits = limits;
-        self
-    }
     
     /// Verify contracts in parallel
     pub fn verify_contracts_parallel(
