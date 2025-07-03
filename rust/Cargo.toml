@@ -7,7 +7,7 @@ members = [
     "claudelang-lsp",
     "claudelang-jit",
     "claudelang-py",
-    "benchmarks", "claudelang-effects", "claudelang-types", "claudelang-modules", "claudelang-package", "claudelang-mcp", "claudelang-contracts", "claudelang-optimizer",
+    "benchmarks", "claudelang-effects", "claudelang-types", "claudelang-modules", "claudelang-package", "claudelang-mcp", "claudelang-contracts", "claudelang-optimizer", "claudelang-di",
 ]
 resolver = "2"
 

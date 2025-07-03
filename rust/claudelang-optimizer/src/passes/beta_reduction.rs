@@ -1,7 +1,6 @@
 //! Beta reduction pass
 
-use claudelang_core::ast::{Graph, Node, NodeId};
-use rustc_hash::FxHashMap;
+use claudelang_core::ast::Graph;
 use anyhow::Result;
 use crate::passes::OptimizationPass;
 

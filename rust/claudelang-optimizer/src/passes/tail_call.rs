@@ -1,7 +1,6 @@
 //! Tail call optimization pass
 
 use claudelang_core::ast::{Graph, Node, NodeId};
-use rustc_hash::{FxHashMap, FxHashSet};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
 
@@ -17,33 +16,7 @@ impl TailCallOptimizationPass {
     }
 }
 
-impl OptimizationPass for TailCallOptimizationPass {
-    fn name(&self) -> &str {
-        "Tail Call Optimization"
-    }
-
-    fn run(&mut self, graph: &Graph) -> Result<Graph> {
-        self.optimized_count = 0;
-        let mut optimized = graph.clone();
-        
-        // Find tail-recursive functions in letrec bindings
-        for (node_id, node) in &graph.nodes {
-            if let Node::Letrec { bindings, body: _ } = node {
-                for (func_name, func_id) in bindings {
-                    if let Some(Node::Lambda { params: _, body }) = graph.get_node(*func_id) {
-                        if self.is_tail_recursive(graph, func_name, *body) {
-                            // Mark this function for tail call optimization
-                            // In a real implementation, we would transform this to a loop
-                            self.optimized_count += 1;
-                        }
-                    }
-                }
-            }
-        }
-        
-        Ok(optimized)
-    }
-    
+impl TailCallOptimizationPass {
     /// Check if a function body contains tail recursion
     fn is_tail_recursive(&self, graph: &Graph, func_name: &str, body: NodeId) -> bool {
         self.check_tail_position(graph, func_name, body, true)
@@ -75,6 +48,34 @@ impl OptimizationPass for TailCallOptimizationPass {
         } else {
             false
         }
+    }
+}
+
+impl OptimizationPass for TailCallOptimizationPass {
+    fn name(&self) -> &str {
+        "Tail Call Optimization"
+    }
+
+    fn run(&mut self, graph: &Graph) -> Result<Graph> {
+        self.optimized_count = 0;
+        let optimized = graph.clone();
+        
+        // Find tail-recursive functions in letrec bindings
+        for (_node_id, node) in &graph.nodes {
+            if let Node::Letrec { bindings, body: _ } = node {
+                for (func_name, func_id) in bindings {
+                    if let Some(Node::Lambda { params: _, body }) = graph.get_node(*func_id) {
+                        if self.is_tail_recursive(graph, func_name, *body) {
+                            // Mark this function for tail call optimization
+                            // In a real implementation, we would transform this to a loop
+                            self.optimized_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(optimized)
     }
 
     fn stats(&self) -> String {
