@@ -1,5 +1,5 @@
-use claudelang_parser::parse;
-use claudelang_vm::{compiler::Compiler, VM};
+use fluentai_parser::parse;
+use fluentai_vm::{compiler::Compiler, VM};
 
 fn main() {
     // Test 1: Simple closure capture

@@ -1,0 +1,45 @@
+[package]
+name = "fluentai-cli"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "fluentai"
+path = "src/main.rs"
+
+[dependencies]
+# Core dependencies
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+fluentai-vm = { path = "../fluentai-vm" }
+fluentai-package = { path = "../fluentai-package" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
+
+# Optional visualization
+fluentai-viz = { path = "../fluentai-viz", optional = true }
+
+# CLI and async
+clap = { version = "4.5", features = ["derive", "env"] }
+tokio = { workspace = true, features = ["full"] }
+
+# Error handling and logging
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Utilities
+dirs = "5.0"
+toml = "0.8"
+serde.workspace = true
+serde_json.workspace = true
+webbrowser = "1.0"
+
+[features]
+default = ["visualization"]
+visualization = ["fluentai-viz"]
+
+[dev-dependencies]
+tempfile = "3.10"

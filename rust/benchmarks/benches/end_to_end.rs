@@ -1,8 +1,8 @@
 //! End-to-end benchmarks measuring parse + compile + execute performance
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, VM};
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, VM};
 
 fn benchmark_e2e_simple(c: &mut Criterion) {
     let mut group = c.benchmark_group("e2e_simple");

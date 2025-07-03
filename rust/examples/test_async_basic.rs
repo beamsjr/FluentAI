@@ -1,6 +1,6 @@
-use claudelang_parser::parse;
-use claudelang_vm::{compiler::Compiler, vm::VM};
-use claudelang_effects::{EffectContext, EffectRuntime, handlers::IOHandler};
+use fluentai_parser::parse;
+use fluentai_vm::{compiler::Compiler, vm::VM};
+use fluentai_effects::{EffectContext, EffectRuntime, handlers::IOHandler};
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {

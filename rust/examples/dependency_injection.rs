@@ -1,4 +1,4 @@
-//! Example demonstrating dependency injection in ClaudeLang
+//! Example demonstrating dependency injection in FluentAi
 //!
 //! This example shows how to:
 //! 1. Use the DI container for service registration
@@ -11,18 +11,18 @@ use std::collections::HashMap;
 use anyhow::Result;
 
 // Import DI framework
-use claudelang_di::prelude::*;
+use fluentai_di::prelude::*;
 
 // Import VM and builder
-use claudelang_vm::{VMBuilder, VMConfig, VM, Bytecode};
-use claudelang_vm::value::Value;
+use fluentai_vm::{VMBuilder, VMConfig, VM, Bytecode};
+use fluentai_vm::value::Value;
 
 // Import effects
-use claudelang_effects::{EffectContext, EffectRuntime};
+use fluentai_effects::{EffectContext, EffectRuntime};
 
 // Import core traits
-use claudelang_core::traits::{ModuleLoader, EffectHandler, StdlibProvider};
-use claudelang_core::ast::Graph;
+use fluentai_core::traits::{ModuleLoader, EffectHandler, StdlibProvider};
+use fluentai_core::ast::Graph;
 
 /// Custom module loader that loads from memory
 #[derive(Clone)]
@@ -165,7 +165,7 @@ fn setup_vm_with_di() -> Result<VM> {
 /// Example: Using DI with async services
 #[cfg(feature = "async")]
 async fn setup_async_container() -> Result<()> {
-    use claudelang_di::async_container::{AsyncContainer, AsyncContainerBuilder};
+    use fluentai_di::async_container::{AsyncContainer, AsyncContainerBuilder};
     
     let mut builder = AsyncContainerBuilder::new();
     
@@ -188,7 +188,7 @@ async fn setup_async_container() -> Result<()> {
 /// Example: Configuration-based DI
 #[cfg(feature = "config")]
 fn setup_from_config() -> Result<Container> {
-    use claudelang_di::config::ContainerConfig;
+    use fluentai_di::config::ContainerConfig;
     
     let config_toml = r#"
         [[services]]
@@ -263,7 +263,7 @@ impl AsyncService {
 }
 
 fn main() -> Result<()> {
-    println!("=== ClaudeLang Dependency Injection Examples ===\n");
+    println!("=== FluentAi Dependency Injection Examples ===\n");
     
     // Example 1: Basic DI container
     println!("1. Setting up DI container...");
@@ -283,7 +283,7 @@ fn main() -> Result<()> {
     
     // Example 3: Module system
     println!("\n3. Using DI with modules...");
-    use claudelang_di::builder::Module;
+    use fluentai_di::builder::Module;
     
     struct CoreModule;
     impl Module for CoreModule {

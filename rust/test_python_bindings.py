@@ -6,13 +6,13 @@ import time
 # Test imports
 print("Testing imports...")
 try:
-    import claudelang
-    print(f"✓ Import successful, HAS_RUST_EXTENSIONS: {claudelang.HAS_RUST_EXTENSIONS}")
+    import fluentai
+    print(f"✓ Import successful, HAS_RUST_EXTENSIONS: {fluentai.HAS_RUST_EXTENSIONS}")
     
     # Test functions available
-    print(f"✓ Parse function available: {hasattr(claudelang, 'parse')}")
-    print(f"✓ Evaluate function available: {hasattr(claudelang, 'evaluate')}")
-    print(f"✓ Compile function available: {hasattr(claudelang, 'compile_to_bytecode')}")
+    print(f"✓ Parse function available: {hasattr(fluentai, 'parse')}")
+    print(f"✓ Evaluate function available: {hasattr(fluentai, 'evaluate')}")
+    print(f"✓ Compile function available: {hasattr(fluentai, 'compile_to_bytecode')}")
 except ImportError as e:
     print(f"✗ Import failed: {e}")
     exit(1)
@@ -21,7 +21,7 @@ except ImportError as e:
 print("\nTesting parser...")
 try:
     source = "(+ 1 2)"
-    result = claudelang.parse(source)
+    result = fluentai.parse(source)
     print(f"✓ Parse successful: {result}")
     print(f"  Type: {type(result)}")
     print(f"  Root ID: {result.root_id}")
@@ -41,7 +41,7 @@ test_cases = [
 
 for source, expected in test_cases:
     try:
-        result = claudelang.evaluate(source)
+        result = fluentai.evaluate(source)
         if result == expected:
             print(f"✓ {source} = {result}")
         else:
@@ -52,7 +52,7 @@ for source, expected in test_cases:
 # Test bytecode compilation
 print("\nTesting bytecode compilation...")
 try:
-    bytecode = claudelang.compile_to_bytecode("(+ 1 2)")
+    bytecode = fluentai.compile_to_bytecode("(+ 1 2)")
     print(f"✓ Compilation successful, bytecode length: {len(bytecode)} bytes")
     print(f"  First 10 bytes: {list(bytecode[:10])}")
 except Exception as e:
@@ -62,7 +62,7 @@ except Exception as e:
 print("\nPerformance comparison...")
 try:
     # Import Rust benchmarking function
-    from claudelang.claudelang_rust import benchmark_parser
+    from fluentai.fluentai_rust import benchmark_parser
     
     source = "(+ (* 2 3) (- 5 1))"
     iterations = 10000
@@ -73,7 +73,7 @@ try:
     
     # Benchmark Python parser (if available)
     try:
-        from claudelang.parser.sexpr_parser import parse_sexpr
+        from fluentai.parser.sexpr_parser import parse_sexpr
         start = time.time()
         for _ in range(iterations):
             parse_sexpr(source)

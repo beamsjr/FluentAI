@@ -1,4 +1,4 @@
-; ClaudeLang Database Example
+; FluentAi Database Example
 ; Demonstrates the functional database effect system
 
 ; Define a user schema

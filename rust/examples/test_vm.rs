@@ -1,10 +1,10 @@
 //! Test the VM with simple examples
 
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, VM};
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, VM};
 
 fn main() {
-    println!("Testing ClaudeLang VM\n");
+    println!("Testing FluentAi VM\n");
     
     let test_cases = vec![
         ("Integer literal", "42"),

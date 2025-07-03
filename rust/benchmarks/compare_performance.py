@@ -13,7 +13,7 @@ def run_rust_benchmark():
         ["cargo", "bench", "--bench", "stdlib_benchmarks"],
         capture_output=True,
         text=True,
-        cwd=os.path.join(os.path.dirname(__file__), "../claudelang-stdlib")
+        cwd=os.path.join(os.path.dirname(__file__), "../fluentai-stdlib")
     )
     
     if result.returncode != 0:

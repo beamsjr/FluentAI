@@ -1,0 +1,40 @@
+[package]
+name = "claudescope"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "claudescope"
+path = "src/main.rs"
+
+[dependencies]
+fluentai-core = { path = "../../../fluentai-core" }
+fluentai-types = { path = "../../../fluentai-types" }
+fluentai-contracts = { path = "../../../fluentai-contracts" }
+clap = { version = "4.0", features = ["derive"] }
+anyhow = "1.0"
+thiserror = "1.0"
+rust-embed = "8.0"
+once_cell = "1.19"
+colored = "2.0"
+chrono = "0.4"
+
+[build-dependencies]
+walkdir = "2.4"
+
+[features]
+default = ["runtime"]
+runtime = ["fluentai-contracts/runtime"]
+static = ["fluentai-contracts/static"]
+full = ["runtime", "static"]
+
+# Optimize for size in release builds
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Single codegen unit for better optimization
+strip = true        # Strip symbols from binary
+panic = "abort"     # Smaller panic handler
+
+# Make this a standalone workspace
+[workspace]

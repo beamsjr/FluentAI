@@ -1,8 +1,8 @@
-//! Benchmarks for ClaudeLang VM execution performance
+//! Benchmarks for FluentAi VM execution performance
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, VM};
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, VM};
 
 fn benchmark_vm_arithmetic(c: &mut Criterion) {
     let mut group = c.benchmark_group("vm_arithmetic");

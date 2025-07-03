@@ -1,6 +1,6 @@
 use std::time::Instant;
-use claudelang_parser::parse;
-use claudelang_vm::{compiler::Compiler, vm::VM};
+use fluentai_parser::parse;
+use fluentai_vm::{compiler::Compiler, vm::VM};
 
 fn main() {
     println!("=== Real Performance Test ===\n");

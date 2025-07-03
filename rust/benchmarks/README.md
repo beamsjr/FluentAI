@@ -1,6 +1,6 @@
-# ClaudeLang Rust Benchmarks
+# FluentAi Rust Benchmarks
 
-This directory contains performance benchmarks for the ClaudeLang Rust implementation.
+This directory contains performance benchmarks for the FluentAi Rust implementation.
 
 ## Available Benchmarks
 

@@ -1,0 +1,35 @@
+[package]
+name = "fluentai-contracts"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-types = { path = "../fluentai-types" }
+z3 = { version = "0.12", features = ["static-link-z3"], optional = true }
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+lru = "0.12"
+rayon = "1.7"
+num_cpus = "1.16"
+rustc-hash.workspace = true
+
+[dev-dependencies]
+fluentai-parser = { path = "../fluentai-parser" }
+
+[[example]]
+name = "z3_verification"
+required-features = ["static"]
+
+[features]
+default = ["runtime"]
+runtime = []
+static = ["z3"]
+proof = ["static"]
+full = ["runtime", "static", "proof"]

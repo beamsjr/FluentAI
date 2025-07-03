@@ -1,8 +1,8 @@
 //! Test higher-order functions with stdlib integration
 
 use anyhow::Result;
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, VM};
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, VM};
 
 fn test_expr(expr: &str, desc: &str) -> Result<()> {
     println!("\n{}: {}", desc, expr);
@@ -19,7 +19,7 @@ fn test_expr(expr: &str, desc: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    println!("Testing Higher-Order Functions in ClaudeLang");
+    println!("Testing Higher-Order Functions in FluentAi");
     println!("===========================================");
     
     // Test map

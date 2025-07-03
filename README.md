@@ -1,11 +1,11 @@
-# ClaudeLang: An AI-First Programming Language
+# FluentAi: An AI-First Programming Language
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Performance](https://img.shields.io/badge/performance-50x--200x%20faster-brightgreen)](docs/PERFORMANCE_RESULTS.md)
 
-ClaudeLang is an experimental programming language that explores what happens when we design a language specifically for AI systems rather than humans. It features a graph-based AST, explicit semantics, and advanced AI-driven optimization capabilities. Now with a **production-ready Rust implementation** achieving unprecedented performance.
+FluentAi is an experimental programming language that explores what happens when we design a language specifically for AI systems rather than humans. It features a graph-based AST, explicit semantics, and advanced AI-driven optimization capabilities. Now with a **production-ready Rust implementation** achieving unprecedented performance.
 
 ## Table of Contents
 
@@ -131,8 +131,8 @@ ClaudeLang is an experimental programming language that explores what happens wh
 ### Quick Start (Python)
 ```bash
 # Clone the repository
-git clone https://github.com/beamsjr/ClaudeLang.git
-cd ClaudeLang
+git clone https://github.com/beamsjr/FluentAi.git
+cd FluentAi
 
 # Install Python dependencies
 pip install -r requirements.txt
@@ -214,7 +214,7 @@ cargo run --example parallel_execution_demo
 cargo run --example symbolic_verification --features static
 
 # Generate test cases from contracts
-cargo run --bin claudelang-verify -- \
+cargo run --bin fluentai-verify -- \
   --input program.cl \
   --contracts contracts.spec \
   --generate-tests output_tests.rs
@@ -660,7 +660,7 @@ The Rust implementation achieves these gains through:
 
 ### Optimization Framework
 
-The optimizer (`claudelang-optimizer`) provides comprehensive program optimization:
+The optimizer (`fluentai-optimizer`) provides comprehensive program optimization:
 
 #### Core Optimizations
 - **Constant Folding**: Evaluates constant expressions at compile time
@@ -725,7 +725,7 @@ Example optimization results:
 ## Project Structure
 
 ```
-ClaudeLang/
+FluentAi/
 ├── src/                 # Python implementation
 │   ├── core/           # Core language (AST, primitives)
 │   ├── parser/         # S-expression parser
@@ -737,30 +737,30 @@ ClaudeLang/
 │   ├── modules/       # Module system
 │   └── stdlib/        # Standard library
 ├── rust/               # High-performance Rust implementation
-│   ├── claudelang-core/    # Core types and AST (enhanced Value system)
-│   ├── claudelang-parser/  # Zero-copy parser (258,808x faster)
-│   ├── claudelang-vm/      # Stack-based VM with safety features
-│   ├── claudelang-stdlib/  # Complete standard library in Rust
-│   ├── claudelang-effects/ # Effect system implementation
-│   ├── claudelang-types/   # Type system implementation
-│   ├── claudelang-contracts/ # Advanced contract verification system
+│   ├── fluentai-core/    # Core types and AST (enhanced Value system)
+│   ├── fluentai-parser/  # Zero-copy parser (258,808x faster)
+│   ├── fluentai-vm/      # Stack-based VM with safety features
+│   ├── fluentai-stdlib/  # Complete standard library in Rust
+│   ├── fluentai-effects/ # Effect system implementation
+│   ├── fluentai-types/   # Type system implementation
+│   ├── fluentai-contracts/ # Advanced contract verification system
 │   │   ├── symbolic_execution.rs    # Enhanced symbolic engine
 │   │   ├── incremental_solver.rs    # Push/pop Z3 solving
 │   │   ├── test_generation.rs       # Automatic test generation
 │   │   ├── visualization.rs         # Path visualization
 │   │   ├── counterexample.rs        # Detailed counterexamples
 │   │   └── parallel_execution.rs    # Parallel exploration
-│   ├── claudelang-optimizer/ # Advanced optimization framework
-│   ├── claudelang-di/       # Dependency injection framework
-│   ├── claudelang-db/       # Database effect system
-│   ├── claudelang-modules/ # Module system implementation
-│   ├── claudelang-jit/     # Cranelift JIT compiler
-│   ├── claudelang-lsp/     # Language Server Protocol
-│   ├── claudelang-py/      # Python bindings
+│   ├── fluentai-optimizer/ # Advanced optimization framework
+│   ├── fluentai-di/       # Dependency injection framework
+│   ├── fluentai-db/       # Database effect system
+│   ├── fluentai-modules/ # Module system implementation
+│   ├── fluentai-jit/     # Cranelift JIT compiler
+│   ├── fluentai-lsp/     # Language Server Protocol
+│   ├── fluentai-py/      # Python bindings
 │   └── benchmarks/         # Performance benchmarks
 ├── tests/              # Test suite
 ├── examples/           # Example programs
-│   ├── *.cl           # ClaudeLang examples
+│   ├── *.cl           # FluentAi examples
 │   ├── *.html         # UI framework demos
 │   └── *_demo.cl      # Feature demonstrations
 ├── docs/               # Documentation
@@ -794,7 +794,7 @@ ClaudeLang/
   - Generates concrete test cases from symbolic paths
   - Z3-based and heuristic generation strategies
   - Parameter bounds inference from constraints
-  - Multi-language output (ClaudeLang, Rust)
+  - Multi-language output (FluentAi, Rust)
   - Coverage-guided test generation
 - **Incremental Z3 solving**:
   - Push/pop mechanism for efficient constraint checking
@@ -964,7 +964,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-ClaudeLang explores ideas from:
+FluentAi explores ideas from:
 - **Scheme/Lisp**: S-expressions, functional programming
 - **ML/Haskell**: Type system, pattern matching, ADTs
 - **Koka/Frank**: Effect system design

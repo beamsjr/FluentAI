@@ -1,0 +1,18 @@
+[package]
+name = "fluentai-types"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-effects = { path = "../fluentai-effects" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+fluentai-parser = { path = "../fluentai-parser" }

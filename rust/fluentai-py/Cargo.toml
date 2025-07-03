@@ -1,0 +1,23 @@
+[package]
+name = "fluentai-py"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "fluentai_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+fluentai-vm = { path = "../fluentai-vm" }
+pyo3.workspace = true
+anyhow.workspace = true
+
+[build-dependencies]
+pyo3-build-config = "0.19"
+
+[features]
+default = ["pyo3/extension-module"]

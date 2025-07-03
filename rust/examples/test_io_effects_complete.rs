@@ -1,9 +1,9 @@
 //! Complete test of I/O effects integration
 
 use anyhow::Result;
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, VM};
-use claudelang_stdlib::io_effects::{set_io_context, IOEffectContext, LoggingIOHandler};
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, VM};
+use fluentai_stdlib::io_effects::{set_io_context, IOEffectContext, LoggingIOHandler};
 use std::sync::Arc;
 use std::fs;
 use std::path::Path;
@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     println!("=======================================\n");
     
     // Create a test directory
-    let test_dir = "/tmp/claudelang_io_test";
+    let test_dir = "/tmp/fluentai_io_test";
     if Path::new(test_dir).exists() {
         fs::remove_dir_all(test_dir)?;
     }
@@ -25,32 +25,32 @@ fn main() -> Result<()> {
     set_io_context(IOEffectContext::default());
     
     test_expr(
-        "(file-write \"/tmp/claudelang_io_test/test.txt\" \"Hello, ClaudeLang!\")",
+        "(file-write \"/tmp/fluentai_io_test/test.txt\" \"Hello, FluentAi!\")",
         "Write file"
     )?;
     
     test_expr(
-        "(file-read \"/tmp/claudelang_io_test/test.txt\")",
+        "(file-read \"/tmp/fluentai_io_test/test.txt\")",
         "Read file"
     )?;
     
     test_expr(
-        "(file-append \"/tmp/claudelang_io_test/test.txt\" \"\\nAppended line\")",
+        "(file-append \"/tmp/fluentai_io_test/test.txt\" \"\\nAppended line\")",
         "Append to file"
     )?;
     
     test_expr(
-        "(file-read \"/tmp/claudelang_io_test/test.txt\")",
+        "(file-read \"/tmp/fluentai_io_test/test.txt\")",
         "Read after append"
     )?;
     
     test_expr(
-        "(file-exists? \"/tmp/claudelang_io_test/test.txt\")",
+        "(file-exists? \"/tmp/fluentai_io_test/test.txt\")",
         "Check file exists"
     )?;
     
     test_expr(
-        "(dir-list \"/tmp/claudelang_io_test\")",
+        "(dir-list \"/tmp/fluentai_io_test\")",
         "List directory"
     )?;
     
@@ -84,13 +84,13 @@ fn main() -> Result<()> {
     println!("----------------------------");
     set_io_context(IOEffectContext {
         io_allowed: true,
-        allowed_paths: Some(vec!["/tmp/claudelang_io_test".to_string()]),
+        allowed_paths: Some(vec!["/tmp/fluentai_io_test".to_string()]),
         read_only: false,
         io_handler: None,
     });
     
     test_expr(
-        "(file-write \"/tmp/claudelang_io_test/allowed.txt\" \"This is allowed\")",
+        "(file-write \"/tmp/fluentai_io_test/allowed.txt\" \"This is allowed\")",
         "Write to allowed path"
     )?;
     
@@ -110,17 +110,17 @@ fn main() -> Result<()> {
     });
     
     test_expr(
-        "(file-read \"/tmp/claudelang_io_test/test.txt\")",
+        "(file-read \"/tmp/fluentai_io_test/test.txt\")",
         "Read in read-only mode"
     )?;
     
     test_expr(
-        "(file-write \"/tmp/claudelang_io_test/readonly.txt\" \"Should fail\")",
+        "(file-write \"/tmp/fluentai_io_test/readonly.txt\" \"Should fail\")",
         "Write in read-only mode (should fail)"
     )?;
     
     test_expr(
-        "(file-delete \"/tmp/claudelang_io_test/test.txt\")",
+        "(file-delete \"/tmp/fluentai_io_test/test.txt\")",
         "Delete in read-only mode (should fail)"
     )?;
     
