@@ -50,30 +50,6 @@ struct ErrorResponse {
 }
 
 #[derive(Debug, Serialize)]
-struct ServerInfo {
-    name: String,
-    version: String,
-    protocol_version: String,
-}
-
-#[derive(Debug, Serialize)]
-struct InitializeResult {
-    #[serde(rename = "protocolVersion")]
-    protocol_version: String,
-    capabilities: ServerCapabilities,
-    #[serde(rename = "serverInfo")]
-    server_info: ServerInfo,
-}
-
-#[derive(Debug, Serialize)]
-struct ServerCapabilities {
-    tools: ToolsCapability,
-}
-
-#[derive(Debug, Serialize)]
-struct ToolsCapability {}
-
-#[derive(Debug, Serialize)]
 struct Tool {
     name: String,
     description: String,
@@ -83,44 +59,43 @@ struct Tool {
 
 impl McpServer {
     pub fn new() -> Self {
-        // Create an empty bytecode for initial VM
         let bytecode = Bytecode::new();
         let vm = VM::new(bytecode);
         let docs = DocumentationRegistry::new();
         let stdlib = StdlibRegistry::new();
-        
+
         let state = ServerState { vm, docs, stdlib };
-        
+
         Self {
             state: Arc::new(Mutex::new(state)),
         }
     }
-    
+
     pub async fn run(&self) -> Result<()> {
         let stdin = tokio::io::stdin();
         let stdout = tokio::io::stdout();
         let mut reader = BufReader::new(stdin);
         let mut stdout = stdout;
-        
+
         info!("MCP Server listening on stdin/stdout");
-        
+
         let mut line = String::new();
         loop {
             line.clear();
             let bytes_read = reader.read_line(&mut line).await?;
-            
+
             if bytes_read == 0 {
                 info!("EOF reached, shutting down");
                 break;
             }
-            
+
             let line = line.trim();
             if line.is_empty() {
                 continue;
             }
-            
+
             debug!("Received: {}", line);
-            
+
             match serde_json::from_str::<Request>(line) {
                 Ok(request) => {
                     let response = self.handle_request(request).await;
@@ -134,10 +109,10 @@ impl McpServer {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     async fn handle_request(&self, request: Request) -> Response {
         let result = match request.method.as_str() {
             "initialize" => self.handle_initialize().await,
@@ -146,7 +121,7 @@ impl McpServer {
             "tools/call" => self.handle_tool_call(request.params).await,
             _ => Err(anyhow::anyhow!("Unknown method: {}", request.method)),
         };
-        
+
         match result {
             Ok(result) => Response {
                 jsonrpc: "2.0".to_string(),
@@ -166,23 +141,20 @@ impl McpServer {
             },
         }
     }
-    
+
     async fn handle_initialize(&self) -> Result<JsonValue> {
-        let result = InitializeResult {
-            protocol_version: "0.1.0".to_string(),
-            capabilities: ServerCapabilities {
-                tools: ToolsCapability {},
+        Ok(json!({
+            "protocolVersion": "1.0",
+            "serverInfo": {
+                "name": "ClaudeLang",
+                "version": "0.1.0"
             },
-            server_info: ServerInfo {
-                name: "ClaudeLang MCP Server".to_string(),
-                version: "0.1.0".to_string(),
-                protocol_version: "0.1.0".to_string(),
-            },
-        };
-        
-        Ok(serde_json::to_value(result)?)
+            "capabilities": {
+                "tools": true
+            }
+        }))
     }
-    
+
     async fn handle_list_tools(&self) -> Result<JsonValue> {
         let tools = vec![
             Tool {
@@ -244,18 +216,19 @@ impl McpServer {
                 }),
             },
         ];
-        
+
         Ok(json!({ "tools": tools }))
     }
-    
+
     async fn handle_tool_call(&self, params: Option<JsonValue>) -> Result<JsonValue> {
         let params = params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
-        let tool_name = params["name"].as_str()
+        let tool_name = params.get("name")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing tool name"))?;
         let arguments = params.get("arguments");
-        
+
         let mut state = self.state.lock().await;
-        
+
         match tool_name {
             "eval" => handle_eval(&mut state, arguments).await,
             "search_docs" => handle_search_docs(&state, arguments).await,
