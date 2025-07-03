@@ -1,6 +1,7 @@
 //! High-performance stack-based virtual machine
 
 use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
+use crate::debug::{VMDebugEvent, DebugConfig, StepMode};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use claudelang_effects::{EffectContext, runtime::EffectRuntime};
@@ -41,6 +42,9 @@ pub struct VM {
     loaded_modules: HashMap<String, Value>, // Cache of loaded modules
     current_module: Option<String>, // Name of currently executing module
     module_stack: Vec<String>, // Stack of module names for nested module execution
+    // Debug support
+    debug_config: DebugConfig,
+    instruction_count: u64,
 }
 
 impl VM {
@@ -62,6 +66,8 @@ impl VM {
             loaded_modules: HashMap::new(),
             current_module: None,
             module_stack: Vec::new(),
+            debug_config: DebugConfig::default(),
+            instruction_count: 0,
         }
     }
     
@@ -75,6 +81,42 @@ impl VM {
     
     pub fn set_effect_context(&mut self, context: Arc<EffectContext>) {
         self.effect_context = context;
+    }
+    
+    pub fn set_stdlib_registry(&mut self, registry: StdlibRegistry) {
+        self.stdlib = registry;
+    }
+    
+    pub fn set_module_loader(&mut self, loader: ModuleLoader) {
+        // Create a new resolver with a fresh loader instance
+        let config = claudelang_modules::ModuleConfig::default();
+        self.module_resolver = ModuleResolver::new(ModuleLoader::new(config));
+        self.module_loader = loader;
+    }
+    
+    pub fn set_debug_config(&mut self, config: DebugConfig) {
+        self.debug_config = config;
+    }
+    
+    pub fn get_debug_config(&self) -> &DebugConfig {
+        &self.debug_config
+    }
+    
+    pub fn get_debug_config_mut(&mut self) -> &mut DebugConfig {
+        &mut self.debug_config
+    }
+    
+    /// Get current VM state for debugging
+    pub fn get_stack(&self) -> &[Value] {
+        &self.stack
+    }
+    
+    pub fn get_globals(&self) -> &HashMap<String, Value> {
+        &self.globals
+    }
+    
+    pub fn get_call_stack_depth(&self) -> usize {
+        self.call_stack.len()
     }
     
     pub fn run(&mut self) -> Result<Value> {
@@ -96,6 +138,21 @@ impl VM {
             
             let instruction = self.bytecode.chunks[chunk_id].instructions[ip].clone();
             
+            // Check for breakpoints
+            if self.debug_config.enabled && self.debug_config.should_break(ip) {
+                self.debug_config.send_event(VMDebugEvent::Breakpoint { pc: ip });
+                self.debug_config.step_mode = StepMode::Step;
+            }
+            
+            // Send pre-instruction debug event
+            if self.debug_config.enabled {
+                self.debug_config.send_event(VMDebugEvent::PreInstruction {
+                    pc: ip,
+                    instruction: instruction.clone(),
+                    stack_size: self.stack.len(),
+                });
+            }
+            
             if self.trace {
                 eprintln!("Stack: {:?}", self.stack);
                 eprintln!("Executing: {:?} at {}", instruction.opcode, ip);
@@ -103,19 +160,66 @@ impl VM {
             
             // Increment IP before execution (may be modified by jumps)
             self.call_stack.last_mut().unwrap().ip += 1;
+            self.instruction_count += 1;
             
             match self.execute_instruction(&instruction, chunk_id)? {
-                VMState::Continue => {}
+                VMState::Continue => {
+                    // Send post-instruction debug event
+                    if self.debug_config.enabled {
+                        let stack_top = self.stack.last().cloned();
+                        self.debug_config.send_event(VMDebugEvent::PostInstruction {
+                            pc: ip,
+                            stack_size: self.stack.len(),
+                            stack_top,
+                        });
+                    }
+                }
                 VMState::Return => {
                     if self.call_stack.len() == 1 {
                         // Main function returning
-                        return self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"));
+                        let result = self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                        if self.debug_config.enabled {
+                            self.debug_config.send_event(VMDebugEvent::FunctionReturn {
+                                value: result.clone(),
+                                call_depth: self.call_stack.len(),
+                            });
+                        }
+                        return Ok(result);
                     }
                     // Pop call frame and continue
                     self.call_stack.pop();
+                    if self.debug_config.enabled {
+                        let return_value = self.stack.last().cloned().unwrap_or(Value::Nil);
+                        self.debug_config.send_event(VMDebugEvent::FunctionReturn {
+                            value: return_value,
+                            call_depth: self.call_stack.len(),
+                        });
+                    }
                 }
                 VMState::Halt => {
                     return self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"));
+                }
+            }
+            
+            // Handle step mode
+            if self.debug_config.enabled {
+                match self.debug_config.step_mode {
+                    StepMode::Step => {
+                        // Pause after each instruction
+                        self.debug_config.step_mode = StepMode::Run;
+                        // In a real implementation, we'd wait for a continue signal here
+                    }
+                    StepMode::StepOver => {
+                        // Continue until we're back at the same call depth
+                        // Implementation would track the initial call depth
+                    }
+                    StepMode::StepOut => {
+                        // Continue until we return from current function
+                        // Implementation would track when we exit current frame
+                    }
+                    StepMode::Run => {
+                        // Continue normally
+                    }
                 }
             }
         }
@@ -1167,12 +1271,29 @@ impl VM {
         if self.stack.len() >= STACK_SIZE {
             return Err(anyhow!("Stack overflow"));
         }
+        
+        // Send debug event
+        if self.debug_config.enabled {
+            self.debug_config.send_event(VMDebugEvent::StackPush {
+                value: value.clone(),
+            });
+        }
+        
         self.stack.push(value);
         Ok(())
     }
     
     pub fn pop(&mut self) -> Result<Value> {
-        self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))
+        let value = self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+        
+        // Send debug event
+        if self.debug_config.enabled {
+            self.debug_config.send_event(VMDebugEvent::StackPop {
+                value: value.clone(),
+            });
+        }
+        
+        Ok(value)
     }
     
     fn peek(&self, offset: usize) -> Result<&Value> {
@@ -1565,6 +1686,10 @@ impl VM {
     /// Set a global variable
     pub fn set_global(&mut self, name: String, value: Value) {
         self.globals.insert(name, value);
+    }
+    
+    pub fn get_global(&self, name: &str) -> Option<&Value> {
+        self.globals.get(name)
     }
 }
 

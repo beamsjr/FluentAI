@@ -179,6 +179,16 @@ impl Field {
         self.comment = Some(comment.into());
         self
     }
+    
+    /// Check if field is nullable
+    pub fn is_nullable(&self) -> bool {
+        !self.constraints.iter().any(|c| matches!(c, Constraint::NotNull))
+    }
+    
+    /// Check if field is primary key
+    pub fn is_primary_key(&self) -> bool {
+        self.constraints.iter().any(|c| matches!(c, Constraint::PrimaryKey))
+    }
 }
 
 /// Table index
@@ -222,6 +232,11 @@ impl Schema {
     pub fn comment(mut self, comment: impl Into<String>) -> Self {
         self.comment = Some(comment.into());
         self
+    }
+    
+    /// Get an iterator over fields
+    pub fn fields(&self) -> impl Iterator<Item = &Field> {
+        self.fields.iter()
     }
     
     /// Generate CREATE TABLE SQL
@@ -334,6 +349,16 @@ impl SchemaBuilder {
         self
     }
     
+    /// Convenience method for adding a field with a builder function
+    pub fn add_field_with<F>(mut self, name: impl Into<String>, field_type: FieldType, builder: F) -> Self 
+    where
+        F: FnOnce(Field) -> Field,
+    {
+        let field = Field::new(name, field_type);
+        self.schema.fields.push(builder(field));
+        self
+    }
+    
     pub fn add_index(mut self, name: impl Into<String>, columns: Vec<String>, unique: bool) -> Self {
         self.schema.indexes.push(Index {
             name: name.into(),
@@ -385,3 +410,5 @@ impl Migration {
         self
     }
 }
+#[cfg(test)]
+mod tests;

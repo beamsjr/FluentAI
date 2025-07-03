@@ -63,22 +63,21 @@ impl ContainerConfig {
     }
     
     /// Apply configuration to a container builder
-    pub fn apply_to_builder(&self, _builder: &mut ContainerBuilder) -> DiResult<()> {
-        // This is a simplified implementation
-        // A real implementation would need type resolution and factory generation
+    pub fn apply_to_builder(&self, builder: &mut ContainerBuilder) -> DiResult<()> {
+        use crate::registry::{ServiceRegistry, RegistryContainerBuilderExt};
+        
+        let registry = ServiceRegistry::global();
+        
+        // Register interface mappings
         for service in &self.services {
-            match service.lifetime {
-                ServiceLifetimeConfig::Singleton => {
-                    // In a real implementation, we'd use reflection or code generation
-                    // to create the actual service instances
-                }
-                ServiceLifetimeConfig::Transient => {
-                    // Register transient service
-                }
-                ServiceLifetimeConfig::Scoped => {
-                    // Register scoped service
-                }
+            if service.service_type != service.implementation_type {
+                registry.register_interface(&service.service_type, &service.implementation_type)?;
             }
+        }
+        
+        // Register services
+        for service in &self.services {
+            builder.register_from_registry(&service.service_type, service.lifetime.into())?;
         }
         
         Ok(())

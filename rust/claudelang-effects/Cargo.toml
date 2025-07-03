@@ -26,3 +26,12 @@ claudelang-di = { path = "../claudelang-di", optional = true }
 [features]
 default = []
 di = ["claudelang-di"]
+
+[[example]]
+name = "custom_handlers"
+path = "examples/custom_handlers.rs"
+
+[[example]]
+name = "di_integration"
+path = "examples/di_integration.rs"
+required-features = ["di"]

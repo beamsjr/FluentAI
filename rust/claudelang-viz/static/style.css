@@ -1,0 +1,261 @@
+/* ClaudeLang Visualizer Styles */
+
+:root {
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #2d2d30;
+    --text-primary: #cccccc;
+    --text-secondary: #999999;
+    --accent: #007acc;
+    --accent-hover: #005a9e;
+    --border: #3e3e42;
+    --success: #4ec9b0;
+    --error: #f44747;
+    --warning: #ffcc00;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Header */
+header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+h1 {
+    font-size: 1.5rem;
+    font-weight: 500;
+}
+
+.controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.control-btn {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.control-btn:hover {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+/* Main Content */
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.left-panel, .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.left-panel {
+    border-right: 1px solid var(--border);
+}
+
+/* Editor */
+.editor-container {
+    background-color: var(--bg-secondary);
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+#code-editor {
+    width: 100%;
+    min-height: 150px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0.5rem;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.load-btn {
+    margin-top: 0.5rem;
+    background-color: var(--accent);
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.load-btn:hover {
+    background-color: var(--accent-hover);
+}
+
+/* VM State */
+.vm-state {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.state-section {
+    margin-bottom: 1.5rem;
+}
+
+.state-section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.state-list {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.5rem;
+    min-height: 50px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.state-item {
+    padding: 0.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.state-item:last-child {
+    border-bottom: none;
+}
+
+/* Graph */
+.graph-container {
+    flex: 1;
+    padding: 1rem;
+    overflow: hidden;
+}
+
+#ast-graph {
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+/* Debug Log */
+.debug-log {
+    height: 200px;
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+#debug-events {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.5rem;
+    height: 120px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.debug-event {
+    padding: 0.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.debug-event.error {
+    color: var(--error);
+}
+
+.debug-event.warning {
+    color: var(--warning);
+}
+
+/* Footer */
+footer {
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+}
+
+#status {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+#status.connected {
+    color: var(--success);
+}
+
+#status.error {
+    color: var(--error);
+}
+
+/* Graph Node Styles */
+.node {
+    cursor: pointer;
+}
+
+.node rect {
+    fill: var(--bg-tertiary);
+    stroke: var(--border);
+    stroke-width: 2px;
+}
+
+.node.active rect {
+    stroke: var(--accent);
+    stroke-width: 3px;
+}
+
+.node text {
+    fill: var(--text-primary);
+    font-size: 12px;
+    text-anchor: middle;
+}
+
+.link {
+    fill: none;
+    stroke: var(--text-secondary);
+    stroke-width: 2px;
+}
+
+.link.active {
+    stroke: var(--accent);
+    stroke-width: 3px;
+}

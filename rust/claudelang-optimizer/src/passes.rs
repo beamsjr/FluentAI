@@ -13,7 +13,7 @@ use claudelang_core::ast::Graph;
 use anyhow::Result;
 
 /// Trait for optimization passes
-pub trait OptimizationPass {
+pub trait OptimizationPass: Send + Sync {
     /// Name of the optimization pass
     fn name(&self) -> &str;
     

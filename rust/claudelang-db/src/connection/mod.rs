@@ -321,3 +321,5 @@ impl<'a> Drop for Transaction<'a> {
         }
     }
 }
+#[cfg(test)]
+mod tests;

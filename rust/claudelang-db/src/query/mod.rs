@@ -475,3 +475,5 @@ pub fn safe_user_query(age_threshold: i64, active: bool) -> Query {
         .limit(100)
         .build()
 }
+#[cfg(test)]
+mod tests;

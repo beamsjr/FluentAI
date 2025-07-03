@@ -1,0 +1,223 @@
+//! Example demonstrating configuration-based dependency injection
+
+use claudelang_di::prelude::*;
+use claudelang_di::config::ContainerConfig;
+use claudelang_di::registry::{ServiceRegistry, register_services, register_interfaces};
+use std::sync::Arc;
+
+// Define interfaces and implementations
+
+trait Logger: Service {
+    fn log(&self, message: &str);
+}
+
+#[derive(Clone)]
+struct ConsoleLogger;
+
+impl Logger for ConsoleLogger {
+    fn log(&self, message: &str) {
+        println!("[Console] {}", message);
+    }
+}
+
+#[derive(Clone)]
+struct FileLogger {
+    file_path: String,
+}
+
+impl Logger for FileLogger {
+    fn log(&self, message: &str) {
+        println!("[File: {}] {}", self.file_path, message);
+    }
+}
+
+trait Database: Service {
+    fn query(&self, sql: &str) -> String;
+}
+
+#[derive(Clone)]
+struct PostgresDatabase {
+    connection_string: String,
+}
+
+impl Database for PostgresDatabase {
+    fn query(&self, sql: &str) -> String {
+        format!("Postgres [{}] executing: {}", self.connection_string, sql)
+    }
+}
+
+#[derive(Clone)]
+struct MySQLDatabase {
+    host: String,
+    port: u16,
+}
+
+impl Database for MySQLDatabase {
+    fn query(&self, sql: &str) -> String {
+        format!("MySQL [{}:{}] executing: {}", self.host, self.port, sql)
+    }
+}
+
+// Service that depends on Logger and Database
+#[derive(Clone)]
+struct UserService {
+    logger: Arc<dyn Logger>,
+    database: Arc<dyn Database>,
+}
+
+impl UserService {
+    fn new(logger: Arc<dyn Logger>, database: Arc<dyn Database>) -> Self {
+        Self { logger, database }
+    }
+    
+    fn get_user(&self, id: u64) -> String {
+        self.logger.log(&format!("Getting user {}", id));
+        let result = self.database.query(&format!("SELECT * FROM users WHERE id = {}", id));
+        self.logger.log(&format!("User query result: {}", result));
+        result
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Register service factories in the global registry
+    register_services! {
+        ConsoleLogger => || Box::new(ConsoleLogger) as Box<dyn Service>,
+        FileLogger => || Box::new(FileLogger { file_path: "/tmp/app.log".to_string() }) as Box<dyn Service>,
+        PostgresDatabase => || Box::new(PostgresDatabase { 
+            connection_string: "postgres://localhost/mydb".to_string() 
+        }) as Box<dyn Service>,
+        MySQLDatabase => || Box::new(MySQLDatabase { 
+            host: "localhost".to_string(),
+            port: 3306 
+        }) as Box<dyn Service>
+    }?;
+    
+    // Register interface mappings
+    register_interfaces! {
+        Logger => ConsoleLogger,
+        Database => PostgresDatabase
+    }?;
+    
+    // Example 1: Manual configuration
+    println!("=== Manual Configuration ===");
+    {
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register_singleton(|| ConsoleLogger)
+            .register_singleton(|| PostgresDatabase {
+                connection_string: "postgres://localhost/mydb".to_string()
+            })
+            .register_transient(|| {
+                let container = builder.build();
+                UserService::new(
+                    container.resolve_arc::<dyn Logger>().unwrap(),
+                    container.resolve_arc::<dyn Database>().unwrap()
+                )
+            });
+        
+        let container = builder.build();
+        let user_service = container.resolve::<UserService>().unwrap();
+        println!("{}", user_service.get_user(42));
+    }
+    
+    // Example 2: Configuration from TOML
+    println!("\n=== TOML Configuration ===");
+    {
+        let toml_config = r#"
+[[services]]
+service_type = "Logger"
+implementation_type = "FileLogger"
+lifetime = "singleton"
+
+[[services]]
+service_type = "Database"
+implementation_type = "MySQLDatabase"
+lifetime = "singleton"
+"#;
+        
+        let config = ContainerConfig::from_toml(toml_config)?;
+        let mut builder = ContainerBuilder::new();
+        config.apply_to_builder(&mut builder)?;
+        
+        // Note: In a real implementation, we'd also configure UserService
+        // For now, we'll manually add it
+        builder.register_transient(|| {
+            let container = builder.build();
+            UserService::new(
+                container.resolve_arc::<dyn Logger>().unwrap(),
+                container.resolve_arc::<dyn Database>().unwrap()
+            )
+        });
+        
+        let container = builder.build();
+        let user_service = container.resolve::<UserService>().unwrap();
+        println!("{}", user_service.get_user(123));
+    }
+    
+    // Example 3: Configuration from JSON
+    println!("\n=== JSON Configuration ===");
+    {
+        let json_config = r#"{
+    "services": [
+        {
+            "service_type": "Logger",
+            "implementation_type": "ConsoleLogger",
+            "lifetime": "singleton"
+        },
+        {
+            "service_type": "Database",
+            "implementation_type": "PostgresDatabase",
+            "lifetime": "scoped",
+            "parameters": {
+                "connection_string": "postgres://prod-server/proddb"
+            }
+        }
+    ]
+}"#;
+        
+        let config = ContainerConfig::from_json(json_config)?;
+        let mut builder = ContainerBuilder::new();
+        config.apply_to_builder(&mut builder)?;
+        
+        builder.register_transient(|| {
+            let container = builder.build();
+            UserService::new(
+                container.resolve_arc::<dyn Logger>().unwrap(),
+                container.resolve_arc::<dyn Database>().unwrap()
+            )
+        });
+        
+        let container = builder.build();
+        let user_service = container.resolve::<UserService>().unwrap();
+        println!("{}", user_service.get_user(456));
+    }
+    
+    // Example 4: Dynamic reconfiguration
+    println!("\n=== Dynamic Reconfiguration ===");
+    {
+        // Update the registry to use different implementations
+        register_interfaces! {
+            Logger => FileLogger,
+            Database => MySQLDatabase
+        }?;
+        
+        let mut builder = ContainerBuilder::new();
+        builder
+            .register_from_registry("Logger", ServiceLifetime::Singleton)?
+            .register_from_registry("Database", ServiceLifetime::Singleton)?;
+        
+        builder.register_transient(|| {
+            let container = builder.build();
+            UserService::new(
+                container.resolve_arc::<dyn Logger>().unwrap(),
+                container.resolve_arc::<dyn Database>().unwrap()
+            )
+        });
+        
+        let container = builder.build();
+        let user_service = container.resolve::<UserService>().unwrap();
+        println!("{}", user_service.get_user(789));
+    }
+    
+    Ok(())
+}

@@ -31,6 +31,10 @@ pub enum ContractError {
     /// Feature not yet implemented
     #[error("Feature not implemented: {0}")]
     NotImplemented(String),
+    
+    /// Other error
+    #[error("{0}")]
+    Other(String),
 }
 
 /// Represents a contract violation

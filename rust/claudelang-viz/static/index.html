@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClaudeLang Visualizer</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>ClaudeLang Visualizer</h1>
+            <div class="controls">
+                <button id="btn-start" class="control-btn">▶️ Start</button>
+                <button id="btn-pause" class="control-btn">⏸️ Pause</button>
+                <button id="btn-step" class="control-btn">⏭️ Step</button>
+                <button id="btn-reset" class="control-btn">🔄 Reset</button>
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="editor-container">
+                    <h2>Code Editor</h2>
+                    <textarea id="code-editor" placeholder="Enter ClaudeLang code here...">(+ 1 2)</textarea>
+                    <button id="btn-load" class="load-btn">Load Program</button>
+                </div>
+                
+                <div class="vm-state">
+                    <h2>VM State</h2>
+                    <div class="state-section">
+                        <h3>Stack</h3>
+                        <div id="stack-view" class="state-list"></div>
+                    </div>
+                    <div class="state-section">
+                        <h3>Locals</h3>
+                        <div id="locals-view" class="state-list"></div>
+                    </div>
+                    <div class="state-section">
+                        <h3>Call Stack</h3>
+                        <div id="callstack-view" class="state-list"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="graph-container">
+                    <h2>AST Graph</h2>
+                    <svg id="ast-graph"></svg>
+                </div>
+                
+                <div class="debug-log">
+                    <h2>Debug Events</h2>
+                    <div id="debug-events"></div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <div id="status">Disconnected</div>
+        </footer>
+    </div>
+    
+    <script src="/static/visualizer.js"></script>
+</body>
+</html>

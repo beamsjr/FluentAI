@@ -16,6 +16,10 @@ pub enum DiError {
         type_id: TypeId,
     },
     
+    /// Service not found by name
+    #[error("Service not found: {0}")]
+    ServiceNotFoundByName(String),
+    
     /// Circular dependency detected
     #[error("Circular dependency detected: {path}")]
     CircularDependency {
@@ -39,6 +43,10 @@ pub enum DiError {
     /// Container is locked (during resolution)
     #[error("Container is locked - possible recursive resolution")]
     ContainerLocked,
+    
+    /// Lock error
+    #[error("Failed to acquire lock")]
+    LockError,
     
     /// Configuration error
     #[cfg(feature = "config")]

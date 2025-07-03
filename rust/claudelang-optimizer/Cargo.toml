@@ -10,6 +10,7 @@ repository.workspace = true
 claudelang-core = { path = "../claudelang-core" }
 claudelang-parser = { path = "../claudelang-parser" }
 claudelang-types = { path = "../claudelang-types" }
+claudelang-di = { path = "../claudelang-di" }
 rustc-hash = "2.0"
 anyhow = "1.0"
 thiserror = "1.0"

@@ -5,7 +5,8 @@
 //! Async, and Concurrent effects.
 
 use async_trait::async_trait;
-use claudelang_core::{ast::EffectType, error::Error, value::Value, Result};
+pub use claudelang_core::ast::EffectType;
+use claudelang_core::{error::Error, value::Value, Result};
 use dashmap::DashMap;
 use std::sync::Arc;
 

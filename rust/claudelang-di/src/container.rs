@@ -18,6 +18,10 @@ pub struct ServiceContainer {
     singletons: Arc<RwLock<HashMap<TypeId, Arc<dyn Service>>>>,
     /// Parent container for hierarchical resolution
     parent: Option<Arc<ServiceContainer>>,
+    /// Raw service descriptors by name
+    raw_descriptors: Arc<RwLock<HashMap<String, ServiceDescriptor>>>,
+    /// Raw singleton instances by name
+    raw_singletons: Arc<RwLock<HashMap<String, Arc<dyn Service>>>>,
 }
 
 impl ServiceContainer {
@@ -27,6 +31,8 @@ impl ServiceContainer {
             descriptors: Arc::new(RwLock::new(HashMap::new())),
             singletons: Arc::new(RwLock::new(HashMap::new())),
             parent: None,
+            raw_descriptors: Arc::new(RwLock::new(HashMap::new())),
+            raw_singletons: Arc::new(RwLock::new(HashMap::new())),
         }
     }
     
@@ -36,12 +42,62 @@ impl ServiceContainer {
             descriptors: Arc::new(RwLock::new(HashMap::new())),
             singletons: Arc::new(RwLock::new(HashMap::new())),
             parent: Some(parent),
+            raw_descriptors: Arc::new(RwLock::new(HashMap::new())),
+            raw_singletons: Arc::new(RwLock::new(HashMap::new())),
         }
     }
     
     /// Register a service descriptor
     pub fn register(&self, descriptor: ServiceDescriptor) {
         self.descriptors.write().insert(descriptor.service_type, descriptor);
+    }
+    
+    /// Register a raw service instance by type name
+    pub fn register_raw(&self, type_name: &str, lifetime: ServiceLifetime, instance: Box<dyn Service>) {
+        // Use a dummy TypeId for the descriptor
+        let dummy_type_id = TypeId::of::<()>();
+        let type_name_string = type_name.to_string();
+        let type_name_static = Box::leak(type_name_string.clone().into_boxed_str());
+        
+        let descriptor = ServiceDescriptor {
+            service_type: dummy_type_id,
+            service_type_name: type_name_static,
+            implementation_type: dummy_type_id,
+            implementation_type_name: type_name_static,
+            lifetime,
+            factory: Arc::new(move || {
+                panic!("Raw instance factory should not be called for singletons")
+            }),
+        };
+        
+        self.raw_descriptors.write().insert(type_name_string.clone(), descriptor);
+        
+        // For singletons, store the instance immediately
+        if matches!(lifetime, ServiceLifetime::Singleton) {
+            let arc_instance: Arc<dyn Service> = Arc::from(instance);
+            self.raw_singletons.write().insert(type_name_string, arc_instance);
+        }
+    }
+    
+    /// Register a raw service factory by type name
+    pub fn register_raw_factory<F>(&self, type_name: &str, lifetime: ServiceLifetime, factory: F)
+    where
+        F: Fn() -> Box<dyn Service> + Send + Sync + 'static,
+    {
+        let dummy_type_id = TypeId::of::<()>();
+        let type_name_string = type_name.to_string();
+        let type_name_static = Box::leak(type_name_string.clone().into_boxed_str());
+        
+        let descriptor = ServiceDescriptor {
+            service_type: dummy_type_id,
+            service_type_name: type_name_static,
+            implementation_type: dummy_type_id,
+            implementation_type_name: type_name_static,
+            lifetime,
+            factory: Arc::new(factory),
+        };
+        
+        self.raw_descriptors.write().insert(type_name_string, descriptor);
     }
     
     /// Build an immutable container
@@ -190,6 +246,38 @@ impl Container {
                 service_type: "Unknown".to_string(),
                 type_id,
             })
+        }
+    }
+    
+    /// Resolve a raw service by name
+    pub fn resolve_raw(&self, type_name: &str) -> DiResult<Arc<dyn Service>> {
+        // Check raw singletons first
+        if let Some(singleton) = self.inner.raw_singletons.read().get(type_name).cloned() {
+            return Ok(singleton);
+        }
+        
+        // Find raw descriptor
+        let descriptor = if let Some(desc) = self.inner.raw_descriptors.read().get(type_name).cloned() {
+            desc
+        } else if let Some(parent) = &self.inner.parent {
+            // Try parent container
+            return Container { inner: parent.clone() }.resolve_raw(type_name);
+        } else {
+            return Err(DiError::ServiceNotFoundByName(type_name.to_string()));
+        };
+        
+        // Create instance based on lifetime
+        match descriptor.lifetime {
+            ServiceLifetime::Singleton => {
+                let instance = (descriptor.factory)();
+                let arc_instance: Arc<dyn Service> = Arc::from(instance);
+                self.inner.raw_singletons.write().insert(type_name.to_string(), arc_instance.clone());
+                Ok(arc_instance)
+            }
+            _ => {
+                let instance = (descriptor.factory)();
+                Ok(Arc::from(instance))
+            }
         }
     }
 }

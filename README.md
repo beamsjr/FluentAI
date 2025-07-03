@@ -52,7 +52,13 @@ ClaudeLang is an experimental programming language that explores what happens wh
 
 ### 📊 Advanced Capabilities
 - **Advanced Optimization Framework**: Multi-pass optimizer achieving 80-95% AST reduction
-- **Formal Contract System**: Runtime verification of preconditions, postconditions, and invariants
+- **Formal Contract System**: Complete design-by-contract with static and runtime verification
+  - Runtime verification of preconditions, postconditions, and invariants
+  - Static verification with Z3 SMT solver integration
+  - Symbolic execution engine for path exploration
+  - Advanced proof generation with multiple strategies (induction, BMC, direct)
+  - Contract inheritance and refinement with LSP compliance
+  - Contract composition (conjunction, disjunction, sequential)
 - **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications
 - **Purity Tracking**: Enforce and verify side-effect-free functions
 - **Structured Logging**: Log levels, structured data, and custom handlers
@@ -391,6 +397,30 @@ python -m unittest discover tests -v
   :invariant [(>= high low)]        ; Loop invariants
   :complexity "O(log n)")
 
+;; Static verification with Z3 (when enabled)
+;; Automatically proves contracts are satisfied for all inputs
+(spec:verify factorial)             ; Proves factorial contract holds
+
+;; Contract inheritance and refinement
+(spec:contract sort
+  :ensures [(sorted? result) (same-elements? input result)])
+
+(spec:contract stable-sort
+  :inherits sort                    ; Inherits all conditions from sort
+  :ensures [(stable? result)]       ; Adds stability guarantee
+  :refines sort)                    ; Verified to be a valid refinement
+
+;; Symbolic execution for exhaustive testing
+(spec:symbolic-test factorial
+  :paths all                        ; Explore all execution paths
+  :bound 5)                         ; Up to depth 5
+
+;; Proof generation for critical properties
+(spec:prove factorial-positive
+  :property (forall n (>= n 0) (>= (factorial n) 1))
+  :strategy induction               ; Use mathematical induction
+  :var n)                          ; Induct on n
+
 ;; Type predicates available in contracts
 ;; number?, int?, float?, string?, list?, nil?
 ;; Comparison: =, !=, <, >, <=, >=
@@ -614,6 +644,20 @@ ClaudeLang/
 ```
 
 ## Recent Updates
+
+### 🔒 Advanced Contract System (New!)
+- **Static verification with Z3 SMT solver** for compile-time correctness
+- **Symbolic execution engine** for exhaustive path exploration
+- **Proof generation system** with multiple strategies:
+  - Mathematical induction for recursive functions
+  - Bounded model checking for finite verification
+  - Direct proofs using symbolic execution
+  - Automated proofs via SMT solving
+- **Contract inheritance and refinement**:
+  - Liskov Substitution Principle compliance
+  - Interface definitions and implementations
+  - Contract composition (AND, OR, sequential)
+- **Full integration** with optimizer and VM for performance
 
 ### 🗄️ Database Effect System (New!)
 - **Functional database operations as effects**

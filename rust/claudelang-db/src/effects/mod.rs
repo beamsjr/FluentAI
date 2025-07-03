@@ -9,7 +9,8 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
 use tokio::runtime::Handle;
 
-use crate::connection::{ConnectionPool, Transaction};
+use crate::connection::ConnectionPool;
+use crate::transaction::Transaction;
 use crate::error::DbError;
 
 /// Database effect types
@@ -35,12 +36,33 @@ pub enum DbEffectType {
     Prepare,
     /// Execute a prepared statement
     ExecutePrepared,
+    /// Custom effect type
+    Custom(String),
+}
+
+impl DbEffectType {
+    /// Convert to string representation
+    pub fn as_str(&self) -> &str {
+        match self {
+            DbEffectType::Connect => "db:connect",
+            DbEffectType::Query => "db:query",
+            DbEffectType::Execute => "db:execute",
+            DbEffectType::BeginTransaction => "db:begin-transaction",
+            DbEffectType::CommitTransaction => "db:commit-transaction",
+            DbEffectType::RollbackTransaction => "db:rollback-transaction",
+            DbEffectType::Stats => "db:stats",
+            DbEffectType::IsConnected => "db:is-connected",
+            DbEffectType::Prepare => "db:prepare",
+            DbEffectType::ExecutePrepared => "db:execute-prepared",
+            DbEffectType::Custom(s) => s,
+        }
+    }
 }
 
 /// Database effect handler
 pub struct DbHandler {
     connection_pool: Arc<RwLock<Option<ConnectionPool>>>,
-    current_transaction: Arc<Mutex<Option<Transaction<'static>>>>,
+    current_transaction: Arc<Mutex<Option<Arc<Transaction>>>>,
     transaction_depth: Arc<RwLock<usize>>,
     prepared_statements: Arc<RwLock<HashMap<String, String>>>,
 }
@@ -249,8 +271,8 @@ impl EffectHandler for DbHandler {
                     };
                     
                     // Check if we're in a transaction
-                    let mut tx_lock = self.current_transaction.lock().await;
-                    if let Some(tx) = tx_lock.as_mut() {
+                    let tx_lock = self.current_transaction.lock().await;
+                    if let Some(tx) = tx_lock.as_ref() {
                         // Execute within transaction
                         match tx.execute(command, params).await {
                             Ok(rows) => CoreValue::Integer(rows as i64),
@@ -280,11 +302,10 @@ impl EffectHandler for DbHandler {
                     if let Some(pool) = pool_lock.as_ref() {
                         match pool.get_connection().await {
                             Ok(conn) => {
-                                // Leak the connection to get 'static lifetime
-                                // This is safe because we manage the transaction lifetime manually
-                                let conn = Box::leak(Box::new(conn));
+                                let conn = Arc::new(conn);
                                 match Transaction::begin(conn).await {
                                     Ok(tx) => {
+                                        let tx = Arc::new(tx);
                                         let mut tx_lock = self.current_transaction.lock().await;
                                         *tx_lock = Some(tx);
                                         let mut depth = self.transaction_depth.write().await;
@@ -304,13 +325,18 @@ impl EffectHandler for DbHandler {
                 DbEffectType::CommitTransaction => {
                     let mut tx_lock = self.current_transaction.lock().await;
                     if let Some(tx) = tx_lock.take() {
-                        match tx.commit().await {
-                            Ok(()) => {
-                                let mut depth = self.transaction_depth.write().await;
-                                *depth = depth.saturating_sub(1);
-                                CoreValue::Boolean(true)
+                        match Arc::try_unwrap(tx) {
+                            Ok(tx) => {
+                                match tx.commit().await {
+                                    Ok(()) => {
+                                        let mut depth = self.transaction_depth.write().await;
+                                        *depth = depth.saturating_sub(1);
+                                        CoreValue::Boolean(true)
+                                    }
+                                    Err(e) => CoreValue::String(format!("Commit error: {}", e)),
+                                }
                             }
-                            Err(e) => CoreValue::String(format!("Commit error: {}", e)),
+                            Err(_) => CoreValue::String("Error: Transaction still referenced".into()),
                         }
                     } else {
                         CoreValue::String("Error: No active transaction".into())
@@ -320,13 +346,18 @@ impl EffectHandler for DbHandler {
                 DbEffectType::RollbackTransaction => {
                     let mut tx_lock = self.current_transaction.lock().await;
                     if let Some(tx) = tx_lock.take() {
-                        match tx.rollback().await {
-                            Ok(()) => {
-                                let mut depth = self.transaction_depth.write().await;
-                                *depth = depth.saturating_sub(1);
-                                CoreValue::Boolean(true)
+                        match Arc::try_unwrap(tx) {
+                            Ok(tx) => {
+                                match tx.rollback().await {
+                                    Ok(()) => {
+                                        let mut depth = self.transaction_depth.write().await;
+                                        *depth = depth.saturating_sub(1);
+                                        CoreValue::Boolean(true)
+                                    }
+                                    Err(e) => CoreValue::String(format!("Rollback error: {}", e)),
+                                }
                             }
-                            Err(e) => CoreValue::String(format!("Rollback error: {}", e)),
+                            Err(_) => CoreValue::String("Error: Transaction still referenced".into()),
                         }
                     } else {
                         CoreValue::String("Error: No active transaction".into())
@@ -417,6 +448,9 @@ impl EffectHandler for DbHandler {
                         CoreValue::String(format!("Error: No prepared statement with ID: {}", stmt_id))
                     }
                 }
+                DbEffectType::Custom(op) => {
+                    CoreValue::String(format!("Error: Unsupported custom operation: {}", op))
+                }
             };
             Ok(value)
         });
@@ -430,3 +464,5 @@ impl Default for DbHandler {
         Self::new()
     }
 }
+#[cfg(test)]
+mod tests;

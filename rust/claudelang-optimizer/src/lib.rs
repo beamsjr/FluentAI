@@ -11,8 +11,14 @@ pub mod ml_hints;
 pub mod passes;
 pub mod pipeline;
 pub mod stats;
+pub mod di;
 
 pub use graph_optimizer::GraphOptimizer;
 pub use advanced_optimizer::AdvancedOptimizer;
-pub use pipeline::{OptimizationPipeline, OptimizationConfig};
+pub use pipeline::{OptimizationPipeline, OptimizationConfig, OptimizationLevel};
 pub use stats::OptimizationStats;
+pub use di::{
+    OptimizationPipelineBuilder, DynamicOptimizationPipeline,
+    OptimizerContainerBuilderExt, OptimizationServiceProvider,
+    ContainerOptimizationProvider,
+};

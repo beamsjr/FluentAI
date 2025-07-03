@@ -33,6 +33,9 @@ pub enum DbError {
     #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
     
+    #[error("Migration error: {0}")]
+    Migration(String),
+    
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
     

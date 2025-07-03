@@ -18,6 +18,7 @@ pub trait VMConfig {
 }
 
 /// Builder for constructing a VM with injected dependencies
+#[derive(Clone)]
 pub struct VMBuilder {
     /// The bytecode to execute
     bytecode: Option<Bytecode>,
@@ -27,8 +28,6 @@ pub struct VMBuilder {
     effect_runtime: Option<Arc<EffectRuntime>>,
     /// Optional custom stdlib registry
     stdlib_registry: Option<StdlibRegistry>,
-    /// Optional custom module loader
-    module_loader: Option<ModuleLoader>,
     /// Module configuration
     module_config: Option<ModuleConfig>,
     /// Initial global values
@@ -47,7 +46,6 @@ impl VMBuilder {
             effect_context: None,
             effect_runtime: None,
             stdlib_registry: None,
-            module_loader: None,
             module_config: None,
             initial_globals: HashMap::new(),
             stack_size: None,
@@ -79,11 +77,6 @@ impl VMBuilder {
         self
     }
     
-    /// Set a custom module loader
-    pub fn with_module_loader(mut self, loader: ModuleLoader) -> Self {
-        self.module_loader = Some(loader);
-        self
-    }
     
     /// Set module configuration
     pub fn with_module_config(mut self, config: ModuleConfig) -> Self {
@@ -133,8 +126,15 @@ impl VMBuilder {
             vm.set_effect_runtime(runtime);
         }
         
-        // Note: The current VM doesn't have setters for stdlib and module_loader
-        // These would need to be added to the VM implementation
+        if let Some(registry) = self.stdlib_registry {
+            vm.set_stdlib_registry(registry);
+        }
+        
+        // Module loader is created with the provided config
+        if let Some(config) = self.module_config {
+            let loader = ModuleLoader::new(config);
+            vm.set_module_loader(loader);
+        }
         
         // Configure VM
         if self.trace_mode {
@@ -208,13 +208,13 @@ mod tests {
             .unwrap();
         
         // VM should be created with the specified configuration
-        assert_eq!(vm.globals.get("version"), Some(&Value::String("1.0.0".to_string())));
+        assert_eq!(vm.get_global("version"), Some(&Value::String("1.0.0".to_string())));
     }
     
     #[test]
     fn test_vm_builder_with_config() {
         let bytecode = Bytecode::new();
-        let vm = VMBuilder::new()
+        let _vm = VMBuilder::new()
             .with_bytecode(bytecode)
             .with_config(DevelopmentConfig)
             .build()
@@ -228,6 +228,8 @@ mod tests {
     fn test_vm_builder_requires_bytecode() {
         let result = VMBuilder::new().build();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Bytecode is required"));
+        if let Err(e) = result {
+            assert!(e.to_string().contains("Bytecode is required"));
+        }
     }
 }

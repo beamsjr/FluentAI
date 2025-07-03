@@ -1,0 +1,249 @@
+//! Convert ClaudeLang AST expressions to Z3 formulas
+
+#[cfg(feature = "static")]
+pub mod implementation {
+    use z3::{ast::{Ast, Bool, Int, Real}, Context};
+    use claudelang_core::ast::{Graph, Node, NodeId, Literal};
+    use crate::errors::{ContractError, ContractResult};
+    use std::collections::HashMap;
+    
+    /// Converts ClaudeLang AST expressions to Z3 formulas
+    pub struct Z3Converter<'ctx> {
+        context: &'ctx Context,
+        graph: &'ctx Graph,
+        /// Variable bindings from names to Z3 expressions
+        variables: HashMap<String, Z3Expr<'ctx>>,
+    }
+    
+    /// Represents a Z3 expression that could be of different sorts
+    pub enum Z3Expr<'ctx> {
+        Bool(Bool<'ctx>),
+        Int(Int<'ctx>),
+        Real(Real<'ctx>),
+    }
+    
+    impl<'ctx> Z3Converter<'ctx> {
+        /// Create a new converter
+        pub fn new(context: &'ctx Context, graph: &'ctx Graph) -> Self {
+            Self {
+                context,
+                graph,
+                variables: HashMap::new(),
+            }
+        }
+        
+        /// Declare a variable with the given name and type
+        pub fn declare_var(&mut self, name: &str, sort: Z3Sort) -> Z3Expr<'ctx> {
+            let expr = match sort {
+                Z3Sort::Bool => Z3Expr::Bool(Bool::new_const(self.context, name)),
+                Z3Sort::Int => Z3Expr::Int(Int::new_const(self.context, name)),
+                Z3Sort::Real => Z3Expr::Real(Real::new_const(self.context, name)),
+            };
+            self.variables.insert(name.to_string(), expr.clone());
+            expr
+        }
+        
+        /// Convert a ClaudeLang AST node to a Z3 expression
+        pub fn convert_node(&self, node_id: NodeId) -> ContractResult<Z3Expr<'ctx>> {
+            let node = self.graph.get_node(node_id)
+                .ok_or_else(|| ContractError::InvalidExpression(
+                    format!("Node {} not found in graph", node_id)
+                ))?;
+            
+            match node {
+                Node::Literal(lit) => self.convert_literal(lit),
+                Node::Variable { name } => self.convert_variable(name),
+                Node::Application { function, args } => {
+                    self.convert_application(*function, args)
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    format!("Cannot convert node type {:?} to Z3 expression", node)
+                ))
+            }
+        }
+        
+        /// Convert a literal to Z3
+        fn convert_literal(&self, literal: &Literal) -> ContractResult<Z3Expr<'ctx>> {
+            match literal {
+                Literal::Integer(n) => Ok(Z3Expr::Int(Int::from_i64(self.context, *n))),
+                Literal::Float(f) => Ok(Z3Expr::Real(Real::from_real(self.context, *f as i32, 1))),
+                Literal::Bool(b) => Ok(Z3Expr::Bool(Bool::from_bool(self.context, *b))),
+                _ => Err(ContractError::InvalidExpression(
+                    format!("Cannot convert literal {:?} to Z3", literal)
+                ))
+            }
+        }
+        
+        /// Convert a variable reference to Z3
+        fn convert_variable(&self, name: &str) -> ContractResult<Z3Expr<'ctx>> {
+            self.variables.get(name)
+                .cloned()
+                .ok_or_else(|| ContractError::InvalidExpression(
+                    format!("Variable {} not declared", name)
+                ))
+        }
+        
+        /// Convert a function application to Z3
+        fn convert_application(&self, func_id: NodeId, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            // Get the function node
+            let func_node = self.graph.get_node(func_id)
+                .ok_or_else(|| ContractError::InvalidExpression(
+                    format!("Function node {} not found", func_id)
+                ))?;
+            
+            // Check if it's a built-in operator
+            if let Node::Variable { name } = func_node {
+                match name.as_str() {
+                    // Arithmetic operators
+                    "+" => self.convert_binary_arith(args, |a, b| a + b),
+                    "-" => self.convert_binary_arith(args, |a, b| a - b),
+                    "*" => self.convert_binary_arith(args, |a, b| a * b),
+                    "/" => self.convert_binary_arith(args, |a, b| a / b),
+                    
+                    // Comparison operators
+                    "=" | "==" => self.convert_comparison(args, |a, b| a._eq(&b)),
+                    "<" => self.convert_comparison(args, |a, b| a.lt(&b)),
+                    "<=" => self.convert_comparison(args, |a, b| a.le(&b)),
+                    ">" => self.convert_comparison(args, |a, b| a.gt(&b)),
+                    ">=" => self.convert_comparison(args, |a, b| a.ge(&b)),
+                    
+                    // Logical operators
+                    "and" => self.convert_logical(args, |a, b| a & b),
+                    "or" => self.convert_logical(args, |a, b| a | b),
+                    "not" => self.convert_not(args),
+                    
+                    _ => Err(ContractError::InvalidExpression(
+                        format!("Unknown operator: {}", name)
+                    ))
+                }
+            } else {
+                Err(ContractError::InvalidExpression(
+                    "Function application must be to a named operator".to_string()
+                ))
+            }
+        }
+        
+        /// Convert binary arithmetic operation
+        fn convert_binary_arith<F>(&self, args: &[NodeId], op: F) -> ContractResult<Z3Expr<'ctx>>
+        where
+            F: Fn(&Int<'ctx>, &Int<'ctx>) -> Int<'ctx>,
+        {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Binary operator expects 2 arguments, got {}", args.len())
+                ));
+            }
+            
+            let left = self.convert_node(args[0])?;
+            let right = self.convert_node(args[1])?;
+            
+            match (left, right) {
+                (Z3Expr::Int(l), Z3Expr::Int(r)) => Ok(Z3Expr::Int(op(&l, &r))),
+                _ => Err(ContractError::InvalidExpression(
+                    "Arithmetic operators require integer arguments".to_string()
+                ))
+            }
+        }
+        
+        /// Convert comparison operation
+        fn convert_comparison<F>(&self, args: &[NodeId], op: F) -> ContractResult<Z3Expr<'ctx>>
+        where
+            F: Fn(&Int<'ctx>, &Int<'ctx>) -> Bool<'ctx>,
+        {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Comparison operator expects 2 arguments, got {}", args.len())
+                ));
+            }
+            
+            let left = self.convert_node(args[0])?;
+            let right = self.convert_node(args[1])?;
+            
+            match (left, right) {
+                (Z3Expr::Int(l), Z3Expr::Int(r)) => Ok(Z3Expr::Bool(op(&l, &r))),
+                _ => Err(ContractError::InvalidExpression(
+                    "Comparison operators require integer arguments".to_string()
+                ))
+            }
+        }
+        
+        /// Convert logical operation
+        fn convert_logical<F>(&self, args: &[NodeId], op: F) -> ContractResult<Z3Expr<'ctx>>
+        where
+            F: Fn(&Bool<'ctx>, &Bool<'ctx>) -> Bool<'ctx>,
+        {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Logical operator expects 2 arguments, got {}", args.len())
+                ));
+            }
+            
+            let left = self.convert_node(args[0])?;
+            let right = self.convert_node(args[1])?;
+            
+            match (left, right) {
+                (Z3Expr::Bool(l), Z3Expr::Bool(r)) => Ok(Z3Expr::Bool(op(&l, &r))),
+                _ => Err(ContractError::InvalidExpression(
+                    "Logical operators require boolean arguments".to_string()
+                ))
+            }
+        }
+        
+        /// Convert logical not
+        fn convert_not(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 1 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Not operator expects 1 argument, got {}", args.len())
+                ));
+            }
+            
+            let arg = self.convert_node(args[0])?;
+            
+            match arg {
+                Z3Expr::Bool(b) => Ok(Z3Expr::Bool(b.not())),
+                _ => Err(ContractError::InvalidExpression(
+                    "Not operator requires boolean argument".to_string()
+                ))
+            }
+        }
+    }
+    
+    /// Z3 sort types
+    #[derive(Debug, Clone, Copy)]
+    pub enum Z3Sort {
+        Bool,
+        Int,
+        Real,
+    }
+    
+    impl<'ctx> Clone for Z3Expr<'ctx> {
+        fn clone(&self) -> Self {
+            match self {
+                Z3Expr::Bool(b) => Z3Expr::Bool(b.clone()),
+                Z3Expr::Int(i) => Z3Expr::Int(i.clone()),
+                Z3Expr::Real(r) => Z3Expr::Real(r.clone()),
+            }
+        }
+    }
+    
+    impl<'ctx> Z3Expr<'ctx> {
+        /// Convert to boolean if possible
+        pub fn as_bool(&self) -> Option<&Bool<'ctx>> {
+            match self {
+                Z3Expr::Bool(b) => Some(b),
+                _ => None,
+            }
+        }
+        
+        /// Convert to integer if possible
+        pub fn as_int(&self) -> Option<&Int<'ctx>> {
+            match self {
+                Z3Expr::Int(i) => Some(i),
+                _ => None,
+            }
+        }
+    }
+}
+
+#[cfg(feature = "static")]
+pub use implementation::*;

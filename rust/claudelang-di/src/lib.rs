@@ -13,6 +13,9 @@ pub mod error;
 #[cfg(feature = "config")]
 pub mod config;
 
+#[cfg(feature = "config")]
+pub mod registry;
+
 #[cfg(feature = "async")]
 pub mod async_container;
 

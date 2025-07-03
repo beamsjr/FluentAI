@@ -87,6 +87,32 @@ impl ContainerBuilder {
         self.register_singleton(move || instance.clone())
     }
     
+    /// Register a raw instance by type name
+    pub fn register_instance_raw(&mut self, type_name: &str, instance: Box<dyn Service>) -> &mut Self {
+        // This is a simplified implementation - in production, we'd need proper type handling
+        // For now, we'll register it as Any type
+        self.container.register_raw(type_name, ServiceLifetime::Singleton, instance);
+        self
+    }
+    
+    /// Register a raw transient service by type name
+    pub fn register_transient_raw<F>(&mut self, type_name: &str, factory: F) -> &mut Self
+    where
+        F: Fn() -> Box<dyn Service> + Send + Sync + 'static,
+    {
+        self.container.register_raw_factory(type_name, ServiceLifetime::Transient, factory);
+        self
+    }
+    
+    /// Register a raw scoped service by type name
+    pub fn register_scoped_raw<F>(&mut self, type_name: &str, factory: F) -> &mut Self
+    where
+        F: Fn() -> Box<dyn Service> + Send + Sync + 'static,
+    {
+        self.container.register_raw_factory(type_name, ServiceLifetime::Scoped, factory);
+        self
+    }
+    
     /// Build the container
     pub fn build(self) -> Container {
         self.container.build()

@@ -10,6 +10,7 @@ use claudelang_core::error::{Error, Result};
 pub type EffectHandlerFactory = Box<dyn Fn() -> Arc<dyn EffectHandler> + Send + Sync>;
 
 /// Provider for effect handlers with dynamic registration
+#[derive(Clone)]
 pub struct EffectHandlerProvider {
     /// Registered handler factories
     factories: Arc<RwLock<HashMap<EffectType, EffectHandlerFactory>>>,
@@ -147,7 +148,7 @@ impl EffectHandlerBuilder {
     }
     
     /// Add a handler factory
-    pub fn with_factory<F>(mut self, effect_type: EffectType, factory: F) -> Self
+    pub fn with_factory<F>(self, effect_type: EffectType, factory: F) -> Self
     where
         F: Fn() -> Arc<dyn EffectHandler> + Send + Sync + 'static,
     {
@@ -156,7 +157,7 @@ impl EffectHandlerBuilder {
     }
     
     /// Add a singleton handler
-    pub fn with_handler(mut self, handler: Arc<dyn EffectHandler>) -> Self {
+    pub fn with_handler(self, handler: Arc<dyn EffectHandler>) -> Self {
         self.provider.register_singleton(handler);
         self
     }
@@ -196,20 +197,9 @@ pub mod di {
     pub fn register_effect_services(builder: &mut ContainerBuilder) -> Result<()> {
         // Register provider as singleton
         builder.register_singleton(|| {
-            EffectHandlerBuilder::new()
+            Arc::new(EffectHandlerBuilder::new()
                 .with_defaults()
-                .build()
-        });
-        
-        // Register context factory
-        builder.register_transient({
-            let container = builder.build();
-            move || {
-                let provider = container.resolve::<EffectHandlerProvider>()
-                    .expect("EffectHandlerProvider should be registered");
-                provider.create_context()
-                    .expect("Should create context")
-            }
+                .build())
         });
         
         Ok(())

@@ -8,12 +8,27 @@ pub mod query;
 pub mod schema;
 pub mod connection;
 pub mod error;
+pub mod transaction;
+pub mod migration;
+pub mod di;
 
 pub use effects::{DbEffectType, DbHandler};
 pub use query::{Query, QueryBuilder, QueryExpr};
 pub use schema::{Schema, SchemaBuilder, FieldType};
 pub use connection::{ConnectionPool, DbConnection};
 pub use error::{DbError, DbResult};
+pub use transaction::{
+    Transaction, TransactionManager, TransactionOptions, 
+    IsolationLevel, with_transaction, with_transaction_retry
+};
+pub use migration::{
+    Migration, SqlMigration, MigrationBuilder, MigrationRunner,
+    MigrationRepository, MigrationPlan, Direction
+};
+pub use di::{
+    DatabaseModule, DatabaseServiceProvider, ContainerDatabaseProvider,
+    DatabaseContainerBuilderExt, DatabaseServicesBuilder
+};
 
 /// Database configuration
 #[derive(Debug, Clone)]
