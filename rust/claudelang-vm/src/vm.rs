@@ -6,7 +6,6 @@ use crate::safety::{IdGenerator, PromiseId, ChannelId, ResourceLimits, checked_o
 use crate::error::{StackTrace, StackFrame};
 use anyhow::{anyhow, Result};
 use rustc_hash::FxHashMap;
-use std::collections::HashMap;
 use claudelang_effects::{EffectContext, runtime::EffectRuntime};
 use claudelang_stdlib::{StdlibRegistry, init_stdlib};
 use claudelang_stdlib::value::Value as StdlibValue;
@@ -1584,7 +1583,7 @@ impl VM {
                 )
             }
             Value::Map(map) => {
-                let mut core_map = std::collections::HashMap::new();
+                let mut core_map = FxHashMap::default();
                 for (k, v) in map.iter() {
                     core_map.insert(k.clone(), self.vm_value_to_core_value(v));
                 }
@@ -1605,7 +1604,7 @@ impl VM {
             }
             Value::Tagged { tag, values } => {
                 // Convert to a map representation for now
-                let mut map = std::collections::HashMap::new();
+                let mut map = FxHashMap::default();
                 map.insert("__tag__".to_string(), claudelang_core::value::Value::String(tag.clone()));
                 map.insert("__values__".to_string(), claudelang_core::value::Value::List(
                     values.iter().map(|v| self.vm_value_to_core_value(v)).collect()
@@ -1614,9 +1613,9 @@ impl VM {
             }
             Value::Module { name, exports } => {
                 // Convert to a map representation  
-                let mut map = std::collections::HashMap::new();
+                let mut map = FxHashMap::default();
                 map.insert("__module__".to_string(), claudelang_core::value::Value::String(name.clone()));
-                let mut export_map = std::collections::HashMap::new();
+                let mut export_map = FxHashMap::default();
                 for (key, val) in exports {
                     export_map.insert(key.clone(), self.vm_value_to_core_value(val));
                 }
@@ -1639,19 +1638,25 @@ impl VM {
                 )
             }
             claudelang_core::value::Value::Map(map) => {
-                let mut vm_map = std::collections::HashMap::new();
+                let mut vm_map = FxHashMap::default();
                 for (k, v) in map.iter() {
                     vm_map.insert(k.clone(), self.core_value_to_vm_value(v));
                 }
                 Value::Map(vm_map)
             }
-            claudelang_core::value::Value::Function(_) => {
+            claudelang_core::value::Value::Procedure(_) => {
                 // Functions can't be directly converted, return a placeholder
                 Value::String("<function>".to_string())
             }
-            claudelang_core::value::Value::Error(msg) => {
-                // Convert errors to strings
-                Value::String(format!("Error: {}", msg))
+            claudelang_core::value::Value::NativeFunction { name, .. } => {
+                // Native functions can't be directly converted, return a placeholder
+                Value::String(format!("<native-function: {}>", name))
+            }
+            claudelang_core::value::Value::Tagged { tag, values } => {
+                Value::Tagged {
+                    tag: tag.clone(),
+                    values: values.iter().map(|v| self.core_value_to_vm_value(v)).collect(),
+                }
             }
         }
     }

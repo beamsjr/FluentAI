@@ -3,6 +3,7 @@
 use crate::{EffectHandler, EffectResult};
 use async_trait::async_trait;
 use claudelang_core::{ast::EffectType, value::Value, error::Error};
+use rustc_hash::FxHashMap;
 use dashmap::DashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
@@ -130,7 +131,7 @@ impl EffectHandler for ConcurrentHandler {
                 if let Some(first_future) = futures.into_iter().next() {
                     match first_future.await {
                         Some((index, value)) => {
-                            let mut result = std::collections::HashMap::new();
+                            let mut result = FxHashMap::default();
                             result.insert("index".to_string(), Value::Integer(index as i64));
                             result.insert("value".to_string(), value);
                             Ok(Value::Map(result))

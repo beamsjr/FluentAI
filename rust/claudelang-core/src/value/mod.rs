@@ -5,7 +5,6 @@ pub mod error;
 pub use error::{ValueError, ValueResult};
 
 use rustc_hash::FxHashMap;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Runtime value types

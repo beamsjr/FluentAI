@@ -2,9 +2,12 @@
 
 #[cfg(feature = "static")]
 pub mod implementation {
-    use z3::{ast::{Ast, Bool, Int, Real}, Context};
+    use z3::{ast::{Ast, Bool, Int, Real, forall_const, exists_const}, Context, Pattern};
     use claudelang_core::ast::{Graph, Node, NodeId, Literal};
-    use crate::errors::{ContractError, ContractResult};
+    use crate::{
+        errors::{ContractError, ContractResult},
+        quantifiers::{QuantifierParser, QuantifierDomain, Quantifier},
+    };
     use std::collections::HashMap;
     
     /// Converts ClaudeLang AST expressions to Z3 formulas
@@ -137,6 +140,10 @@ pub mod implementation {
                     
                     // Contract-specific functions
                     "old" => self.convert_old(args),
+                    
+                    // Quantifiers
+                    "forall" | "∀" => self.convert_forall(args),
+                    "exists" | "∃" => self.convert_exists(args),
                     
                     _ => Err(ContractError::InvalidExpression(
                         format!("Unknown operator: {}", name)
@@ -509,6 +516,129 @@ pub mod implementation {
                 }
                 _ => Err(ContractError::InvalidExpression(
                     "Invalid list for null? check".to_string()
+                ))
+            }
+        }
+        
+        /// Convert forall quantifier
+        fn convert_forall(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            self.convert_quantifier(args, Quantifier::ForAll)
+        }
+        
+        /// Convert exists quantifier
+        fn convert_exists(&self, args: &[NodeId]) -> ContractResult<Z3Expr<'ctx>> {
+            self.convert_quantifier(args, Quantifier::Exists)
+        }
+        
+        /// Convert quantified expression to Z3
+        fn convert_quantifier(&self, args: &[NodeId], quantifier_type: Quantifier) -> ContractResult<Z3Expr<'ctx>> {
+            if args.len() != 2 {
+                return Err(ContractError::InvalidExpression(
+                    format!("Quantifier expects 2 arguments (bindings and body), got {}", args.len())
+                ));
+            }
+            
+            // Parse the quantifier structure
+            let parser = QuantifierParser::new(self.graph);
+            
+            // We need to manually construct the quantified expression since we already have it parsed
+            let bindings_node = self.graph.get_node(args[0])
+                .ok_or_else(|| ContractError::InvalidExpression("Bindings not found".to_string()))?;
+            
+            let body_node_id = args[1];
+            
+            // Parse bindings
+            let bound_vars = match bindings_node {
+                Node::List(bindings) => {
+                    let mut vars = Vec::new();
+                    for binding_id in bindings {
+                        let binding = self.graph.get_node(*binding_id)
+                            .ok_or_else(|| ContractError::InvalidExpression("Invalid binding".to_string()))?;
+                        
+                        match binding {
+                            Node::List(pair) if pair.len() == 2 => {
+                                // Get variable name
+                                let var_name = match self.graph.get_node(pair[0]) {
+                                    Some(Node::Variable { name }) => name.clone(),
+                                    _ => return Err(ContractError::InvalidExpression(
+                                        "Expected variable name in binding".to_string()
+                                    )),
+                                };
+                                
+                                // For now, assume integer domain
+                                vars.push((var_name, Z3Sort::Int));
+                            }
+                            _ => return Err(ContractError::InvalidExpression(
+                                "Invalid binding format".to_string()
+                            )),
+                        }
+                    }
+                    vars
+                }
+                _ => return Err(ContractError::InvalidExpression(
+                    "Bindings must be a list".to_string()
+                )),
+            };
+            
+            // Create a new converter with bound variables
+            let mut new_converter = Z3Converter::new(self.context, self.graph);
+            
+            // Copy existing variables
+            new_converter.variables = self.variables.clone();
+            
+            // Create Z3 constants for bound variables
+            let mut z3_bound_vars: Vec<z3::ast::Dynamic<'ctx>> = Vec::new();
+            for (var_name, sort) in &bound_vars {
+                let z3_var = match sort {
+                    Z3Sort::Bool => Bool::new_const(self.context, var_name).into(),
+                    Z3Sort::Int => Int::new_const(self.context, var_name).into(),
+                    Z3Sort::Real => Real::new_const(self.context, var_name).into(),
+                    _ => return Err(ContractError::InvalidExpression(
+                        format!("Unsupported sort for quantified variable: {:?}", sort)
+                    )),
+                };
+                z3_bound_vars.push(z3_var.clone());
+                
+                // Add to converter's variable map
+                match sort {
+                    Z3Sort::Bool => new_converter.variables.insert(
+                        var_name.clone(), 
+                        Z3Expr::Bool(Bool::new_const(self.context, var_name))
+                    ),
+                    Z3Sort::Int => new_converter.variables.insert(
+                        var_name.clone(), 
+                        Z3Expr::Int(Int::new_const(self.context, var_name))
+                    ),
+                    Z3Sort::Real => new_converter.variables.insert(
+                        var_name.clone(), 
+                        Z3Expr::Real(Real::new_const(self.context, var_name))
+                    ),
+                    _ => None,
+                };
+            }
+            
+            // Convert the body with the new converter
+            let body = new_converter.convert_node(body_node_id)?;
+            
+            // Body must be boolean
+            match body {
+                Z3Expr::Bool(bool_expr) => {
+                    let quantified = match quantifier_type {
+                        Quantifier::ForAll => forall_const(
+                            &z3_bound_vars.iter().collect::<Vec<_>>(),
+                            &[],  // No patterns
+                            &bool_expr
+                        ),
+                        Quantifier::Exists => exists_const(
+                            &z3_bound_vars.iter().collect::<Vec<_>>(),
+                            &[],  // No patterns  
+                            &bool_expr
+                        ),
+                    };
+                    Ok(Z3Expr::Bool(quantified))
+                }
+                _ => Err(ContractError::InvalidExpression(
+                    "Quantifier body must be a boolean expression".to_string()
                 ))
             }
         }

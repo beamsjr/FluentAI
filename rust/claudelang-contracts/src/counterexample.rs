@@ -125,7 +125,7 @@ impl CounterexampleGenerator {
         // Extract failed assertion
         let failed_assertion = format!("{:?}: {}", 
             violation.condition_type,
-            violation.condition.description.as_ref().unwrap_or(&"Unknown".to_string())
+            violation.condition.message.as_ref().unwrap_or(&"Unknown".to_string())
         );
         
         // Generate debug info
@@ -468,8 +468,8 @@ impl CounterexampleGenerator {
     /// Estimate recursion depth from trace
     fn estimate_recursion_depth(&self, trace: &[ExecutionStep]) -> usize {
         // Simple heuristic: count repeated operations
-        let mut max_depth = 0;
-        let mut current_depth = 0;
+        let mut max_depth: usize = 0;
+        let mut current_depth: usize = 0;
         
         for i in 1..trace.len() {
             if trace[i].operation.contains("recursive call") {

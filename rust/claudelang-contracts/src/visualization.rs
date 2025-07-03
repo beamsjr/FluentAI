@@ -153,7 +153,7 @@ impl ExecutionTree {
             ).unwrap();
             
             // Add styling based on satisfiability
-            match node.is_satisfiability {
+            match node.is_satisfiable {
                 Some(true) => writeln!(&mut mermaid, "  style n{} fill:#9f9", id).unwrap(),
                 Some(false) => writeln!(&mut mermaid, "  style n{} fill:#f99", id).unwrap(),
                 None => writeln!(&mut mermaid, "  style n{} fill:#ccc", id).unwrap(),

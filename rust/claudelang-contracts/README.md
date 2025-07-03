@@ -6,6 +6,7 @@ This crate implements formal verification capabilities for ClaudeLang through pr
 
 - **Runtime Verification**: Check contracts during execution with blame tracking
 - **Static Verification**: Prove contracts using Z3 SMT solver with expanded operator support
+- **Quantifier Support**: Universal (∀) and existential (∃) quantifiers for collection properties
 - **Purity Analysis**: Ensure contract expressions have no side effects
 - **Contract Inheritance**: LSP-compliant contract refinement and composition
 - **Performance Optimization**: LRU caching, resource limits, and timeout management
@@ -16,6 +17,7 @@ This crate implements formal verification capabilities for ClaudeLang through pr
 
 - [Contract Semantics](docs/CONTRACT_SEMANTICS.md) - Detailed explanation of when contracts are checked and how they work
 - [Z3 Converter](docs/Z3_CONVERTER.md) - Guide to the Z3 SMT converter and supported operations
+- [Quantifiers](docs/QUANTIFIERS.md) - Using forall and exists in contract specifications
 
 ## Usage
 
@@ -87,17 +89,21 @@ The following predicates are available in contract conditions:
 **Type predicates**: `int?`, `float?`, `number?`, `string?`, `list?`, `nil?`
 **List operations**: `length`, `nth`, `member?`, `null?`/`empty?`
 **Contract-specific**: `old` (access pre-state values)
+**Quantifiers**: `forall`/`∀`, `exists`/`∃` with domains like `(range min max)`, `(in list)`, `(indices list)`
 
 ### Example: Complex Contract
 
 ```clojure
 (spec:contract binary-search
-  :requires [(sorted? arr)
+  :requires [(forall ((i (indices arr)))
+               (implies (< i (- (length arr) 1))
+                        (<= (nth arr i) (nth arr (+ i 1)))))  ; sorted
              (>= target 0)]
   :ensures [(implies (>= result 0)
                      (= (nth arr result) target))
             (implies (< result 0)
-                     (not (member? target arr)))]
+                     (forall ((i (indices arr)))
+                       (!= (nth arr i) target)))]  ; not found
   :complexity "O(log n)"
   :pure true)
 ```
@@ -143,8 +149,8 @@ When contracts are disabled, the overhead is minimal (<5%). Runtime verification
 - ✅ Contract inheritance with LSP compliance
 - ✅ Caching and resource management
 - ✅ Enhanced error messages with spans
+- ✅ Quantifier support (forall/exists)
 - ⚠️  Proof generation (basic structure)
-- ⚠️  Quantifier support (planned)
 - ❌ Ghost state and old() expressions
 - ❌ Frame conditions
 - ❌ Incremental verification

@@ -1,7 +1,8 @@
 //! Bytecode representation for ClaudeLang VM
 
 use std::fmt;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
+use crate::safety::{PromiseId, ChannelId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
@@ -159,13 +160,13 @@ pub enum Value {
     Float(f64),
     String(String),
     List(Vec<Value>),
-    Map(HashMap<String, Value>),
+    Map(FxHashMap<String, Value>),
     Function {
         chunk_id: usize,
         env: Vec<Value>,
     },
-    Promise(String), // Promise ID
-    Channel(String), // Channel ID
+    Promise(PromiseId), // Promise ID
+    Channel(ChannelId), // Channel ID
     Cell(usize),     // Index into VM's cell storage
     Tagged {
         tag: String,
@@ -173,7 +174,7 @@ pub enum Value {
     },
     Module {
         name: String,
-        exports: HashMap<String, Value>,
+        exports: FxHashMap<String, Value>,
     },
 }
 

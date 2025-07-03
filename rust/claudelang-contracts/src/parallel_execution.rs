@@ -214,7 +214,8 @@ fn worker_thread(
                 }
                 
                 // Keep first item, add rest to local queue
-                if let Some(first) = batch.into_iter().next() {
+                if !batch.is_empty() {
+                    let first = batch.remove(0);
                     local_queue.extend(batch);
                     Some(first)
                 } else {

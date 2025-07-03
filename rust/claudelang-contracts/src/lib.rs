@@ -7,6 +7,7 @@ pub mod contract;
 pub mod errors;
 pub mod evaluator;
 pub mod purity;
+pub mod quantifiers;
 pub mod runtime;
 pub mod static_verification;
 pub mod proof;
@@ -37,6 +38,7 @@ pub use runtime::{RuntimeVerifier, VerificationContext};
 pub use vm_integration::{ContractVM, ContractRegistry};
 pub use symbolic_execution::{SymbolicExecutor, SymbolicValue, SymbolicState};
 pub use symbolic_verification::{SymbolicContractVerifier, SymbolicVerificationResult};
+pub use quantifiers::{QuantifierBuilder, QuantifierParser, QuantifiedExpression, QuantifierDomain};
 
 #[cfg(feature = "static")]
 pub use static_verification::{StaticVerifier, VerificationResult};

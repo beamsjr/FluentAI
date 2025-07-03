@@ -594,7 +594,7 @@ impl SymbolicExecutor {
 }
 
 /// Result of executing a node
-enum ExecutionResult {
+pub(crate) enum ExecutionResult {
     /// Execution produced a value
     Value(SymbolicState, SymbolicValue),
     /// Execution reached a branch point

@@ -79,7 +79,8 @@ impl<'a> PurityChecker<'a> {
         
         // Contract-specific functions
         self.pure_functions.extend([
-            "old", "result", "forall", "exists", "implies",
+            "old", "result", "forall", "exists", "implies", "∀", "∃",
+            "range", "in", "indices",
         ].iter().map(|s| s.to_string()));
     }
     

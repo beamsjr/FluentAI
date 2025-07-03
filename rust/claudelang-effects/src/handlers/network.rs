@@ -4,7 +4,7 @@ use crate::{EffectHandler, EffectResult};
 use async_trait::async_trait;
 use claudelang_core::{ast::EffectType, value::Value, error::Error};
 use reqwest;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 pub struct NetworkHandler {
     client: reqwest::Client,
@@ -47,13 +47,13 @@ impl EffectHandler for NetworkHandler {
                             (k.as_str().to_string(), 
                              Value::String(v.to_str().unwrap_or("").to_string()))
                         })
-                        .collect::<HashMap<_, _>>();
+                        .collect::<FxHashMap<_, _>>();
                     
                     let body = response.text()
                         .await
                         .map_err(|e| Error::Runtime(format!("Failed to read response: {}", e)))?;
                     
-                    let mut result = HashMap::new();
+                    let mut result = FxHashMap::default();
                     result.insert("status".to_string(), Value::Integer(status));
                     result.insert("body".to_string(), Value::String(body));
                     result.insert("headers".to_string(), Value::Map(headers));
@@ -77,7 +77,7 @@ impl EffectHandler for NetworkHandler {
                             .await
                             .map_err(|e| Error::Runtime(format!("Failed to read response: {}", e)))?;
                         
-                        let mut result = HashMap::new();
+                        let mut result = FxHashMap::default();
                         result.insert("status".to_string(), Value::Integer(status));
                         result.insert("body".to_string(), Value::String(body));
                         
