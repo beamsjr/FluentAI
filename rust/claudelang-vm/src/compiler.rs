@@ -105,7 +105,12 @@ impl Compiler {
             Node::QualifiedVariable { module_name, variable_name } => {
                 self.compile_qualified_variable(module_name, variable_name)?;
             }
-            // The match is exhaustive for all Node variants
+            Node::Contract { .. } => {
+                // Contracts are metadata and don't generate bytecode directly
+                // They should be attached to functions during compilation
+                // For now, we'll emit a no-op
+                self.emit(Instruction::new(Opcode::Nop));
+            }
         }
         
         Ok(())

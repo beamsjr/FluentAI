@@ -12,5 +12,6 @@ pub mod documentation;
 pub mod effects;
 pub mod error;
 pub mod value;
+pub mod traits;
 
 pub use error::{Error, Result};

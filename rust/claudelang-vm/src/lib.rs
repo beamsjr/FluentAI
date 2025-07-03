@@ -6,7 +6,9 @@ pub mod bytecode;
 pub mod compiler;
 pub mod vm;
 pub mod stdlib_bridge;
+pub mod builder;
 
 pub use vm::VM;
 pub use bytecode::{Bytecode, Opcode};
 pub use compiler::Compiler;
+pub use builder::{VMBuilder, VMConfig};

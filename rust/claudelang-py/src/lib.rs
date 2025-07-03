@@ -182,6 +182,15 @@ impl PyNode {
                     data.insert("name".to_string(), variable_name.to_object(py));
                     "QualifiedVariable"
                 }
+                Node::Contract { function_name, preconditions, postconditions, invariants, complexity, pure } => {
+                    data.insert("function_name".to_string(), function_name.to_object(py));
+                    data.insert("preconditions".to_string(), preconditions.len().to_object(py));
+                    data.insert("postconditions".to_string(), postconditions.len().to_object(py));
+                    data.insert("invariants".to_string(), invariants.len().to_object(py));
+                    data.insert("complexity".to_string(), complexity.to_object(py));
+                    data.insert("pure".to_string(), pure.to_object(py));
+                    "Contract"
+                }
             };
             
             Self {

@@ -1561,6 +1561,11 @@ impl VM {
             .map(|frame| frame.chunk_id)
             .unwrap_or(self.bytecode.main_chunk)
     }
+    
+    /// Set a global variable
+    pub fn set_global(&mut self, name: String, value: Value) {
+        self.globals.insert(name, value);
+    }
 }
 
 enum VMState {
