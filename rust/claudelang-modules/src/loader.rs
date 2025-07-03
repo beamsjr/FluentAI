@@ -1,7 +1,7 @@
 //! Module loading functionality
 
 use crate::{ModuleInfo, ModuleConfig, ModuleCache, ModuleError, Result};
-use claudelang_core::ast::{Graph, Node, NodeId};
+use claudelang_core::ast::{Graph, Node, NodeId, Literal};
 use claudelang_parser::parse;
 use rustc_hash::FxHashSet;
 use std::fs;
@@ -127,7 +127,7 @@ impl ModuleLoader {
         })?;
         
         // Parse the module
-        let graph = parse(&contents).map_err(|e| ModuleError::ParseError {
+        let mut graph = parse(&contents).map_err(|e| ModuleError::ParseError {
             path: path.to_path_buf(),
             error: e,
         })?;
@@ -139,7 +139,11 @@ impl ModuleLoader {
         
         info!("Loaded module: {} ({})", name, module_id);
         
-        let root = graph.root_id.unwrap_or(NodeId(0));
+        let root = graph.root_id.unwrap_or_else(|| {
+            // Create a dummy node if there's no root
+            let dummy = Node::Literal(Literal::Nil);
+            graph.add_node(dummy)
+        });
         
         Ok(ModuleInfo {
             id: module_id,

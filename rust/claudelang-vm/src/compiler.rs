@@ -2,8 +2,27 @@
 
 use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
 use claudelang_core::ast::{Graph as ASTGraph, Node, NodeId, Literal, Pattern};
+use claudelang_optimizer::{OptimizationPipeline, OptimizationConfig, OptimizationLevel};
 use anyhow::{anyhow, Result};
 use std::collections::{HashMap, HashSet};
+
+/// Compiler options
+#[derive(Debug, Clone)]
+pub struct CompilerOptions {
+    /// Optimization level
+    pub optimization_level: OptimizationLevel,
+    /// Enable debug information
+    pub debug_info: bool,
+}
+
+impl Default for CompilerOptions {
+    fn default() -> Self {
+        Self {
+            optimization_level: OptimizationLevel::Standard,
+            debug_info: false,
+        }
+    }
+}
 
 pub struct Compiler {
     bytecode: Bytecode,
@@ -13,10 +32,15 @@ pub struct Compiler {
     stack_depth: usize, // Track current stack depth
     scope_bases: Vec<usize>, // Base stack position for each scope
     cell_vars: Vec<HashSet<String>>, // Variables that are cells (for letrec)
+    options: CompilerOptions,
 }
 
 impl Compiler {
     pub fn new() -> Self {
+        Self::with_options(CompilerOptions::default())
+    }
+    
+    pub fn with_options(options: CompilerOptions) -> Self {
         let mut bytecode = Bytecode::new();
         let main_chunk = bytecode.add_chunk(BytecodeChunk::new(Some("main".to_string())));
         bytecode.main_chunk = main_chunk;
@@ -29,14 +53,24 @@ impl Compiler {
             stack_depth: 0,
             scope_bases: vec![0],
             cell_vars: vec![HashSet::new()],
+            options,
         }
     }
     
     pub fn compile(mut self, graph: &ASTGraph) -> Result<Bytecode> {
-        let root_id = graph.root_id
+        // Apply optimizations if enabled
+        let optimized_graph = if self.options.optimization_level != OptimizationLevel::None {
+            let config = OptimizationConfig::for_level(self.options.optimization_level);
+            let mut pipeline = OptimizationPipeline::new(config);
+            pipeline.optimize(graph)?
+        } else {
+            graph.clone()
+        };
+        
+        let root_id = optimized_graph.root_id
             .ok_or_else(|| anyhow!("AST graph has no root node"))?;
         
-        self.compile_node(graph, root_id)?;
+        self.compile_node(&optimized_graph, root_id)?;
         
         // Add halt instruction
         self.emit(Instruction::new(Opcode::Halt));

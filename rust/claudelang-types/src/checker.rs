@@ -289,8 +289,10 @@ impl TypeChecker {
         let mut result = error.to_string();
 
         // Add source context if available
-        if let Some(node) = graph.get_node(NodeId(error.location.line as u32)) {
-            result.push_str(&format!("\n  in expression: {:?}", node));
+        if let Some(node_id) = NodeId::new(error.location.line as u32) {
+            if let Some(node) = graph.get_node(node_id) {
+                result.push_str(&format!("\n  in expression: {:?}", node));
+            }
         }
 
         result

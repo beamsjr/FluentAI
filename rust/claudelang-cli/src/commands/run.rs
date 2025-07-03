@@ -3,6 +3,7 @@
 use anyhow::Result;
 use std::path::Path;
 use crate::config::Config;
+use claudelang_optimizer::OptimizationLevel;
 
 #[derive(Debug, Clone)]
 pub struct VisualizationConfig {
@@ -15,11 +16,19 @@ pub async fn run_file(
     path: &Path,
     args: Vec<String>,
     viz_config: Option<VisualizationConfig>,
+    optimization: u8,
     _config: &Config,
 ) -> Result<()> {
-    println!("Running: {}", path.display());
+    let opt_level = match optimization {
+        0 => OptimizationLevel::None,
+        1 => OptimizationLevel::Basic,
+        2 => OptimizationLevel::Standard,
+        _ => OptimizationLevel::Aggressive,
+    };
     
-    let result = crate::runner::run_file(path, args, viz_config).await?;
+    println!("Running: {} (optimization: {:?})", path.display(), opt_level);
+    
+    let result = crate::runner::run_file(path, args, viz_config, opt_level).await?;
     
     println!("\nResult: {}", result);
     

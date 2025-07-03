@@ -2,7 +2,8 @@
 
 use anyhow::Result;
 use claudelang_parser::parse;
-use claudelang_vm::{Compiler, VM, bytecode::Value};
+use claudelang_vm::{Compiler, CompilerOptions, VM, bytecode::Value};
+use claudelang_optimizer::OptimizationLevel;
 use std::path::Path;
 
 #[cfg(feature = "visualization")]
@@ -21,11 +22,20 @@ use tokio::sync::mpsc;
 
 /// Run ClaudeLang code and return the result
 pub fn run_code(code: &str) -> Result<Value> {
+    run_code_with_options(code, OptimizationLevel::Standard)
+}
+
+/// Run ClaudeLang code with specific optimization level
+pub fn run_code_with_options(code: &str, opt_level: OptimizationLevel) -> Result<Value> {
     // Parse
     let ast = parse(code)?;
     
-    // Compile
-    let compiler = Compiler::new();
+    // Compile with optimization
+    let options = CompilerOptions {
+        optimization_level: opt_level,
+        debug_info: false,
+    };
+    let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&ast)?;
     
     // Execute
@@ -40,20 +50,21 @@ pub async fn run_file(
     path: &Path, 
     _args: Vec<String>,
     viz_config: Option<crate::commands::run::VisualizationConfig>,
+    opt_level: OptimizationLevel,
 ) -> Result<Value> {
     let code = std::fs::read_to_string(path)?;
     
     #[cfg(feature = "visualization")]
     if let Some(viz) = viz_config {
-        run_with_visualization(&code, viz).await
+        run_with_visualization(&code, viz, opt_level).await
     } else {
-        run_code(&code)
+        run_code_with_options(&code, opt_level)
     }
     
     #[cfg(not(feature = "visualization"))]
     {
         let _ = viz_config; // Suppress warning
-        run_code(&code)
+        run_code_with_options(&code, opt_level)
     }
 }
 
@@ -62,6 +73,7 @@ pub async fn run_file(
 pub async fn run_with_visualization(
     code: &str,
     viz_config: crate::commands::run::VisualizationConfig,
+    opt_level: OptimizationLevel,
 ) -> Result<Value> {
     use std::path::PathBuf;
     
@@ -132,8 +144,12 @@ pub async fn run_with_visualization(
         timestamp: timestamp_micros(),
     });
     
-    // Compile
-    let compiler = Compiler::new();
+    // Compile with optimization
+    let options = CompilerOptions {
+        optimization_level: opt_level,
+        debug_info: false,
+    };
+    let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&ast)?;
     
     // Create VM with debug support

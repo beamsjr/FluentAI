@@ -12,7 +12,7 @@ pub mod debug;
 
 pub use vm::VM;
 pub use bytecode::{Bytecode, Opcode};
-pub use compiler::Compiler;
+pub use compiler::{Compiler, CompilerOptions};
 pub use builder::{VMBuilder, VMConfig};
 pub use di::{VMContainerBuilderExt, VMServiceProvider, ContainerVMProvider, VMFactory};
 pub use debug::{VMDebugEvent, DebugConfig, StepMode};

@@ -151,7 +151,7 @@ impl MLOptimizationHints {
             node_count: graph.nodes.len(),
             depth: self.compute_depth(graph),
             branching_factor: self.compute_branching_factor(graph),
-            cycle_count: 0, // TODO: Detect cycles
+            cycle_count: self.detect_cycles(graph),
             arithmetic_ops: 0,
             memory_ops: 0,
             control_flow_ops: 0,
@@ -173,26 +173,44 @@ impl MLOptimizationHints {
         };
 
         // Analyze nodes
-        for node in graph.nodes.values() {
-            self.analyze_node(node, &mut features);
+        for (node_id, node) in &graph.nodes {
+            self.analyze_node(graph, *node_id, node, &mut features);
         }
+
+        // Estimate data flow complexity
+        self.estimate_data_flow(&mut features, graph);
 
         features
     }
 
     /// Analyze a single node
-    fn analyze_node(&self, node: &Node, features: &mut ProgramFeatures) {
+    fn analyze_node(&self, graph: &Graph, node_id: NodeId, node: &Node, features: &mut ProgramFeatures) {
         match node {
-            Node::Application { .. } => {
+            Node::Application { function, args } => {
                 features.function_calls += 1;
-                if let Node::Variable { name } = node {
+                
+                // Check function type
+                if let Some(Node::Variable { name }) = graph.get_node(*function) {
                     if is_arithmetic_op(name) {
                         features.arithmetic_ops += 1;
+                    } else if is_memory_op(name) {
+                        features.memory_ops += 1;
+                    } else if name == "map" {
+                        features.has_map_pattern = true;
+                    } else if name == "reduce" || name == "fold" {
+                        features.has_reduce_pattern = true;
                     }
                 }
+                
+                // Count data dependencies
+                features.data_dependencies += args.len();
             }
             Node::If { .. } => {
                 features.control_flow_ops += 1;
+            }
+            Node::Match { branches, .. } => {
+                features.control_flow_ops += 1;
+                features.branching_factor = features.branching_factor.max(branches.len() as f32);
             }
             Node::Lambda { .. } => {
                 features.uses_higher_order = true;
@@ -208,8 +226,130 @@ impl MLOptimizationHints {
                     _ => {}
                 }
             }
+            Node::Letrec { bindings, .. } => {
+                // Check for recursion
+                for (name, func_id) in bindings {
+                    if self.is_recursive_binding(graph, name, *func_id) {
+                        features.has_recursion = true;
+                        features.has_loops = true; // Recursion is a form of loop
+                    }
+                }
+            }
             _ => {}
         }
+    }
+
+    /// Check if a binding is recursive
+    fn is_recursive_binding(&self, graph: &Graph, name: &str, func_id: NodeId) -> bool {
+        use rustc_hash::FxHashSet;
+        let mut visited = FxHashSet::default();
+        self.contains_reference(graph, func_id, name, &mut visited)
+    }
+
+    /// Check if a node contains a reference to a name
+    fn contains_reference(&self, graph: &Graph, node_id: NodeId, target_name: &str, visited: &mut rustc_hash::FxHashSet<NodeId>) -> bool {
+        if !visited.insert(node_id) {
+            return false;
+        }
+
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Variable { name } => name == target_name,
+                Node::Application { function, args } => {
+                    self.contains_reference(graph, *function, target_name, visited) ||
+                    args.iter().any(|arg| self.contains_reference(graph, *arg, target_name, visited))
+                }
+                Node::Lambda { body, .. } => {
+                    self.contains_reference(graph, *body, target_name, visited)
+                }
+                Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                    bindings.iter().any(|(_, val)| self.contains_reference(graph, *val, target_name, visited)) ||
+                    self.contains_reference(graph, *body, target_name, visited)
+                }
+                Node::If { condition, then_branch, else_branch } => {
+                    self.contains_reference(graph, *condition, target_name, visited) ||
+                    self.contains_reference(graph, *then_branch, target_name, visited) ||
+                    self.contains_reference(graph, *else_branch, target_name, visited)
+                }
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Detect cycles in the graph
+    fn detect_cycles(&self, graph: &Graph) -> usize {
+        // Simple cycle detection - count back edges
+        use rustc_hash::FxHashSet;
+        let mut visited = FxHashSet::default();
+        let mut rec_stack = FxHashSet::default();
+        let mut cycle_count = 0;
+
+        for node_id in graph.nodes.keys() {
+            if !visited.contains(node_id) {
+                cycle_count += self.dfs_cycle_detect(graph, *node_id, &mut visited, &mut rec_stack);
+            }
+        }
+
+        cycle_count
+    }
+
+    /// DFS-based cycle detection
+    fn dfs_cycle_detect(&self, graph: &Graph, node_id: NodeId, visited: &mut rustc_hash::FxHashSet<NodeId>, rec_stack: &mut rustc_hash::FxHashSet<NodeId>) -> usize {
+        visited.insert(node_id);
+        rec_stack.insert(node_id);
+        let mut cycles = 0;
+
+        if let Some(node) = graph.get_node(node_id) {
+            let children = self.get_node_children(node);
+            for child in children {
+                if !visited.contains(&child) {
+                    cycles += self.dfs_cycle_detect(graph, child, visited, rec_stack);
+                } else if rec_stack.contains(&child) {
+                    cycles += 1;
+                }
+            }
+        }
+
+        rec_stack.remove(&node_id);
+        cycles
+    }
+
+    /// Get children of a node
+    fn get_node_children(&self, node: &Node) -> Vec<NodeId> {
+        match node {
+            Node::Application { function, args } => {
+                let mut children = vec![*function];
+                children.extend(args);
+                children
+            }
+            Node::Lambda { body, .. } => vec![*body],
+            Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                let mut children: Vec<_> = bindings.iter().map(|(_, v)| *v).collect();
+                children.push(*body);
+                children
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                vec![*condition, *then_branch, *else_branch]
+            }
+            Node::Match { expr, branches } => {
+                let mut children = vec![*expr];
+                children.extend(branches.iter().map(|(_, b)| *b));
+                children
+            }
+            _ => vec![],
+        }
+    }
+
+    /// Estimate data flow complexity
+    fn estimate_data_flow(&self, features: &mut ProgramFeatures, graph: &Graph) {
+        // Simple estimation based on node connectivity
+        let avg_connections = features.data_dependencies as f32 / features.node_count.max(1) as f32;
+        features.register_pressure = avg_connections * features.branching_factor;
+        
+        // Estimate live variables (simplified)
+        features.live_variables = (features.node_count as f32 * 0.3) as usize;
     }
 
     /// Compute graph depth
@@ -321,4 +461,12 @@ impl Default for MLOptimizationHints {
 /// Check if a function name is an arithmetic operation
 fn is_arithmetic_op(name: &str) -> bool {
     matches!(name, "+" | "-" | "*" | "/" | "mod")
+}
+
+/// Check if a function name is a memory operation
+fn is_memory_op(name: &str) -> bool {
+    matches!(name, 
+        "car" | "cdr" | "cons" | "list" | "append" |
+        "ref" | "deref" | "set!" | "vector-ref" | "vector-set!"
+    )
 }

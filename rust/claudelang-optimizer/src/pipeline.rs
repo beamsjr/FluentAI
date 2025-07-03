@@ -179,6 +179,11 @@ impl OptimizationPipeline {
         if self.config.partial_evaluation {
             self.passes.push(Box::new(partial_eval::PartialEvaluationPass::new()));
         }
+
+        // Add effect-aware optimization for Standard and Aggressive levels
+        if self.config.level == OptimizationLevel::Standard || self.config.level == OptimizationLevel::Aggressive {
+            self.passes.push(Box::new(effect_aware::EffectAwarePass::new()));
+        }
     }
 
     /// Run optimization pipeline

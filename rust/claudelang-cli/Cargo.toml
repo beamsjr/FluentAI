@@ -15,6 +15,7 @@ claudelang-core = { path = "../claudelang-core" }
 claudelang-parser = { path = "../claudelang-parser" }
 claudelang-vm = { path = "../claudelang-vm" }
 claudelang-package = { path = "../claudelang-package" }
+claudelang-optimizer = { path = "../claudelang-optimizer" }
 
 # Optional visualization
 claudelang-viz = { path = "../claudelang-viz", optional = true }

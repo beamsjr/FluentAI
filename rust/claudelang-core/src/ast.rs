@@ -3,11 +3,28 @@
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::num::NonZeroU32;
 use crate::documentation::{DocumentedNode, Documentation, DocumentationCategory, DocumentationVisibility};
 
 /// Node identifier in the AST graph
+/// 
+/// Uses NonZeroU32 internally to enable null pointer optimization for Option<NodeId>.
+/// NodeId(0) is reserved as an invalid/null node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct NodeId(pub u32);
+pub struct NodeId(pub NonZeroU32);
+
+impl NodeId {
+    /// Creates a new NodeId from a u32.
+    /// Returns None if the value is 0.
+    pub fn new(value: u32) -> Option<Self> {
+        NonZeroU32::new(value).map(NodeId)
+    }
+    
+    /// Gets the inner u32 value
+    pub fn get(&self) -> u32 {
+        self.0.get()
+    }
+}
 
 impl fmt::Display for NodeId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -15,12 +32,35 @@ impl fmt::Display for NodeId {
     }
 }
 
+/// Node metadata for analysis and optimization
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct NodeMetadata {
+    /// Source location information
+    pub span: Option<(usize, usize)>,
+    /// Inferred type information
+    pub type_info: Option<String>,
+    /// Purity flag for optimization
+    pub is_pure: Option<bool>,
+    /// Custom annotations
+    pub annotations: Vec<String>,
+}
+
 /// AST graph representation
+/// 
+/// # Invariants
+/// - `next_id` monotonically increases and is never reused
+/// - NodeIds are unique within a graph
+/// - All NodeId references in nodes must point to valid nodes in the graph
+/// - The root_id, if present, must point to a valid node
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
     pub nodes: FxHashMap<NodeId, Node>,
     pub root_id: Option<NodeId>,
+    /// Next ID to assign. Starts at 1 and monotonically increases.
+    /// IDs are never reused, even after node deletion.
     next_id: u32,
+    /// Optional metadata for nodes
+    pub metadata: FxHashMap<NodeId, NodeMetadata>,
 }
 
 impl Graph {
@@ -28,12 +68,14 @@ impl Graph {
         Self {
             nodes: FxHashMap::default(),
             root_id: None,
-            next_id: 0,
+            next_id: 1, // Start at 1 since 0 is reserved for null
+            metadata: FxHashMap::default(),
         }
     }
 
     pub fn add_node(&mut self, node: Node) -> NodeId {
-        let id = NodeId(self.next_id);
+        // SAFETY: next_id starts at 1 and only increments, so it's always non-zero
+        let id = NodeId(NonZeroU32::new(self.next_id).expect("NodeId overflow"));
         self.next_id += 1;
         self.nodes.insert(id, node);
         id
@@ -41,6 +83,135 @@ impl Graph {
 
     pub fn get_node(&self, id: NodeId) -> Option<&Node> {
         self.nodes.get(&id)
+    }
+    
+    /// Gets mutable reference to a node
+    pub fn get_node_mut(&mut self, id: NodeId) -> Option<&mut Node> {
+        self.nodes.get_mut(&id)
+    }
+    
+    /// Gets metadata for a node
+    pub fn get_metadata(&self, id: NodeId) -> Option<&NodeMetadata> {
+        self.metadata.get(&id)
+    }
+    
+    /// Gets or creates metadata for a node
+    pub fn metadata_mut(&mut self, id: NodeId) -> &mut NodeMetadata {
+        self.metadata.entry(id).or_default()
+    }
+    
+    /// Sets metadata for a node
+    pub fn set_metadata(&mut self, id: NodeId, metadata: NodeMetadata) {
+        self.metadata.insert(id, metadata);
+    }
+    
+    /// Returns an iterator over all node IDs in the graph
+    pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
+        self.nodes.keys().copied()
+    }
+    
+    /// Returns an iterator over all nodes in the graph
+    pub fn nodes(&self) -> impl Iterator<Item = (&NodeId, &Node)> + '_ {
+        self.nodes.iter()
+    }
+    
+    /// Performs a depth-first traversal starting from the given node
+    pub fn dfs_from(&self, start: NodeId, mut visitor: impl FnMut(NodeId, &Node)) {
+        let mut visited = std::collections::HashSet::new();
+        self.dfs_helper(start, &mut visited, &mut visitor);
+    }
+    
+    fn dfs_helper(
+        &self,
+        node_id: NodeId,
+        visited: &mut std::collections::HashSet<NodeId>,
+        visitor: &mut impl FnMut(NodeId, &Node),
+    ) {
+        if !visited.insert(node_id) {
+            return; // Already visited
+        }
+        
+        if let Some(node) = self.get_node(node_id) {
+            visitor(node_id, node);
+            
+            // Visit child nodes
+            match node {
+                Node::Lambda { body, .. } => {
+                    self.dfs_helper(*body, visited, visitor);
+                }
+                Node::Application { function, args } => {
+                    self.dfs_helper(*function, visited, visitor);
+                    for arg in args {
+                        self.dfs_helper(*arg, visited, visitor);
+                    }
+                }
+                Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                    for (_, value) in bindings {
+                        self.dfs_helper(*value, visited, visitor);
+                    }
+                    self.dfs_helper(*body, visited, visitor);
+                }
+                Node::If { condition, then_branch, else_branch } => {
+                    self.dfs_helper(*condition, visited, visitor);
+                    self.dfs_helper(*then_branch, visited, visitor);
+                    self.dfs_helper(*else_branch, visited, visitor);
+                }
+                Node::Match { expr, branches } => {
+                    self.dfs_helper(*expr, visited, visitor);
+                    for (_, branch) in branches {
+                        self.dfs_helper(*branch, visited, visitor);
+                    }
+                }
+                Node::List(items) => {
+                    for item in items {
+                        self.dfs_helper(*item, visited, visitor);
+                    }
+                }
+                Node::Effect { args, .. } => {
+                    for arg in args {
+                        self.dfs_helper(*arg, visited, visitor);
+                    }
+                }
+                _ => {} // Leaf nodes
+            }
+        }
+    }
+    
+    /// Collects all child node IDs of a given node
+    pub fn children(&self, node_id: NodeId) -> Vec<NodeId> {
+        let mut children = Vec::new();
+        if let Some(node) = self.get_node(node_id) {
+            match node {
+                Node::Lambda { body, .. } => {
+                    children.push(*body);
+                }
+                Node::Application { function, args } => {
+                    children.push(*function);
+                    children.extend(args);
+                }
+                Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                    children.extend(bindings.iter().map(|(_, v)| v));
+                    children.push(*body);
+                }
+                Node::If { condition, then_branch, else_branch } => {
+                    children.push(*condition);
+                    children.push(*then_branch);
+                    children.push(*else_branch);
+                }
+                Node::Match { expr, branches } => {
+                    children.push(*expr);
+                    children.extend(branches.iter().map(|(_, b)| b));
+                }
+                Node::List(items) => {
+                    children.extend(items);
+                }
+                Node::Effect { args, .. } => {
+                    children.extend(args);
+                }
+                _ => {} // Leaf nodes have no children
+            }
+        }
+        children
     }
 }
 

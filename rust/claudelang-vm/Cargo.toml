@@ -11,6 +11,7 @@ claudelang-effects = { path = "../claudelang-effects" }
 claudelang-stdlib = { path = "../claudelang-stdlib" }
 claudelang-modules = { path = "../claudelang-modules" }
 claudelang-di = { path = "../claudelang-di" }
+claudelang-optimizer = { path = "../claudelang-optimizer" }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true

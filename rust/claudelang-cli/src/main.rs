@@ -34,6 +34,10 @@ enum Commands {
         /// Path to the ClaudeLang file
         file: PathBuf,
         
+        /// Optimization level (0=none, 1=basic, 2=standard, 3=aggressive)
+        #[arg(short = 'O', long = "opt", default_value = "2")]
+        optimization: u8,
+        
         /// Enable visualization
         #[cfg(feature = "visualization")]
         #[arg(long, short = 'v')]
@@ -189,6 +193,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Some(Commands::Run { 
             file, 
+            optimization,
             #[cfg(feature = "visualization")]
             visualize,
             #[cfg(feature = "visualization")]
@@ -213,7 +218,7 @@ async fn main() -> Result<()> {
             #[cfg(not(feature = "visualization"))]
             let viz_config = None;
             
-            run::run_file(&file, args, viz_config, &config).await?;
+            run::run_file(&file, args, viz_config, optimization, &config).await?;
         }
         
         #[cfg(feature = "visualization")]
@@ -223,7 +228,7 @@ async fn main() -> Result<()> {
                 delay_ms: 0,
                 auto_open: open,
             });
-            run::run_file(&file, args, viz_config, &config).await?;
+            run::run_file(&file, args, viz_config, 2, &config).await?; // Default to standard optimization
         }
         
         Some(Commands::Repl { 

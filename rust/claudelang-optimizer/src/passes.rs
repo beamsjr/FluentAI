@@ -8,6 +8,7 @@ pub mod tail_call;
 pub mod loop_opts;
 pub mod beta_reduction;
 pub mod partial_eval;
+pub mod effect_aware;
 
 use claudelang_core::ast::Graph;
 use anyhow::Result;

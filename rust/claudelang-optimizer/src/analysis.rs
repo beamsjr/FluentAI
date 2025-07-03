@@ -470,3 +470,294 @@ impl AliasAnalysis {
         }
     }
 }
+
+/// Calculate the size of a node (for inlining decisions)
+pub fn calculate_node_size(graph: &Graph, node_id: NodeId) -> usize {
+    let mut size = 0;
+    let mut visited = FxHashSet::default();
+    calculate_node_size_helper(graph, node_id, &mut size, &mut visited);
+    size
+}
+
+fn calculate_node_size_helper(graph: &Graph, node_id: NodeId, size: &mut usize, visited: &mut FxHashSet<NodeId>) {
+    if !visited.insert(node_id) {
+        return; // Already visited
+    }
+    
+    *size += 1;
+    
+    if let Some(node) = graph.get_node(node_id) {
+        match node {
+            Node::Application { function, args } => {
+                calculate_node_size_helper(graph, *function, size, visited);
+                for arg in args {
+                    calculate_node_size_helper(graph, *arg, size, visited);
+                }
+            }
+            Node::Lambda { body, .. } => {
+                calculate_node_size_helper(graph, *body, size, visited);
+            }
+            Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                for (_, value) in bindings {
+                    calculate_node_size_helper(graph, *value, size, visited);
+                }
+                calculate_node_size_helper(graph, *body, size, visited);
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                calculate_node_size_helper(graph, *condition, size, visited);
+                calculate_node_size_helper(graph, *then_branch, size, visited);
+                calculate_node_size_helper(graph, *else_branch, size, visited);
+            }
+            Node::Match { expr, branches } => {
+                calculate_node_size_helper(graph, *expr, size, visited);
+                for (_, branch) in branches {
+                    calculate_node_size_helper(graph, *branch, size, visited);
+                }
+            }
+            _ => {} // Leaf nodes
+        }
+    }
+}
+
+/// Check if a function is recursive
+pub fn is_recursive_function(graph: &Graph, func_id: NodeId) -> bool {
+    if let Some(Node::Lambda { body, .. }) = graph.get_node(func_id) {
+        let mut visited = FxHashSet::default();
+        contains_reference_to(graph, *body, func_id, &mut visited)
+    } else {
+        false
+    }
+}
+
+fn contains_reference_to(graph: &Graph, node_id: NodeId, target_id: NodeId, visited: &mut FxHashSet<NodeId>) -> bool {
+    if !visited.insert(node_id) {
+        return false; // Already visited
+    }
+    
+    if node_id == target_id {
+        return true;
+    }
+    
+    if let Some(node) = graph.get_node(node_id) {
+        match node {
+            Node::Application { function, args } => {
+                if contains_reference_to(graph, *function, target_id, visited) {
+                    return true;
+                }
+                for arg in args {
+                    if contains_reference_to(graph, *arg, target_id, visited) {
+                        return true;
+                    }
+                }
+            }
+            Node::Lambda { body, .. } => {
+                return contains_reference_to(graph, *body, target_id, visited);
+            }
+            Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                for (_, value) in bindings {
+                    if contains_reference_to(graph, *value, target_id, visited) {
+                        return true;
+                    }
+                }
+                return contains_reference_to(graph, *body, target_id, visited);
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                return contains_reference_to(graph, *condition, target_id, visited) ||
+                       contains_reference_to(graph, *then_branch, target_id, visited) ||
+                       contains_reference_to(graph, *else_branch, target_id, visited);
+            }
+            Node::Match { expr, branches } => {
+                if contains_reference_to(graph, *expr, target_id, visited) {
+                    return true;
+                }
+                for (_, branch) in branches {
+                    if contains_reference_to(graph, *branch, target_id, visited) {
+                        return true;
+                    }
+                }
+            }
+            _ => {} // Leaf nodes
+        }
+    }
+    
+    false
+}
+
+/// Type-based analysis for optimization
+pub struct TypeAnalysis {
+    /// Type information for each node
+    pub node_types: FxHashMap<NodeId, TypeInfo>,
+    /// Nodes that can be specialized
+    pub specializable: FxHashSet<NodeId>,
+    /// Polymorphic functions
+    pub polymorphic_functions: FxHashSet<NodeId>,
+}
+
+/// Type information for optimization
+#[derive(Debug, Clone)]
+pub enum TypeInfo {
+    /// Known concrete type
+    Concrete(ConcreteType),
+    /// Polymorphic type
+    Polymorphic,
+    /// Unknown type
+    Unknown,
+}
+
+/// Concrete types we can optimize for
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConcreteType {
+    Integer,
+    Float,
+    Boolean,
+    String,
+    List(Box<ConcreteType>),
+    Function(Vec<ConcreteType>, Box<ConcreteType>),
+}
+
+impl TypeAnalysis {
+    /// Perform type analysis on the graph
+    pub fn analyze(graph: &Graph) -> Self {
+        let mut analysis = Self {
+            node_types: FxHashMap::default(),
+            specializable: FxHashSet::default(),
+            polymorphic_functions: FxHashSet::default(),
+        };
+
+        // First pass: infer types from literals and built-ins
+        for (node_id, node) in &graph.nodes {
+            if let Some(type_info) = analysis.infer_node_type(graph, node) {
+                analysis.node_types.insert(*node_id, type_info);
+            }
+        }
+
+        // Second pass: propagate types through the graph
+        analysis.propagate_types(graph);
+
+        // Identify specialization opportunities
+        analysis.find_specializable_nodes(graph);
+
+        analysis
+    }
+
+    /// Infer type from a node
+    fn infer_node_type(&self, _graph: &Graph, node: &Node) -> Option<TypeInfo> {
+        match node {
+            Node::Literal(lit) => {
+                use claudelang_core::ast::Literal::*;
+                let concrete_type = match lit {
+                    Integer(_) => ConcreteType::Integer,
+                    Float(_) => ConcreteType::Float,
+                    Boolean(_) => ConcreteType::Boolean,
+                    String(_) => ConcreteType::String,
+                    Nil => return Some(TypeInfo::Unknown),
+                };
+                Some(TypeInfo::Concrete(concrete_type))
+            }
+            Node::Variable { name } => {
+                // Type inference for built-in functions
+                match name.as_str() {
+                    "+" | "-" | "*" | "/" => Some(TypeInfo::Concrete(ConcreteType::Function(
+                        vec![ConcreteType::Integer, ConcreteType::Integer],
+                        Box::new(ConcreteType::Integer),
+                    ))),
+                    "<" | ">" | "=" | "<=" | ">=" => Some(TypeInfo::Concrete(ConcreteType::Function(
+                        vec![ConcreteType::Integer, ConcreteType::Integer],
+                        Box::new(ConcreteType::Boolean),
+                    ))),
+                    "and" | "or" => Some(TypeInfo::Concrete(ConcreteType::Function(
+                        vec![ConcreteType::Boolean, ConcreteType::Boolean],
+                        Box::new(ConcreteType::Boolean),
+                    ))),
+                    "not" => Some(TypeInfo::Concrete(ConcreteType::Function(
+                        vec![ConcreteType::Boolean],
+                        Box::new(ConcreteType::Boolean),
+                    ))),
+                    _ => None,
+                }
+            }
+            Node::List(items) => {
+                if items.is_empty() {
+                    Some(TypeInfo::Unknown)
+                } else {
+                    // For now, assume homogeneous lists
+                    Some(TypeInfo::Polymorphic)
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Propagate types through the graph
+    fn propagate_types(&mut self, graph: &Graph) {
+        let mut changed = true;
+        while changed {
+            changed = false;
+            
+            for (node_id, node) in &graph.nodes {
+                if self.node_types.contains_key(node_id) {
+                    continue;
+                }
+
+                match node {
+                    Node::Application { function, args } => {
+                        // Try to infer result type from function type
+                        if let Some(TypeInfo::Concrete(ConcreteType::Function(_, result))) = 
+                            self.node_types.get(function) {
+                            self.node_types.insert(*node_id, TypeInfo::Concrete((**result).clone()));
+                            changed = true;
+                        }
+                    }
+                    Node::If { condition: _, then_branch, else_branch } => {
+                        // If both branches have the same type, the if expression has that type
+                        if let (Some(then_type), Some(else_type)) = 
+                            (self.node_types.get(then_branch), self.node_types.get(else_branch)) {
+                            if matches!((then_type, else_type), 
+                                       (TypeInfo::Concrete(t1), TypeInfo::Concrete(t2)) if t1 == t2) {
+                                self.node_types.insert(*node_id, then_type.clone());
+                                changed = true;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    /// Find nodes that can be specialized
+    fn find_specializable_nodes(&mut self, graph: &Graph) {
+        for (node_id, node) in &graph.nodes {
+            match node {
+                Node::Lambda { .. } => {
+                    // Lambda functions can potentially be specialized
+                    if let Some(TypeInfo::Concrete(_)) = self.node_types.get(node_id) {
+                        self.specializable.insert(*node_id);
+                    } else {
+                        self.polymorphic_functions.insert(*node_id);
+                    }
+                }
+                Node::Application { function, .. } => {
+                    // Applications of polymorphic functions can be specialized
+                    if self.polymorphic_functions.contains(function) {
+                        self.specializable.insert(*node_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Check if a node has a concrete type
+    pub fn has_concrete_type(&self, node_id: NodeId) -> bool {
+        matches!(self.node_types.get(&node_id), Some(TypeInfo::Concrete(_)))
+    }
+
+    /// Get the concrete type of a node if available
+    pub fn get_concrete_type(&self, node_id: NodeId) -> Option<&ConcreteType> {
+        match self.node_types.get(&node_id) {
+            Some(TypeInfo::Concrete(t)) => Some(t),
+            _ => None,
+        }
+    }
+}
