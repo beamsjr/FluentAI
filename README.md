@@ -47,7 +47,7 @@ ClaudeLang is an experimental programming language that explores what happens wh
 - **Pattern matching**: ML-style with exhaustiveness checking
 - **Algebraic data types**: Sum and product types with pattern matching
 - **Effect system**: Explicit tracking of IO, State, Error, DOM, Network, etc.
-- **Module system**: Namespaces and dependency management
+- **Module system**: Full namespace support with imports, exports, and qualified references
 - **Type annotations**: Optional type ascription for clarity and optimization
 
 ### 📊 Advanced Capabilities
@@ -62,19 +62,36 @@ ClaudeLang is an experimental programming language that explores what happens wh
 ## Quick Example
 
 ```lisp
-;; Define an algebraic data type
-(data List a
-  (Nil)
-  (Cons a (List a)))
+;; Import modules
+(import "collections" (map filter reduce))
+(import "math" (pi sin cos))
+(import "ui/components" *)
 
-;; Pattern matching with type annotation
-(: (lambda (xs)
-     (match xs
-       ((Nil) 0)
-       ((Cons x xs) (+ 1 (length xs)))))
-   (Function (List a) Int))
+;; Define a module
+(module list-utils (export length sum)
+  ;; Define an algebraic data type
+  (data List a
+    (Nil)
+    (Cons a (List a)))
 
-;; Modern UI component
+  ;; Pattern matching with type annotation
+  (define length
+    (: (lambda (xs)
+         (match xs
+           ((Nil) 0)
+           ((Cons x xs) (+ 1 (length xs)))))
+       (Function (List a) Int)))
+  
+  (define sum
+    (lambda (xs)
+      (match xs
+        ((Nil) 0)
+        ((Cons x xs) (+ x (sum xs)))))))
+
+;; Use imported functions
+(define circle-area (lambda (r) (* pi r r)))
+
+;; Modern UI component with imports
 (ui:component "Counter" {:count (prop :number :default 0)}
   (lambda (props)
     (h "div" {}
@@ -82,15 +99,17 @@ ClaudeLang is an experimental programming language that explores what happens wh
       (h "button" {:onClick (lambda () (emit :increment))}
         "Increment"))))
 
-;; Async/await example
+;; Async/await with module reference
+(import "network" *)
 (async (lambda ()
-  (let ((data (await (effect network:fetch "https://api.example.com/data"))))
+  (let ((data (await (network:fetch "https://api.example.com/data"))))
     (effect dom:update (get data :result)))))
 
-;; Concurrent programming with channels
+;; Concurrent programming with qualified names
+(import "concurrent" (chan go))
 (let ((ch (chan 10)))
-  (go (effect concurrent:send ch "Hello from goroutine!"))
-  (effect concurrent:receive ch))
+  (go (lambda () (concurrent:send! ch "Hello from goroutine!")))
+  (concurrent:receive! ch))
 ```
 
 ## Installation
@@ -153,6 +172,33 @@ python -m unittest discover tests -v
 ```
 
 ## Language Features
+
+### Module System
+```lisp
+;; Define a module with exports
+(module math-utils (export square cube factorial)
+  (define square (lambda (x) (* x x)))
+  (define cube (lambda (x) (* x x x)))
+  (define factorial 
+    (lambda (n)
+      (if (<= n 1) 1 (* n (factorial (- n 1)))))))
+
+;; Import specific functions
+(import "math-utils" (square cube))
+(import "collections" (map filter reduce))
+
+;; Import all exports
+(import "string-utils" *)
+
+;; Import with aliases
+(import "math" (sin as sine cos as cosine))
+
+;; Qualified references
+(define area (lambda (r) (* math.pi r r)))
+
+;; Export from current module
+(export helper-function process-data)
+```
 
 ### Core S-Expression Syntax
 ```lisp
