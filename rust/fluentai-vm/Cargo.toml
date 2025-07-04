@@ -18,6 +18,9 @@ serde.workspace = true
 byteorder.workspace = true
 rustc-hash.workspace = true
 tokio = { workspace = true, features = ["rt", "sync"] }
+parking_lot.workspace = true
+crossbeam-epoch = "0.9"
+crossbeam-utils = "0.8"
 
 [dev-dependencies]
 criterion.workspace = true

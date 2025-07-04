@@ -1,53 +1,112 @@
 //! Tail call optimization pass
 
-use fluentai_core::ast::{Graph, Node, NodeId};
+use fluentai_core::ast::{Graph, Node, NodeId, Literal, Pattern};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
+use rustc_hash::{FxHashMap, FxHashSet};
+
+/// Information about a tail call
+#[derive(Debug, Clone)]
+struct TailCallInfo {
+    node_id: NodeId,
+    args: Vec<NodeId>,
+    is_self_recursive: bool,
+    target_function: String,
+}
 
 /// Tail call optimization pass
 pub struct TailCallOptimizationPass {
     optimized_count: usize,
+    /// Track which functions have been optimized
+    optimized_functions: FxHashSet<String>,
+    /// Map from function names to their parameter lists
+    function_params: FxHashMap<String, Vec<String>>,
 }
 
 impl TailCallOptimizationPass {
     /// Create new tail call optimization pass
     pub fn new() -> Self {
-        Self { optimized_count: 0 }
+        Self { 
+            optimized_count: 0,
+            optimized_functions: FxHashSet::default(),
+            function_params: FxHashMap::default(),
+        }
     }
 }
 
 impl TailCallOptimizationPass {
-    /// Check if a function body contains tail recursion
-    fn is_tail_recursive(&self, graph: &Graph, func_name: &str, body: NodeId) -> bool {
-        self.check_tail_position(graph, func_name, body, true)
+    /// Check if a function body contains tail recursion and collect tail call info
+    fn analyze_tail_recursion(&self, graph: &Graph, func_name: &str, body: NodeId) -> Option<Vec<TailCallInfo>> {
+        let mut tail_calls = Vec::new();
+        self.collect_tail_calls(graph, func_name, body, true, &mut tail_calls);
+        if !tail_calls.is_empty() {
+            Some(tail_calls)
+        } else {
+            None
+        }
     }
     
-    /// Check if a node is in tail position and contains a recursive call
-    fn check_tail_position(&self, graph: &Graph, func_name: &str, node_id: NodeId, is_tail: bool) -> bool {
+    /// Collect all tail calls in a function body
+    fn collect_tail_calls(&self, graph: &Graph, func_name: &str, node_id: NodeId, is_tail: bool, tail_calls: &mut Vec<TailCallInfo>) {
         if let Some(node) = graph.get_node(node_id) {
             match node {
-                Node::Application { function, .. } => {
+                Node::Application { function, args } => {
                     if is_tail {
                         if let Some(Node::Variable { name }) = graph.get_node(*function) {
-                            return name == func_name;
+                            if name == func_name {
+                                tail_calls.push(TailCallInfo {
+                                    node_id,
+                                    args: args.clone(),
+                                    is_self_recursive: true,
+                                    target_function: name.clone(),
+                                });
+                            }
                         }
                     }
-                    false
                 }
-                Node::If { then_branch, else_branch, .. } => {
+                Node::If { condition: _, then_branch, else_branch } => {
                     // Both branches are in tail position
-                    self.check_tail_position(graph, func_name, *then_branch, is_tail) ||
-                    self.check_tail_position(graph, func_name, *else_branch, is_tail)
+                    self.collect_tail_calls(graph, func_name, *then_branch, is_tail, tail_calls);
+                    self.collect_tail_calls(graph, func_name, *else_branch, is_tail, tail_calls);
                 }
                 Node::Let { body, .. } | Node::Letrec { body, .. } => {
                     // Body is in tail position
-                    self.check_tail_position(graph, func_name, *body, is_tail)
+                    self.collect_tail_calls(graph, func_name, *body, is_tail, tail_calls);
                 }
-                _ => false,
+                Node::Match { branches, .. } => {
+                    // All branches are in tail position
+                    for (_, branch) in branches {
+                        self.collect_tail_calls(graph, func_name, *branch, is_tail, tail_calls);
+                    }
+                }
+                _ => {}
             }
-        } else {
-            false
         }
+    }
+    
+    /// Transform a tail-recursive function into a loop
+    fn transform_to_loop(&mut self, graph: &mut Graph, func_name: &str, params: &[String], body: NodeId, tail_calls: Vec<TailCallInfo>) -> NodeId {
+        // For now, we'll mark the function with metadata indicating it's tail-recursive
+        // In a real implementation, we would:
+        // 1. Create a new node type for tail-recursive loops
+        // 2. Transform the body to use loop constructs
+        // 3. Replace tail calls with parameter updates and continue
+        
+        // Add metadata to indicate this function should be compiled as a loop
+        let metadata = graph.metadata_mut(body);
+        metadata.annotations.push("tail-recursive".to_string());
+        metadata.annotations.push(format!("tail-calls:{}", tail_calls.len()));
+        
+        // Transform each tail call site
+        for tail_call in tail_calls {
+            let call_metadata = graph.metadata_mut(tail_call.node_id);
+            call_metadata.annotations.push("tail-call".to_string());
+        }
+        
+        self.optimized_count += 1;
+        self.optimized_functions.insert(func_name.to_string());
+        
+        body
     }
 }
 
@@ -58,27 +117,61 @@ impl OptimizationPass for TailCallOptimizationPass {
 
     fn run(&mut self, graph: &Graph) -> Result<Graph> {
         self.optimized_count = 0;
-        let optimized = graph.clone();
+        self.optimized_functions.clear();
+        self.function_params.clear();
         
-        // Find tail-recursive functions in letrec bindings
+        let mut optimized = graph.clone();
+        
+        // Collect all function definitions first
         for (_node_id, node) in &graph.nodes {
-            if let Node::Letrec { bindings, body: _ } = node {
+            match node {
+                Node::Letrec { bindings, .. } => {
+                    for (func_name, func_id) in bindings {
+                        if let Some(Node::Lambda { params, .. }) = graph.get_node(*func_id) {
+                            self.function_params.insert(func_name.clone(), params.clone());
+                        }
+                    }
+                }
+                Node::Let { bindings, .. } => {
+                    for (func_name, func_id) in bindings {
+                        if let Some(Node::Lambda { params, .. }) = graph.get_node(*func_id) {
+                            self.function_params.insert(func_name.clone(), params.clone());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        // Find and optimize tail-recursive functions
+        let mut functions_to_optimize = Vec::new();
+        
+        for (node_id, node) in &graph.nodes {
+            if let Node::Letrec { bindings, body } = node {
                 for (func_name, func_id) in bindings {
-                    if let Some(Node::Lambda { params: _, body }) = graph.get_node(*func_id) {
-                        if self.is_tail_recursive(graph, func_name, *body) {
-                            // Mark this function for tail call optimization
-                            // In a real implementation, we would transform this to a loop
-                            self.optimized_count += 1;
+                    if let Some(Node::Lambda { params, body: lambda_body }) = graph.get_node(*func_id) {
+                        if let Some(tail_calls) = self.analyze_tail_recursion(graph, func_name, *lambda_body) {
+                            functions_to_optimize.push((*node_id, func_name.clone(), params.clone(), *lambda_body, tail_calls));
                         }
                     }
                 }
             }
         }
         
+        // Apply transformations
+        for (letrec_id, func_name, params, body, tail_calls) in functions_to_optimize {
+            self.transform_to_loop(&mut optimized, &func_name, &params, body, tail_calls);
+        }
+        
         Ok(optimized)
     }
 
     fn stats(&self) -> String {
-        format!("{} pass: {} tail calls optimized", self.name(), self.optimized_count)
+        if self.optimized_count > 0 {
+            let funcs = self.optimized_functions.iter().cloned().collect::<Vec<_>>().join(", ");
+            format!("{} pass: {} functions optimized ({})", self.name(), self.optimized_count, funcs)
+        } else {
+            format!("{} pass: no optimizations performed", self.name())
+        }
     }
 }

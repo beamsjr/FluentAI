@@ -33,6 +33,9 @@ pub struct Compiler {
     scope_bases: Vec<usize>, // Base stack position for each scope
     cell_vars: Vec<HashSet<String>>, // Variables that are cells (for letrec)
     options: CompilerOptions,
+    // Tail call optimization tracking
+    in_tail_position: bool, // Whether we're compiling in tail position
+    current_function: Option<String>, // Name of current function being compiled
 }
 
 impl Compiler {
@@ -54,6 +57,8 @@ impl Compiler {
             scope_bases: vec![0],
             cell_vars: vec![HashSet::new()],
             options,
+            in_tail_position: false,
+            current_function: None,
         }
     }
     
@@ -299,6 +304,83 @@ impl Compiler {
                     }
                 }
                 
+                // Check for special forms
+                if name == "gc:let" {
+                    // gc:let is like regular let but allocates values with GC
+                    if args.is_empty() {
+                        return Err(anyhow!("gc:let requires at least one argument"));
+                    }
+                    
+                    // The gc:let form is (gc:let bindings body)
+                    // Parse bindings and body just like regular let
+                    let bindings_node = graph.nodes.get(&args[0])
+                        .ok_or_else(|| anyhow!("Invalid bindings node in gc:let"))?;
+                    
+                    // Extract bindings
+                    let bindings = if let Node::List(binding_nodes) = bindings_node {
+                        let mut result = Vec::new();
+                        for &binding_id in binding_nodes {
+                            if let Some(Node::List(pair)) = graph.nodes.get(&binding_id) {
+                                if pair.len() == 2 {
+                                    if let Some(Node::Variable { name }) = graph.nodes.get(&pair[0]) {
+                                        result.push((name.clone(), pair[1]));
+                                    } else {
+                                        return Err(anyhow!("gc:let binding must have variable name"));
+                                    }
+                                } else {
+                                    return Err(anyhow!("gc:let binding must be a pair"));
+                                }
+                            } else {
+                                return Err(anyhow!("gc:let binding must be a list"));
+                            }
+                        }
+                        result
+                    } else {
+                        return Err(anyhow!("gc:let bindings must be a list"));
+                    };
+                    
+                    // Body is the rest of the arguments
+                    let body_nodes = &args[1..];
+                    if body_nodes.is_empty() {
+                        return Err(anyhow!("gc:let requires a body"));
+                    }
+                    
+                    // Enter new scope
+                    self.enter_scope();
+                    
+                    // Compile bindings with GC allocation
+                    for (name, value_node) in bindings {
+                        // Compile the value expression
+                        self.compile_node(graph, value_node)?;
+                        
+                        // Allocate with GC
+                        self.emit(Instruction::new(Opcode::GcAlloc));
+                        
+                        // Add to locals
+                        let local_idx = self.stack_depth;
+                        self.locals.last_mut().unwrap().insert(name, local_idx);
+                        self.stack_depth += 1;
+                    }
+                    
+                    // Compile body expressions
+                    for (i, &body_node) in body_nodes.iter().enumerate() {
+                        self.compile_node(graph, body_node)?;
+                        // Pop intermediate results except the last one
+                        if i < body_nodes.len() - 1 {
+                            self.emit(Instruction::new(Opcode::Pop));
+                        }
+                    }
+                    
+                    // Clean up bindings
+                    let num_bindings = bindings.len();
+                    if num_bindings > 0 {
+                        self.emit(Instruction::with_arg(Opcode::PopN, num_bindings as u32));
+                    }
+                    
+                    self.exit_scope();
+                    return Ok(());
+                }
+                
                 // Check if it's a constructor (starts with uppercase)
                 if name.chars().next().map_or(false, |c| c.is_uppercase()) {
                     // Constructor call - create a tagged value
@@ -318,13 +400,28 @@ impl Compiler {
             }
         }
         
+        // Check if this is a tail call
+        let is_tail_call = self.in_tail_position && 
+            self.current_function.is_some() &&
+            if let Some(Node::Variable { name }) = graph.nodes.get(&func) {
+                self.current_function.as_ref() == Some(name)
+            } else {
+                false
+            };
+        
         // Regular function call
         for &arg in args {
             self.compile_node(graph, arg)?;
         }
         self.compile_node(graph, func)?;
-        eprintln!("DEBUG compile_application: before Call, stack_depth={}, arg_count={}", self.stack_depth, args.len());
-        self.emit(Instruction::with_arg(Opcode::Call, args.len() as u32));
+        
+        if is_tail_call {
+            eprintln!("DEBUG compile_application: tail call detected, stack_depth={}, arg_count={}", self.stack_depth, args.len());
+            self.emit(Instruction::with_arg(Opcode::TailCall, args.len() as u32));
+        } else {
+            eprintln!("DEBUG compile_application: before Call, stack_depth={}, arg_count={}", self.stack_depth, args.len());
+            self.emit(Instruction::with_arg(Opcode::Call, args.len() as u32));
+        }
         
         Ok(())
     }
@@ -350,6 +447,8 @@ impl Compiler {
         let saved_stack_depth = self.stack_depth;
         let saved_scope_bases = self.scope_bases.clone();
         let saved_cell_vars = self.cell_vars.clone();
+        let saved_function = self.current_function.clone();
+        let saved_tail = self.in_tail_position;
         
         // Switch to lambda chunk
         self.current_chunk = chunk_id;
@@ -378,8 +477,11 @@ impl Compiler {
             }
         }
         
-        // Compile body
+        // Compile body in tail position
+        let saved_tail = self.in_tail_position;
+        self.in_tail_position = true;
         self.compile_node(graph, body)?;
+        self.in_tail_position = saved_tail;
         self.emit(Instruction::new(Opcode::Return));
         
         // Restore context
@@ -389,6 +491,8 @@ impl Compiler {
         self.stack_depth = saved_stack_depth;
         self.scope_bases = saved_scope_bases;
         self.cell_vars = saved_cell_vars;
+        self.current_function = saved_function;
+        self.in_tail_position = saved_tail;
         
         // Push function value with captures
         if free_vars.is_empty() {
@@ -431,7 +535,7 @@ impl Compiler {
             eprintln!("DEBUG: Stored {} at position {}", name, abs_pos);
         }
         
-        // Compile body
+        // Compile body (preserving tail position - let body is in tail position)
         self.compile_node(graph, body)?;
         
         // Clean up bindings while preserving the result
@@ -483,15 +587,24 @@ impl Compiler {
             // Load uses frame-relative indexing, so we use the stored position directly
             self.emit(Instruction::with_arg(Opcode::Load, *cell_pos as u32));
             
+            // Set current function name if this is a lambda
+            let saved_function = self.current_function.clone();
+            if let Some(Node::Lambda { .. }) = graph.nodes.get(value) {
+                self.current_function = Some(name.clone());
+            }
+            
             // Compile the value
             self.compile_node(graph, *value)?;
+            
+            // Restore function name
+            self.current_function = saved_function;
             
             // Store in cell: [cell, value] -> CellSet -> nil
             self.emit(Instruction::new(Opcode::CellSet));
             self.emit(Instruction::new(Opcode::Pop)); // Pop the nil
         }
         
-        // Step 3: Compile body
+        // Step 3: Compile body (preserving tail position - letrec body is in tail position)
         self.compile_node(graph, body)?;
         
         // Clean up bindings while preserving the result
@@ -509,13 +622,16 @@ impl Compiler {
     }
     
     fn compile_if(&mut self, graph: &ASTGraph, condition: NodeId, then_branch: NodeId, else_branch: NodeId) -> Result<()> {
-        // Compile condition
+        // Compile condition (not in tail position)
+        let saved_tail = self.in_tail_position;
+        self.in_tail_position = false;
         self.compile_node(graph, condition)?;
+        self.in_tail_position = saved_tail;
         
         // Jump to else if false
         let jump_to_else = self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0));
         
-        // Compile then branch
+        // Compile then branch (preserves tail position)
         self.compile_node(graph, then_branch)?;
         
         // Jump over else
@@ -525,7 +641,7 @@ impl Compiler {
         let else_start = self.current_offset();
         self.patch_jump(jump_to_else, else_start);
         
-        // Compile else branch
+        // Compile else branch (preserves tail position)
         self.compile_node(graph, else_branch)?;
         
         // Patch jump over else
@@ -573,6 +689,20 @@ impl Compiler {
             "str-upper" | "string-upcase" => Some(Opcode::StrUpper),
             "str-lower" | "string-downcase" => Some(Opcode::StrLower),
             "list" => Some(Opcode::MakeList),
+            "gc-alloc" => Some(Opcode::GcAlloc),
+            "gc-deref" => Some(Opcode::GcDeref),
+            "gc-set" => Some(Opcode::GcSet),
+            "gc-collect" => Some(Opcode::GcCollect),
+            "tail-call" => Some(Opcode::TailCall),
+            "tail-return" => Some(Opcode::TailReturn),
+            // Specialized arithmetic
+            "+int" => Some(Opcode::AddInt),
+            "-int" => Some(Opcode::SubInt),
+            "*int" => Some(Opcode::MulInt),
+            "/int" => Some(Opcode::DivInt),
+            "+float" => Some(Opcode::AddFloat),
+            "-float" => Some(Opcode::SubFloat),
+            "*float" => Some(Opcode::MulFloat),
             _ => None,
         }
     }
@@ -622,6 +752,41 @@ impl Compiler {
             Opcode::CellSet => {
                 // Consumes cell and value, produces nil
                 self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
+            // GC operations
+            Opcode::GcAlloc => {
+                // Consumes value, produces GC handle
+                // No net stack change
+            }
+            Opcode::GcDeref => {
+                // Consumes GC handle, produces value
+                // No net stack change
+            }
+            Opcode::GcSet => {
+                // Consumes GC handle and value, produces nil
+                self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
+            Opcode::GcCollect => {
+                // No arguments, produces nil
+                self.stack_depth += 1;
+            }
+            // Tail call operations
+            Opcode::TailCall => {
+                // Consumes function and arguments
+                let arg_count = instruction.arg + 1; // +1 for the function itself
+                self.stack_depth = self.stack_depth.saturating_sub(arg_count);
+                self.stack_depth += 1; // Result
+            }
+            Opcode::TailReturn => {
+                // Like Return
+                self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
+            Opcode::UpdateLocal => {
+                // Consumes value, no net change
+                self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
+            Opcode::LoopStart | Opcode::LoopEnd => {
+                // No stack effect
             }
             // Push instructions
             Opcode::Push | Opcode::PushConst | Opcode::PushNil | Opcode::PushTrue | Opcode::PushFalse |

@@ -4,9 +4,9 @@
 //! to be extended, refined, and composed in a modular way.
 
 use std::collections::{HashMap, HashSet};
-use fluentai_core::ast::Graph;
+use fluentai_core::ast::{Graph, NodeId};
 use crate::{
-    contract::{Contract, ContractCondition},
+    contract::{Contract, ContractCondition, ContractKind},
     errors::{ContractError, ContractResult},
 };
 
@@ -450,6 +450,8 @@ impl ContractHierarchy {
             CompositionType::Conjunction => self.compose_conjunction(contracts),
             CompositionType::Disjunction => self.compose_disjunction(contracts),
             CompositionType::Sequential => self.compose_sequential(contracts),
+            CompositionType::ExclusiveOr => self.compose_exclusive_or(contracts),
+            CompositionType::Implication => self.compose_implication(contracts),
         }
     }
     
@@ -530,6 +532,125 @@ impl ContractHierarchy {
         Ok(composed)
     }
     
+    /// Compose contracts using exclusive OR (XOR)
+    fn compose_exclusive_or(&self, contracts: Vec<&Contract>) -> ContractResult<Contract> {
+        if contracts.len() != 2 {
+            return Err(ContractError::Other(
+                "Exclusive OR composition requires exactly 2 contracts".to_string()
+            ));
+        }
+        
+        let first = contracts[0];
+        let second = contracts[1];
+        
+        // XOR: (A && !B) || (!A && B)
+        // This would require creating complex conditions that represent
+        // "first holds but second doesn't" OR "second holds but first doesn't"
+        
+        let mut composed = Contract {
+            function_name: format!("composed_xor_{}_{}", first.function_name, second.function_name),
+            preconditions: Vec::new(),
+            postconditions: Vec::new(),
+            invariants: Vec::new(),
+            complexity: None,
+            pure: first.pure && second.pure,
+            frame_condition: None,
+            node_id: first.node_id,
+        };
+        
+        // For XOR, we need to create conditions that represent:
+        // (first.pre && first.post && !second.pre && !second.post) ||
+        // (!first.pre && !first.post && second.pre && second.post)
+        
+        // This is a simplified implementation - in a real system, we'd need
+        // to properly negate conditions and create disjunctive normal form
+        
+        // For now, we'll document that exactly one set of contracts must hold
+        // In a real implementation, we would create proper AST nodes for XOR logic
+        composed.preconditions.push(ContractCondition {
+            expression: NodeId(0), // Placeholder - would need proper AST node
+            message: Some(format!(
+                "Exactly one of {} or {} must hold (XOR composition)",
+                first.function_name,
+                second.function_name
+            )),
+            kind: ContractKind::Precondition,
+            span: None,
+            blame_label: Some("xor_composition".to_string()),
+        });
+        
+        Ok(composed)
+    }
+    
+    /// Compose contracts using implication (A => B)
+    fn compose_implication(&self, contracts: Vec<&Contract>) -> ContractResult<Contract> {
+        if contracts.len() != 2 {
+            return Err(ContractError::Other(
+                "Implication composition requires exactly 2 contracts".to_string()
+            ));
+        }
+        
+        let antecedent = contracts[0];
+        let consequent = contracts[1];
+        
+        let mut composed = Contract {
+            function_name: format!(
+                "composed_implies_{}_{}",
+                antecedent.function_name,
+                consequent.function_name
+            ),
+            preconditions: Vec::new(),
+            postconditions: Vec::new(),
+            invariants: Vec::new(),
+            complexity: None,
+            pure: antecedent.pure && consequent.pure,
+            frame_condition: None,
+            node_id: antecedent.node_id,
+        };
+        
+        // Implication: A => B is equivalent to !A || B
+        // If antecedent's conditions hold, then consequent's must also hold
+        
+        // In a real implementation, we would create proper AST nodes for implication
+        // For now, we create placeholder conditions that document the implication
+        
+        // If antecedent has preconditions, then consequent's preconditions must also hold
+        if !antecedent.preconditions.is_empty() && !consequent.preconditions.is_empty() {
+            composed.preconditions.push(ContractCondition {
+                expression: NodeId(0), // Placeholder - would need proper AST node
+                message: Some(format!(
+                    "If {} preconditions hold, then {} preconditions must also hold",
+                    antecedent.function_name,
+                    consequent.function_name
+                )),
+                kind: ContractKind::Precondition,
+                span: None,
+                blame_label: Some("implication_precondition".to_string()),
+            });
+        }
+        
+        // If antecedent's postconditions hold, then consequent's postconditions must hold
+        if !antecedent.postconditions.is_empty() && !consequent.postconditions.is_empty() {
+            composed.postconditions.push(ContractCondition {
+                expression: NodeId(0), // Placeholder - would need proper AST node
+                message: Some(format!(
+                    "If {} postconditions hold, then {} postconditions must also hold",
+                    antecedent.function_name,
+                    consequent.function_name
+                )),
+                kind: ContractKind::Postcondition,
+                span: None,
+                blame_label: Some("implication_postcondition".to_string()),
+            });
+        }
+        
+        // Invariants: Both sets of invariants must be maintained
+        composed.invariants = antecedent.invariants.clone();
+        composed.invariants.extend(consequent.invariants.clone());
+        
+        Ok(composed)
+    }
+    
     /// Add a refinement rule
     pub fn add_refinement_rule(
         &mut self,
@@ -599,6 +720,10 @@ pub enum CompositionType {
     Disjunction,
     /// Contracts applied in sequence
     Sequential,
+    /// Exactly one contract must hold (XOR)
+    ExclusiveOr,
+    /// If first contract holds, then second must hold (implication)
+    Implication,
 }
 
 impl Default for ContractHierarchy {

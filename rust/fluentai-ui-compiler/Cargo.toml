@@ -1,0 +1,30 @@
+[package]
+name = "fluentai-ui-compiler"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+fluentai-effects = { path = "../fluentai-effects" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
+
+# No external JS dependencies needed - we generate JS directly
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+indexmap = "2.0"
+once_cell = "1.19"
+
+[features]
+default = []
+# minify = ["swc_ecma_minifier"]
+
+[dev-dependencies]
+pretty_assertions = "1.4"

@@ -3,6 +3,7 @@
 use std::fmt;
 use rustc_hash::FxHashMap;
 use crate::safety::{PromiseId, ChannelId};
+use crate::gc::GcHandle;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
@@ -19,6 +20,14 @@ pub enum Opcode {
     Div,
     Mod,
     Neg,
+    
+    // Specialized unboxed arithmetic (faster paths)
+    AddInt,          // Add two integers without boxing
+    SubInt,          // Subtract two integers
+    MulInt,          // Multiply two integers
+    AddFloat,        // Add two floats
+    SubFloat,        // Subtract two floats  
+    MulFloat,        // Multiply two floats
     
     // Type-specialized arithmetic (for performance)
     AddInt,
@@ -131,6 +140,19 @@ pub enum Opcode {
     EndModule,       // Mark end of module scope
     ExportBinding,   // Export a binding from current module
     
+    // GC operations
+    GcAlloc,         // Allocate value with GC
+    GcDeref,         // Dereference GC handle
+    GcSet,           // Set value in GC handle
+    GcCollect,       // Manually trigger collection
+    
+    // Tail call optimization
+    TailCall,        // Tail call with frame reuse
+    TailReturn,      // Return from tail-recursive function
+    LoopStart,       // Mark start of tail-recursive loop
+    LoopEnd,         // Mark end of tail-recursive loop
+    UpdateLocal,     // Update local variable (for loop parameter updates)
+    
     // Special
     Halt,
     Nop,
@@ -176,6 +198,7 @@ pub enum Value {
         name: String,
         exports: FxHashMap<String, Value>,
     },
+    GcHandle(Box<GcHandle>),
 }
 
 impl fmt::Display for Value {
@@ -229,6 +252,7 @@ impl fmt::Display for Value {
             Value::Module { name, exports } => {
                 write!(f, "<module {} with {} exports>", name, exports.len())
             }
+            Value::GcHandle(_) => write!(f, "<gc-handle>"),
         }
     }
 }

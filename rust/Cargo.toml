@@ -7,7 +7,7 @@ members = [
     "fluentai-lsp",
     "fluentai-jit",
     "fluentai-py",
-    "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-cli", "fluentai-interpreter", "fluentai-repl",
+    "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-cli", "fluentai-interpreter", "fluentai-repl", "fluentai-ui-compiler", "fluentai-lint", "fluentai-metaprogramming", "fluentai-actors",
 ]
 resolver = "2"
 
@@ -40,6 +40,7 @@ rayon = "1.7"
 parking_lot = "0.12"
 rustc-hash = "1.1"
 ahash = "0.8"
+crossbeam = "0.8"
 
 # Memory management
 bumpalo = "3.13"

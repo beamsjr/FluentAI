@@ -26,6 +26,10 @@ pub mod symbolic_verification;
 pub mod counterexample;
 pub mod parallel_execution;
 pub mod inheritance;
+pub mod debugging;
+pub mod temporal;
+pub mod bounded_model_checking;
+pub mod state_machine;
 
 #[cfg(feature = "static")]
 pub mod z3_converter;
@@ -74,6 +78,32 @@ pub use inheritance::{
     InheritanceType, ContractInterface, RefinementRule, RefinementType,
     InheritanceVerificationResult, InheritanceViolation, ViolationType,
     CompositionType
+};
+
+pub use debugging::{
+    ContractDebugger, DebugInfo, TraceStep, EvalResult,
+    ContractDebugRepl,
+};
+
+pub use temporal::{
+    TemporalOperator, TemporalFormula, TemporalContract,
+    TemporalState, ExecutionTrace, TemporalVerifier,
+    TemporalVerificationConfig, TemporalVerificationResult,
+    TemporalCounterexample, TemporalContractBuilder,
+    temporal_dsl,
+};
+
+pub use bounded_model_checking::{
+    BoundedModelChecker, BMCResult, BMCCounterexample,
+    BMCState, BMCStats, BMCEncoder,
+};
+
+pub use state_machine::{
+    State, Transition, TransitionAction, StateMachine,
+    FairnessConstraint, StateMachineContract, SafetyProperty,
+    LivenessProperty, ReachabilityProperty, StateMachineVerifier,
+    StateMachineVerificationResult, StateMachineViolation,
+    StateMachineBuilder,
 };
 
 #[cfg(test)]

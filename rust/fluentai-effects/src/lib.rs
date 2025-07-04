@@ -13,6 +13,7 @@ use std::sync::Arc;
 pub mod handlers;
 pub mod runtime;
 pub mod provider;
+pub mod reactive;
 
 pub use handlers::*;
 pub use runtime::EffectRuntime;

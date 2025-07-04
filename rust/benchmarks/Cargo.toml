@@ -10,6 +10,7 @@ fluentai-core = { path = "../fluentai-core" }
 fluentai-parser = { path = "../fluentai-parser" }
 fluentai-vm = { path = "../fluentai-vm" }
 fluentai-jit = { path = "../fluentai-jit" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
 criterion.workspace = true
 pprof.workspace = true
 serde.workspace = true
@@ -34,5 +35,10 @@ harness = false
 [[bench]]
 name = "comprehensive_benchmark"
 harness = false
+
+[[bench]]
+name = "packet_processing_bench"
+harness = false
+path = "packet_processing_bench.rs"
 
 [dev-dependencies]

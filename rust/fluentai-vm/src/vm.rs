@@ -3,7 +3,9 @@
 use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
 use crate::debug::{VMDebugEvent, DebugConfig, StepMode};
 use crate::safety::{IdGenerator, PromiseId, ChannelId, ResourceLimits, checked_ops};
+use crate::security::{SecurityManager, SecurityPolicy};
 use crate::error::{StackTrace, StackFrame};
+use crate::gc::{GarbageCollector, GcHandle, GcScope, GcConfig};
 use anyhow::{anyhow, Result};
 use rustc_hash::FxHashMap;
 use fluentai_effects::{EffectContext, runtime::EffectRuntime};
@@ -50,6 +52,10 @@ pub struct VM {
     instruction_count: u64,
     // Resource limits
     resource_limits: ResourceLimits,
+    // Security manager
+    security_manager: Option<Arc<SecurityManager>>,
+    // Garbage collector
+    gc: Option<Arc<GarbageCollector>>,
 }
 
 impl VM {
@@ -75,6 +81,8 @@ impl VM {
             debug_config: DebugConfig::default(),
             instruction_count: 0,
             resource_limits: ResourceLimits::default(),
+            security_manager: None,
+            gc: None,
         }
     }
     
@@ -99,6 +107,71 @@ impl VM {
         let config = fluentai_modules::ModuleConfig::default();
         self.module_resolver = ModuleResolver::new(ModuleLoader::new(config));
         self.module_loader = loader;
+    }
+    
+    pub fn set_security_manager(&mut self, manager: Arc<SecurityManager>) {
+        self.security_manager = Some(manager);
+    }
+    
+    pub fn with_sandbox_security(&mut self) -> &mut Self {
+        self.security_manager = Some(Arc::new(SecurityManager::sandbox()));
+        self
+    }
+    
+    pub fn with_security_policy(&mut self, policy: SecurityPolicy) -> &mut Self {
+        self.security_manager = Some(Arc::new(SecurityManager::new(policy)));
+        self
+    }
+    
+    /// Enable garbage collection with default configuration
+    pub fn with_gc(&mut self) -> &mut Self {
+        self.gc = Some(Arc::new(GarbageCollector::new(GcConfig::default())));
+        self
+    }
+    
+    /// Enable garbage collection with custom configuration
+    pub fn with_gc_config(&mut self, config: GcConfig) -> &mut Self {
+        self.gc = Some(Arc::new(GarbageCollector::new(config)));
+        self
+    }
+    
+    /// Get the garbage collector if enabled
+    pub fn gc(&self) -> Option<&Arc<GarbageCollector>> {
+        self.gc.as_ref()
+    }
+    
+    /// Allocate a value using GC if enabled
+    pub fn gc_alloc(&self, value: Value) -> Result<Value> {
+        if let Some(ref gc) = self.gc {
+            let handle = gc.allocate(value)?;
+            // Store handle ID in a special GC value variant
+            Ok(Value::GcHandle(Box::new(handle)))
+        } else {
+            // If GC is not enabled, return the value as-is
+            Ok(value)
+        }
+    }
+    
+    /// Create a GC scope for temporary allocations
+    pub fn gc_scope<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&mut GcScope) -> Result<R>,
+    {
+        if let Some(ref gc) = self.gc {
+            let mut scope = GcScope::new(gc);
+            f(&mut scope)
+        } else {
+            Err(anyhow!("GC not enabled"))
+        }
+    }
+    
+    /// Manually trigger garbage collection
+    pub fn gc_collect(&self) -> Result<()> {
+        if let Some(ref gc) = self.gc {
+            gc.collect()
+        } else {
+            Ok(()) // No-op if GC not enabled
+        }
     }
     
     pub fn set_debug_config(&mut self, config: DebugConfig) {
@@ -163,6 +236,22 @@ impl VM {
             if self.trace {
                 eprintln!("Stack: {:?}", self.stack);
                 eprintln!("Executing: {:?} at {}", instruction.opcode, ip);
+            }
+            
+            // Security checks
+            if let Some(ref security) = self.security_manager {
+                security.context.track_instruction()?;
+                
+                // Check specific instruction security requirements
+                match &instruction.opcode {
+                    Opcode::Call => {
+                        // Check call depth
+                        if self.call_stack.len() >= self.resource_limits.max_call_depth {
+                            return Err(anyhow!("Maximum call depth exceeded"));
+                        }
+                    }
+                    _ => {}
+                }
             }
             
             // Increment IP before execution (may be modified by jumps)
@@ -335,6 +424,11 @@ impl VM {
             SubInt => self.binary_int_op(|x, y| checked_ops::sub_i64(x, y))?,
             MulInt => self.binary_int_op(|x, y| checked_ops::mul_i64(x, y))?,
             DivInt => self.binary_int_op(|x, y| checked_ops::div_i64(x, y))?,
+            
+            // Float-specialized arithmetic
+            AddFloat => self.binary_float_op(|x, y| x + y)?,
+            SubFloat => self.binary_float_op(|x, y| x - y)?,
+            MulFloat => self.binary_float_op(|x, y| x * y)?,
             
             // Comparison
             Eq => {
@@ -1262,6 +1356,124 @@ impl VM {
                 }
             }
             
+            // GC operations
+            GcAlloc => {
+                let value = self.pop()?;
+                let gc_value = self.gc_alloc(value)?;
+                self.push(gc_value)?;
+            }
+            
+            GcDeref => {
+                let handle = self.pop()?;
+                match handle {
+                    Value::GcHandle(gc_handle) => {
+                        let value = gc_handle.get();
+                        self.push(value)?;
+                    }
+                    _ => return Err(anyhow!("GcDeref requires a GC handle")),
+                }
+            }
+            
+            GcSet => {
+                let value = self.pop()?;
+                let handle = self.pop()?;
+                match handle {
+                    Value::GcHandle(gc_handle) => {
+                        gc_handle.set(value);
+                        self.push(Value::Nil)?;
+                    }
+                    _ => return Err(anyhow!("GcSet requires a GC handle")),
+                }
+            }
+            
+            GcCollect => {
+                self.gc_collect()?;
+                self.push(Value::Nil)?;
+            }
+            
+            // Tail call optimization
+            TailCall => {
+                // Pop arguments for the tail call
+                let arg_count = instruction.arg as usize;
+                let mut args = Vec::with_capacity(arg_count);
+                for _ in 0..arg_count {
+                    args.push(self.pop()?);
+                }
+                args.reverse();
+                
+                // Get the function to call
+                let func = self.pop()?;
+                
+                // Reuse current call frame instead of creating new one
+                if let Some(frame) = self.call_stack.last_mut() {
+                    // Update locals with new arguments
+                    let base = frame.stack_base;
+                    for (i, arg) in args.into_iter().enumerate() {
+                        if base + i < self.stack.len() {
+                            self.stack[base + i] = arg;
+                        }
+                    }
+                    
+                    // Jump to function start
+                    match func {
+                        Value::Closure { chunk_id, captured_env, .. } => {
+                            frame.ip = 0;
+                            frame.chunk_id = chunk_id;
+                            frame.captured_env = captured_env;
+                        }
+                        _ => return Err(anyhow!("TailCall requires a closure")),
+                    }
+                } else {
+                    return Err(anyhow!("TailCall with no active call frame"));
+                }
+            }
+            
+            TailReturn => {
+                // Like Return but optimized for tail recursion
+                let result = self.pop()?;
+                if let Some(frame) = self.call_stack.pop() {
+                    // Restore stack
+                    self.stack.truncate(frame.stack_base);
+                    self.push(result)?;
+                    
+                    // Restore previous chunk context
+                    if let Some(prev_frame) = self.call_stack.last() {
+                        self.ip = prev_frame.ip;
+                        self.current_chunk = prev_frame.chunk_id;
+                    }
+                } else {
+                    return Err(anyhow!("TailReturn with empty call stack"));
+                }
+            }
+            
+            LoopStart => {
+                // Mark loop start for potential jump-back
+                // Store current IP in instruction arg for later reference
+                // This is a no-op at runtime but helps with debugging
+            }
+            
+            LoopEnd => {
+                // Check if we should continue the loop
+                // The compiler should have emitted appropriate jump instructions
+            }
+            
+            UpdateLocal => {
+                // Update a local variable (for loop parameter updates)
+                let local_idx = instruction.arg as usize;
+                let value = self.pop()?;
+                
+                if let Some(frame) = self.call_stack.last() {
+                    let stack_idx = frame.stack_base + local_idx;
+                    if stack_idx < self.stack.len() {
+                        self.stack[stack_idx] = value;
+                    } else {
+                        return Err(anyhow!("UpdateLocal: invalid local index {}", local_idx));
+                    }
+                } else {
+                    return Err(anyhow!("UpdateLocal with no active call frame"));
+                }
+            }
+            
             // Special
             Halt => return Ok(VMState::Halt),
             Nop => {}
@@ -1346,6 +1558,21 @@ impl VM {
                 self.push(Value::Bool(result))
             }
             _ => Err(anyhow!("Type error in binary int comparison")),
+        }
+    }
+    
+    fn binary_float_op<F>(&mut self, op: F) -> Result<()>
+    where
+        F: FnOnce(f64, f64) -> f64,
+    {
+        let b = self.pop()?;
+        let a = self.pop()?;
+        match (a, b) {
+            (Value::Float(x), Value::Float(y)) => {
+                let result = op(x, y);
+                self.push(Value::Float(result))
+            }
+            _ => Err(anyhow!("Type error in binary float op")),
         }
     }
     

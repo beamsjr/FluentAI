@@ -7,6 +7,8 @@ use anyhow::Result;
 use crate::vm::VM;
 use crate::bytecode::Bytecode;
 use crate::bytecode::Value;
+use crate::security::{SecurityManager, SecurityPolicy};
+use crate::gc::{GarbageCollector, GcConfig};
 use fluentai_effects::{EffectContext, EffectRuntime};
 use fluentai_stdlib::StdlibRegistry;
 use fluentai_modules::{ModuleLoader, ModuleConfig};
@@ -36,6 +38,14 @@ pub struct VMBuilder {
     stack_size: Option<usize>,
     /// Enable trace mode
     trace_mode: bool,
+    /// Security manager
+    security_manager: Option<Arc<SecurityManager>>,
+    /// Security policy (used if security_manager is not provided)
+    security_policy: Option<SecurityPolicy>,
+    /// Garbage collector configuration
+    gc_config: Option<GcConfig>,
+    /// Whether to enable GC
+    enable_gc: bool,
 }
 
 impl VMBuilder {
@@ -50,6 +60,10 @@ impl VMBuilder {
             initial_globals: FxHashMap::default(),
             stack_size: None,
             trace_mode: false,
+            security_manager: None,
+            security_policy: None,
+            gc_config: None,
+            enable_gc: false,
         }
     }
     
@@ -102,6 +116,38 @@ impl VMBuilder {
         self
     }
     
+    /// Set a custom security manager
+    pub fn with_security_manager(mut self, manager: Arc<SecurityManager>) -> Self {
+        self.security_manager = Some(manager);
+        self
+    }
+    
+    /// Set a security policy
+    pub fn with_security_policy(mut self, policy: SecurityPolicy) -> Self {
+        self.security_policy = Some(policy);
+        self
+    }
+    
+    /// Enable sandbox mode with strict security
+    pub fn with_sandbox_mode(mut self) -> Self {
+        self.security_policy = Some(SecurityPolicy::sandbox());
+        self
+    }
+    
+    /// Enable garbage collection with default configuration
+    pub fn with_gc(mut self) -> Self {
+        self.enable_gc = true;
+        self.gc_config = Some(GcConfig::default());
+        self
+    }
+    
+    /// Enable garbage collection with custom configuration
+    pub fn with_gc_config(mut self, config: GcConfig) -> Self {
+        self.enable_gc = true;
+        self.gc_config = Some(config);
+        self
+    }
+    
     /// Apply a configuration
     pub fn with_config<C: VMConfig>(mut self, config: C) -> Self {
         config.configure(&mut self);
@@ -144,6 +190,22 @@ impl VMBuilder {
         // Set initial globals
         for (name, value) in self.initial_globals {
             vm.set_global(name, value);
+        }
+        
+        // Apply security configuration
+        if let Some(manager) = self.security_manager {
+            vm.set_security_manager(manager);
+        } else if let Some(policy) = self.security_policy {
+            vm.set_security_manager(Arc::new(SecurityManager::new(policy)));
+        }
+        
+        // Apply GC configuration
+        if self.enable_gc {
+            if let Some(config) = self.gc_config {
+                vm.with_gc_config(config);
+            } else {
+                vm.with_gc();
+            }
         }
         
         Ok(vm)
@@ -189,6 +251,36 @@ impl VMConfig for TestingConfig {
     fn configure(&self, builder: &mut VMBuilder) {
         builder.trace_mode = self.enable_trace;
         // Could add test-specific effect handlers here
+    }
+}
+
+/// Sandboxed configuration for untrusted code
+pub struct SandboxConfig {
+    pub max_memory: u64,
+    pub max_instructions: u64,
+    pub allowed_modules: Vec<String>,
+}
+
+impl Default for SandboxConfig {
+    fn default() -> Self {
+        Self {
+            max_memory: 10 * 1024 * 1024, // 10MB
+            max_instructions: 1_000_000,
+            allowed_modules: vec![],
+        }
+    }
+}
+
+impl VMConfig for SandboxConfig {
+    fn configure(&self, builder: &mut VMBuilder) {
+        let mut policy = SecurityPolicy::sandbox();
+        policy.max_memory = self.max_memory;
+        policy.max_instructions = self.max_instructions;
+        for module in &self.allowed_modules {
+            policy.allowed_modules.insert(module.clone());
+        }
+        builder.security_policy = Some(policy);
+        builder.trace_mode = false;
     }
 }
 

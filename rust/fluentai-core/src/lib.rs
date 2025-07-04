@@ -13,5 +13,7 @@ pub mod effects;
 pub mod error;
 pub mod value;
 pub mod traits;
+pub mod thread_pool;
 
 pub use error::{Error, Result};
+pub use thread_pool::{ThreadPool, ThreadPoolConfig, ThreadPoolBuilder};
