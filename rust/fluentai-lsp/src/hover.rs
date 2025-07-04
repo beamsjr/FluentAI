@@ -3,13 +3,14 @@
 use ropey::Rope;
 use fluentai_core::ast::Graph;
 use tower_lsp::lsp_types::{Hover, HoverContents, LanguageString, MarkedString, Position};
+use crate::documentation_service::DocumentationService;
 
 /// Compute hover information at a given position
 /// 
 /// Performance target: <2ms for generating hover info
 pub fn compute_hover(
     rope: &Rope,
-    _ast: &Option<Graph>,
+    ast: &Option<Graph>,
     position: Position,
 ) -> Option<Hover> {
     let line = position.line as usize;
@@ -23,8 +24,37 @@ pub fn compute_hover(
     let line_text = rope.line(line).to_string();
     let word = get_word_at_position(&line_text, character)?;
     
-    // Generate hover information based on the word
-    let hover_text = match word.as_str() {
+    // Create documentation service
+    let doc_service = DocumentationService::new();
+    
+    // First try to get documentation from the registry
+    let hover_text = if let Some(doc) = doc_service.get_documentation(&word) {
+        doc_service.format_hover(&doc)
+    } else if let Some(ast) = ast {
+        // If we have an AST, try to find the node at this position
+        // TODO: Implement position-to-node mapping
+        // For now, just check if it's a user-defined function
+        for (node_id, node) in &ast.nodes {
+            if let fluentai_core::ast::Node::Define { name, .. } = node {
+                if name == &word {
+                    if let Some(doc) = doc_service.get_node_documentation(ast, *node_id) {
+                        return Some(Hover {
+                            contents: HoverContents::Scalar(MarkedString::LanguageString(LanguageString {
+                                language: "markdown".to_string(),
+                                value: doc_service.format_hover(&doc),
+                            })),
+                            range: None,
+                        });
+                    }
+                }
+            }
+        }
+        
+        // No documentation found
+        return None;
+    } else {
+        // Legacy hardcoded documentation (to be removed)
+        match word.as_str() {
         // Arithmetic operators
         "+" => "**Addition**\n\n`(+ x y ...)`\n\nAdds two or more numbers together.",
         "-" => "**Subtraction**\n\n`(- x y ...)`\n\nSubtracts subsequent numbers from the first.",
@@ -65,7 +95,8 @@ pub fn compute_hover(
         "false" => "**Boolean False**\n\nThe boolean value false.",
         "nil" => "**Nil**\n\nThe null/empty value.",
         
-        _ => return None,
+            _ => return None,
+        }
     };
     
     Some(Hover {

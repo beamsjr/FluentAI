@@ -2,6 +2,9 @@
 //! 
 //! This crate provides a lightweight but powerful dependency injection container
 //! that supports both compile-time and runtime service resolution.
+//! 
+//! The framework now includes AI-first graph-based dependency injection that
+//! integrates with FluentAi's AST structure for better analysis and optimization.
 
 pub mod container;
 pub mod service;
@@ -9,6 +12,9 @@ pub mod builder;
 pub mod provider;
 pub mod lifecycle;
 pub mod error;
+
+// AI-first graph-based DI
+pub mod graph_based;
 
 #[cfg(feature = "config")]
 pub mod config;
@@ -25,6 +31,14 @@ pub use builder::ContainerBuilder;
 pub use provider::{ServiceProvider, ServiceFactory};
 pub use lifecycle::{Lifecycle, Disposable};
 pub use error::{DiError, DiResult};
+
+// Graph-based DI exports
+pub use graph_based::{
+    GraphContainer, ServiceNode, DependencyEdge, ServiceMetadata,
+    PerformanceHints, UsageStats, DependencyHints, ResolutionStrategy,
+    ServiceLifetime as GraphServiceLifetime, DependencyKind,
+    ServiceGraphBuilder, DependencyAnalysis,
+};
 
 /// Prelude module for common imports
 pub mod prelude {

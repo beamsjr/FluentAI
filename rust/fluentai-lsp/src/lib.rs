@@ -22,6 +22,7 @@ use tracing::{debug, error, info};
 mod diagnostics;
 mod completion;
 mod hover;
+mod documentation_service;
 
 use diagnostics::compute_diagnostics;
 use completion::compute_completions;

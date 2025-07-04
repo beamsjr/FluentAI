@@ -12,8 +12,10 @@ use fluentai_effects::{EffectContext, runtime::EffectRuntime};
 use fluentai_stdlib::{StdlibRegistry, init_stdlib};
 use fluentai_stdlib::value::Value as StdlibValue;
 use fluentai_modules::{ModuleLoader, ModuleResolver};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use std::time::Instant;
 use tokio::sync::{mpsc, oneshot};
+use fluentai_core::ast::{NodeId, UsageStatistics};
 
 const STACK_SIZE: usize = 10_000;
 
@@ -22,6 +24,75 @@ pub struct CallFrame {
     ip: usize,
     stack_base: usize,
     env: Vec<Value>, // Captured environment for closures
+    #[allow(dead_code)]
+    start_time: Option<Instant>, // Track when this frame started executing
+}
+
+/// Tracks usage statistics for nodes during execution
+pub struct UsageTracker {
+    /// Map from chunk_id to NodeId for tracking
+    chunk_to_node: FxHashMap<usize, NodeId>,
+    /// Accumulated statistics per node
+    stats: FxHashMap<NodeId, UsageStatistics>,
+    /// Execution time tracking
+    execution_times: FxHashMap<NodeId, Vec<u64>>,
+}
+
+impl UsageTracker {
+    pub fn new() -> Self {
+        Self {
+            chunk_to_node: FxHashMap::default(),
+            stats: FxHashMap::default(),
+            execution_times: FxHashMap::default(),
+        }
+    }
+    
+    /// Register a chunk ID to node ID mapping
+    pub fn register_chunk(&mut self, chunk_id: usize, node_id: NodeId) {
+        self.chunk_to_node.insert(chunk_id, node_id);
+    }
+    
+    /// Record execution of a chunk
+    pub fn record_execution(&mut self, chunk_id: usize, execution_time_ns: u64) {
+        if let Some(&node_id) = self.chunk_to_node.get(&chunk_id) {
+            let stats = self.stats.entry(node_id).or_default();
+            stats.execution_count += 1;
+            
+            // Update average execution time
+            let times = self.execution_times.entry(node_id).or_default();
+            times.push(execution_time_ns);
+            
+            // Keep last 100 samples for moving average
+            if times.len() > 100 {
+                times.remove(0);
+            }
+            
+            stats.avg_execution_time_ns = times.iter().sum::<u64>() / times.len() as u64;
+            
+            // Mark as hot path if executed frequently
+            if stats.execution_count > 1000 {
+                stats.is_hot_path = true;
+            }
+        }
+    }
+    
+    /// Record an error for a chunk
+    pub fn record_error(&mut self, chunk_id: usize) {
+        if let Some(&node_id) = self.chunk_to_node.get(&chunk_id) {
+            let stats = self.stats.entry(node_id).or_default();
+            stats.error_count += 1;
+        }
+    }
+    
+    /// Get statistics for a node
+    pub fn get_stats(&self, node_id: NodeId) -> Option<&UsageStatistics> {
+        self.stats.get(&node_id)
+    }
+    
+    /// Get all statistics
+    pub fn get_all_stats(&self) -> &FxHashMap<NodeId, UsageStatistics> {
+        &self.stats
+    }
 }
 
 pub struct VM {
@@ -56,6 +127,8 @@ pub struct VM {
     security_manager: Option<Arc<SecurityManager>>,
     // Garbage collector
     gc: Option<Arc<GarbageCollector>>,
+    // Usage tracking for context memory
+    usage_tracker: Option<Arc<RwLock<UsageTracker>>>,
 }
 
 impl VM {
@@ -83,11 +156,31 @@ impl VM {
             resource_limits: ResourceLimits::default(),
             security_manager: None,
             gc: None,
+            usage_tracker: None,
         }
     }
     
     pub fn enable_trace(&mut self) {
         self.trace = true;
+    }
+    
+    /// Enable usage tracking
+    pub fn enable_usage_tracking(&mut self) {
+        self.usage_tracker = Some(Arc::new(RwLock::new(UsageTracker::new())));
+    }
+    
+    /// Get usage tracker
+    pub fn usage_tracker(&self) -> Option<Arc<RwLock<UsageTracker>>> {
+        self.usage_tracker.clone()
+    }
+    
+    /// Register a chunk to node mapping for usage tracking
+    pub fn register_chunk_mapping(&mut self, chunk_id: usize, node_id: NodeId) {
+        if let Some(tracker) = &self.usage_tracker {
+            if let Ok(mut tracker) = tracker.write() {
+                tracker.register_chunk(chunk_id, node_id);
+            }
+        }
     }
     
     pub fn set_effect_runtime(&mut self, runtime: Arc<EffectRuntime>) {
@@ -199,14 +292,40 @@ impl VM {
         self.call_stack.len()
     }
     
+    /// Get usage statistics for a specific node
+    pub fn get_usage_stats(&self, node_id: NodeId) -> Option<&UsageStatistics> {
+        self.usage_tracker.as_ref()?.get_stats(node_id)
+    }
+    
+    /// Get all usage statistics
+    pub fn get_all_usage_stats(&self) -> Option<&FxHashMap<NodeId, UsageStatistics>> {
+        self.usage_tracker.as_ref().map(|tracker| tracker.get_all_stats())
+    }
+    
     pub fn run(&mut self) -> Result<Value> {
         self.call_stack.push(CallFrame {
             chunk_id: self.bytecode.main_chunk,
             ip: 0,
             stack_base: 0,
             env: Vec::new(),
+            start_time: self.usage_tracker.as_ref().map(|_| Instant::now()),
         });
         
+        let result = self.run_inner();
+        
+        // Track error if one occurred
+        if result.is_err() {
+            if let Some(tracker) = &mut self.usage_tracker {
+                if let Some(frame) = self.call_stack.last() {
+                    tracker.record_error(frame.chunk_id);
+                }
+            }
+        }
+        
+        result
+    }
+    
+    fn run_inner(&mut self) -> Result<Value> {
         loop {
             let frame = self.call_stack.last().ok_or_else(|| anyhow!("Call stack underflow"))?;
             let chunk_id = frame.chunk_id;
@@ -274,6 +393,17 @@ impl VM {
                     if self.call_stack.len() == 1 {
                         // Main function returning
                         let result = self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                        
+                        // Track main function execution time
+                        if let Some(tracker) = &mut self.usage_tracker {
+                            if let Some(frame) = self.call_stack.last() {
+                                if let Some(start_time) = frame.start_time {
+                                    let elapsed = start_time.elapsed().as_nanos() as u64;
+                                    tracker.record_execution(frame.chunk_id, elapsed);
+                                }
+                            }
+                        }
+                        
                         if self.debug_config.enabled {
                             self.debug_config.send_event(VMDebugEvent::FunctionReturn {
                                 value: result.clone(),
@@ -523,6 +653,14 @@ impl VM {
                 
                 // Pop call frame
                 let frame = self.call_stack.pop().unwrap();
+                
+                // Track execution time if usage tracking is enabled
+                if let Some(tracker) = &mut self.usage_tracker {
+                    if let Some(start_time) = frame.start_time {
+                        let elapsed = start_time.elapsed().as_nanos() as u64;
+                        tracker.record_execution(frame.chunk_id, elapsed);
+                    }
+                }
                 
                 // Clean up stack (remove arguments)
                 self.stack.truncate(frame.stack_base);
@@ -1079,6 +1217,13 @@ impl VM {
                 
                 match &func {
                     Value::Function { chunk_id, env } => {
+                        // Track function call timing if usage tracking is enabled
+                        let start_time = if self.usage_tracker.is_some() {
+                            Some(Instant::now())
+                        } else {
+                            None
+                        };
+                        
                         // Current IP was already incremented by main loop,
                         // so it's already pointing to the next instruction after Call
                         
@@ -1093,6 +1238,7 @@ impl VM {
                             ip: 0,
                             stack_base: self.stack.len() - arg_count,
                             env: env.clone(),
+                            start_time,
                         });
                     }
                     Value::String(s) if s.starts_with("__builtin__") => {

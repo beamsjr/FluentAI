@@ -12,6 +12,9 @@ anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.19"
 
+# FluentAi integration
+fluentai-core = { path = "../fluentai-core" }
+
 # Type system dependencies
 downcast-rs = "1.2"
 parking_lot = "0.12"

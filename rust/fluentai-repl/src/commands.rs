@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use crate::error::{ReplError, ReplResult};
 use crate::environment::{ReplEnvironment, ExecutionMode};
+use fluentai_core::documentation::{DocumentationRegistry, Documentation};
 
 /// REPL command
 #[derive(Debug, Clone)]
@@ -145,6 +146,24 @@ impl CommandRegistry {
             handler: cmd_reset,
         });
 
+        // Doc command
+        self.register(Command {
+            name: "doc".to_string(),
+            aliases: vec!["docs".to_string()],
+            description: "Show documentation for a function or keyword".to_string(),
+            usage: ":doc <name>".to_string(),
+            handler: cmd_doc,
+        });
+        
+        // Search command
+        self.register(Command {
+            name: "search".to_string(),
+            aliases: vec!["find".to_string()],
+            description: "Search documentation".to_string(),
+            usage: ":search <query>".to_string(),
+            handler: cmd_search,
+        });
+
         // Time command
         self.register(Command {
             name: "time".to_string(),
@@ -207,8 +226,22 @@ impl CommandRegistry {
 
 // Command implementations
 
-fn cmd_help(_env: &mut ReplEnvironment, _args: &[String]) -> ReplResult<CommandResult> {
-    Ok(CommandResult::Help)
+fn cmd_help(_env: &mut ReplEnvironment, args: &[String]) -> ReplResult<CommandResult> {
+    if args.is_empty() {
+        // Show general help
+        Ok(CommandResult::Help)
+    } else {
+        // Show help for specific command
+        let cmd_name = &args[0];
+        
+        // Special handling for language constructs
+        if !cmd_name.starts_with(':') {
+            // Delegate to doc command
+            return cmd_doc(_env, args);
+        }
+        
+        Ok(CommandResult::Help)
+    }
 }
 
 fn cmd_exit(_env: &mut ReplEnvironment, _args: &[String]) -> ReplResult<CommandResult> {
@@ -335,6 +368,150 @@ fn cmd_time(env: &mut ReplEnvironment, args: &[String]) -> ReplResult<CommandRes
         "{}\nParse time: {:?}\nExecution time: {:?}",
         result, parse_time, exec_time
     )))
+}
+
+fn cmd_doc(_env: &mut ReplEnvironment, args: &[String]) -> ReplResult<CommandResult> {
+    if args.is_empty() {
+        return Err(ReplError::Command("Usage: :doc <name>".to_string()));
+    }
+    
+    let name = &args[0];
+    let registry = DocumentationRegistry::new();
+    
+    // Try to find documentation
+    if let Some(doc) = registry.get(name) {
+        Ok(CommandResult::Success(format_documentation(doc)))
+    } else {
+        // Try operators
+        for op in registry.get_operators() {
+            if op.symbol == name {
+                return Ok(CommandResult::Success(format_operator_doc(op)));
+            }
+        }
+        
+        // Try keywords
+        for kw in registry.get_keywords() {
+            if kw.keyword == name {
+                return Ok(CommandResult::Success(format_keyword_doc(kw)));
+            }
+        }
+        
+        // Try built-ins
+        for builtin in registry.get_builtins() {
+            if builtin.name == name {
+                return Ok(CommandResult::Success(format_builtin_doc(builtin)));
+            }
+        }
+        
+        Ok(CommandResult::Success(format!(
+            "No documentation found for '{}'\nTry :search {} to find related items",
+            name, name
+        )))
+    }
+}
+
+fn cmd_search(_env: &mut ReplEnvironment, args: &[String]) -> ReplResult<CommandResult> {
+    if args.is_empty() {
+        return Err(ReplError::Command("Usage: :search <query>".to_string()));
+    }
+    
+    let query = args.join(" ");
+    let registry = DocumentationRegistry::new();
+    let results = registry.search_user_facing(&query);
+    
+    if results.is_empty() {
+        Ok(CommandResult::Success(format!("No results found for '{}'", query)))
+    } else {
+        let mut output = format!("Found {} results for '{}':\n\n", results.len(), query);
+        
+        for (i, doc) in results.iter().take(10).enumerate() {
+            output.push_str(&format!("{}. {} - {}\n", i + 1, doc.name, doc.description));
+            output.push_str(&format!("   Syntax: {}\n", doc.syntax));
+            if i < 9 && i < results.len() - 1 {
+                output.push('\n');
+            }
+        }
+        
+        if results.len() > 10 {
+            output.push_str(&format!("\n... and {} more results", results.len() - 10));
+        }
+        
+        Ok(CommandResult::Success(output))
+    }
+}
+
+fn format_documentation(doc: &Documentation) -> String {
+    let mut output = format!("## {}\n\n", doc.name);
+    
+    if !doc.syntax.is_empty() {
+        output.push_str(&format!("**Syntax:** `{}`\n\n", doc.syntax));
+    }
+    
+    output.push_str(&format!("**Description:** {}\n", doc.description));
+    
+    if !doc.examples.is_empty() {
+        output.push_str("\n**Examples:**\n");
+        for example in &doc.examples {
+            output.push_str(&format!("```\n{}\n```\n", example));
+        }
+    }
+    
+    if !doc.see_also.is_empty() {
+        output.push_str(&format!("\n**See also:** {}", doc.see_also.join(", ")));
+    }
+    
+    output
+}
+
+fn format_operator_doc(op: &fluentai_core::documentation::OperatorDoc) -> String {
+    let mut output = format!("## {} ({})\n\n", op.name, op.symbol);
+    output.push_str(&format!("**Precedence:** {} ({})\n", op.precedence, 
+        match op.associativity {
+            fluentai_core::documentation::Associativity::Left => "left-associative",
+            fluentai_core::documentation::Associativity::Right => "right-associative",
+            fluentai_core::documentation::Associativity::None => "non-associative",
+        }
+    ));
+    output.push_str(&format!("\n**Description:** {}\n", op.description));
+    
+    if !op.examples.is_empty() {
+        output.push_str("\n**Examples:**\n");
+        for example in op.examples {
+            output.push_str(&format!("```\n{}\n```\n", example));
+        }
+    }
+    
+    output
+}
+
+fn format_keyword_doc(kw: &fluentai_core::documentation::KeywordDoc) -> String {
+    let mut output = format!("## {} (keyword)\n\n", kw.keyword);
+    output.push_str(&format!("**Syntax:** `{}`\n\n", kw.syntax));
+    output.push_str(&format!("**Description:** {}\n", kw.description));
+    
+    if !kw.examples.is_empty() {
+        output.push_str("\n**Examples:**\n");
+        for example in kw.examples {
+            output.push_str(&format!("```\n{}\n```\n", example));
+        }
+    }
+    
+    output
+}
+
+fn format_builtin_doc(builtin: &fluentai_core::documentation::BuiltinDoc) -> String {
+    let mut output = format!("## {} ({})\n\n", builtin.name, builtin.module);
+    output.push_str(&format!("**Signature:** `{}`\n\n", builtin.signature));
+    output.push_str(&format!("**Description:** {}\n", builtin.description));
+    
+    if !builtin.examples.is_empty() {
+        output.push_str("\n**Examples:**\n");
+        for example in builtin.examples {
+            output.push_str(&format!("```\n{}\n```\n", example));
+        }
+    }
+    
+    output
 }
 
 impl Default for CommandRegistry {

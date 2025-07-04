@@ -43,6 +43,73 @@ pub struct NodeMetadata {
     pub is_pure: Option<bool>,
     /// Custom annotations
     pub annotations: Vec<String>,
+    /// Link to documentation
+    pub documentation_id: Option<String>,
+    /// Context memory for machine understanding
+    pub context_memory: Option<ContextMemory>,
+}
+
+/// Context memory for machine-readable semantic information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextMemory {
+    /// Semantic embedding vector
+    pub embedding_id: Option<EmbeddingId>,
+    /// Usage statistics from runtime
+    pub usage_stats: UsageStatistics,
+    /// Design rationale - why this code exists
+    pub rationale: Option<String>,
+    /// Performance characteristics
+    pub performance_hints: Vec<PerformanceHint>,
+    /// Semantic tags for categorization
+    pub semantic_tags: Vec<String>,
+    /// Last modification timestamp
+    pub last_modified: Option<u64>,
+}
+
+/// Identifier for external embedding storage
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct EmbeddingId(pub u64);
+
+/// Runtime usage statistics
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct UsageStatistics {
+    /// Number of times this node was executed
+    pub execution_count: u64,
+    /// Average execution time in nanoseconds
+    pub avg_execution_time_ns: u64,
+    /// Number of times this node caused an error
+    pub error_count: u64,
+    /// Hot path indicator (frequently executed)
+    pub is_hot_path: bool,
+}
+
+/// Performance hint for optimization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerformanceHint {
+    /// Type of hint
+    pub hint_type: PerformanceHintType,
+    /// Confidence level (0.0 - 1.0)
+    pub confidence: f32,
+    /// Additional context
+    pub context: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PerformanceHintType {
+    /// This function should be inlined
+    ShouldInline,
+    /// This loop should be unrolled
+    ShouldUnroll,
+    /// This operation can be vectorized
+    CanVectorize,
+    /// This computation can be parallelized
+    CanParallelize,
+    /// Results should be memoized
+    ShouldMemoize,
+    /// Memory access pattern hint
+    MemoryAccessPattern(String),
+    /// Custom hint
+    Custom(String),
 }
 
 /// AST graph representation
@@ -103,6 +170,46 @@ impl Graph {
     /// Sets metadata for a node
     pub fn set_metadata(&mut self, id: NodeId, metadata: NodeMetadata) {
         self.metadata.insert(id, metadata);
+    }
+    
+    /// Sets documentation ID for a node
+    pub fn set_documentation(&mut self, id: NodeId, doc_id: String) {
+        self.metadata_mut(id).documentation_id = Some(doc_id);
+    }
+    
+    /// Gets documentation ID for a node
+    pub fn get_documentation(&self, id: NodeId) -> Option<&String> {
+        self.metadata.get(&id)?.documentation_id.as_ref()
+    }
+    
+    /// Sets or updates context memory for a node
+    pub fn set_context_memory(&mut self, id: NodeId, context: ContextMemory) {
+        self.metadata_mut(id).context_memory = Some(context);
+    }
+    
+    /// Gets context memory for a node
+    pub fn get_context_memory(&self, id: NodeId) -> Option<&ContextMemory> {
+        self.metadata.get(&id)?.context_memory.as_ref()
+    }
+    
+    /// Updates usage statistics for a node
+    pub fn update_usage_stats<F>(&mut self, id: NodeId, updater: F) 
+    where F: FnOnce(&mut UsageStatistics)
+    {
+        let metadata = self.metadata_mut(id);
+        if metadata.context_memory.is_none() {
+            metadata.context_memory = Some(ContextMemory {
+                embedding_id: None,
+                usage_stats: UsageStatistics::default(),
+                rationale: None,
+                performance_hints: Vec::new(),
+                semantic_tags: Vec::new(),
+                last_modified: None,
+            });
+        }
+        if let Some(context) = &mut metadata.context_memory {
+            updater(&mut context.usage_stats);
+        }
     }
     
     /// Returns an iterator over all node IDs in the graph

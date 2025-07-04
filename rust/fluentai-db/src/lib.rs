@@ -2,6 +2,9 @@
 //! 
 //! This crate provides a functional approach to database operations that integrates
 //! with FluentAi's effect system and maintains functional purity.
+//! 
+//! The framework now includes AI-first graph-based schema representation that
+//! integrates with FluentAi's AST structure for better analysis and optimization.
 
 pub mod effects;
 pub mod query;
@@ -11,6 +14,9 @@ pub mod error;
 pub mod transaction;
 pub mod migration;
 pub mod di;
+
+// AI-first graph-based schema representation
+pub mod graph_schema;
 
 pub use effects::{DbEffectType, DbHandler};
 pub use query::{Query, QueryBuilder, QueryExpr};
@@ -28,6 +34,14 @@ pub use migration::{
 pub use di::{
     DatabaseModule, DatabaseServiceProvider, ContainerDatabaseProvider,
     DatabaseContainerBuilderExt, DatabaseServicesBuilder
+};
+
+// Graph-based schema exports
+pub use graph_schema::{
+    SchemaGraph, TableNode, ColumnNode, IndexNode, ConstraintNode,
+    RelationshipEdge, SchemaMetadata, TableHints, ColumnStatistics,
+    SchemaGraphBuilder, SchemaAnalysis, RelationshipType,
+    IndexType, ConstraintType, CacheStrategy, PartitioningStrategy,
 };
 
 /// Database configuration

@@ -1,0 +1,20 @@
+[package]
+name = "fluentai-embeddings"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fluentai-core = { path = "../../fluentai-core" }
+fluentai-optimizer = { path = "../../fluentai-optimizer" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rustc-hash.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util"] }
+
+[dev-dependencies]
+tokio-test = "0.4"

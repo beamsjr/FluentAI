@@ -7,7 +7,7 @@ members = [
     "fluentai-lsp",
     "fluentai-jit",
     "fluentai-py",
-    "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-cli", "fluentai-interpreter", "fluentai-repl", "fluentai-ui-compiler", "fluentai-lint", "fluentai-metaprogramming", "fluentai-actors",
+    "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-cli", "fluentai-interpreter", "fluentai-repl", "fluentai-ui-compiler", "fluentai-lint", "fluentai-metaprogramming", "fluentai-actors", "rust/fluentai-embeddings",
 ]
 resolver = "2"
 
@@ -26,6 +26,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+async-trait = "0.1"
 
 # Parser dependencies
 nom = "7.1"

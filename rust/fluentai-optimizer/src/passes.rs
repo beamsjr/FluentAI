@@ -9,6 +9,7 @@ pub mod loop_opts;
 pub mod beta_reduction;
 pub mod partial_eval;
 pub mod effect_aware;
+pub mod context_aware;
 
 use fluentai_core::ast::Graph;
 use anyhow::Result;
