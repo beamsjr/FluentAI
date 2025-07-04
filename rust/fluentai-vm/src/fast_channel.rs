@@ -238,9 +238,9 @@ impl BufferedChannel {
             }
             
             // Queue is full, wait
-            let guard = self.mutex.lock();
+            let mut guard = self.mutex.lock();
             if self.queue.is_full() && !self.closed.load(Ordering::Acquire) {
-                self.not_full.wait(&guard);
+                self.not_full.wait(&mut guard);
             }
         }
     }
@@ -270,9 +270,9 @@ impl BufferedChannel {
             }
             
             // Queue is empty, wait
-            let guard = self.mutex.lock();
+            let mut guard = self.mutex.lock();
             if self.queue.is_empty() && !self.closed.load(Ordering::Acquire) {
-                self.not_empty.wait(&guard);
+                self.not_empty.wait(&mut guard);
             }
         }
     }

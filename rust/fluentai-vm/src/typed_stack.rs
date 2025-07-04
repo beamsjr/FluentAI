@@ -301,7 +301,11 @@ mod tests {
         
         let result = stack.pop().unwrap();
         match result {
-            Value::Float(f) => assert!(f > i64::MAX as f64),
+            Value::Float(f) => {
+                // i64::MAX + 1 should overflow to float
+                let expected = (i64::MAX as f64) + 1.0;
+                assert_eq!(f, expected);
+            }
             _ => panic!("Expected float after overflow"),
         }
     }

@@ -4,9 +4,8 @@ use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
 use crate::debug::{VMDebugEvent, DebugConfig, StepMode};
 use crate::safety::{IdGenerator, PromiseId, ChannelId, ResourceLimits, checked_ops};
 use crate::security::{SecurityManager, SecurityPolicy};
-use crate::error::{StackTrace, StackFrame};
+use crate::error::{VMError, VMResult, StackTrace, StackFrame, value_type_name};
 use crate::gc::{GarbageCollector, GcHandle, GcScope, GcConfig};
-use anyhow::{anyhow, Result};
 use rustc_hash::FxHashMap;
 use fluentai_effects::{EffectContext, runtime::EffectRuntime};
 use fluentai_stdlib::{StdlibRegistry, init_stdlib};
@@ -105,7 +104,7 @@ pub struct VM {
     effect_runtime: Arc<EffectRuntime>,
     // Async support with typed IDs
     id_generator: IdGenerator,
-    promises: FxHashMap<PromiseId, oneshot::Receiver<Result<Value>>>,
+    promises: FxHashMap<PromiseId, oneshot::Receiver<VMResult<Value>>>,
     channels: FxHashMap<ChannelId, (mpsc::Sender<Value>, mpsc::Receiver<Value>)>,
     // Mutable cells
     cells: Vec<Value>,
@@ -234,7 +233,7 @@ impl VM {
     }
     
     /// Allocate a value using GC if enabled
-    pub fn gc_alloc(&self, value: Value) -> Result<Value> {
+    pub fn gc_alloc(&self, value: Value) -> VMResult<Value> {
         if let Some(ref gc) = self.gc {
             let handle = gc.allocate(value)?;
             // Store handle ID in a special GC value variant
@@ -246,22 +245,28 @@ impl VM {
     }
     
     /// Create a GC scope for temporary allocations
-    pub fn gc_scope<F, R>(&self, f: F) -> Result<R>
+    pub fn gc_scope<F, R>(&self, f: F) -> VMResult<R>
     where
-        F: FnOnce(&mut GcScope) -> Result<R>,
+        F: FnOnce(&mut GcScope) -> VMResult<R>,
     {
         if let Some(ref gc) = self.gc {
             let mut scope = GcScope::new(gc);
             f(&mut scope)
         } else {
-            Err(anyhow!("GC not enabled"))
+            Err(VMError::RuntimeError {
+                message: "GC not enabled".to_string(),
+                stack_trace: None,
+            })
         }
     }
     
     /// Manually trigger garbage collection
-    pub fn gc_collect(&self) -> Result<()> {
+    pub fn gc_collect(&self) -> VMResult<()> {
         if let Some(ref gc) = self.gc {
-            gc.collect()
+            gc.collect().map_err(|e| VMError::RuntimeError {
+                message: format!("GC error: {}", e),
+                stack_trace: None,
+            })
         } else {
             Ok(()) // No-op if GC not enabled
         }
@@ -302,7 +307,7 @@ impl VM {
         self.usage_tracker.as_ref()?.read().ok().map(|tracker| tracker.get_all_stats().clone())
     }
     
-    pub fn run(&mut self) -> Result<Value> {
+    pub fn run(&mut self) -> VMResult<Value> {
         self.call_stack.push(CallFrame {
             chunk_id: self.bytecode.main_chunk,
             ip: 0,
@@ -327,14 +332,20 @@ impl VM {
         result
     }
     
-    fn run_inner(&mut self) -> Result<Value> {
+    fn run_inner(&mut self) -> VMResult<Value> {
         loop {
-            let frame = self.call_stack.last().ok_or_else(|| anyhow!("Call stack underflow"))?;
+            let frame = self.call_stack.last().ok_or_else(|| VMError::StackUnderflow {
+                operation: "get_current_frame".to_string(),
+                stack_size: self.call_stack.len(),
+            })?;
             let chunk_id = frame.chunk_id;
             let ip = frame.ip;
             
             if ip >= self.bytecode.chunks[chunk_id].instructions.len() {
-                return Err(anyhow!("Instruction pointer out of bounds"));
+                return Err(VMError::InvalidJumpTarget {
+                    target: ip,
+                    chunk_size: self.bytecode.chunks[chunk_id].instructions.len(),
+                });
             }
             
             let instruction = self.bytecode.chunks[chunk_id].instructions[ip].clone();
@@ -368,7 +379,10 @@ impl VM {
                     Opcode::Call => {
                         // Check call depth
                         if self.call_stack.len() >= self.resource_limits.max_call_depth {
-                            return Err(anyhow!("Maximum call depth exceeded"));
+                            return Err(VMError::CallStackOverflow {
+                                current_depth: self.call_stack.len(),
+                                max_depth: self.resource_limits.max_call_depth,
+                            });
                         }
                     }
                     _ => {}
@@ -394,7 +408,10 @@ impl VM {
                 VMState::Return => {
                     if self.call_stack.len() == 1 {
                         // Main function returning
-                        let result = self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                        let result = self.stack.pop().ok_or_else(|| VMError::StackUnderflow {
+                            operation: "main_return".to_string(),
+                            stack_size: self.stack.len(),
+                        })?;
                         
                         // Track main function execution time
                         if let Some(tracker) = &self.usage_tracker {
@@ -427,7 +444,10 @@ impl VM {
                     }
                 }
                 VMState::Halt => {
-                    return self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"));
+                    return self.stack.pop().ok_or_else(|| VMError::StackUnderflow {
+                        operation: "halt".to_string(),
+                        stack_size: self.stack.len(),
+                    });
                 }
             }
             
@@ -455,14 +475,17 @@ impl VM {
         }
     }
     
-    fn execute_instruction(&mut self, instruction: &Instruction, chunk_id: usize) -> Result<VMState> {
+    fn execute_instruction(&mut self, instruction: &Instruction, chunk_id: usize) -> VMResult<VMState> {
         use Opcode::*;
         
         match instruction.opcode {
             // Stack manipulation
             Push => {
                 let value = self.bytecode.chunks[chunk_id].constants.get(instruction.arg as usize)
-                    .ok_or_else(|| anyhow!("Invalid constant index"))?
+                    .ok_or_else(|| VMError::InvalidConstantIndex {
+                        index: instruction.arg,
+                        max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                    })?
                     .clone();
                 self.push(value)?;
             }
@@ -487,7 +510,10 @@ impl VM {
             Swap => {
                 let len = self.stack.len();
                 if len < 2 {
-                    return Err(anyhow!("Stack underflow"));
+                    return Err(VMError::StackUnderflow {
+                        operation: "swap".to_string(),
+                        stack_size: len,
+                    });
                 }
                 self.stack.swap(len - 1, len - 2);
             }
@@ -505,64 +531,146 @@ impl VM {
                 let const_idx = instruction.arg as usize;
                 let value = self.bytecode.chunks[chunk_id].constants
                     .get(const_idx)
-                    .ok_or_else(|| anyhow!("Invalid constant index"))?
+                    .ok_or_else(|| VMError::InvalidConstantIndex {
+                        index: instruction.arg,
+                        max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                    })?
                     .clone();
                 self.push(value)?;
             }
             
             // Arithmetic
             Add => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::add_i64(x, y).map(Value::Int),
+                (Value::Int(x), Value::Int(y)) => checked_ops::add_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
+                    operation: "add".to_string(),
+                    operands: (x, y),
+                }),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x + y)),
                 (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
-                _ => Err(anyhow!("Type error in add")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "add".to_string(),
+                    expected: "int/float/string".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Sub => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::sub_i64(x, y).map(Value::Int),
+                (Value::Int(x), Value::Int(y)) => checked_ops::sub_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
+                    operation: "sub".to_string(),
+                    operands: (x, y),
+                }),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x - y)),
-                _ => Err(anyhow!("Type error in sub")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "sub".to_string(),
+                    expected: "int/float".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Mul => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::mul_i64(x, y).map(Value::Int),
+                (Value::Int(x), Value::Int(y)) => checked_ops::mul_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
+                    operation: "mul".to_string(),
+                    operands: (x, y),
+                }),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x * y)),
-                _ => Err(anyhow!("Type error in mul")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "mul".to_string(),
+                    expected: "int/float".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Div => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::div_i64(x, y).map(Value::Int),
+                (Value::Int(x), Value::Int(y)) => checked_ops::div_i64(x, y).map(Value::Int).map_err(|_| {
+                    if y == 0 {
+                        VMError::DivisionByZero { location: None }
+                    } else {
+                        VMError::IntegerOverflow {
+                            operation: "div".to_string(),
+                            operands: (x, y),
+                        }
+                    }
+                }),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x / y)),
-                _ => Err(anyhow!("Type error in div")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "div".to_string(),
+                    expected: "int/float".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Mod => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::mod_i64(x, y).map(Value::Int),
-                _ => Err(anyhow!("Type error in mod")),
+                (Value::Int(x), Value::Int(y)) => checked_ops::mod_i64(x, y).map(Value::Int).map_err(|_| {
+                    if y == 0 {
+                        VMError::DivisionByZero { location: None }
+                    } else {
+                        VMError::IntegerOverflow {
+                            operation: "mod".to_string(),
+                            operands: (x, y),
+                        }
+                    }
+                }),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "mod".to_string(),
+                    expected: "int".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Neg => {
                 let value = self.pop()?;
                 match value {
                     Value::Int(x) => {
-                        let negated = checked_ops::neg_i64(x)?;
+                        let negated = checked_ops::neg_i64(x).map_err(|_| VMError::IntegerOverflow {
+                            operation: "neg".to_string(),
+                            operands: (x, 0),
+                        })?;
                         self.push(Value::Int(negated))?
                     }
                     Value::Float(x) => self.push(Value::Float(-x))?,
-                    _ => return Err(anyhow!("Type error in neg")),
+                    v => return Err(VMError::TypeError {
+                        operation: "neg".to_string(),
+                        expected: "int/float".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
             // Type-specialized arithmetic
-            AddInt => self.binary_int_op(|x, y| checked_ops::add_i64(x, y))?,
-            SubInt => self.binary_int_op(|x, y| checked_ops::sub_i64(x, y))?,
-            MulInt => self.binary_int_op(|x, y| checked_ops::mul_i64(x, y))?,
-            DivInt => self.binary_int_op(|x, y| checked_ops::div_i64(x, y))?,
+            AddInt => self.binary_int_op(|x, y| checked_ops::add_i64(x, y).map_err(|_| VMError::IntegerOverflow {
+                operation: "add_int".to_string(),
+                operands: (x, y),
+            }))?,
+            SubInt => self.binary_int_op(|x, y| checked_ops::sub_i64(x, y).map_err(|_| VMError::IntegerOverflow {
+                operation: "sub_int".to_string(),
+                operands: (x, y),
+            }))?,
+            MulInt => self.binary_int_op(|x, y| checked_ops::mul_i64(x, y).map_err(|_| VMError::IntegerOverflow {
+                operation: "mul_int".to_string(),
+                operands: (x, y),
+            }))?,
+            DivInt => self.binary_int_op(|x, y| checked_ops::div_i64(x, y).map_err(|_| {
+                if y == 0 {
+                    VMError::DivisionByZero { location: None }
+                } else {
+                    VMError::IntegerOverflow {
+                        operation: "div_int".to_string(),
+                        operands: (x, y),
+                    }
+                }
+            }))?,
             
             // Float-specialized arithmetic
             AddFloat => self.binary_float_op(|x, y| x + y)?,
             SubFloat => self.binary_float_op(|x, y| x - y)?,
             MulFloat => self.binary_float_op(|x, y| x * y)?,
+            DivFloat => self.binary_float_op(|x, y| x / y)?,
             
             // Comparison
             Eq => {
@@ -581,25 +689,45 @@ impl VM {
             Lt => self.binary_op(|a, b| match (a, b) {
                 (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x < y)),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x < y)),
-                _ => Err(anyhow!("Type error in lt")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "lt".to_string(),
+                    expected: "int/float".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Le => self.binary_op(|a, b| match (a, b) {
                 (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x <= y)),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x <= y)),
-                _ => Err(anyhow!("Type error in le")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "le".to_string(),
+                    expected: "int/float".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Gt => self.binary_op(|a, b| match (a, b) {
                 (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x > y)),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x > y)),
-                _ => Err(anyhow!("Type error in gt")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "gt".to_string(),
+                    expected: "int/float".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Ge => self.binary_op(|a, b| match (a, b) {
                 (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x >= y)),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x >= y)),
-                _ => Err(anyhow!("Type error in ge")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "ge".to_string(),
+                    expected: "int/float".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             // Type-specialized comparison
@@ -611,19 +739,34 @@ impl VM {
             // Boolean
             And => self.binary_op(|a, b| match (a, b) {
                 (Value::Bool(x), Value::Bool(y)) => Ok(Value::Bool(x && y)),
-                _ => Err(anyhow!("Type error in and")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "and".to_string(),
+                    expected: "bool".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Or => self.binary_op(|a, b| match (a, b) {
                 (Value::Bool(x), Value::Bool(y)) => Ok(Value::Bool(x || y)),
-                _ => Err(anyhow!("Type error in or")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "or".to_string(),
+                    expected: "bool".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             Not => {
                 let value = self.pop()?;
                 match value {
                     Value::Bool(x) => self.push(Value::Bool(!x))?,
-                    _ => return Err(anyhow!("Type error in not")),
+                    v => return Err(VMError::TypeError {
+                        operation: "not".to_string(),
+                        expected: "bool".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -679,11 +822,17 @@ impl VM {
             Load => {
                 let local_idx = instruction.arg as usize;
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + local_idx;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: local_idx,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 let value = self.stack[value_idx].clone();
@@ -694,11 +843,17 @@ impl VM {
                 let local_idx = instruction.arg as usize;
                 let value = self.pop()?;
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + local_idx;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: local_idx,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 self.stack[value_idx] = value;
@@ -707,11 +862,17 @@ impl VM {
             // Fast local variable access opcodes
             LoadLocal0 => {
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 0,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 let value = self.stack[value_idx].clone();
@@ -720,11 +881,17 @@ impl VM {
             
             LoadLocal1 => {
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + 1;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 1,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 let value = self.stack[value_idx].clone();
@@ -733,11 +900,17 @@ impl VM {
             
             LoadLocal2 => {
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + 2;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 2,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 let value = self.stack[value_idx].clone();
@@ -746,11 +919,17 @@ impl VM {
             
             LoadLocal3 => {
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + 3;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 3,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 let value = self.stack[value_idx].clone();
@@ -760,11 +939,17 @@ impl VM {
             StoreLocal0 => {
                 let value = self.pop()?;
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 0,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 self.stack[value_idx] = value;
@@ -773,11 +958,17 @@ impl VM {
             StoreLocal1 => {
                 let value = self.pop()?;
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + 1;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 1,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 self.stack[value_idx] = value;
@@ -786,11 +977,17 @@ impl VM {
             StoreLocal2 => {
                 let value = self.pop()?;
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + 2;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 2,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 self.stack[value_idx] = value;
@@ -799,11 +996,17 @@ impl VM {
             StoreLocal3 => {
                 let value = self.pop()?;
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 let value_idx = frame.stack_base + 3;
                 
                 if value_idx >= self.stack.len() {
-                    return Err(anyhow!("Invalid local variable index"));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: 3,
+                        frame_size: self.stack.len() - frame.stack_base,
+                    });
                 }
                 
                 self.stack[value_idx] = value;
@@ -813,7 +1016,10 @@ impl VM {
                 let name_idx = instruction.arg as usize;
                 let name = match &self.bytecode.chunks[chunk_id].constants.get(name_idx) {
                     Some(Value::String(s)) => s,
-                    _ => return Err(anyhow!("Invalid global name constant")),
+                    _ => return Err(VMError::InvalidConstantIndex {
+                        index: name_idx as u32,
+                        max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                    }),
                 };
                 
                 // Check if it's a built-in function name
@@ -840,7 +1046,10 @@ impl VM {
                 let name_idx = instruction.arg as usize;
                 let name = match &self.bytecode.chunks[chunk_id].constants.get(name_idx) {
                     Some(Value::String(s)) => s.clone(),
-                    _ => return Err(anyhow!("Invalid global name constant")),
+                    _ => return Err(VMError::InvalidConstantIndex {
+                        index: name_idx as u32,
+                        max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                    }),
                 };
                 
                 let value = self.pop()?;
@@ -862,7 +1071,12 @@ impl VM {
                 let list = self.pop()?;
                 match list {
                     Value::List(items) => self.push(Value::Int(items.len() as i64))?,
-                    _ => return Err(anyhow!("Type error in list_len")),
+                    v => return Err(VMError::TypeError {
+                        operation: "list_len".to_string(),
+                        expected: "list".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -870,7 +1084,12 @@ impl VM {
                 let list = self.pop()?;
                 match list {
                     Value::List(items) => self.push(Value::Bool(items.is_empty()))?,
-                    _ => return Err(anyhow!("Type error in list_empty")),
+                    v => return Err(VMError::TypeError {
+                        operation: "list_empty".to_string(),
+                        expected: "list".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -879,11 +1098,19 @@ impl VM {
                 match list {
                     Value::List(items) => {
                         if items.is_empty() {
-                            return Err(anyhow!("Cannot take head of empty list"));
+                            return Err(VMError::RuntimeError {
+                                message: "Cannot take head of empty list".to_string(),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
                         }
                         self.push(items[0].clone())?;
                     }
-                    _ => return Err(anyhow!("Type error in list_head: expected list")),
+                    v => return Err(VMError::TypeError {
+                        operation: "list_head".to_string(),
+                        expected: "list".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -892,12 +1119,20 @@ impl VM {
                 match list {
                     Value::List(items) => {
                         if items.is_empty() {
-                            return Err(anyhow!("Cannot take tail of empty list"));
+                            return Err(VMError::RuntimeError {
+                                message: "Cannot take tail of empty list".to_string(),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
                         }
                         let tail = items[1..].to_vec();
                         self.push(Value::List(tail))?;
                     }
-                    _ => return Err(anyhow!("Type error in list_tail: expected list")),
+                    v => return Err(VMError::TypeError {
+                        operation: "list_tail".to_string(),
+                        expected: "list".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -909,7 +1144,12 @@ impl VM {
                         items.insert(0, elem);
                         self.push(Value::List(items))?;
                     }
-                    _ => return Err(anyhow!("Type error in list_cons: second argument must be a list")),
+                    v => return Err(VMError::TypeError {
+                        operation: "list_cons".to_string(),
+                        expected: "list as second argument".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -918,20 +1158,35 @@ impl VM {
                 let string = self.pop()?;
                 match string {
                     Value::String(s) => self.push(Value::Int(s.len() as i64))?,
-                    _ => return Err(anyhow!("Type error in str_len")),
+                    v => return Err(VMError::TypeError {
+                        operation: "str_len".to_string(),
+                        expected: "string".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
             StrConcat => self.binary_op(|a, b| match (a, b) {
                 (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
-                _ => Err(anyhow!("Type error in str_concat")),
+                (a, b) => Err(VMError::TypeError {
+                    operation: "str_concat".to_string(),
+                    expected: "string".to_string(),
+                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                    location: None,
+                }),
             })?,
             
             StrUpper => {
                 let string = self.pop()?;
                 match string {
                     Value::String(s) => self.push(Value::String(s.to_uppercase()))?,
-                    _ => return Err(anyhow!("Type error in str_upper")),
+                    v => return Err(VMError::TypeError {
+                        operation: "str_upper".to_string(),
+                        expected: "string".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -939,7 +1194,12 @@ impl VM {
                 let string = self.pop()?;
                 match string {
                     Value::String(s) => self.push(Value::String(s.to_lowercase()))?,
-                    _ => return Err(anyhow!("Type error in str_lower")),
+                    v => return Err(VMError::TypeError {
+                        operation: "str_lower".to_string(),
+                        expected: "string".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -955,12 +1215,22 @@ impl VM {
                 
                 let operation = match self.pop()? {
                     Value::String(s) => s,
-                    _ => return Err(anyhow!("Effect operation must be a string")),
+                    v => return Err(VMError::TypeError {
+                        operation: "effect".to_string(),
+                        expected: "string for operation name".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 let effect_type_str = match self.pop()? {
                     Value::String(s) => s,
-                    _ => return Err(anyhow!("Effect type must be a string")),
+                    v => return Err(VMError::TypeError {
+                        operation: "effect".to_string(),
+                        expected: "string for effect type".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 // Convert string to EffectType enum
@@ -975,7 +1245,10 @@ impl VM {
                     "Async" => fluentai_core::ast::EffectType::Async,
                     "Concurrent" => fluentai_core::ast::EffectType::Concurrent,
                     "Pure" => fluentai_core::ast::EffectType::Pure,
-                    _ => return Err(anyhow!("Unknown effect type: {}", effect_type_str)),
+                    _ => return Err(VMError::RuntimeError {
+                        message: format!("Unknown effect type: {}", effect_type_str),
+                        stack_trace: Some(self.build_stack_trace()),
+                    }),
                 };
                 
                 // Convert VM values to core values for effect handlers
@@ -985,7 +1258,10 @@ impl VM {
                 
                 // Execute the effect synchronously
                 let result = self.effect_context.perform_sync(effect_type, &operation, &core_args)
-                    .map_err(|e| anyhow!("Effect error: {}", e))?;
+                    .map_err(|e| VMError::RuntimeError {
+                        message: format!("Effect error: {}", e),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 
                 // Convert result back to VM value
                 let vm_result = self.core_value_to_vm_value(&result);
@@ -1003,12 +1279,22 @@ impl VM {
                 
                 let operation = match self.pop()? {
                     Value::String(s) => s,
-                    _ => return Err(anyhow!("Effect operation must be a string")),
+                    v => return Err(VMError::TypeError {
+                        operation: "effect_async".to_string(),
+                        expected: "string for operation name".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 let effect_type_str = match self.pop()? {
                     Value::String(s) => s,
-                    _ => return Err(anyhow!("Effect type must be a string")),
+                    v => return Err(VMError::TypeError {
+                        operation: "effect_async".to_string(),
+                        expected: "string for effect type".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 // Convert string to EffectType enum
@@ -1023,7 +1309,10 @@ impl VM {
                     "Async" => fluentai_core::ast::EffectType::Async,
                     "Concurrent" => fluentai_core::ast::EffectType::Concurrent,
                     "Pure" => fluentai_core::ast::EffectType::Pure,
-                    _ => return Err(anyhow!("Unknown effect type: {}", effect_type_str)),
+                    _ => return Err(VMError::RuntimeError {
+                        message: format!("Unknown effect type: {}", effect_type_str),
+                        stack_trace: Some(self.build_stack_trace()),
+                    }),
                 };
                 
                 // Generate a promise ID
@@ -1047,7 +1336,9 @@ impl VM {
                 
                 let future = async move {
                     let result = effect_context.perform_async(effect_type, &operation, &core_args).await
-                        .map_err(|e| anyhow!("Async effect error: {}", e));
+                        .map_err(|e| VMError::AsyncError {
+                            message: format!("Async effect error: {}", e),
+                        });
                     
                     // Convert result back to VM value
                     let vm_result = match result {
@@ -1074,7 +1365,12 @@ impl VM {
                 // Pop promise
                 let promise_id = match self.pop()? {
                     Value::Promise(id) => id,
-                    _ => return Err(anyhow!("Await requires a promise")),
+                    v => return Err(VMError::TypeError {
+                        operation: "await".to_string(),
+                        expected: "promise".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 // Check if we have this promise
@@ -1089,11 +1385,16 @@ impl VM {
                             self.push(Value::Promise(promise_id))?;
                         }
                         Err(oneshot::error::TryRecvError::Closed) => {
-                            return Err(anyhow!("Promise channel closed"));
+                            return Err(VMError::AsyncError {
+                                message: "Promise channel closed".to_string(),
+                            });
                         }
                     }
                 } else {
-                    return Err(anyhow!("Unknown promise"));
+                    return Err(VMError::UnknownIdentifier {
+                        name: format!("promise:{}", promise_id),
+                        location: None,
+                    });
                 }
             }
             
@@ -1112,7 +1413,11 @@ impl VM {
             Channel => {
                 // Check resource limit
                 if self.channels.len() >= self.resource_limits.max_channels {
-                    return Err(anyhow!("Channel limit exceeded: {}", self.resource_limits.max_channels));
+                    return Err(VMError::ResourceLimitExceeded {
+                        resource: "channels".to_string(),
+                        limit: self.resource_limits.max_channels,
+                        requested: self.channels.len() + 1,
+                    });
                 }
                 
                 // Create a new channel with bounded capacity
@@ -1127,19 +1432,31 @@ impl VM {
                 let value = self.pop()?;
                 let channel_id = match self.pop()? {
                     Value::Channel(id) => id,
-                    _ => return Err(anyhow!("Send requires a channel")),
+                    v => return Err(VMError::TypeError {
+                        operation: "send".to_string(),
+                        expected: "channel".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 // Get the channel sender
                 if let Some((tx, _)) = self.channels.get(&channel_id) {
                     tx.try_send(value)
                         .map_err(|e| match e {
-                            mpsc::error::TrySendError::Full(_) => anyhow!("Channel buffer full"),
-                            mpsc::error::TrySendError::Closed(_) => anyhow!("Channel closed"),
+                            mpsc::error::TrySendError::Full(_) => VMError::AsyncError {
+                                message: "Channel buffer full".to_string(),
+                            },
+                            mpsc::error::TrySendError::Closed(_) => VMError::AsyncError {
+                                message: "Channel closed".to_string(),
+                            },
                         })?;
                     self.push(Value::Nil)?;
                 } else {
-                    return Err(anyhow!("Unknown channel: {}", channel_id));
+                    return Err(VMError::UnknownIdentifier {
+                        name: format!("channel:{}", channel_id),
+                        location: None,
+                    });
                 }
             }
             
@@ -1147,7 +1464,12 @@ impl VM {
                 // Pop channel
                 let channel_id = match self.pop()? {
                     Value::Channel(id) => id,
-                    _ => return Err(anyhow!("Receive requires a channel")),
+                    v => return Err(VMError::TypeError {
+                        operation: "receive".to_string(),
+                        expected: "channel".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 // Try to receive non-blocking
@@ -1159,11 +1481,16 @@ impl VM {
                             self.push(Value::Nil)?;
                         }
                         Err(mpsc::error::TryRecvError::Disconnected) => {
-                            return Err(anyhow!("Channel disconnected"));
+                            return Err(VMError::AsyncError {
+                                message: "Channel disconnected".to_string(),
+                            });
                         }
                     }
                 } else {
-                    return Err(anyhow!("Unknown channel: {}", channel_id));
+                    return Err(VMError::UnknownIdentifier {
+                        name: format!("channel:{}", channel_id),
+                        location: None,
+                    });
                 }
             }
             
@@ -1196,11 +1523,17 @@ impl VM {
             LoadCaptured => {
                 let capture_idx = instruction.arg as usize;
                 let frame = self.call_stack.last()
-                    .ok_or_else(|| anyhow!("No active call frame"))?;
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
                 
                 // Load value from captured environment
                 if capture_idx >= frame.env.len() {
-                    return Err(anyhow!("Invalid capture index: {}", capture_idx));
+                    return Err(VMError::InvalidLocalIndex {
+                        index: capture_idx,
+                        frame_size: frame.env.len(),
+                    });
                 }
                 
                 let value = frame.env[capture_idx].clone();
@@ -1254,7 +1587,10 @@ impl VM {
                         // Special handling for cons which needs different argument order
                         if builtin_name == "cons" {
                             if args.len() != 2 {
-                                return Err(anyhow!("cons requires exactly 2 arguments"));
+                                return Err(VMError::RuntimeError {
+                                    message: "cons requires exactly 2 arguments".to_string(),
+                                    stack_trace: Some(self.build_stack_trace()),
+                                });
                             }
                             match &args[1] {
                                 Value::List(items) => {
@@ -1262,13 +1598,21 @@ impl VM {
                                     new_list.extend(items.iter().cloned());
                                     self.push(Value::List(new_list))?;
                                 }
-                                _ => return Err(anyhow!("cons: second argument must be a list")),
+                                _ => return Err(VMError::TypeError {
+                                    operation: "cons".to_string(),
+                                    expected: "list as second argument".to_string(),
+                                    got: value_type_name(&args[1]).to_string(),
+                                    location: None,
+                                }),
                             }
                         } else {
                             // For other built-ins, generate appropriate instructions
                             // This is a simplified approach - in a full implementation,
                             // we might want to directly execute the operations
-                            return Err(anyhow!("Built-in function {} should be optimized by compiler", builtin_name));
+                            return Err(VMError::RuntimeError {
+                                message: format!("Built-in function {} should be optimized by compiler", builtin_name),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
                         }
                     }
                     Value::String(s) if s.starts_with("__stdlib__") => {
@@ -1302,12 +1646,20 @@ impl VM {
                                     let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
                                     self.push(vm_result)?;
                                 } else {
-                                    return Err(anyhow!("Unknown stdlib function: {}", func_name));
+                                    return Err(VMError::UnknownIdentifier {
+                                        name: func_name.to_string(),
+                                        location: None,
+                                    });
                                 }
                             }
                         }
                     }
-                    _ => return Err(anyhow!("Cannot call non-function value: {:?}", func)),
+                    v => return Err(VMError::TypeError {
+                        operation: "call".to_string(),
+                        expected: "function".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -1315,7 +1667,11 @@ impl VM {
             MakeCell => {
                 // Check resource limit
                 if self.cells.len() >= self.resource_limits.max_cells {
-                    return Err(anyhow!("Cell limit exceeded: {}", self.resource_limits.max_cells));
+                    return Err(VMError::ResourceLimitExceeded {
+                        resource: "cells".to_string(),
+                        limit: self.resource_limits.max_cells,
+                        requested: self.cells.len() + 1,
+                    });
                 }
                 
                 let initial_value = self.pop()?;
@@ -1332,10 +1688,18 @@ impl VM {
                             let value = self.cells[idx].clone();
                             self.push(value)?;
                         } else {
-                            return Err(anyhow!("Invalid cell index"));
+                            return Err(VMError::CellError {
+                                index: idx,
+                                message: "Invalid cell index".to_string(),
+                            });
                         }
                     }
-                    _ => return Err(anyhow!("CellGet requires a cell")),
+                    v => return Err(VMError::TypeError {
+                        operation: "cell_get".to_string(),
+                        expected: "cell".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -1348,10 +1712,18 @@ impl VM {
                             self.cells[idx] = value;
                             self.push(Value::Nil)?; // CellSet returns nil
                         } else {
-                            return Err(anyhow!("Invalid cell index"));
+                            return Err(VMError::CellError {
+                                index: idx,
+                                message: "Invalid cell index".to_string(),
+                            });
                         }
                     }
-                    _ => return Err(anyhow!("CellSet requires a cell")),
+                    v => return Err(VMError::TypeError {
+                        operation: "cell_set".to_string(),
+                        expected: "cell".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -1370,7 +1742,12 @@ impl VM {
                 let tag_val = self.pop()?;
                 let tag = match tag_val {
                     Value::String(s) => s,
-                    _ => return Err(anyhow!("MakeTagged requires string tag, got {:?}", tag_val)),
+                    v => return Err(VMError::TypeError {
+                        operation: "make_tagged".to_string(),
+                        expected: "string for tag".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 };
                 
                 self.push(Value::Tagged { tag, values })?;
@@ -1382,7 +1759,12 @@ impl VM {
                     Value::Tagged { tag, .. } => {
                         self.push(Value::String(tag))?;
                     }
-                    _ => return Err(anyhow!("GetTag requires tagged value")),
+                    v => return Err(VMError::TypeError {
+                        operation: "get_tag".to_string(),
+                        expected: "tagged value".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -1394,10 +1776,18 @@ impl VM {
                         if field_idx < values.len() {
                             self.push(values[field_idx].clone())?;
                         } else {
-                            return Err(anyhow!("Tagged field index out of bounds"));
+                            return Err(VMError::RuntimeError {
+                                message: format!("Tagged field index {} out of bounds (size: {})", field_idx, values.len()),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
                         }
                     }
-                    _ => return Err(anyhow!("GetTaggedField requires tagged value")),
+                    v => return Err(VMError::TypeError {
+                        operation: "get_tagged_field".to_string(),
+                        expected: "tagged value".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -1405,7 +1795,10 @@ impl VM {
                 let expected_tag_idx = instruction.arg as usize;
                 let expected_tag = match self.bytecode.chunks[chunk_id].constants.get(expected_tag_idx) {
                     Some(Value::String(s)) => s,
-                    _ => return Err(anyhow!("Invalid tag constant")),
+                    _ => return Err(VMError::InvalidConstantIndex {
+                        index: expected_tag_idx as u32,
+                        max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                    }),
                 };
                 
                 let value = self.peek(0)?;
@@ -1449,10 +1842,16 @@ impl VM {
                     if let Some(value) = exports.get(&binding_name) {
                         self.push(value.clone())?;
                     } else {
-                        return Err(anyhow!("Module '{}' does not export '{}'", module_name, binding_name));
+                        return Err(VMError::ModuleError {
+                            module_name: module_name.clone(),
+                            message: format!("Module does not export '{}'", binding_name),
+                        });
                     }
                 } else {
-                    return Err(anyhow!("Module '{}' not loaded", module_name));
+                    return Err(VMError::ModuleError {
+                        module_name: module_name.clone(),
+                        message: "Module not loaded".to_string(),
+                    });
                 }
             }
             
@@ -1468,10 +1867,16 @@ impl VM {
                     if let Some(value) = exports.get(&var_name) {
                         self.push(value.clone())?;
                     } else {
-                        return Err(anyhow!("Module '{}' does not export '{}'", module_name, var_name));
+                        return Err(VMError::ModuleError {
+                            module_name: module_name.clone(),
+                            message: format!("Module does not export '{}'", var_name),
+                        });
                     }
                 } else {
-                    return Err(anyhow!("Module '{}' not found", module_name));
+                    return Err(VMError::ModuleError {
+                        module_name: module_name.clone(),
+                        message: "Module not found".to_string(),
+                    });
                 }
             }
             
@@ -1504,7 +1909,10 @@ impl VM {
                         exports.insert(binding_name, value);
                     }
                 } else {
-                    return Err(anyhow!("Cannot export outside of module context"));
+                    return Err(VMError::RuntimeError {
+                        message: "Cannot export outside of module context".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    });
                 }
             }
             
@@ -1522,7 +1930,12 @@ impl VM {
                         let value = gc_handle.get();
                         self.push(value)?;
                     }
-                    _ => return Err(anyhow!("GcDeref requires a GC handle")),
+                    v => return Err(VMError::TypeError {
+                        operation: "gc_deref".to_string(),
+                        expected: "GC handle".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -1534,7 +1947,12 @@ impl VM {
                         gc_handle.set(value);
                         self.push(Value::Nil)?;
                     }
-                    _ => return Err(anyhow!("GcSet requires a GC handle")),
+                    v => return Err(VMError::TypeError {
+                        operation: "gc_set".to_string(),
+                        expected: "GC handle".to_string(),
+                        got: value_type_name(&v).to_string(),
+                        location: None,
+                    }),
                 }
             }
             
@@ -1573,10 +1991,18 @@ impl VM {
                             frame.chunk_id = chunk_id;
                             frame.env = env;
                         }
-                        _ => return Err(anyhow!("TailCall requires a closure")),
+                        v => return Err(VMError::TypeError {
+                            operation: "tail_call".to_string(),
+                            expected: "function".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                        }),
                     }
                 } else {
-                    return Err(anyhow!("TailCall with no active call frame"));
+                    return Err(VMError::RuntimeError {
+                        message: "TailCall with no active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    });
                 }
             }
             
@@ -1591,7 +2017,10 @@ impl VM {
                     // The previous frame's IP will be used automatically
                     // when we continue execution in run_inner()
                 } else {
-                    return Err(anyhow!("TailReturn with empty call stack"));
+                    return Err(VMError::RuntimeError {
+                        message: "TailReturn with empty call stack".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    });
                 }
             }
             
@@ -1616,10 +2045,16 @@ impl VM {
                     if stack_idx < self.stack.len() {
                         self.stack[stack_idx] = value;
                     } else {
-                        return Err(anyhow!("UpdateLocal: invalid local index {}", local_idx));
+                        return Err(VMError::InvalidLocalIndex {
+                            index: local_idx,
+                            frame_size: self.stack.len() - frame.stack_base,
+                        });
                     }
                 } else {
-                    return Err(anyhow!("UpdateLocal with no active call frame"));
+                    return Err(VMError::RuntimeError {
+                        message: "UpdateLocal with no active call frame".to_string(),
+                        stack_trace: Some(self.build_stack_trace()),
+                    });
                 }
             }
             
@@ -1633,9 +2068,12 @@ impl VM {
         Ok(VMState::Continue)
     }
     
-    pub fn push(&mut self, value: Value) -> Result<()> {
+    pub fn push(&mut self, value: Value) -> VMResult<()> {
         if self.stack.len() >= STACK_SIZE {
-            return Err(anyhow!("Stack overflow"));
+            return Err(VMError::StackOverflow {
+                current_depth: self.stack.len(),
+                max_depth: STACK_SIZE,
+            });
         }
         
         // Send debug event
@@ -1649,8 +2087,11 @@ impl VM {
         Ok(())
     }
     
-    pub fn pop(&mut self) -> Result<Value> {
-        let value = self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+    pub fn pop(&mut self) -> VMResult<Value> {
+        let value = self.stack.pop().ok_or_else(|| VMError::StackUnderflow {
+            operation: "pop".to_string(),
+            stack_size: self.stack.len(),
+        })?;
         
         // Send debug event
         if self.debug_config.enabled {
@@ -1662,17 +2103,20 @@ impl VM {
         Ok(value)
     }
     
-    fn peek(&self, offset: usize) -> Result<&Value> {
+    fn peek(&self, offset: usize) -> VMResult<&Value> {
         let len = self.stack.len();
         if offset >= len {
-            return Err(anyhow!("Stack underflow"));
+            return Err(VMError::StackUnderflow {
+                operation: "peek".to_string(),
+                stack_size: len,
+            });
         }
         Ok(&self.stack[len - 1 - offset])
     }
     
-    fn binary_op<F>(&mut self, op: F) -> Result<()>
+    fn binary_op<F>(&mut self, op: F) -> VMResult<()>
     where
-        F: FnOnce(Value, Value) -> Result<Value>,
+        F: FnOnce(Value, Value) -> VMResult<Value>,
     {
         let b = self.pop()?;
         let a = self.pop()?;
@@ -1680,9 +2124,9 @@ impl VM {
         self.push(result)
     }
     
-    fn binary_int_op<F>(&mut self, op: F) -> Result<()>
+    fn binary_int_op<F>(&mut self, op: F) -> VMResult<()>
     where
-        F: FnOnce(i64, i64) -> Result<i64>,
+        F: FnOnce(i64, i64) -> VMResult<i64>,
     {
         let b = self.pop()?;
         let a = self.pop()?;
@@ -1691,11 +2135,16 @@ impl VM {
                 let result = op(x, y)?;
                 self.push(Value::Int(result))
             }
-            _ => Err(anyhow!("Type error in binary int op")),
+            (a, b) => Err(VMError::TypeError {
+                operation: "binary int operation".to_string(),
+                expected: "int".to_string(),
+                got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                location: None,
+            }),
         }
     }
     
-    fn binary_int_cmp<F>(&mut self, op: F) -> Result<()>
+    fn binary_int_cmp<F>(&mut self, op: F) -> VMResult<()>
     where
         F: FnOnce(i64, i64) -> bool,
     {
@@ -1706,11 +2155,16 @@ impl VM {
                 let result = op(x, y);
                 self.push(Value::Bool(result))
             }
-            _ => Err(anyhow!("Type error in binary int comparison")),
+            (a, b) => Err(VMError::TypeError {
+                operation: "binary int comparison".to_string(),
+                expected: "int".to_string(),
+                got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                location: None,
+            }),
         }
     }
     
-    fn binary_float_op<F>(&mut self, op: F) -> Result<()>
+    fn binary_float_op<F>(&mut self, op: F) -> VMResult<()>
     where
         F: FnOnce(f64, f64) -> f64,
     {
@@ -1721,7 +2175,12 @@ impl VM {
                 let result = op(x, y);
                 self.push(Value::Float(result))
             }
-            _ => Err(anyhow!("Type error in binary float op")),
+            (a, b) => Err(VMError::TypeError {
+                operation: "binary float operation".to_string(),
+                expected: "float".to_string(),
+                got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
+                location: None,
+            }),
         }
     }
     
@@ -1759,6 +2218,7 @@ impl VM {
             Value::Cell(_) => true,
             Value::Tagged { .. } => true,
             Value::Module { .. } => true,
+            Value::GcHandle(_) => true,
         }
     }
     
@@ -1799,6 +2259,10 @@ impl VM {
             Value::Module { name, .. } => {
                 // No direct stdlib equivalent, use string representation
                 StdlibValue::String(format!("<module {}>", name))
+            }
+            Value::GcHandle(_) => {
+                // No direct stdlib equivalent, use string representation
+                StdlibValue::String("<gc-handle>".to_string())
             }
         }
     }
@@ -1867,7 +2331,7 @@ impl VM {
     }
     
     /// Call a value as a function (used by stdlib bridge)
-    pub fn call_value(&mut self, arg_count: usize) -> Result<()> {
+    pub fn call_value(&mut self, arg_count: usize) -> VMResult<()> {
         // Pop arguments
         let mut args = Vec::with_capacity(arg_count);
         for _ in 0..arg_count {
@@ -1904,12 +2368,18 @@ impl VM {
                 // Continue execution until this call returns
                 let initial_call_depth = self.call_stack.len();
                 while self.call_stack.len() >= initial_call_depth {
-                    let frame = self.call_stack.last().ok_or_else(|| anyhow!("Call stack underflow"))?;
+                    let frame = self.call_stack.last().ok_or_else(|| VMError::StackUnderflow {
+                operation: "get_current_frame".to_string(),
+                stack_size: self.call_stack.len(),
+            })?;
                     let chunk_id = frame.chunk_id;
                     let ip = frame.ip;
                     
                     if ip >= self.bytecode.chunks[chunk_id].instructions.len() {
-                        return Err(anyhow!("Instruction pointer out of bounds"));
+                        return Err(VMError::InvalidJumpTarget {
+                    target: ip,
+                    chunk_size: self.bytecode.chunks[chunk_id].instructions.len(),
+                });
                     }
                     
                     let instruction = self.bytecode.chunks[chunk_id].instructions[ip].clone();
@@ -1928,14 +2398,22 @@ impl VM {
                             }
                         }
                         VMState::Halt => {
-                            return Err(anyhow!("Unexpected halt in function call"));
+                            return Err(VMError::RuntimeError {
+                                message: "Unexpected halt in function call".to_string(),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
                         }
                     }
                 }
                 
                 Ok(())
             }
-            _ => Err(anyhow!("Cannot call non-function value: {:?}", func)),
+            v => Err(VMError::TypeError {
+                operation: "call_value".to_string(),
+                expected: "function".to_string(),
+                got: value_type_name(&v).to_string(),
+                location: None,
+            }),
         }
     }
     
@@ -1991,6 +2469,9 @@ impl VM {
                 map.insert("__exports__".to_string(), fluentai_core::value::Value::Map(export_map));
                 fluentai_core::value::Value::Map(map)
             }
+            Value::GcHandle(_) => {
+                fluentai_core::value::Value::String("<gc-handle>".to_string())
+            }
         }
     }
     
@@ -2041,25 +2522,37 @@ impl VM {
     }
     
     // Module system helper methods
-    fn get_constant_string(&self, idx: u32) -> Result<String> {
+    fn get_constant_string(&self, idx: u32) -> VMResult<String> {
         let value = self.bytecode.chunks[self.current_chunk()].constants
             .get(idx as usize)
-            .ok_or_else(|| anyhow!("Invalid constant index: {}", idx))?;
+            .ok_or_else(|| VMError::InvalidConstantIndex {
+                index: idx,
+                max_index: self.bytecode.chunks[self.current_chunk()].constants.len(),
+            })?;
             
         match value {
             Value::String(s) => Ok(s.clone()),
-            _ => Err(anyhow!("Expected string constant at index {}", idx)),
+            _ => Err(VMError::TypeError {
+                operation: "get_constant_string".to_string(),
+                expected: "string constant".to_string(),
+                got: value_type_name(value).to_string(),
+                location: None,
+            }),
         }
     }
     
-    fn load_module(&mut self, module_name: &str) -> Result<()> {
+    fn load_module(&mut self, module_name: &str) -> VMResult<()> {
         // Check if already loaded
         if self.loaded_modules.contains_key(module_name) {
             return Ok(());
         }
         
         // Load the module file
-        let _module_info = self.module_loader.load_module(module_name)?;
+        let _module_info = self.module_loader.load_module(module_name)
+            .map_err(|e| VMError::ModuleError {
+                module_name: module_name.to_string(),
+                message: e.to_string(),
+            })?;
         
         // Create a module value with empty exports initially
         let module_value = Value::Module {

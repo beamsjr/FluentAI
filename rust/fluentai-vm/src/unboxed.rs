@@ -76,24 +76,17 @@ impl UnboxedValue {
                 let unboxed_items = items.into_iter().map(UnboxedValue::from_value).collect();
                 UnboxedValue::Boxed(Box::new(BoxedValue::List(unboxed_items)))
             }
-            Value::Closure { chunk_id, captured_env, param_count } => {
-                let unboxed_env = captured_env.into_iter().map(UnboxedValue::from_value).collect();
+            Value::Map(_map) => {
+                // Maps are not yet supported in unboxed representation
+                // For now, convert to a string representation
+                UnboxedValue::Boxed(Box::new(BoxedValue::String("<map>".to_string())))
+            }
+            Value::Function { chunk_id, env } => {
+                let unboxed_env = env.into_iter().map(UnboxedValue::from_value).collect();
                 UnboxedValue::Boxed(Box::new(BoxedValue::Closure {
                     chunk_id,
                     captured_env: unboxed_env,
-                    param_count,
-                }))
-            }
-            Value::NativeFunc { name, arity, func } => {
-                // Convert the function signature
-                let converted_func = move |stack: &mut Vec<UnboxedValue>| -> Result<UnboxedValue, String> {
-                    // This is a placeholder - in real implementation we'd need to handle this conversion
-                    Err("Native function conversion not implemented".to_string())
-                };
-                UnboxedValue::Boxed(Box::new(BoxedValue::NativeFunc {
-                    name,
-                    arity,
-                    func: converted_func,
+                    param_count: 0, // Default to 0, actual count would need to be tracked elsewhere
                 }))
             }
             Value::Cell(idx) => UnboxedValue::Boxed(Box::new(BoxedValue::Cell(idx))),
@@ -136,9 +129,9 @@ impl UnboxedValue {
                     let values = items.into_iter().map(|v| v.to_value()).collect();
                     Value::List(values)
                 }
-                BoxedValue::Closure { chunk_id, captured_env, param_count } => {
+                BoxedValue::Closure { chunk_id, captured_env, param_count: _ } => {
                     let env = captured_env.into_iter().map(|v| v.to_value()).collect();
-                    Value::Closure { chunk_id, captured_env: env, param_count }
+                    Value::Function { chunk_id, env }
                 }
                 BoxedValue::Cell(idx) => Value::Cell(idx),
                 BoxedValue::Promise(id) => Value::Promise(id),

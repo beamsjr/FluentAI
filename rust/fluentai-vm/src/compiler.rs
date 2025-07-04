@@ -202,15 +202,10 @@ impl Compiler {
         // Look up in locals
         for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&abs_pos) = scope.get(name) {
-                // Convert absolute position to frame-relative
-                // In the main chunk, frame base is 0
-                // In lambdas, frame base is where parameters start (also 0 for the lambda's frame)
-                let frame_base = if self.current_chunk == self.bytecode.main_chunk {
-                    0
-                } else {
-                    0 // Lambda frames start at 0 too
-                };
-                let rel_pos = abs_pos - frame_base;
+                // The position stored is the absolute stack position
+                // For the main function, positions are relative to stack base 0
+                // For pattern bindings, they should already be correct
+                let rel_pos = abs_pos;
                 // Use fast local opcodes for indices 0-3
                 match rel_pos {
                     0 => self.emit(Instruction::new(Opcode::LoadLocal0)),
@@ -348,6 +343,9 @@ impl Compiler {
                     // Enter new scope
                     self.enter_scope();
                     
+                    // Store the number of bindings before consuming the vector
+                    let num_bindings = bindings.len();
+                    
                     // Compile bindings with GC allocation
                     for (name, value_node) in bindings {
                         // Compile the value expression
@@ -372,7 +370,6 @@ impl Compiler {
                     }
                     
                     // Clean up bindings
-                    let num_bindings = bindings.len();
                     if num_bindings > 0 {
                         self.emit(Instruction::with_arg(Opcode::PopN, num_bindings as u32));
                     }
@@ -774,7 +771,7 @@ impl Compiler {
             Opcode::TailCall => {
                 // Consumes function and arguments
                 let arg_count = instruction.arg + 1; // +1 for the function itself
-                self.stack_depth = self.stack_depth.saturating_sub(arg_count);
+                self.stack_depth = self.stack_depth.saturating_sub(arg_count as usize);
                 self.stack_depth += 1; // Result
             }
             Opcode::TailReturn => {
@@ -792,6 +789,22 @@ impl Compiler {
             Opcode::Push | Opcode::PushConst | Opcode::PushNil | Opcode::PushTrue | Opcode::PushFalse |
             Opcode::PushInt0 | Opcode::PushInt1 | Opcode::PushInt2 | Opcode::PushIntSmall => {
                 self.stack_depth += 1;
+            }
+            // List operations
+            Opcode::ListHead | Opcode::ListTail => {
+                // Consumes list, produces head/tail
+                // No net stack change
+            }
+            Opcode::ListEmpty => {
+                // Consumes list, produces bool
+                // No net stack change
+            }
+            Opcode::ListLen => {
+                // Consumes list, produces int
+                // No net stack change
+            }
+            Opcode::Swap => {
+                // Swaps top two values, no net change
             }
             _ => {} // Most instructions don't change stack depth
         }
@@ -1033,17 +1046,70 @@ impl Compiler {
             // At this point, pattern matched (or always matches)
             // The matched value is still on the stack
             
+            // Check for special cons pattern case
+            let is_cons_pattern = if let Pattern::Constructor { name, patterns } = pattern {
+                name == "cons" && patterns.len() == 2 && 
+                matches!(&patterns[0], Pattern::Variable(_)) &&
+                matches!(&patterns[1], Pattern::Variable(_))
+            } else {
+                false
+            };
+            
             // Create new scope for pattern bindings
             if !bindings.is_empty() {
-                self.locals.push(HashMap::new());
-                self.captured.push(HashMap::new());
-                self.scope_bases.push(self.stack_depth);
-                self.cell_vars.push(HashSet::new());
-                let scope_idx = self.locals.len() - 1;
-                
-                // Add pattern bindings
-                for (name, pos) in &bindings {
-                    self.locals[scope_idx].insert(name.clone(), *pos);
+                if is_cons_pattern {
+                    // Special handling for cons pattern
+                    // The matched value (list) is on top of stack at position stack_depth-1
+                    
+                    // Extract head (this consumes the list and produces head)
+                    self.emit(Instruction::new(Opcode::Dup)); // Duplicate the list
+                    self.emit(Instruction::new(Opcode::ListHead)); // Get head
+                    
+                    // Extract tail (need the list again)
+                    self.emit(Instruction::new(Opcode::Swap)); // Swap head and original list
+                    self.emit(Instruction::new(Opcode::ListTail)); // Get tail
+                    
+                    // Stack now has [head, tail] where the list used to be
+                    
+                    // Set up scope for bindings
+                    self.locals.push(HashMap::new());
+                    self.captured.push(HashMap::new());
+                    
+                    // After extraction, head and tail are the top 2 values on the stack
+                    // But we need to know their positions relative to the runtime stack
+                    // When the match started, the list was the only thing we added to the stack
+                    // So at runtime, head will be at position 0 and tail at position 1
+                    
+                    self.scope_bases.push(0); // Frame starts at 0
+                    self.cell_vars.push(HashSet::new());
+                    let scope_idx = self.locals.len() - 1;
+                    
+                    // Bind head and tail with runtime positions
+                    // At runtime, after extracting from the list:
+                    // - position 0: head (first item from list)
+                    // - position 1: tail (rest of list)
+                    if let Pattern::Constructor { patterns, .. } = pattern {
+                        if let Pattern::Variable(head_name) = &patterns[0] {
+                            self.locals[scope_idx].insert(head_name.clone(), 0);
+                        }
+                        if let Pattern::Variable(tail_name) = &patterns[1] {
+                            self.locals[scope_idx].insert(tail_name.clone(), 1);
+                        }
+                    }
+                } else {
+                    // Regular pattern binding
+                    self.locals.push(HashMap::new());
+                    self.captured.push(HashMap::new());
+                    eprintln!("DEBUG compile_match: creating scope with stack_depth={}", self.stack_depth);
+                    self.scope_bases.push(self.stack_depth);
+                    self.cell_vars.push(HashSet::new());
+                    let scope_idx = self.locals.len() - 1;
+                    
+                    // Add pattern bindings
+                    for (name, pos) in &bindings {
+                        eprintln!("DEBUG compile_match: binding {} to position {}", name, pos);
+                        self.locals[scope_idx].insert(name.clone(), *pos);
+                    }
                 }
             } else {
                 // No bindings - pop the matched value
@@ -1058,6 +1124,11 @@ impl Compiler {
                 self.locals.pop();
                 self.captured.pop();
                 self.scope_bases.pop();
+                self.cell_vars.pop();
+                
+                // Note: For cons patterns, we leave the extracted values on the stack
+                // They will be cleaned up when the function returns
+                // This is simpler than trying to juggle the stack to preserve the result
             }
             
             // Jump to end (skip other branches and fallback)
@@ -1127,58 +1198,96 @@ impl Compiler {
                 Ok((bindings, false))
             }
             Pattern::Constructor { name, patterns } => {
-                // First check if the value has the correct tag
-                self.emit(Instruction::new(Opcode::Dup)); // Duplicate the value for tag check
-                let tag_idx = self.add_constant(Value::String(name.clone()));
-                self.emit(Instruction::with_arg(Opcode::IsTagged, tag_idx));
-                
-                // If not the right tag, jump to next pattern
-                let fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
-                self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
-                
-                // Extract and test sub-patterns
-                for (i, sub_pattern) in patterns.iter().enumerate() {
-                    // Duplicate the tagged value
-                    self.emit(Instruction::new(Opcode::Dup));
-                    // Get the field
-                    self.emit(Instruction::with_arg(Opcode::GetTaggedField, i as u32));
-                    // Test the sub-pattern
-                    let (sub_bindings, _) = self.compile_pattern_test(sub_pattern)?;
-                    bindings.extend(sub_bindings);
+                // Special handling for list patterns
+                if name == "cons" && patterns.len() == 2 && 
+                         matches!(&patterns[0], Pattern::Variable(_)) &&
+                         matches!(&patterns[1], Pattern::Variable(_)) {
+                    // Special case: cons with two variable patterns
+                    // First check if the list is non-empty
+                    self.emit(Instruction::new(Opcode::Dup)); // [..., list, list]
+                    self.emit(Instruction::new(Opcode::ListEmpty)); // [..., list, bool]
+                    self.emit(Instruction::new(Opcode::Not)); // [..., list, !bool]
                     
-                    // If sub-pattern failed, clean up stack and fail
-                    let _sub_fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    // This is handled differently in compile_match
+                    if let (Pattern::Variable(head_name), Pattern::Variable(tail_name)) = 
+                        (&patterns[0], &patterns[1]) {
+                        // Just return the bindings, compile_match will handle extraction
+                        bindings.push((head_name.clone(), 0)); // placeholder positions
+                        bindings.push((tail_name.clone(), 1));
+                    }
+                    Ok((bindings, false)) // false = test was generated
+                } else if name == "cons" && patterns.len() == 2 {
+                    // Handle cons pattern on lists
+                    // Stack before: [..., list]
+                    
+                    // First check if list is empty
+                    self.emit(Instruction::new(Opcode::Dup)); // [..., list, list]
+                    self.emit(Instruction::new(Opcode::ListEmpty)); // [..., list, bool]
+                    
+                    // If empty, fail - the test result (bool) will be left on stack
+                    // for JumpIfNot in compile_match
+                    // But we need to invert it because empty = fail
+                    self.emit(Instruction::new(Opcode::Not)); // [..., list, !bool]
+                    Ok((bindings, false))
+                } else if name == "nil" && patterns.is_empty() {
+                    // Handle nil pattern on lists
+                    self.emit(Instruction::new(Opcode::Dup));
+                    self.emit(Instruction::new(Opcode::ListEmpty));
+                    Ok((bindings, false))
+                } else {
+                    // Regular tagged value pattern
+                    self.emit(Instruction::new(Opcode::Dup)); // Duplicate the value for tag check
+                    let tag_idx = self.add_constant(Value::String(name.clone()));
+                    self.emit(Instruction::with_arg(Opcode::IsTagged, tag_idx));
+                    
+                    // If not the right tag, jump to next pattern
+                    let fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
                     self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
                     
-                    // Pop the test result (keep the value for next field or body)
-                    self.emit(Instruction::new(Opcode::Pop));
+                    // Extract and test sub-patterns
+                    for (i, sub_pattern) in patterns.iter().enumerate() {
+                        // Duplicate the tagged value
+                        self.emit(Instruction::new(Opcode::Dup));
+                        // Get the field
+                        self.emit(Instruction::with_arg(Opcode::GetTaggedField, i as u32));
+                        // Test the sub-pattern
+                        let (sub_bindings, _) = self.compile_pattern_test(sub_pattern)?;
+                        bindings.extend(sub_bindings);
+                        
+                        // If sub-pattern failed, clean up stack and fail
+                        let _sub_fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                        self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
+                        
+                        // Pop the test result (keep the value for next field or body)
+                        self.emit(Instruction::new(Opcode::Pop));
+                    }
+                    
+                    // All sub-patterns matched, push true
+                    self.emit(Instruction::new(Opcode::PushTrue));
+                    
+                    // Jump over the failure case
+                    let success_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.emit(Instruction::with_arg(Opcode::Jump, 0)); // Will patch later
+                    
+                    // Patch the fail jump to here
+                    let fail_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.bytecode.chunks[self.current_chunk].patch_jump(fail_jump, fail_target);
+                    
+                    // Also patch sub-pattern fail jumps
+                    for i in 0..patterns.len() {
+                        let sub_fail_jump = fail_jump + 2 + (i * 4) + 3; // Calculate the position
+                        self.bytecode.chunks[self.current_chunk].patch_jump(sub_fail_jump, fail_target);
+                    }
+                    
+                    // Failure case: push false
+                    self.emit(Instruction::new(Opcode::PushFalse));
+                    
+                    // Patch success jump
+                    let end_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.bytecode.chunks[self.current_chunk].patch_jump(success_jump, end_target);
+                    
+                    Ok((bindings, false))
                 }
-                
-                // All sub-patterns matched, push true
-                self.emit(Instruction::new(Opcode::PushTrue));
-                
-                // Jump over the failure case
-                let success_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
-                self.emit(Instruction::with_arg(Opcode::Jump, 0)); // Will patch later
-                
-                // Patch the fail jump to here
-                let fail_target = self.bytecode.chunks[self.current_chunk].instructions.len();
-                self.bytecode.chunks[self.current_chunk].patch_jump(fail_jump, fail_target);
-                
-                // Also patch sub-pattern fail jumps
-                for i in 0..patterns.len() {
-                    let sub_fail_jump = fail_jump + 2 + (i * 4) + 3; // Calculate the position
-                    self.bytecode.chunks[self.current_chunk].patch_jump(sub_fail_jump, fail_target);
-                }
-                
-                // Failure case: push false
-                self.emit(Instruction::new(Opcode::PushFalse));
-                
-                // Patch success jump
-                let end_target = self.bytecode.chunks[self.current_chunk].instructions.len();
-                self.bytecode.chunks[self.current_chunk].patch_jump(success_jump, end_target);
-                
-                Ok((bindings, false))
             }
         }
     }
@@ -1269,5 +1378,19 @@ impl Compiler {
         };
         self.locals[scope_idx].insert(name, pos);
         Ok(pos)
+    }
+    
+    fn enter_scope(&mut self) {
+        self.locals.push(HashMap::new());
+        self.captured.push(HashMap::new());
+        self.scope_bases.push(self.stack_depth);
+        self.cell_vars.push(HashSet::new());
+    }
+    
+    fn exit_scope(&mut self) {
+        self.locals.pop();
+        self.captured.pop();
+        self.scope_bases.pop();
+        self.cell_vars.pop();
     }
 }

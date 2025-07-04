@@ -8,7 +8,6 @@
 //! - Execution time limits
 
 use crate::bytecode::Value;
-use crate::error::VMError;
 use anyhow::{anyhow, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};

@@ -4,7 +4,7 @@
 //! minimizes stop-the-world pauses by doing most work concurrently.
 
 use crate::bytecode::Value;
-use crate::gc::GcHandle;
+use crate::gc::{GcHandle, ConcurrentGcNode};
 use anyhow::{anyhow, Result};
 use crossbeam_epoch::{self as epoch, Atomic, Owned, Shared, Guard};
 use crossbeam_queue::SegQueue;
@@ -14,7 +14,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
-use std::cell::UnsafeCell;
 use std::mem;
 
 /// Concurrent garbage collector with generational support
@@ -53,7 +52,7 @@ pub struct ConcurrentGc {
 /// A generation in the garbage collector
 struct Generation {
     /// Allocated objects in this generation
-    objects: FxHashMap<usize, GcNode>,
+    objects: FxHashMap<usize, GcNodePtr>,
     
     /// Size of allocated memory
     size: usize,
@@ -65,29 +64,8 @@ struct Generation {
     age: usize,
 }
 
-/// A garbage-collected node
-struct GcNode {
-    /// Unique ID
-    id: usize,
-    
-    /// The value
-    value: UnsafeCell<Value>,
-    
-    /// Mark bits for concurrent marking
-    mark_bits: AtomicUsize,
-    
-    /// Forwarding pointer for moving GC
-    forward: Atomic<GcNode>,
-    
-    /// Generation (0 = young, 1 = old)
-    generation: AtomicUsize,
-    
-    /// Reference count for cycle detection
-    ref_count: AtomicUsize,
-}
-
 /// Thread-safe pointer to a GC node
-type GcNodePtr = Arc<GcNode>;
+type GcNodePtr = Arc<ConcurrentGcNode>;
 
 /// Write barrier for tracking mutations
 struct WriteBarrier {
@@ -245,20 +223,18 @@ impl ConcurrentGc {
         
         if young.alloc_ptr + size <= young.size {
             let id = young.objects.len();
-            let node = Arc::new(GcNode {
+            let node = Arc::new(ConcurrentGcNode {
                 id,
-                value: UnsafeCell::new(value.clone()),
+                value: std::sync::RwLock::new(value.clone()),
                 mark_bits: AtomicUsize::new(0),
                 forward: Atomic::null(),
                 generation: AtomicUsize::new(0),
                 ref_count: AtomicUsize::new(1),
             });
             
-            young.objects.insert(id, unsafe { 
-                // This is safe because we're just cloning the Arc
-                std::ptr::read(&node as *const GcNode)
-            });
+            young.objects.insert(id, node.clone());
             young.alloc_ptr += size;
+            self.stats.bytes_allocated.fetch_add(size, Ordering::Relaxed);
             
             Some(node)
         } else {
@@ -272,19 +248,18 @@ impl ConcurrentGc {
         
         if old.alloc_ptr + size <= old.size {
             let id = old.objects.len() + 1_000_000; // Offset for old gen IDs
-            let node = Arc::new(GcNode {
+            let node = Arc::new(ConcurrentGcNode {
                 id,
-                value: UnsafeCell::new(value.clone()),
+                value: std::sync::RwLock::new(value.clone()),
                 mark_bits: AtomicUsize::new(0),
                 forward: Atomic::null(),
                 generation: AtomicUsize::new(1),
                 ref_count: AtomicUsize::new(1),
             });
             
-            old.objects.insert(id, unsafe {
-                std::ptr::read(&node as *const GcNode)
-            });
+            old.objects.insert(id, node.clone());
             old.alloc_ptr += size;
+            self.stats.bytes_allocated.fetch_add(size, Ordering::Relaxed);
             
             Some(node)
         } else {
@@ -423,10 +398,8 @@ impl ConcurrentGc {
             obj.mark_bits.store(2, Ordering::SeqCst);
             
             // Scan object for references
-            unsafe {
-                let value = &*obj.value.get();
-                self.scan_value_concurrent(value, &gray_queue, &guard);
-            }
+            let value = obj.value.read().unwrap();
+            self.scan_value_concurrent(&value, &gray_queue, &guard);
         }
         
         Ok(())
@@ -436,10 +409,8 @@ impl ConcurrentGc {
     fn mark_object(&self, obj: &GcNodePtr) {
         if obj.mark_bits.compare_exchange(0, 1, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
             // Successfully marked, scan children
-            unsafe {
-                let value = &*obj.value.get();
-                self.scan_value(value);
-            }
+            let value = obj.value.read().unwrap();
+            self.scan_value(&value);
             obj.mark_bits.store(2, Ordering::SeqCst); // Black
         }
     }
@@ -448,10 +419,8 @@ impl ConcurrentGc {
     fn mark_object_concurrent(&self, obj: &GcNodePtr, guard: &Guard) {
         // Concurrent marking with SATB
         if obj.mark_bits.compare_exchange(0, 1, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
-            unsafe {
-                let value = &*obj.value.get();
-                self.scan_value_concurrent(value, &SegQueue::new(), guard);
-            }
+            let value = obj.value.read().unwrap();
+            self.scan_value_concurrent(&value, &SegQueue::new(), guard);
             obj.mark_bits.store(2, Ordering::SeqCst);
         }
     }
@@ -465,8 +434,7 @@ impl ConcurrentGc {
                 }
             }
             Value::Map(map) => {
-                for (k, v) in map {
-                    self.scan_value(k);
+                for (_, v) in map {
                     self.scan_value(v);
                 }
             }
@@ -493,8 +461,7 @@ impl ConcurrentGc {
                 }
             }
             Value::Map(map) => {
-                for (k, v) in map {
-                    self.scan_value_concurrent(k, gray_queue, guard);
+                for (_, v) in map {
                     self.scan_value_concurrent(v, gray_queue, guard);
                 }
             }
@@ -508,12 +475,16 @@ impl ConcurrentGc {
         let mut old = self.old_gen.write();
         let mut promoted = Vec::new();
         
+        // Store the age before the closure
+        let young_age = young.age;
+        let promotion_threshold = self.config.promotion_threshold;
+        
         // Sweep unmarked objects
         young.objects.retain(|id, node| {
             let marked = node.mark_bits.load(Ordering::SeqCst) > 0;
             if marked {
                 // Check if should be promoted
-                if young.age >= self.config.promotion_threshold {
+                if young_age >= promotion_threshold {
                     promoted.push((*id, node.clone()));
                     false // Remove from young
                 } else {
@@ -523,8 +494,9 @@ impl ConcurrentGc {
                 }
             } else {
                 // Collect
+                let value = node.value.read().unwrap();
                 self.stats.bytes_freed.fetch_add(
-                    self.value_size(unsafe { &*node.value.get() }),
+                    self.value_size(&value),
                     Ordering::Relaxed
                 );
                 false
@@ -566,8 +538,9 @@ impl ConcurrentGc {
                 node.mark_bits.store(0, Ordering::SeqCst);
                 true
             } else {
+                let value = node.value.read().unwrap();
                 self.stats.bytes_freed.fetch_add(
-                    self.value_size(unsafe { &*node.value.get() }),
+                    self.value_size(&value),
                     Ordering::Relaxed
                 );
                 false
@@ -643,12 +616,8 @@ impl ConcurrentGc {
     }
     
     /// Create a handle from a node
-    fn make_handle(&self, _node: GcNodePtr) -> GcHandle {
-        // This would need integration with the existing GcHandle type
-        // For now, create a placeholder implementation
-        // In a real implementation, we'd need to bridge between the concurrent
-        // GC's Arc-based nodes and the existing Rc-based GcHandle
-        unimplemented!("Integration with GcHandle needed")
+    fn make_handle(&self, node: GcNodePtr) -> GcHandle {
+        GcHandle::concurrent(node)
     }
 }
 
@@ -663,11 +632,16 @@ impl Generation {
     }
 }
 
+
 impl WriteBarrier {
     fn new() -> Self {
+        let mut cards = Vec::with_capacity(1024);
+        for _ in 0..1024 {
+            cards.push(AtomicBool::new(false));
+        }
         Self {
             remembered_set: Arc::new(RwLock::new(FxHashSet::default())),
-            card_table: Arc::new(RwLock::new(vec![AtomicBool::new(false); 1024])),
+            card_table: Arc::new(RwLock::new(cards)),
         }
     }
     
@@ -686,8 +660,6 @@ impl WriteBarrier {
     }
 }
 
-unsafe impl Send for GcNode {}
-unsafe impl Sync for GcNode {}
 
 #[cfg(test)]
 mod tests {

@@ -5,22 +5,68 @@
 //! model as the default.
 
 use crate::bytecode::Value;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::cell::{RefCell, Cell};
-use std::rc::{Rc, Weak};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Weak, RwLock, Mutex};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+use crossbeam_epoch;
 
 /// GC handle to a value
 #[derive(Debug, Clone)]
 pub struct GcHandle {
-    inner: Rc<GcCell>,
+    inner: GcHandleInner,
 }
+
+/// Internal representation of GC handle
+#[derive(Debug, Clone)]
+enum GcHandleInner {
+    /// Standard GC implementation
+    Standard(Arc<GcCell>),
+    /// Concurrent GC implementation
+    Concurrent(Arc<ConcurrentGcNode>),
+}
+
+/// Node type for concurrent GC integration
+#[derive(Debug)]
+pub struct ConcurrentGcNode {
+    pub id: usize,
+    pub value: std::sync::RwLock<Value>,
+    pub mark_bits: std::sync::atomic::AtomicUsize,
+    pub forward: crossbeam_epoch::Atomic<ConcurrentGcNode>,
+    pub generation: std::sync::atomic::AtomicUsize,
+    pub ref_count: std::sync::atomic::AtomicUsize,
+}
+
+impl PartialEq for ConcurrentGcNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for ConcurrentGcNode {}
+
+impl std::hash::Hash for ConcurrentGcNode {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for GcHandle {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.inner, &other.inner) {
+            (GcHandleInner::Standard(a), GcHandleInner::Standard(b)) => Arc::ptr_eq(a, b),
+            (GcHandleInner::Concurrent(a), GcHandleInner::Concurrent(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for GcHandle {}
 
 /// Internal GC cell
 #[derive(Debug)]
 struct GcCell {
-    value: RefCell<Value>,
+    value: RwLock<Value>,
     metadata: GcMetadata,
 }
 
@@ -30,11 +76,11 @@ struct GcMetadata {
     /// Unique ID for this allocation
     id: usize,
     /// Reference count (for cycle detection)
-    ref_count: Cell<usize>,
+    ref_count: AtomicUsize,
     /// Color for tri-color marking
-    color: Cell<Color>,
+    color: Mutex<Color>,
     /// Whether this object is pinned (cannot be collected)
-    pinned: Cell<bool>,
+    pinned: AtomicBool,
 }
 
 /// Tri-color marking for garbage collection
@@ -48,9 +94,9 @@ enum Color {
 /// Garbage collector
 pub struct GarbageCollector {
     /// All allocated objects
-    objects: RefCell<FxHashMap<usize, Weak<GcCell>>>,
+    objects: RwLock<FxHashMap<usize, Weak<GcCell>>>,
     /// Root set
-    roots: RefCell<FxHashSet<usize>>,
+    roots: RwLock<FxHashSet<usize>>,
     /// Next allocation ID
     next_id: AtomicUsize,
     /// Collection statistics
@@ -100,8 +146,8 @@ impl GarbageCollector {
     /// Create a new garbage collector
     pub fn new(config: GcConfig) -> Self {
         Self {
-            objects: RefCell::new(FxHashMap::default()),
-            roots: RefCell::new(FxHashSet::default()),
+            objects: RwLock::new(FxHashMap::default()),
+            roots: RwLock::new(FxHashSet::default()),
             next_id: AtomicUsize::new(1),
             stats: GcStats::default(),
             config,
@@ -112,17 +158,17 @@ impl GarbageCollector {
     pub fn allocate(&self, value: Value) -> Result<GcHandle> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         
-        let cell = Rc::new(GcCell {
-            value: RefCell::new(value),
+        let cell = Arc::new(GcCell {
+            value: RwLock::new(value),
             metadata: GcMetadata {
                 id,
-                ref_count: Cell::new(1),
-                color: Cell::new(Color::Black),
-                pinned: Cell::new(false),
+                ref_count: AtomicUsize::new(1),
+                color: Mutex::new(Color::Black),
+                pinned: AtomicBool::new(false),
             },
         });
         
-        self.objects.borrow_mut().insert(id, Rc::downgrade(&cell));
+        self.objects.write().unwrap().insert(id, Arc::downgrade(&cell));
         self.stats.allocations.fetch_add(1, Ordering::Relaxed);
         
         // Check if we need to collect
@@ -130,27 +176,49 @@ impl GarbageCollector {
             self.collect()?;
         }
         
-        Ok(GcHandle { inner: cell })
+        Ok(GcHandle { inner: GcHandleInner::Standard(cell) })
     }
     
     /// Add a root reference
     pub fn add_root(&self, handle: &GcHandle) {
-        self.roots.borrow_mut().insert(handle.inner.metadata.id);
+        let id = match &handle.inner {
+            GcHandleInner::Standard(cell) => cell.metadata.id,
+            GcHandleInner::Concurrent(node) => node.id,
+        };
+        self.roots.write().unwrap().insert(id);
     }
     
     /// Remove a root reference
     pub fn remove_root(&self, handle: &GcHandle) {
-        self.roots.borrow_mut().remove(&handle.inner.metadata.id);
+        let id = match &handle.inner {
+            GcHandleInner::Standard(cell) => cell.metadata.id,
+            GcHandleInner::Concurrent(node) => node.id,
+        };
+        self.roots.write().unwrap().remove(&id);
     }
     
     /// Pin an object (prevent collection)
     pub fn pin(&self, handle: &GcHandle) {
-        handle.inner.metadata.pinned.set(true);
+        match &handle.inner {
+            GcHandleInner::Standard(cell) => {
+                cell.metadata.pinned.store(true, Ordering::Relaxed);
+            }
+            GcHandleInner::Concurrent(_) => {
+                // Concurrent GC handles pinning differently
+            }
+        }
     }
     
     /// Unpin an object
     pub fn unpin(&self, handle: &GcHandle) {
-        handle.inner.metadata.pinned.set(false);
+        match &handle.inner {
+            GcHandleInner::Standard(cell) => {
+                cell.metadata.pinned.store(false, Ordering::Relaxed);
+            }
+            GcHandleInner::Concurrent(_) => {
+                // Concurrent GC handles pinning differently
+            }
+        }
     }
     
     /// Check if collection should be triggered
@@ -176,16 +244,16 @@ impl GarbageCollector {
     /// Full mark-and-sweep collection
     fn full_collect(&self) -> Result<()> {
         // Phase 1: Mark all objects as white
-        for (_, weak) in self.objects.borrow().iter() {
+        for (_, weak) in self.objects.read().unwrap().iter() {
             if let Some(obj) = weak.upgrade() {
-                obj.metadata.color.set(Color::White);
+                *obj.metadata.color.lock().unwrap() = Color::White;
             }
         }
         
         // Phase 2: Mark roots and their descendants
-        let roots = self.roots.borrow().clone();
+        let roots = self.roots.read().unwrap().clone();
         for root_id in roots {
-            if let Some(weak) = self.objects.borrow().get(&root_id) {
+            if let Some(weak) = self.objects.read().unwrap().get(&root_id) {
                 if let Some(obj) = weak.upgrade() {
                     self.mark(&obj)?;
                 }
@@ -193,9 +261,9 @@ impl GarbageCollector {
         }
         
         // Phase 3: Mark pinned objects
-        for (_, weak) in self.objects.borrow().iter() {
+        for (_, weak) in self.objects.read().unwrap().iter() {
             if let Some(obj) = weak.upgrade() {
-                if obj.metadata.pinned.get() && obj.metadata.color.get() == Color::White {
+                if obj.metadata.pinned.load(Ordering::Relaxed) && *obj.metadata.color.lock().unwrap() == Color::White {
                     self.mark(&obj)?;
                 }
             }
@@ -203,9 +271,9 @@ impl GarbageCollector {
         
         // Phase 4: Sweep unmarked objects
         let mut collected = 0;
-        self.objects.borrow_mut().retain(|_, weak| {
+        self.objects.write().unwrap().retain(|_, weak| {
             if let Some(obj) = weak.upgrade() {
-                if obj.metadata.color.get() == Color::White {
+                if *obj.metadata.color.lock().unwrap() == Color::White {
                     collected += 1;
                     false // Remove from tracking
                 } else {
@@ -228,18 +296,18 @@ impl GarbageCollector {
     }
     
     /// Mark phase of GC
-    fn mark(&self, obj: &Rc<GcCell>) -> Result<()> {
-        if obj.metadata.color.get() != Color::White {
+    fn mark(&self, obj: &Arc<GcCell>) -> Result<()> {
+        if *obj.metadata.color.lock().unwrap() != Color::White {
             return Ok(()); // Already marked
         }
         
-        obj.metadata.color.set(Color::Gray);
+        *obj.metadata.color.lock().unwrap() = Color::Gray;
         
         // Mark children
-        let value = obj.value.borrow();
+        let value = obj.value.read().unwrap().clone();
         self.mark_value_children(&value)?;
         
-        obj.metadata.color.set(Color::Black);
+        *obj.metadata.color.lock().unwrap() = Color::Black;
         Ok(())
     }
     
@@ -252,19 +320,18 @@ impl GarbageCollector {
                 }
             }
             Value::Map(map) => {
-                for (k, v) in map {
-                    self.mark_value_children(k)?;
+                for (_, v) in map {
                     self.mark_value_children(v)?;
                 }
             }
-            Value::Function { captured_values, .. } => {
-                for v in captured_values {
+            Value::Function { env, .. } => {
+                for v in env {
                     self.mark_value_children(v)?;
                 }
             }
             Value::Cell(cell_id) => {
                 // Mark referenced cell
-                if let Some(weak) = self.objects.borrow().get(&(*cell_id as usize)) {
+                if let Some(weak) = self.objects.read().unwrap().get(&(*cell_id as usize)) {
                     if let Some(obj) = weak.upgrade() {
                         self.mark(&obj)?;
                     }
@@ -296,7 +363,7 @@ impl GarbageCollector {
             collections: self.stats.collections.load(Ordering::Relaxed),
             collected: self.stats.collected.load(Ordering::Relaxed),
             heap_size: self.stats.heap_size.load(Ordering::Relaxed),
-            live_objects: self.objects.borrow().len(),
+            live_objects: self.objects.read().unwrap().len(),
         }
     }
 }
@@ -314,12 +381,22 @@ pub struct GcStatsSnapshot {
 impl GcHandle {
     /// Get the value
     pub fn get(&self) -> Value {
-        self.inner.value.borrow().clone()
+        match &self.inner {
+            GcHandleInner::Standard(cell) => cell.value.read().unwrap().clone(),
+            GcHandleInner::Concurrent(node) => node.value.read().unwrap().clone(),
+        }
     }
     
     /// Set the value
     pub fn set(&self, value: Value) {
-        *self.inner.value.borrow_mut() = value;
+        match &self.inner {
+            GcHandleInner::Standard(cell) => {
+                *cell.value.write().unwrap() = value;
+            }
+            GcHandleInner::Concurrent(node) => {
+                *node.value.write().unwrap() = value;
+            }
+        }
     }
     
     /// Get mutable reference to the value
@@ -327,7 +404,17 @@ impl GcHandle {
     where
         F: FnOnce(&mut Value) -> R,
     {
-        f(&mut self.inner.value.borrow_mut())
+        match &self.inner {
+            GcHandleInner::Standard(cell) => f(&mut cell.value.write().unwrap()),
+            GcHandleInner::Concurrent(node) => f(&mut node.value.write().unwrap()),
+        }
+    }
+    
+    /// Create a concurrent GC handle
+    pub fn concurrent(node: Arc<ConcurrentGcNode>) -> Self {
+        GcHandle {
+            inner: GcHandleInner::Concurrent(node),
+        }
     }
 }
 
@@ -377,10 +464,11 @@ impl GcValue for Value {
     fn has_gc_refs(&self) -> bool {
         match self {
             Value::List(items) => items.iter().any(|v| v.has_gc_refs()),
-            Value::Map(map) => map.iter().any(|(k, v)| k.has_gc_refs() || v.has_gc_refs()),
-            Value::Function { captured_values, .. } => {
-                captured_values.iter().any(|v| v.has_gc_refs())
+            Value::Map(map) => map.values().any(|v| v.has_gc_refs()),
+            Value::Function { env, .. } => {
+                env.iter().any(|v| v.has_gc_refs())
             }
+            Value::GcHandle(_) => true,
             _ => false,
         }
     }
@@ -393,15 +481,17 @@ impl GcValue for Value {
                 }
             }
             Value::Map(map) => {
-                for (k, v) in map {
-                    k.visit_gc_refs(&mut visitor);
+                for v in map.values() {
                     v.visit_gc_refs(&mut visitor);
                 }
             }
-            Value::Function { captured_values, .. } => {
-                for v in captured_values {
+            Value::Function { env, .. } => {
+                for v in env {
                     v.visit_gc_refs(&mut visitor);
                 }
+            }
+            Value::GcHandle(handle) => {
+                visitor(handle);
             }
             _ => {}
         }

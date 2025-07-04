@@ -174,8 +174,8 @@ fn test_typed_ids() {
     // Check that the channel ID has the expected format
     match result {
         Value::Channel(id) => {
-            assert!(id.starts_with("channel:"));
-            assert!(id[8..].parse::<u64>().is_ok());
+            // ChannelId is a tuple struct with a u64
+            assert!(id.0 > 0); // Just verify it's a valid ID
         }
         _ => panic!("Expected channel value"),
     }

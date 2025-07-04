@@ -3,6 +3,7 @@
 use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, VM};
 use anyhow::Result;
+use rustc_hash::FxHashMap;
 
 #[test]
 fn test_compile_module_declaration() -> Result<()> {
@@ -90,7 +91,6 @@ fn test_compile_qualified_variable() -> Result<()> {
 #[test]
 fn test_vm_module_value_type() -> Result<()> {
     use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
-    use std::collections::HashMap;
     
     // Create a simple bytecode that creates a module value
     let mut bytecode = Bytecode::new();
@@ -100,7 +100,7 @@ fn test_vm_module_value_type() -> Result<()> {
     // Push a module value and halt
     let module = Value::Module {
         name: "test_module".to_string(),
-        exports: HashMap::new(),
+        exports: FxHashMap::default(),
     };
     
     let idx = bytecode.chunks[chunk_id].add_constant(module);

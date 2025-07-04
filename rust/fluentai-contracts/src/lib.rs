@@ -26,7 +26,7 @@ pub mod symbolic_verification;
 pub mod counterexample;
 pub mod parallel_execution;
 pub mod inheritance;
-pub mod debugging;
+// pub mod debugging; // TODO: Fix missing types
 pub mod temporal;
 pub mod bounded_model_checking;
 pub mod state_machine;
@@ -80,10 +80,10 @@ pub use inheritance::{
     CompositionType
 };
 
-pub use debugging::{
-    ContractDebugger, DebugInfo, TraceStep, EvalResult,
-    ContractDebugRepl,
-};
+// pub use debugging::{
+//     ContractDebugger, DebugInfo, TraceStep, EvalResult,
+//     ContractDebugRepl,
+// };
 
 pub use temporal::{
     TemporalOperator, TemporalFormula, TemporalContract,

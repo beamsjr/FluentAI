@@ -83,6 +83,12 @@ impl ControlFlowGraph {
                         self.analyze_node(graph, *branch_body, Some(node_id));
                     }
                 }
+                Node::List(items) => {
+                    // Analyze each item in the list
+                    for item in items {
+                        self.analyze_node(graph, *item, Some(node_id));
+                    }
+                }
                 _ => {
                     // Leaf nodes are potential exits
                     if self.successors.get(&node_id).map_or(true, |s| s.is_empty()) {
@@ -356,6 +362,15 @@ impl EffectAnalysis {
                     effects.extend(self.analyze_node_effects_with_visited(graph, *else_branch, else_n, visited));
                 }
             }
+            Node::List(items) => {
+                // Lists are pure, but analyze contained items
+                effects.insert(EffectType::Pure);
+                for item in items {
+                    if let Some(item_node) = graph.get_node(*item) {
+                        effects.extend(self.analyze_node_effects_with_visited(graph, *item, item_node, visited));
+                    }
+                }
+            }
             _ => {
                 // Default to pure for other nodes
                 effects.insert(EffectType::Pure);
@@ -514,6 +529,12 @@ fn calculate_node_size_helper(graph: &Graph, node_id: NodeId, size: &mut usize, 
                     calculate_node_size_helper(graph, *branch, size, visited);
                 }
             }
+            Node::List(items) => {
+                // Count nodes within the list
+                for item in items {
+                    calculate_node_size_helper(graph, *item, size, visited);
+                }
+            }
             _ => {} // Leaf nodes
         }
     }
@@ -572,6 +593,14 @@ fn contains_reference_to(graph: &Graph, node_id: NodeId, target_id: NodeId, visi
                 }
                 for (_, branch) in branches {
                     if contains_reference_to(graph, *branch, target_id, visited) {
+                        return true;
+                    }
+                }
+            }
+            Node::List(items) => {
+                // Check for references within the list
+                for item in items {
+                    if contains_reference_to(graph, *item, target_id, visited) {
                         return true;
                     }
                 }

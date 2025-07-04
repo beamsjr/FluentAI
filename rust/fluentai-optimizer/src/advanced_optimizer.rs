@@ -330,6 +330,139 @@ impl AdvancedOptimizer {
                     return Ok(None);
                 }
             }
+            Node::List(items) => {
+                let mut opt_items = Vec::new();
+                for item in items {
+                    if let Some(opt_item) = self.optimize_node(item)? {
+                        opt_items.push(opt_item);
+                    }
+                }
+                Node::List(opt_items)
+            }
+            Node::Letrec { bindings, body } => {
+                let mut opt_bindings = Vec::new();
+                for (name, value_id) in bindings {
+                    if let Some(opt_value) = self.optimize_node(value_id)? {
+                        opt_bindings.push((name.clone(), opt_value));
+                    }
+                }
+                
+                if let Some(opt_body) = self.optimize_node(body)? {
+                    Node::Letrec {
+                        bindings: opt_bindings,
+                        body: opt_body,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Match { expr, branches } => {
+                if let Some(opt_expr) = self.optimize_node(expr)? {
+                    let mut opt_branches = Vec::new();
+                    for (pattern, branch_body) in branches {
+                        if let Some(opt_branch) = self.optimize_node(branch_body)? {
+                            opt_branches.push((pattern.clone(), opt_branch));
+                        }
+                    }
+                    Node::Match {
+                        expr: opt_expr,
+                        branches: opt_branches,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Module { name, exports, body } => {
+                if let Some(opt_body) = self.optimize_node(body)? {
+                    Node::Module {
+                        name: name.clone(),
+                        exports: exports.clone(),
+                        body: opt_body,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Async { body } => {
+                if let Some(opt_body) = self.optimize_node(body)? {
+                    Node::Async { body: opt_body }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Await { expr } => {
+                if let Some(opt_expr) = self.optimize_node(expr)? {
+                    Node::Await { expr: opt_expr }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Spawn { expr } => {
+                if let Some(opt_expr) = self.optimize_node(expr)? {
+                    Node::Spawn { expr: opt_expr }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Send { channel, value } => {
+                if let (Some(opt_channel), Some(opt_value)) = 
+                    (self.optimize_node(channel)?, self.optimize_node(value)?) {
+                    Node::Send {
+                        channel: opt_channel,
+                        value: opt_value,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Receive { channel } => {
+                if let Some(opt_channel) = self.optimize_node(channel)? {
+                    Node::Receive { channel: opt_channel }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Contract { function_name, preconditions, postconditions, invariants, complexity, pure } => {
+                let mut opt_pre = Vec::new();
+                for pre in preconditions {
+                    if let Some(opt) = self.optimize_node(pre)? {
+                        opt_pre.push(opt);
+                    }
+                }
+                let mut opt_post = Vec::new();
+                for post in postconditions {
+                    if let Some(opt) = self.optimize_node(post)? {
+                        opt_post.push(opt);
+                    }
+                }
+                let mut opt_inv = Vec::new();
+                for inv in invariants {
+                    if let Some(opt) = self.optimize_node(inv)? {
+                        opt_inv.push(opt);
+                    }
+                }
+                Node::Contract {
+                    function_name: function_name.clone(),
+                    preconditions: opt_pre,
+                    postconditions: opt_post,
+                    invariants: opt_inv,
+                    complexity: complexity.clone(),
+                    pure,
+                }
+            }
+            Node::Effect { effect_type, operation, args } => {
+                let mut opt_args = Vec::new();
+                for arg in args {
+                    if let Some(opt_arg) = self.optimize_node(arg)? {
+                        opt_args.push(opt_arg);
+                    }
+                }
+                Node::Effect {
+                    effect_type,
+                    operation: operation.clone(),
+                    args: opt_args,
+                }
+            }
             _ => node.clone(),
         };
 
@@ -381,6 +514,15 @@ impl AdvancedOptimizer {
                         queue.push(*condition);
                         queue.push(*then_branch);
                         queue.push(*else_branch);
+                    }
+                    Node::List(items) => {
+                        queue.extend(items);
+                    }
+                    Node::Match { expr, branches } => {
+                        queue.push(*expr);
+                        for (_, branch) in branches {
+                            queue.push(*branch);
+                        }
                     }
                     _ => {}
                 }
@@ -582,6 +724,52 @@ impl AdvancedOptimizer {
                     self.mark_reachable(*condition, reachable);
                     self.mark_reachable(*then_branch, reachable);
                     self.mark_reachable(*else_branch, reachable);
+                }
+                Node::List(items) => {
+                    for item in items {
+                        self.mark_reachable(*item, reachable);
+                    }
+                }
+                Node::Match { expr, branches } => {
+                    self.mark_reachable(*expr, reachable);
+                    for (_, branch) in branches {
+                        self.mark_reachable(*branch, reachable);
+                    }
+                }
+                Node::Module { body, .. } => {
+                    self.mark_reachable(*body, reachable);
+                }
+                Node::Async { body } => {
+                    self.mark_reachable(*body, reachable);
+                }
+                Node::Await { expr } => {
+                    self.mark_reachable(*expr, reachable);
+                }
+                Node::Spawn { expr } => {
+                    self.mark_reachable(*expr, reachable);
+                }
+                Node::Send { channel, value } => {
+                    self.mark_reachable(*channel, reachable);
+                    self.mark_reachable(*value, reachable);
+                }
+                Node::Receive { channel } => {
+                    self.mark_reachable(*channel, reachable);
+                }
+                Node::Contract { preconditions, postconditions, invariants, .. } => {
+                    for pre in preconditions {
+                        self.mark_reachable(*pre, reachable);
+                    }
+                    for post in postconditions {
+                        self.mark_reachable(*post, reachable);
+                    }
+                    for inv in invariants {
+                        self.mark_reachable(*inv, reachable);
+                    }
+                }
+                Node::Effect { args, .. } => {
+                    for arg in args {
+                        self.mark_reachable(*arg, reachable);
+                    }
                 }
                 _ => {}
             }
