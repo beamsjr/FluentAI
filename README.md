@@ -2,7 +2,6 @@
 
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Performance](https://img.shields.io/badge/performance-50x--200x%20faster-brightgreen)](docs/PERFORMANCE_RESULTS.md)
 
 FluentAi is an experimental programming language that explores what happens when we design a language specifically for AI systems rather than humans. It features a graph-based AST, explicit semantics, and advanced AI-driven optimization capabilities. **Fully implemented in Rust** for production-grade performance and reliability.
 
