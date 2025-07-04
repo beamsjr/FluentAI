@@ -11,3 +11,6 @@ criterion/
 
 # OS
 .DS_Store
+# Coverage reports
+coverage_*.txt
+tarpaulin-report.html

@@ -21,6 +21,7 @@ tokio = { workspace = true, features = ["rt", "sync"] }
 parking_lot.workspace = true
 crossbeam-epoch = "0.9"
 crossbeam-utils = "0.8"
+crossbeam-queue = "0.3"
 
 [dev-dependencies]
 criterion.workspace = true

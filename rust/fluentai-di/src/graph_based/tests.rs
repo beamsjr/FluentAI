@@ -14,7 +14,7 @@ mod tests {
     fn test_service_registration() {
         let mut builder = ServiceGraphBuilder::new();
         
-        let _logger_id = builder
+        let logger_id = builder
             .service("ILogger")
             .implementation("ConsoleLogger")
             .lifetime(ServiceLifetime::Singleton)

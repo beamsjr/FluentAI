@@ -3,6 +3,7 @@
 //! This module provides vectorized operations for arrays and lists, enabling
 //! parallel processing of numeric data on modern CPUs.
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 use std::mem;
 use crate::bytecode::Value;
@@ -13,6 +14,7 @@ pub struct SimdOps;
 
 impl SimdOps {
     /// Add two f64 arrays using AVX2 (processes 4 elements at once)
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[target_feature(enable = "avx2")]
     #[inline]
     pub unsafe fn add_f64_arrays(a: &[f64], b: &[f64], result: &mut [f64]) -> Result<()> {
@@ -40,6 +42,7 @@ impl SimdOps {
     }
     
     /// Multiply two f64 arrays using AVX2
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[target_feature(enable = "avx2")]
     #[inline]
     pub unsafe fn mul_f64_arrays(a: &[f64], b: &[f64], result: &mut [f64]) -> Result<()> {
@@ -65,6 +68,7 @@ impl SimdOps {
     }
     
     /// Add two i64 arrays using AVX2 (processes 4 elements at once)
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[target_feature(enable = "avx2")]
     #[inline]
     pub unsafe fn add_i64_arrays(a: &[i64], b: &[i64], result: &mut [i64]) -> Result<()> {
@@ -90,6 +94,7 @@ impl SimdOps {
     }
     
     /// Dot product of two f64 arrays using AVX2 with FMA
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[target_feature(enable = "avx2,fma")]
     #[inline]
     pub unsafe fn dot_product_f64(a: &[f64], b: &[f64]) -> Result<f64> {
@@ -123,9 +128,46 @@ impl SimdOps {
         Ok(result)
     }
     
+    /// Fallback add for non-x86 architectures
+    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+    pub unsafe fn add_f64_arrays(a: &[f64], b: &[f64], result: &mut [f64]) -> Result<()> {
+        PortableSimd::add_arrays_fallback(a, b, result)
+    }
+    
+    /// Fallback multiply for non-x86 architectures
+    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+    pub unsafe fn mul_f64_arrays(a: &[f64], b: &[f64], result: &mut [f64]) -> Result<()> {
+        PortableSimd::mul_arrays_fallback(a, b, result)
+    }
+    
+    /// Fallback add for non-x86 architectures
+    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+    pub unsafe fn add_i64_arrays(a: &[i64], b: &[i64], result: &mut [i64]) -> Result<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return Err(anyhow!("Array lengths must match"));
+        }
+        for i in 0..a.len() {
+            result[i] = a[i] + b[i];
+        }
+        Ok(())
+    }
+    
+    /// Fallback dot product for non-x86 architectures
+    #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+    pub unsafe fn dot_product_f64(a: &[f64], b: &[f64]) -> Result<f64> {
+        PortableSimd::dot_product_fallback(a, b)
+    }
+    
     /// Check if CPU supports required SIMD features
     pub fn is_supported() -> bool {
-        is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma")
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma")
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        {
+            false
+        }
     }
     
     /// Apply SIMD operations to Value types
@@ -244,6 +286,33 @@ impl PortableSimd {
         }
         
         Ok(())
+    }
+    
+    /// Fallback multiply implementation
+    pub fn mul_arrays_fallback(a: &[f64], b: &[f64], result: &mut [f64]) -> Result<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return Err(anyhow!("Array lengths must match"));
+        }
+        
+        for i in 0..a.len() {
+            result[i] = a[i] * b[i];
+        }
+        
+        Ok(())
+    }
+    
+    /// Fallback dot product implementation
+    pub fn dot_product_fallback(a: &[f64], b: &[f64]) -> Result<f64> {
+        if a.len() != b.len() {
+            return Err(anyhow!("Array lengths must match"));
+        }
+        
+        let mut result = 0.0;
+        for i in 0..a.len() {
+            result += a[i] * b[i];
+        }
+        
+        Ok(result)
     }
 }
 

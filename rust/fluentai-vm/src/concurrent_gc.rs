@@ -6,7 +6,8 @@
 use crate::bytecode::Value;
 use crate::gc::GcHandle;
 use anyhow::{anyhow, Result};
-use crossbeam::epoch::{self, Atomic, Owned, Shared, Guard};
+use crossbeam_epoch::{self as epoch, Atomic, Owned, Shared, Guard};
+use crossbeam_queue::SegQueue;
 use parking_lot::{RwLock, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::Arc;
@@ -408,7 +409,7 @@ impl ConcurrentGc {
         let guard = epoch::pin();
         
         // Mark concurrently with tri-color marking
-        let gray_queue = crossbeam::queue::SegQueue::new();
+        let gray_queue = SegQueue::new();
         
         // Initialize gray set with roots
         for root in roots {
@@ -449,7 +450,7 @@ impl ConcurrentGc {
         if obj.mark_bits.compare_exchange(0, 1, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
             unsafe {
                 let value = &*obj.value.get();
-                self.scan_value_concurrent(value, &crossbeam::queue::SegQueue::new(), guard);
+                self.scan_value_concurrent(value, &SegQueue::new(), guard);
             }
             obj.mark_bits.store(2, Ordering::SeqCst);
         }
@@ -481,7 +482,7 @@ impl ConcurrentGc {
     fn scan_value_concurrent(
         &self,
         value: &Value,
-        gray_queue: &crossbeam::queue::SegQueue<GcNodePtr>,
+        gray_queue: &SegQueue<GcNodePtr>,
         guard: &Guard,
     ) {
         // Similar to scan_value but adds to gray queue

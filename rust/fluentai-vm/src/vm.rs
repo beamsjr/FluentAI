@@ -293,13 +293,13 @@ impl VM {
     }
     
     /// Get usage statistics for a specific node
-    pub fn get_usage_stats(&self, node_id: NodeId) -> Option<&UsageStatistics> {
-        self.usage_tracker.as_ref()?.get_stats(node_id)
+    pub fn get_usage_stats(&self, node_id: NodeId) -> Option<UsageStatistics> {
+        self.usage_tracker.as_ref()?.read().ok()?.get_stats(node_id).cloned()
     }
     
     /// Get all usage statistics
-    pub fn get_all_usage_stats(&self) -> Option<&FxHashMap<NodeId, UsageStatistics>> {
-        self.usage_tracker.as_ref().map(|tracker| tracker.get_all_stats())
+    pub fn get_all_usage_stats(&self) -> Option<FxHashMap<NodeId, UsageStatistics>> {
+        self.usage_tracker.as_ref()?.read().ok().map(|tracker| tracker.get_all_stats().clone())
     }
     
     pub fn run(&mut self) -> Result<Value> {
@@ -315,9 +315,11 @@ impl VM {
         
         // Track error if one occurred
         if result.is_err() {
-            if let Some(tracker) = &mut self.usage_tracker {
+            if let Some(tracker) = &self.usage_tracker {
                 if let Some(frame) = self.call_stack.last() {
-                    tracker.record_error(frame.chunk_id);
+                    if let Ok(mut tracker_guard) = tracker.write() {
+                        tracker_guard.record_error(frame.chunk_id);
+                    }
                 }
             }
         }
@@ -395,11 +397,13 @@ impl VM {
                         let result = self.stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                         
                         // Track main function execution time
-                        if let Some(tracker) = &mut self.usage_tracker {
+                        if let Some(tracker) = &self.usage_tracker {
                             if let Some(frame) = self.call_stack.last() {
                                 if let Some(start_time) = frame.start_time {
                                     let elapsed = start_time.elapsed().as_nanos() as u64;
-                                    tracker.record_execution(frame.chunk_id, elapsed);
+                                    if let Ok(mut tracker_guard) = tracker.write() {
+                                        tracker_guard.record_execution(frame.chunk_id, elapsed);
+                                    }
                                 }
                             }
                         }
@@ -655,10 +659,12 @@ impl VM {
                 let frame = self.call_stack.pop().unwrap();
                 
                 // Track execution time if usage tracking is enabled
-                if let Some(tracker) = &mut self.usage_tracker {
+                if let Some(tracker) = &self.usage_tracker {
                     if let Some(start_time) = frame.start_time {
                         let elapsed = start_time.elapsed().as_nanos() as u64;
-                        tracker.record_execution(frame.chunk_id, elapsed);
+                        if let Ok(mut tracker_guard) = tracker.write() {
+                            tracker_guard.record_execution(frame.chunk_id, elapsed);
+                        }
                     }
                 }
                 
@@ -1562,10 +1568,10 @@ impl VM {
                     
                     // Jump to function start
                     match func {
-                        Value::Closure { chunk_id, captured_env, .. } => {
+                        Value::Function { chunk_id, env } => {
                             frame.ip = 0;
                             frame.chunk_id = chunk_id;
-                            frame.captured_env = captured_env;
+                            frame.env = env;
                         }
                         _ => return Err(anyhow!("TailCall requires a closure")),
                     }
@@ -1582,11 +1588,8 @@ impl VM {
                     self.stack.truncate(frame.stack_base);
                     self.push(result)?;
                     
-                    // Restore previous chunk context
-                    if let Some(prev_frame) = self.call_stack.last() {
-                        self.ip = prev_frame.ip;
-                        self.current_chunk = prev_frame.chunk_id;
-                    }
+                    // The previous frame's IP will be used automatically
+                    // when we continue execution in run_inner()
                 } else {
                     return Err(anyhow!("TailReturn with empty call stack"));
                 }
@@ -1891,6 +1894,11 @@ impl VM {
                     ip: 0,
                     stack_base,
                     env,
+                    start_time: if self.usage_tracker.is_some() {
+                        Some(Instant::now())
+                    } else {
+                        None
+                    },
                 });
                 
                 // Continue execution until this call returns

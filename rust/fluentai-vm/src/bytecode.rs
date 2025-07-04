@@ -25,15 +25,11 @@ pub enum Opcode {
     AddInt,          // Add two integers without boxing
     SubInt,          // Subtract two integers
     MulInt,          // Multiply two integers
+    DivInt,          // Divide two integers
     AddFloat,        // Add two floats
     SubFloat,        // Subtract two floats  
     MulFloat,        // Multiply two floats
-    
-    // Type-specialized arithmetic (for performance)
-    AddInt,
-    SubInt,
-    MulInt,
-    DivInt,
+    DivFloat,        // Divide two floats
     
     // Comparison
     Eq,
