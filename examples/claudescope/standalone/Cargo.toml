@@ -1,0 +1,27 @@
+[package]
+name = "claudescope"
+version = "1.0.0"
+edition = "2021"
+authors = ["ClaudeLang Team"]
+description = "Self-verifying network analyzer with formal contracts"
+
+[[bin]]
+name = "claudescope"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+colored = "2.0"
+chrono = "0.4"
+anyhow = "1.0"
+rust-embed = "8.0"
+
+# Optimize for size in release builds
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Single codegen unit for better optimization
+strip = true        # Strip symbols from binary
+panic = "abort"     # Smaller panic handler
+
+[workspace]

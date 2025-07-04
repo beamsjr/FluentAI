@@ -1,8 +1,8 @@
 //! Test optimization performance
 
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, CompilerOptions, VM};
-use claudelang_optimizer::OptimizationLevel;
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, CompilerOptions, VM};
+use fluentai_optimizer::OptimizationLevel;
 use std::time::Instant;
 
 fn main() {

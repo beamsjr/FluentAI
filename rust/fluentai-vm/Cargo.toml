@@ -1,0 +1,203 @@
+[package]
+name = "fluentai-vm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-effects = { path = "../fluentai-effects" }
+fluentai-stdlib = { path = "../fluentai-stdlib" }
+fluentai-modules = { path = "../fluentai-modules" }
+fluentai-di = { path = "../fluentai-di" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+byteorder.workspace = true
+rustc-hash.workspace = true
+tokio = { workspace = true, features = ["rt", "sync"] }
+parking_lot.workspace = true
+crossbeam-epoch = "0.9"
+crossbeam-utils = "0.8"
+
+[dev-dependencies]
+criterion.workspace = true
+fluentai-parser = { path = "../fluentai-parser" }
+
+[[example]]
+name = "test_vm"
+path = "../examples/test_vm.rs"
+
+[[example]]
+name = "real_performance"
+path = "../examples/real_performance.rs"
+
+[[example]]
+name = "test_async_runtime"
+path = "../examples/test_async_runtime.rs"
+
+[[example]]
+name = "test_async_basic"
+path = "../examples/test_async_basic.rs"
+
+[[example]]
+name = "test_effects_basic"
+path = "../examples/test_effects_basic.rs"
+
+[[example]]
+name = "test_async_ready"
+path = "../examples/test_async_ready.rs"
+
+[[example]]
+name = "test_effects_demo"
+path = "../examples/test_effects_demo.rs"
+
+[[example]]
+name = "test_simple_effect"
+path = "../examples/test_simple_effect.rs"
+
+[[example]]
+name = "test_effects_working"
+path = "../examples/test_effects_working.rs"
+
+[[example]]
+name = "test_closure_capture"
+path = "../examples/test_closure_capture.rs"
+
+[[example]]
+name = "test_simple_closure"
+path = "../examples/test_simple_closure.rs"
+
+[[example]]
+name = "test_scoped_lookup"
+path = "../examples/test_scoped_lookup.rs"
+
+[[example]]
+name = "test_scope_issue"
+path = "../examples/test_scope_issue.rs"
+
+[[example]]
+name = "test_compiler_debug"
+path = "../examples/test_compiler_debug.rs"
+
+[[example]]
+name = "test_nested_closure"
+path = "../examples/test_nested_closure.rs"
+
+[[example]]
+name = "test_nested_closure_detailed"
+path = "../examples/test_nested_closure_detailed.rs"
+
+[[example]]
+name = "test_let_positions"
+path = "../examples/test_let_positions.rs"
+
+[[example]]
+name = "test_step3_only"
+path = "../examples/test_step3_only.rs"
+
+[[example]]
+name = "test_step4_only"
+path = "../examples/test_step4_only.rs"
+
+[[example]]
+name = "test_debug_stack"
+path = "../examples/test_debug_stack.rs"
+
+[[example]]
+name = "test_minimal_closure"
+path = "../examples/test_minimal_closure.rs"
+
+[[example]]
+name = "test_letrec"
+path = "../examples/test_letrec.rs"
+
+[[example]]
+name = "test_simple_recursion"
+path = "../examples/test_simple_recursion.rs"
+
+[[example]]
+name = "test_simple_letrec"
+path = "../examples/test_simple_letrec.rs"
+
+[[example]]
+name = "test_pattern_matching"
+path = "../examples/test_pattern_matching.rs"
+
+[[example]]
+name = "test_simple_match"
+path = "../examples/test_simple_match.rs"
+
+[[example]]
+name = "test_match_debug"
+path = "../examples/test_match_debug.rs"
+
+[[example]]
+name = "test_pattern_edge_cases"
+path = "../examples/test_pattern_edge_cases.rs"
+
+[[example]]
+name = "test_load_store"
+path = "../examples/test_load_store.rs"
+
+[[example]]
+name = "test_cell_simple"
+path = "../examples/test_cell_simple.rs"
+
+[[example]]
+name = "test_cell_debug"
+path = "../examples/test_cell_debug.rs"
+
+[[example]]
+name = "test_recursive_debug"
+path = "../examples/test_recursive_debug.rs"
+
+[[example]]
+name = "test_nested_scopes"
+path = "../examples/test_nested_scopes.rs"
+
+[[example]]
+name = "test_list_operations"
+path = "../examples/test_list_operations.rs"
+
+[[example]]
+name = "test_list_debug"
+path = "../examples/test_list_debug.rs"
+
+[[example]]
+name = "test_fast_locals"
+path = "../examples/test_fast_locals.rs"
+
+[[example]]
+name = "test_constructors"
+path = "../examples/test_constructors.rs"
+
+[[example]]
+name = "test_simple_constructor"
+path = "../examples/test_simple_constructor.rs"
+
+[[example]]
+name = "test_stdlib"
+path = "../examples/test_stdlib.rs"
+
+[[example]]
+name = "test_higher_order"
+path = "../examples/test_higher_order.rs"
+
+[[example]]
+name = "test_io_sandbox"
+path = "../examples/test_io_sandbox.rs"
+
+[[example]]
+name = "test_io_effects_complete"
+path = "../examples/test_io_effects_complete.rs"
+
+[[example]]
+name = "test_module_basic"
+path = "../examples/test_module_basic.rs"
+
+[[example]]
+name = "test_module_import"
+path = "../examples/test_module_import.rs"

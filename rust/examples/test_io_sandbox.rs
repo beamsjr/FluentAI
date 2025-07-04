@@ -1,9 +1,9 @@
 //! Test I/O sandboxing with effect system
 
 use anyhow::Result;
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, VM};
-use claudelang_stdlib::io_effects::{set_io_context, IOEffectContext, LoggingIOHandler};
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, VM};
+use fluentai_stdlib::io_effects::{set_io_context, IOEffectContext, LoggingIOHandler};
 use std::sync::Arc;
 
 fn test_sandboxed_io(expr: &str, desc: &str) -> Result<()> {
@@ -93,7 +93,7 @@ fn test_path_restricted_io(expr: &str, desc: &str, allowed_paths: Vec<String>) -
 }
 
 fn main() -> Result<()> {
-    println!("Testing I/O Sandboxing in ClaudeLang");
+    println!("Testing I/O Sandboxing in FluentAi");
     println!("====================================");
     
     // Test with sandboxed I/O handler

@@ -1,8 +1,8 @@
 //! Benchmark optimization performance
 
-use claudelang_parser::parse;
-use claudelang_vm::{Compiler, CompilerOptions, VM};
-use claudelang_optimizer::OptimizationLevel;
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, CompilerOptions, VM};
+use fluentai_optimizer::OptimizationLevel;
 use std::time::Instant;
 
 fn benchmark_program(name: &str, code: &str, iterations: usize) {
@@ -121,7 +121,7 @@ fn main() {
     );
     
     println!("\n=== Summary ===");
-    println!("The ClaudeLang optimizer successfully reduces code size and improves execution performance.");
+    println!("The FluentAi optimizer successfully reduces code size and improves execution performance.");
     println!("Optimization techniques include:");
     println!("- Constant folding");
     println!("- Dead code elimination");

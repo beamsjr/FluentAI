@@ -1,8 +1,8 @@
 // Quick test of the Rust parser
-use claudelang_parser::parse;
+use fluentai_parser::parse;
 
 fn main() {
-    println!("Testing ClaudeLang Rust Parser\n");
+    println!("Testing FluentAi Rust Parser\n");
     
     let test_cases = vec![
         ("Simple", "(+ 1 2)"),

@@ -1,0 +1,42 @@
+[package]
+name = "fluentai-repl"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core dependencies
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+fluentai-interpreter = { path = "../fluentai-interpreter" }
+fluentai-vm = { path = "../fluentai-vm" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
+
+# Terminal UI
+crossterm = "0.28"
+rustyline = { version = "14.0", features = ["derive"] }
+rustyline-derive = "0.10"
+syntect = "5.0"
+colored = "2.0"
+
+# Async runtime
+tokio = { version = "1.35", features = ["rt", "macros", "io-std", "io-util"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Utils
+dirs = "5.0"
+chrono = "0.4"
+once_cell = "1.19"
+clap = { version = "4.4", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[[bin]]
+name = "fluentai-repl"
+path = "src/bin/main.rs"

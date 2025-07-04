@@ -1,0 +1,20 @@
+[package]
+name = "fluentai-modules"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+rustc-hash = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.8"

@@ -1,6 +1,6 @@
-# ClaudeLang Integration Tests
+# FluentAi Integration Tests
 
-This directory contains integration tests that verify the interaction between different components of the ClaudeLang system.
+This directory contains integration tests that verify the interaction between different components of the FluentAi system.
 
 ## Test Coverage
 

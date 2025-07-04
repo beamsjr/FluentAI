@@ -1,6 +1,6 @@
 use anyhow::Result;
-use claudelang_parser::parse;
-use claudelang_vm::{VM, Compiler};
+use fluentai_parser::parse;
+use fluentai_vm::{VM, Compiler};
 
 fn test_case(name: &str, code: &str) -> Result<()> {
     println!("\n=== Testing: {} ===", name);
@@ -28,7 +28,7 @@ fn test_case(name: &str, code: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    println!("Testing constructor patterns in ClaudeLang");
+    println!("Testing constructor patterns in FluentAi");
     
     // Test creating a simple tagged value
     test_case("Simple constructor", "(Cons 1 2)")?;

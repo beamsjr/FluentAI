@@ -1,6 +1,6 @@
 //! Test module parsing
 
-use claudelang_parser::parse;
+use fluentai_parser::parse;
 
 fn main() {
     // Test the exact syntax from the parser test

@@ -1,4 +1,4 @@
-; ClaudeLang test file for LSP features
+; FluentAi test file for LSP features
 (define factorial
   (lambda (n)
     (if (<= n 1)

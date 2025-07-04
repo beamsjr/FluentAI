@@ -1,8 +1,8 @@
 //! Test basic module functionality
 
 use anyhow::Result;
-use claudelang_parser::parse;
-use claudelang_vm::{compiler::Compiler, VM};
+use fluentai_parser::parse;
+use fluentai_vm::{compiler::Compiler, VM};
 
 fn main() -> Result<()> {
     // Test basic module declaration and export

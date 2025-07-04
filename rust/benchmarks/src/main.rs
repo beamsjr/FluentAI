@@ -1,5 +1,5 @@
-//! Benchmark runner for ClaudeLang
+//! Benchmark runner for FluentAi
 
 fn main() {
-    println!("ClaudeLang benchmarks");
+    println!("FluentAi benchmarks");
 }

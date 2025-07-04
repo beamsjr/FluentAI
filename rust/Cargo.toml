@@ -1,22 +1,22 @@
 [workspace]
 members = [
-    "claudelang-core",
-    "claudelang-parser",
-    "claudelang-vm",
-    "claudelang-stdlib",
-    "claudelang-lsp",
-    "claudelang-jit",
-    "claudelang-py",
-    "benchmarks", "claudelang-effects", "claudelang-types", "claudelang-modules", "claudelang-package", "claudelang-mcp", "claudelang-contracts", "claudelang-optimizer", "claudelang-di", "claudelang-db", "claudelang-viz", "claudelang-cli", "claudelang-interpreter", "claudelang-repl",
+    "fluentai-core",
+    "fluentai-parser",
+    "fluentai-vm",
+    "fluentai-stdlib",
+    "fluentai-lsp",
+    "fluentai-jit",
+    "fluentai-py",
+    "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-cli", "fluentai-interpreter", "fluentai-repl", "fluentai-ui-compiler", "fluentai-lint", "fluentai-metaprogramming", "fluentai-actors",
 ]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-authors = ["ClaudeLang Contributors"]
+authors = ["FluentAi Contributors"]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/beamsjr/ClaudeLang"
+repository = "https://github.com/beamsjr/FluentAi"
 
 [workspace.dependencies]
 # Core dependencies
@@ -40,6 +40,7 @@ rayon = "1.7"
 parking_lot = "0.12"
 rustc-hash = "1.1"
 ahash = "0.8"
+crossbeam = "0.8"
 
 # Memory management
 bumpalo = "3.13"

@@ -1,4 +1,4 @@
-;; Factorial function in ClaudeLang
+;; Factorial function in FluentAi
 (letrec ((factorial (lambda (n)
                       (if (= n 0)
                           1

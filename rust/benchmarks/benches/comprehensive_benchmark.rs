@@ -1,9 +1,9 @@
-//! Comprehensive benchmark comparing all ClaudeLang implementations
+//! Comprehensive benchmark comparing all FluentAi implementations
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use claudelang_parser::parse;
-use claudelang_vm::{compiler::Compiler, vm::VM};
-use claudelang_jit::JitCompiler;
+use fluentai_parser::parse;
+use fluentai_vm::{compiler::Compiler, vm::VM};
+use fluentai_jit::JitCompiler;
 
 struct BenchmarkResults {
     parser_ns: f64,
@@ -27,7 +27,7 @@ fn benchmark_all_implementations(c: &mut Criterion) {
         ("boolean_ops", "(and (> 5 3) (< 2 4))"),
     ];
     
-    println!("\n=== ClaudeLang Performance Comparison ===\n");
+    println!("\n=== FluentAi Performance Comparison ===\n");
     println!("{:<20} {:>12} {:>12} {:>12} {:>14} {:>12} {:>12} {:>12}", 
              "Expression", "Parse (ns)", "Compile (ns)", "VM (ns)", "JIT Compile", "JIT Exec", "Total (ns)", "Throughput/s");
     println!("{:-<110}", "");

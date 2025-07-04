@@ -1,5 +1,5 @@
-use claudelang_parser::parse;
-use claudelang_vm::compiler::Compiler;
+use fluentai_parser::parse;
+use fluentai_vm::compiler::Compiler;
 
 fn main() -> anyhow::Result<()> {
     let code = r#"

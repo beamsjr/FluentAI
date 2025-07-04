@@ -1,9 +1,9 @@
-//! Integration tests for ClaudeLang module system and package manager
+//! Integration tests for FluentAi module system and package manager
 
-use claudelang_parser::parse;
-use claudelang_vm::{compiler::Compiler, vm::VM, bytecode::Value};
-use claudelang_modules::{ModuleLoader, ModuleConfig};
-use claudelang_package::{Manifest, DependencyResolver, registry::LocalRegistry};
+use fluentai_parser::parse;
+use fluentai_vm::{compiler::Compiler, vm::VM, bytecode::Value};
+use fluentai_modules::{ModuleLoader, ModuleConfig};
+use fluentai_package::{Manifest, DependencyResolver, registry::LocalRegistry};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -252,7 +252,7 @@ private-key
 
 #[test]
 fn test_package_dependency_resolution() {
-    use claudelang_package::{Version, registry::LocalRegistry};
+    use fluentai_package::{Version, registry::LocalRegistry};
     
     let temp_dir = TempDir::new().unwrap();
     let registry_path = temp_dir.path().join("registry");
@@ -267,7 +267,7 @@ fn test_package_dependency_resolution() {
     manifest.version = "1.0.0".to_string();
     manifest.dependencies.insert(
         "math-lib".to_string(),
-        claudelang_package::manifest::Dependency::Version("^1.0.0".to_string()),
+        fluentai_package::manifest::Dependency::Version("^1.0.0".to_string()),
     );
     
     // Create a dependency resolver

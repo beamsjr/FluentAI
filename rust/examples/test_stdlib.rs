@@ -1,10 +1,10 @@
-//! Test the ClaudeLang standard library integration
+//! Test the FluentAi standard library integration
 
-use claudelang_parser::parse;
-use claudelang_vm::{VM, compiler::Compiler};
+use fluentai_parser::parse;
+use fluentai_vm::{VM, compiler::Compiler};
 
 fn main() -> anyhow::Result<()> {
-    println!("Testing ClaudeLang Standard Library Integration");
+    println!("Testing FluentAi Standard Library Integration");
     println!("===========================================\n");
     
     // Test 1: Core functions

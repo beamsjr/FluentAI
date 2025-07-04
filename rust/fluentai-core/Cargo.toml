@@ -1,0 +1,20 @@
+[package]
+name = "fluentai-core"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+rustc-hash.workspace = true
+parking_lot.workspace = true
+bumpalo.workspace = true
+tracing.workspace = true
+crossbeam.workspace = true
+num_cpus = "1.16"
+
+[dev-dependencies]
+criterion.workspace = true

@@ -1,6 +1,6 @@
-use claudelang_parser::parse;
-use claudelang_vm::{compiler::Compiler, vm::VM};
-use claudelang_effects::{EffectContext, EffectRuntime, handlers::*};
+use fluentai_parser::parse;
+use fluentai_vm::{compiler::Compiler, vm::VM};
+use fluentai_effects::{EffectContext, EffectRuntime, handlers::*};
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
@@ -18,7 +18,7 @@ fn main() -> anyhow::Result<()> {
     
     // Test 1: IO Effect
     println!("Test 1: IO Effect");
-    let code = r#"(effect io:println "Hello from ClaudeLang effects!")"#;
+    let code = r#"(effect io:println "Hello from FluentAi effects!")"#;
     run_test("IO", code, context.clone(), runtime.clone())?;
     
     // Test 2: Time Effect
