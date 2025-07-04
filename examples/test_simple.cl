@@ -1,2 +1,2 @@
-; Very simple test
-(+ 1 2)
+; Simple arithmetic test
+(+ 2 3)
