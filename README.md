@@ -58,7 +58,10 @@ FluentAi is an experimental programming language that explores what happens when
   - Symbolic execution engine for path exploration
   - Advanced proof generation with multiple strategies (induction, BMC, direct)
   - Contract inheritance and refinement with LSP compliance
-  - Contract composition (conjunction, disjunction, sequential)
+  - Contract composition (conjunction, disjunction, sequential, XOR, implication)
+  - Temporal contracts with LTL operators (always, eventually, until, next)
+  - State machine contracts for FSM verification
+  - Enhanced debugging with visual diagrams and interactive REPL
 - **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications
 - **Purity Tracking**: Enforce and verify side-effect-free functions
 - **Structured Logging**: Log levels, structured data, and custom handlers

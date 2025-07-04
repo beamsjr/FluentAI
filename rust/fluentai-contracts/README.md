@@ -42,6 +42,11 @@ Contracts provide mathematical guarantees about your code:
 - **Performance Optimization**: LRU caching, resource limits, and timeout management
 - **Error Enhancement**: Span tracking and blame labels for precise error reporting
 - **Proof Generation**: Generate formal proofs for contracts (in development)
+- **Contract Inheritance**: Extend and refine contracts with LSP compliance
+- **Contract Composition**: Combine contracts with AND, OR, XOR, and implication operators
+- **Temporal Contracts**: Express properties over time using LTL operators (always, eventually, until)
+- **Enhanced Debugging**: Visual diagrams and detailed traces for contract failures
+- **State Machine Contracts**: Verify finite state machines with safety and liveness properties
 
 ## Quick Start
 
@@ -82,6 +87,7 @@ let result = static_verifier.verify_contract(&contract)?;
 - [Parallel Verification](docs/PARALLEL_VERIFICATION.md) - Multi-core contract verification
 - [Ghost State](docs/GHOST_STATE.md) - Specification-only variables and expressions
 - [Frame Conditions](docs/FRAME_CONDITIONS.md) - Specify what functions may modify
+- [Contract Enhancements](../CONTRACT_ENHANCEMENTS.md) - Inheritance, composition, temporal contracts, and debugging
 
 ## Usage
 
@@ -288,7 +294,56 @@ The following predicates and operators are available in contract conditions:
 - Support for structural recursion
 - Lexicographic ordering for complex cases
 
-### 5. Developer Experience
+### 5. Contract Composition and Inheritance
+
+**Contract Inheritance**
+- Extend base contracts in derived implementations
+- Liskov Substitution Principle (LSP) compliance
+- Support for refinement and weakening
+- Interface definitions and implementations
+
+**Contract Composition**
+- Combine contracts with logical operators:
+  - Conjunction (AND): All contracts must hold
+  - Disjunction (OR): At least one must hold
+  - Exclusive OR (XOR): Exactly one must hold
+  - Implication: If first holds, then second must hold
+- Sequential composition for multi-step operations
+
+### 6. Temporal Contracts
+
+**Temporal Operators**
+- Always (□): Property holds in all future states
+- Eventually (◇): Property holds in some future state
+- Next (○): Property holds in the next state
+- Until (U): First property holds until second becomes true
+- Past-time operators: Previously, Since
+
+**Bounded Model Checking**
+- Verify temporal properties up to a fixed bound
+- Efficient for finding bugs in practice
+- Support for lasso detection (loops)
+
+**State Machine Contracts**
+- Verify finite state machines
+- Safety properties (bad states never reached)
+- Liveness properties (good states eventually reached)
+- Deadlock detection and reachability analysis
+
+### 7. Enhanced Debugging
+
+**Visual Contract Debugging**
+- ASCII-art diagrams of contract failures
+- Step-by-step evaluation traces
+- Variable value snapshots at failure points
+- Smart suggestions for fixing violations
+
+**Interactive REPL**
+- Debug contract violations interactively
+- Inspect evaluation traces and variable values
+- Get targeted fix suggestions
+
+### 8. Developer Experience
 
 **Error Enhancement**
 - Precise source locations with spans
@@ -307,6 +362,101 @@ The following predicates and operators are available in contract conditions:
 
 ## Examples
 
+### Contract Inheritance Example
+
+```clojure
+;; Base sorting contract
+(spec:contract sort-base
+  :requires [(list? arr)]
+  :ensures [(sorted? result)
+            (permutation? arr result)]
+  :complexity "O(n log n)")
+
+;; Refined quicksort implementation
+(spec:contract quicksort
+  :inherits sort-base
+  :requires [(list? arr) 
+             (< (length arr) 10000)]  ; Additional constraint
+  :ensures [(sorted? result)
+            (permutation? arr result)
+            (<= (pivot-comparisons result) (* 2 n (log n)))]  ; Refined postcondition
+  :complexity "O(n log n) average, O(n²) worst")
+```
+
+### Contract Composition Example
+
+```clojure
+;; Compose contracts with XOR - exactly one must hold
+(spec:compose-xor cached-fetch network-fetch
+  :when [(xor (cache-hit? key) (network-available?))]
+  :ensures [(= result (get-data key))])
+
+;; Implication composition - if logged in, then authorized
+(spec:compose-implies logged-in-contract authorized-contract
+  :message "Logged in users must be authorized")
+```
+
+### Temporal Contracts Example
+
+```clojure
+;; Express temporal properties
+(spec:temporal-contract connection-lifecycle
+  :always [(implies (connected? conn) 
+                   (eventually (disconnected? conn)))]  ; Always eventually disconnect
+  :never [(and (sending? conn) (closed? conn))]        ; Never send on closed connection
+  :leadsto [(timeout? conn) (error-state? conn)]       ; Timeout leads to error
+  :within [(login-attempt? user) (authorized? user) 5000])  ; Login within 5 seconds
+
+;; Using temporal DSL
+(spec:temporal request-response
+  (always (implies request (eventually response)))
+  (bounded-eventually error-recovery 10))  ; Recover from errors within 10 steps
+```
+
+### Enhanced Debugging Example
+
+```clojure
+;; When a contract fails, get detailed visual debugging
+(define (transfer from to amount)
+  (spec:contract transfer
+    :requires [(>= from.balance amount) (> amount 0)]
+    :ensures [(= from.balance (- (old from.balance) amount))])
+  ...)
+
+;; On failure, see visual diagram:
+;; Contract Violation: transfer
+;; ╭─────────────────────────────────────╮
+;; │ Precondition Failed                 │
+;; │                                     │
+;; │ Expression: (>= from.balance amount)│
+;; │                                     │
+;; │ Values:                             │
+;; │   from.balance = 50                 │
+;; │   amount = 100                      │
+;; │                                     │
+;; │ Evaluation: 50 >= 100 = false       │
+;; ╰─────────────────────────────────────╯
+;; 
+;; Suggestion: Ensure sufficient balance before transfer
+```
+
+### State Machine Contract Example
+
+```clojure
+;; Define state machine with contracts
+(spec:state-machine tcp-connection
+  :states [closed listen syn-sent established fin-wait]
+  :initial closed
+  :transitions [
+    [closed -> listen :on (listen)]
+    [listen -> syn-sent :on (connect) :guard (valid-addr?)]
+    [syn-sent -> established :on (syn-ack) :action (start-session)]
+    [established -> fin-wait :on (close) :action (cleanup)]]
+  :invariants [(implies (= state established) (active? socket))]
+  :safety [(never (and (= state closed) (sending? data)))]
+  :liveness [(always-eventually (= state closed))])
+```
+
 The `examples/` directory contains demonstrations of all major features:
 
 - `basic_contracts.rs` - Simple preconditions and postconditions
@@ -317,11 +467,16 @@ The `examples/` directory contains demonstrations of all major features:
 - `parallel_verification.rs` - Multi-core contract checking
 - `termination_checking.rs` - Proving recursive functions terminate
 - `z3_converter_demo.rs` - Supported SMT operations
+- `inheritance_demo.rs` - Contract inheritance and refinement
+- `temporal_contracts_demo.rs` - Temporal properties and LTL
+- `debugging_demo.rs` - Visual debugging and REPL
+- `state_machine_demo.rs` - FSM verification
 
 Run examples with:
 ```bash
 cargo run --example basic_contracts
-cargo run --example parallel_verification --features="static"
+cargo run --example temporal_contracts_demo
+cargo run --example debugging_demo --features="static"
 ```
 
 ## Performance

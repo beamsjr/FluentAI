@@ -22,8 +22,8 @@ setup(
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/claudelang",
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
+    packages=find_packages(where="python"),
+    package_dir={"": "python"},
     rust_extensions=[
         RustExtension(
             "claudelang.claudelang_rust",
