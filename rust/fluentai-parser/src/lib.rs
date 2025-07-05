@@ -13,6 +13,15 @@ pub mod error;
 #[cfg(test)]
 mod integration_tests;
 
+#[cfg(test)]
+mod parser_tests;
+
+#[cfg(test)]
+mod lexer_tests;
+
+#[cfg(test)]
+mod parser_coverage_tests;
+
 pub use parser::{Parser, ParseResult};
 pub use error::{ParseError, ErrorKind};
 
