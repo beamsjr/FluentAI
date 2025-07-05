@@ -744,6 +744,10 @@ impl<'a> Parser<'a> {
 }
 
 #[cfg(test)]
+#[path = "parser_tests.rs"]
+mod parser_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::parse;

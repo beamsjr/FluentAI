@@ -293,3 +293,7 @@ impl PatternBuilder {
         Pattern::Not(Box::new(pattern))
     }
 }
+
+#[cfg(test)]
+#[path = "patterns_tests.rs"]
+mod patterns_tests;

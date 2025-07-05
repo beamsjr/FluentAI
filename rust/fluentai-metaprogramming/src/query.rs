@@ -343,3 +343,7 @@ impl QueryBuilder {
     }
 }
 
+#[cfg(test)]
+#[path = "query_tests.rs"]
+mod query_tests;
+

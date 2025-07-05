@@ -247,3 +247,7 @@ mod tests {
         assert_ne!(var1.name, var2.name);
     }
 }
+
+#[cfg(test)]
+#[path = "environment_tests.rs"]
+mod environment_tests;

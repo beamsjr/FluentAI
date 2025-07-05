@@ -217,11 +217,22 @@ impl GraphOptimizer {
         let mut optimized = Graph::new();
         let mut node_mapping = FxHashMap::default();
 
+        // Process nodes in two passes to handle forward references
+        // First pass: Create all nodes without updating references
+        let mut temp_nodes = Vec::new();
         for node_id in &reachable {
             if let Some(node) = graph.get_node(*node_id) {
-                let new_node = self.copy_with_mapping(node, &node_mapping);
-                let new_id = optimized.add_node(new_node);
+                let new_id = optimized.add_node(node.clone());
                 node_mapping.insert(*node_id, new_id);
+                temp_nodes.push((*node_id, new_id));
+            }
+        }
+
+        // Second pass: Update all references now that all nodes are mapped
+        for (old_id, new_id) in temp_nodes {
+            if let Some(node) = graph.get_node(old_id) {
+                let updated_node = self.copy_with_mapping(node, &node_mapping);
+                optimized.nodes.insert(new_id, updated_node);
             }
         }
 
@@ -311,25 +322,35 @@ impl GraphOptimizer {
         let mut node_mapping = FxHashMap::default();
         let value_cache = FxHashMap::default();
 
-        // Process nodes
+        // First pass: Create placeholder nodes to establish mappings
         let nodes: Vec<_> = graph.nodes.keys().copied().collect();
+        for node_id in &nodes {
+            if graph.get_node(*node_id).is_some() {
+                let placeholder = Node::Literal(Literal::Nil);
+                let new_id = optimized.add_node(placeholder);
+                node_mapping.insert(*node_id, new_id);
+            }
+        }
+
+        // Second pass: Process nodes with all mappings available
         for node_id in nodes {
             if let Some(node) = graph.get_node(node_id) {
-                // Try to evaluate if pure
-                if self.effect_analysis.as_ref()
+                let new_node = if self.effect_analysis.as_ref()
                     .map_or(false, |ea| ea.pure_nodes.contains(&node_id)) {
                     if let Some(value) = self.evaluate_pure_node(graph, &node_mapping, &value_cache, node_id, node) {
-                        let new_id = optimized.add_node(value);
-                        node_mapping.insert(node_id, new_id);
                         self.stats.pure_expressions_evaluated += 1;
-                        continue;
+                        value
+                    } else {
+                        self.copy_with_mapping(node, &node_mapping)
                     }
+                } else {
+                    self.copy_with_mapping(node, &node_mapping)
+                };
+                
+                // Update the node in the optimized graph
+                if let Some(new_id) = node_mapping.get(&node_id) {
+                    optimized.nodes.insert(*new_id, new_node);
                 }
-
-                // Otherwise copy the node
-                let new_node = self.copy_with_mapping(node, &node_mapping);
-                let new_id = optimized.add_node(new_node);
-                node_mapping.insert(node_id, new_id);
             }
         }
 
@@ -365,32 +386,45 @@ impl GraphOptimizer {
         let mut node_mapping = FxHashMap::default();
         let mut expr_cache: FxHashMap<String, NodeId> = FxHashMap::default();
 
-        // Process nodes
+        // First pass: Create all nodes to establish mappings
         let nodes: Vec<_> = graph.nodes.keys().copied().collect();
+        for node_id in &nodes {
+            if graph.get_node(*node_id).is_some() {
+                let placeholder = Node::Literal(Literal::Nil);
+                let new_id = optimized.add_node(placeholder);
+                node_mapping.insert(*node_id, new_id);
+            }
+        }
+
+        // Second pass: Process with CSE
         for node_id in nodes {
             if let Some(node) = graph.get_node(node_id) {
-                // Check if this is a pure expression we've seen before
                 if self.effect_analysis.as_ref()
                     .map_or(false, |ea| ea.pure_nodes.contains(&node_id)) {
                     let expr_key = self.node_to_key(node);
                     
                     if let Some(existing_id) = expr_cache.get(&expr_key) {
-                        // Reuse existing node
+                        // Reuse existing node - update mapping
+                        if let Some(old_mapping) = node_mapping.get(&node_id) {
+                            // Remove the placeholder node we created
+                            optimized.nodes.remove(old_mapping);
+                        }
                         node_mapping.insert(node_id, *existing_id);
                         self.stats.cse_eliminated += 1;
-                        continue;
                     } else {
-                        // Add to cache
+                        // Update the node with proper references
                         let new_node = self.copy_with_mapping(node, &node_mapping);
-                        let new_id = optimized.add_node(new_node);
-                        node_mapping.insert(node_id, new_id);
-                        expr_cache.insert(expr_key, new_id);
+                        if let Some(new_id) = node_mapping.get(&node_id) {
+                            optimized.nodes.insert(*new_id, new_node);
+                            expr_cache.insert(expr_key, *new_id);
+                        }
                     }
                 } else {
                     // Non-pure nodes can't be eliminated
                     let new_node = self.copy_with_mapping(node, &node_mapping);
-                    let new_id = optimized.add_node(new_node);
-                    node_mapping.insert(node_id, new_id);
+                    if let Some(new_id) = node_mapping.get(&node_id) {
+                        optimized.nodes.insert(*new_id, new_node);
+                    }
                 }
             }
         }
@@ -593,3 +627,7 @@ fn evaluate_primitive(func_name: &str, args: &[Literal]) -> Option<Node> {
 
     Some(Node::Literal(result))
 }
+
+#[cfg(test)]
+#[path = "optimizer_tests.rs"]
+mod optimizer_tests;

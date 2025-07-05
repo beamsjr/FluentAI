@@ -148,7 +148,7 @@ impl EffectHandler for MetricsHandler {
             }
             "metrics:get_all" => {
                 let metrics = self.metrics.read();
-                let map: HashMap<String, Value> = metrics.iter()
+                let map: rustc_hash::FxHashMap<String, Value> = metrics.iter()
                     .map(|(k, v)| (k.clone(), Value::Float(*v)))
                     .collect();
                 Ok(Value::Map(map))

@@ -115,3 +115,7 @@ pub trait DiagnosticReporter: Send + Sync {
     /// Get the number of errors
     fn error_count(&self) -> usize;
 }
+
+#[cfg(test)]
+#[path = "traits_tests.rs"]
+mod tests;

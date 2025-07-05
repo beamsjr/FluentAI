@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Temporal operators for contract specifications
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TemporalOperator {
     /// Always (□ or G) - property holds in all future states
     Always(Box<TemporalFormula>),
@@ -40,7 +40,7 @@ pub enum TemporalOperator {
 }
 
 /// Temporal formula combining operators and atomic propositions
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TemporalFormula {
     /// Atomic proposition (basic contract condition)
     Atomic(ContractCondition),

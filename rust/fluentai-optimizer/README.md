@@ -165,6 +165,10 @@ x
 - Preserves program semantics through effect analysis
 - Supports incremental optimization with multiple passes
 - Extensible architecture for adding new optimization passes
+- **Two-pass node processing**: Optimization passes use a two-pass approach to handle forward references correctly:
+  1. First pass creates all nodes and establishes mappings
+  2. Second pass updates references with all mappings available
+  This ensures nodes that reference other nodes (e.g., variables in match branches) are processed correctly regardless of graph traversal order
 
 ## API Documentation
 

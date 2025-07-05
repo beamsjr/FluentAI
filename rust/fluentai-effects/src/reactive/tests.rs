@@ -100,7 +100,11 @@ mod tests {
         
         // Check calls
         let calls = called.lock().unwrap();
-        assert!(calls.len() >= 2); // At least initial and one update
+        println!("Watcher calls: {}", calls.len());
+        for (i, call) in calls.iter().enumerate() {
+            println!("  Call {}: {:?}", i, call);
+        }
+        assert!(calls.len() >= 2, "Expected at least 2 calls, got {}", calls.len()); // At least initial and one update
     }
     
     #[test]

@@ -138,38 +138,5 @@ impl<'a> Lexer<'a> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_lexer_basic() {
-        let mut lexer = Lexer::new("(+ 1 2)");
-        
-        assert_eq!(lexer.next_token(), Some(Token::LParen));
-        assert_eq!(lexer.next_token(), Some(Token::Symbol("+")));
-        assert_eq!(lexer.next_token(), Some(Token::Integer(1)));
-        assert_eq!(lexer.next_token(), Some(Token::Integer(2)));
-        assert_eq!(lexer.next_token(), Some(Token::RParen));
-        assert_eq!(lexer.next_token(), None);
-    }
-    
-    #[test]
-    fn test_lexer_strings() {
-        let mut lexer = Lexer::new(r#""hello \"world\"""#);
-        assert_eq!(lexer.next_token(), Some(Token::String("hello \"world\"".to_string())));
-    }
-    
-    #[test]
-    fn test_lexer_floats() {
-        let mut lexer = Lexer::new("3.14 -2.5e10");
-        assert_eq!(lexer.next_token(), Some(Token::Float(3.14)));
-        assert_eq!(lexer.next_token(), Some(Token::Float(-2.5e10)));
-    }
-    
-    #[test]
-    fn test_lexer_qualified_symbols() {
-        let mut lexer = Lexer::new("math.sin module.export");
-        assert_eq!(lexer.next_token(), Some(Token::QualifiedSymbol("math.sin")));
-        assert_eq!(lexer.next_token(), Some(Token::QualifiedSymbol("module.export")));
-    }
-}
+#[path = "lexer_tests.rs"]
+mod tests;

@@ -254,8 +254,8 @@ impl BoundedModelChecker {
                     verified: false,
                     bound,
                     counterexample: Some(BMCCounterexample {
-                        states: stem.into_iter().chain(loop_states).collect(),
                         loop_start: Some(stem.len()),
+                        states: stem.into_iter().chain(loop_states).collect(),
                         violations: vec![(0, liveness.clone())],
                     }),
                     conclusive: true,

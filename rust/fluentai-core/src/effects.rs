@@ -87,3 +87,7 @@ impl EffectHandler for DefaultEffectHandler {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "effects_tests.rs"]
+mod tests;

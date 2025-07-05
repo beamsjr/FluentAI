@@ -39,27 +39,38 @@ impl Watcher {
         // Add to dependencies
         self.dependencies.lock().push(key.to_string());
         
-        // Get initial value
-        let initial = state.get(key);
-        
-        // Register update callback
         if let Some(ctx) = ReactiveContext::current() {
             let watch_fn = self.watch_fn.clone();
-            let key = key.to_string();
-            let state = state.clone();
+            let key_str = key.to_string();
+            let state_clone = state.clone();
+            let watcher_id = self.id.clone();
             
-            ctx.scheduler.register_watcher(self.id.clone(), move || {
-                let new_value = state.get(&key);
-                // In a full implementation, we'd track old values
-                if let Some(ref value) = new_value {
-                    watch_fn(value, None);
+            // Track dependencies by executing in a computation context
+            let initial = ctx.with_computation(watcher_id.clone(), || {
+                // This get() call should register the dependency
+                state.get(key)
+            });
+            
+            // Register watcher callback that will be called when dependencies change
+            let watch_fn_for_callback = watch_fn.clone();
+            let state_for_callback = state_clone.clone();
+            let key_for_callback = key_str.clone();
+            
+            ctx.scheduler.register_computed(watcher_id.clone(), move || {
+                // Get the new value directly (we don't need to track dependencies in the callback)
+                let value = state_for_callback.get(&key_for_callback);
+                // Handle both Some and None cases
+                match value {
+                    Some(ref v) => watch_fn_for_callback(v, None),
+                    None => watch_fn_for_callback(&Value::Nil, None),
                 }
             });
             
             // Execute immediately if requested
             if self.immediate {
-                if let Some(ref value) = initial {
-                    (self.watch_fn)(value, None);
+                match initial {
+                    Some(ref value) => (self.watch_fn)(value, None),
+                    None => (self.watch_fn)(&Value::Nil, None),
                 }
             }
         }

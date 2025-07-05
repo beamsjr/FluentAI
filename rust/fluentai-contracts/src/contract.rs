@@ -117,7 +117,7 @@ pub struct Contract {
 /// 
 /// Represents one logical assertion within a contract. The condition
 /// is expressed as an AST node that evaluates to a boolean value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ContractCondition {
     /// The condition expression (as an AST node ID)
     /// 

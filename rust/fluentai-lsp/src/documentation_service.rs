@@ -10,8 +10,7 @@ use once_cell::sync::Lazy;
 
 /// Global documentation registry instance
 static DOCUMENTATION_REGISTRY: Lazy<Arc<RwLock<DocumentationRegistry>>> = Lazy::new(|| {
-    let mut registry = DocumentationRegistry::new();
-    registry.register_all();
+    let registry = DocumentationRegistry::new();
     Arc::new(RwLock::new(registry))
 });
 

@@ -10,6 +10,9 @@ pub mod lexer;
 pub mod parser;
 pub mod error;
 
+#[cfg(test)]
+mod integration_tests;
+
 pub use parser::{Parser, ParseResult};
 pub use error::{ParseError, ErrorKind};
 

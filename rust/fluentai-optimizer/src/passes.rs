@@ -32,3 +32,7 @@ pub trait OptimizationPass: Send + Sync {
         format!("{} pass completed", self.name())
     }
 }
+
+#[cfg(test)]
+#[path = "passes_tests.rs"]
+mod passes_tests;

@@ -43,7 +43,10 @@ FluentAi is an experimental programming language that explores what happens when
 - **JavaScript Compilation**: Compile to optimized JavaScript for browsers
 
 ### 🔧 Core Language Features
-- **Pattern matching**: ML-style with exhaustiveness checking
+- **Pattern matching**: ML-style with list destructuring (cons/nil patterns)
+  - Literal, variable, wildcard, and constructor patterns
+  - Special support for list pattern matching
+  - Efficient compilation to bytecode
 - **Algebraic data types**: Sum and product types with pattern matching
 - **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling
 - **Module system**: Full namespace support with imports, exports, and qualified references
@@ -158,6 +161,27 @@ FluentAi is an experimental programming language that explores what happens when
       (match xs
         ((Nil) 0)
         ((Cons x xs) (+ x (sum xs)))))))
+
+;; Pattern matching on built-in lists (cons/nil patterns)
+(define list-operations
+  (let ((my-list (list 1 2 3 4 5)))
+    ;; Match on list structure
+    (match my-list
+      ((nil) "empty list")
+      ((cons head tail) 
+        (print "First element:" head)
+        (print "Rest of list:" tail)))
+    
+    ;; Recursive list processing
+    (define take
+      (lambda (n lst)
+        (if (= n 0)
+            (list)
+            (match lst
+              ((nil) (list))
+              ((cons x xs) (cons x (take (- n 1) xs)))))))
+    
+    (take 3 my-list)))  ; Returns (list 1 2 3)
 
 ;; Use imported functions
 (define circle-area (lambda (r) (* pi r r)))

@@ -386,3 +386,7 @@ impl MacroExpander {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "macros_tests.rs"]
+mod macros_tests;

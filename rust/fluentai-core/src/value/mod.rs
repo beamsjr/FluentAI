@@ -443,3 +443,7 @@ impl std::fmt::Display for Value {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../value_tests.rs"]
+mod tests;

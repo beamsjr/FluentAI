@@ -790,3 +790,7 @@ impl TypeAnalysis {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "analysis_tests.rs"]
+mod analysis_tests;

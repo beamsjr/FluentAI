@@ -337,6 +337,7 @@ impl VM {
             let frame = self.call_stack.last().ok_or_else(|| VMError::StackUnderflow {
                 operation: "get_current_frame".to_string(),
                 stack_size: self.call_stack.len(),
+                stack_trace: None,
             })?;
             let chunk_id = frame.chunk_id;
             let ip = frame.ip;
@@ -345,6 +346,7 @@ impl VM {
                 return Err(VMError::InvalidJumpTarget {
                     target: ip,
                     chunk_size: self.bytecode.chunks[chunk_id].instructions.len(),
+                    stack_trace: None,
                 });
             }
             
@@ -382,6 +384,7 @@ impl VM {
                             return Err(VMError::CallStackOverflow {
                                 current_depth: self.call_stack.len(),
                                 max_depth: self.resource_limits.max_call_depth,
+                                stack_trace: None,
                             });
                         }
                     }
@@ -411,6 +414,7 @@ impl VM {
                         let result = self.stack.pop().ok_or_else(|| VMError::StackUnderflow {
                             operation: "main_return".to_string(),
                             stack_size: self.stack.len(),
+                            stack_trace: None,
                         })?;
                         
                         // Track main function execution time
@@ -447,6 +451,7 @@ impl VM {
                     return self.stack.pop().ok_or_else(|| VMError::StackUnderflow {
                         operation: "halt".to_string(),
                         stack_size: self.stack.len(),
+                        stack_trace: None,
                     });
                 }
             }
@@ -485,6 +490,7 @@ impl VM {
                     .ok_or_else(|| VMError::InvalidConstantIndex {
                         index: instruction.arg,
                         max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                        stack_trace: None,
                     })?
                     .clone();
                 self.push(value)?;
@@ -513,6 +519,7 @@ impl VM {
                     return Err(VMError::StackUnderflow {
                         operation: "swap".to_string(),
                         stack_size: len,
+                        stack_trace: None,
                     });
                 }
                 self.stack.swap(len - 1, len - 2);
@@ -534,6 +541,7 @@ impl VM {
                     .ok_or_else(|| VMError::InvalidConstantIndex {
                         index: instruction.arg,
                         max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                        stack_trace: None,
                     })?
                     .clone();
                 self.push(value)?;
@@ -544,6 +552,7 @@ impl VM {
                 (Value::Int(x), Value::Int(y)) => checked_ops::add_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
                     operation: "add".to_string(),
                     operands: (x, y),
+                    stack_trace: None,
                 }),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x + y)),
                 (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
@@ -552,6 +561,7 @@ impl VM {
                     expected: "int/float/string".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -559,6 +569,7 @@ impl VM {
                 (Value::Int(x), Value::Int(y)) => checked_ops::sub_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
                     operation: "sub".to_string(),
                     operands: (x, y),
+                    stack_trace: None,
                 }),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x - y)),
                 (a, b) => Err(VMError::TypeError {
@@ -566,6 +577,7 @@ impl VM {
                     expected: "int/float".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -573,6 +585,7 @@ impl VM {
                 (Value::Int(x), Value::Int(y)) => checked_ops::mul_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
                     operation: "mul".to_string(),
                     operands: (x, y),
+                    stack_trace: None,
                 }),
                 (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x * y)),
                 (a, b) => Err(VMError::TypeError {
@@ -580,17 +593,19 @@ impl VM {
                     expected: "int/float".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
             Div => self.binary_op(|a, b| match (a, b) {
                 (Value::Int(x), Value::Int(y)) => checked_ops::div_i64(x, y).map(Value::Int).map_err(|_| {
                     if y == 0 {
-                        VMError::DivisionByZero { location: None }
+                        VMError::DivisionByZero { location: None, stack_trace: None }
                     } else {
                         VMError::IntegerOverflow {
                             operation: "div".to_string(),
                             operands: (x, y),
+                            stack_trace: None,
                         }
                     }
                 }),
@@ -600,17 +615,19 @@ impl VM {
                     expected: "int/float".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
             Mod => self.binary_op(|a, b| match (a, b) {
                 (Value::Int(x), Value::Int(y)) => checked_ops::mod_i64(x, y).map(Value::Int).map_err(|_| {
                     if y == 0 {
-                        VMError::DivisionByZero { location: None }
+                        VMError::DivisionByZero { location: None, stack_trace: None }
                     } else {
                         VMError::IntegerOverflow {
                             operation: "mod".to_string(),
                             operands: (x, y),
+                            stack_trace: None,
                         }
                     }
                 }),
@@ -619,6 +636,7 @@ impl VM {
                     expected: "int".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -629,6 +647,7 @@ impl VM {
                         let negated = checked_ops::neg_i64(x).map_err(|_| VMError::IntegerOverflow {
                             operation: "neg".to_string(),
                             operands: (x, 0),
+                            stack_trace: None,
                         })?;
                         self.push(Value::Int(negated))?
                     }
@@ -638,6 +657,7 @@ impl VM {
                         expected: "int/float".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -646,22 +666,26 @@ impl VM {
             AddInt => self.binary_int_op(|x, y| checked_ops::add_i64(x, y).map_err(|_| VMError::IntegerOverflow {
                 operation: "add_int".to_string(),
                 operands: (x, y),
+                stack_trace: None,
             }))?,
             SubInt => self.binary_int_op(|x, y| checked_ops::sub_i64(x, y).map_err(|_| VMError::IntegerOverflow {
                 operation: "sub_int".to_string(),
                 operands: (x, y),
+                stack_trace: None,
             }))?,
             MulInt => self.binary_int_op(|x, y| checked_ops::mul_i64(x, y).map_err(|_| VMError::IntegerOverflow {
                 operation: "mul_int".to_string(),
                 operands: (x, y),
+                stack_trace: None,
             }))?,
             DivInt => self.binary_int_op(|x, y| checked_ops::div_i64(x, y).map_err(|_| {
                 if y == 0 {
-                    VMError::DivisionByZero { location: None }
+                    VMError::DivisionByZero { location: None, stack_trace: None }
                 } else {
                     VMError::IntegerOverflow {
                         operation: "div_int".to_string(),
                         operands: (x, y),
+                        stack_trace: None,
                     }
                 }
             }))?,
@@ -694,6 +718,7 @@ impl VM {
                     expected: "int/float".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -705,6 +730,7 @@ impl VM {
                     expected: "int/float".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -716,6 +742,7 @@ impl VM {
                     expected: "int/float".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -727,6 +754,7 @@ impl VM {
                     expected: "int/float".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -744,6 +772,7 @@ impl VM {
                     expected: "bool".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -754,6 +783,7 @@ impl VM {
                     expected: "bool".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -766,6 +796,7 @@ impl VM {
                         expected: "bool".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -832,6 +863,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: local_idx,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -853,6 +885,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: local_idx,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -872,6 +905,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 0,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -891,6 +925,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 1,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -910,6 +945,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 2,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -929,6 +965,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 3,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -949,6 +986,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 0,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -968,6 +1006,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 1,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -987,6 +1026,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 2,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -1006,6 +1046,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: 3,
                         frame_size: self.stack.len() - frame.stack_base,
+                        stack_trace: None,
                     });
                 }
                 
@@ -1019,6 +1060,7 @@ impl VM {
                     _ => return Err(VMError::InvalidConstantIndex {
                         index: name_idx as u32,
                         max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1049,6 +1091,7 @@ impl VM {
                     _ => return Err(VMError::InvalidConstantIndex {
                         index: name_idx as u32,
                         max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1076,6 +1119,7 @@ impl VM {
                         expected: "list".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1089,6 +1133,7 @@ impl VM {
                         expected: "list".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1110,6 +1155,7 @@ impl VM {
                         expected: "list".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1132,6 +1178,7 @@ impl VM {
                         expected: "list".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1149,6 +1196,7 @@ impl VM {
                         expected: "list as second argument".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1163,6 +1211,7 @@ impl VM {
                         expected: "string".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1174,6 +1223,7 @@ impl VM {
                     expected: "string".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
+                    stack_trace: None,
                 }),
             })?,
             
@@ -1186,6 +1236,7 @@ impl VM {
                         expected: "string".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1199,6 +1250,7 @@ impl VM {
                         expected: "string".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1220,6 +1272,7 @@ impl VM {
                         expected: "string for operation name".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1230,6 +1283,7 @@ impl VM {
                         expected: "string for effect type".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1284,6 +1338,7 @@ impl VM {
                         expected: "string for operation name".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1294,6 +1349,7 @@ impl VM {
                         expected: "string for effect type".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1338,6 +1394,7 @@ impl VM {
                     let result = effect_context.perform_async(effect_type, &operation, &core_args).await
                         .map_err(|e| VMError::AsyncError {
                             message: format!("Async effect error: {}", e),
+                            stack_trace: None,
                         });
                     
                     // Convert result back to VM value
@@ -1370,6 +1427,7 @@ impl VM {
                         expected: "promise".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1387,6 +1445,7 @@ impl VM {
                         Err(oneshot::error::TryRecvError::Closed) => {
                             return Err(VMError::AsyncError {
                                 message: "Promise channel closed".to_string(),
+                                stack_trace: None,
                             });
                         }
                     }
@@ -1394,6 +1453,7 @@ impl VM {
                     return Err(VMError::UnknownIdentifier {
                         name: format!("promise:{}", promise_id),
                         location: None,
+                        stack_trace: None,
                     });
                 }
             }
@@ -1417,6 +1477,7 @@ impl VM {
                         resource: "channels".to_string(),
                         limit: self.resource_limits.max_channels,
                         requested: self.channels.len() + 1,
+                        stack_trace: None,
                     });
                 }
                 
@@ -1437,6 +1498,7 @@ impl VM {
                         expected: "channel".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1446,9 +1508,11 @@ impl VM {
                         .map_err(|e| match e {
                             mpsc::error::TrySendError::Full(_) => VMError::AsyncError {
                                 message: "Channel buffer full".to_string(),
+                                stack_trace: None,
                             },
                             mpsc::error::TrySendError::Closed(_) => VMError::AsyncError {
                                 message: "Channel closed".to_string(),
+                                stack_trace: None,
                             },
                         })?;
                     self.push(Value::Nil)?;
@@ -1456,6 +1520,7 @@ impl VM {
                     return Err(VMError::UnknownIdentifier {
                         name: format!("channel:{}", channel_id),
                         location: None,
+                        stack_trace: None,
                     });
                 }
             }
@@ -1469,6 +1534,7 @@ impl VM {
                         expected: "channel".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1483,6 +1549,7 @@ impl VM {
                         Err(mpsc::error::TryRecvError::Disconnected) => {
                             return Err(VMError::AsyncError {
                                 message: "Channel disconnected".to_string(),
+                                stack_trace: None,
                             });
                         }
                     }
@@ -1490,6 +1557,7 @@ impl VM {
                     return Err(VMError::UnknownIdentifier {
                         name: format!("channel:{}", channel_id),
                         location: None,
+                        stack_trace: None,
                     });
                 }
             }
@@ -1533,6 +1601,7 @@ impl VM {
                     return Err(VMError::InvalidLocalIndex {
                         index: capture_idx,
                         frame_size: frame.env.len(),
+                        stack_trace: None,
                     });
                 }
                 
@@ -1603,6 +1672,7 @@ impl VM {
                                     expected: "list as second argument".to_string(),
                                     got: value_type_name(&args[1]).to_string(),
                                     location: None,
+                                    stack_trace: None,
                                 }),
                             }
                         } else {
@@ -1649,6 +1719,7 @@ impl VM {
                                     return Err(VMError::UnknownIdentifier {
                                         name: func_name.to_string(),
                                         location: None,
+                                        stack_trace: None,
                                     });
                                 }
                             }
@@ -1659,6 +1730,7 @@ impl VM {
                         expected: "function".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1671,6 +1743,7 @@ impl VM {
                         resource: "cells".to_string(),
                         limit: self.resource_limits.max_cells,
                         requested: self.cells.len() + 1,
+                        stack_trace: None,
                     });
                 }
                 
@@ -1691,6 +1764,7 @@ impl VM {
                             return Err(VMError::CellError {
                                 index: idx,
                                 message: "Invalid cell index".to_string(),
+                                stack_trace: None,
                             });
                         }
                     }
@@ -1699,6 +1773,7 @@ impl VM {
                         expected: "cell".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1715,6 +1790,7 @@ impl VM {
                             return Err(VMError::CellError {
                                 index: idx,
                                 message: "Invalid cell index".to_string(),
+                                stack_trace: None,
                             });
                         }
                     }
@@ -1723,6 +1799,7 @@ impl VM {
                         expected: "cell".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1747,6 +1824,7 @@ impl VM {
                         expected: "string for tag".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1764,6 +1842,7 @@ impl VM {
                         expected: "tagged value".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1787,6 +1866,7 @@ impl VM {
                         expected: "tagged value".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1798,6 +1878,7 @@ impl VM {
                     _ => return Err(VMError::InvalidConstantIndex {
                         index: expected_tag_idx as u32,
                         max_index: self.bytecode.chunks[chunk_id].constants.len(),
+                        stack_trace: None,
                     }),
                 };
                 
@@ -1845,12 +1926,14 @@ impl VM {
                         return Err(VMError::ModuleError {
                             module_name: module_name.clone(),
                             message: format!("Module does not export '{}'", binding_name),
+                            stack_trace: None,
                         });
                     }
                 } else {
                     return Err(VMError::ModuleError {
                         module_name: module_name.clone(),
                         message: "Module not loaded".to_string(),
+                        stack_trace: None,
                     });
                 }
             }
@@ -1870,12 +1953,14 @@ impl VM {
                         return Err(VMError::ModuleError {
                             module_name: module_name.clone(),
                             message: format!("Module does not export '{}'", var_name),
+                            stack_trace: None,
                         });
                     }
                 } else {
                     return Err(VMError::ModuleError {
                         module_name: module_name.clone(),
                         message: "Module not found".to_string(),
+                        stack_trace: None,
                     });
                 }
             }
@@ -1935,6 +2020,7 @@ impl VM {
                         expected: "GC handle".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1952,6 +2038,7 @@ impl VM {
                         expected: "GC handle".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
+                        stack_trace: None,
                     }),
                 }
             }
@@ -1996,6 +2083,7 @@ impl VM {
                             expected: "function".to_string(),
                             got: value_type_name(&v).to_string(),
                             location: None,
+                            stack_trace: None,
                         }),
                     }
                 } else {
@@ -2048,6 +2136,7 @@ impl VM {
                         return Err(VMError::InvalidLocalIndex {
                             index: local_idx,
                             frame_size: self.stack.len() - frame.stack_base,
+                            stack_trace: None,
                         });
                     }
                 } else {
@@ -2073,6 +2162,7 @@ impl VM {
             return Err(VMError::StackOverflow {
                 current_depth: self.stack.len(),
                 max_depth: STACK_SIZE,
+                stack_trace: None,
             });
         }
         
@@ -2091,6 +2181,7 @@ impl VM {
         let value = self.stack.pop().ok_or_else(|| VMError::StackUnderflow {
             operation: "pop".to_string(),
             stack_size: self.stack.len(),
+            stack_trace: None,
         })?;
         
         // Send debug event
@@ -2109,6 +2200,7 @@ impl VM {
             return Err(VMError::StackUnderflow {
                 operation: "peek".to_string(),
                 stack_size: len,
+                stack_trace: None,
             });
         }
         Ok(&self.stack[len - 1 - offset])
@@ -2140,6 +2232,7 @@ impl VM {
                 expected: "int".to_string(),
                 got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                 location: None,
+                stack_trace: None,
             }),
         }
     }
@@ -2160,6 +2253,7 @@ impl VM {
                 expected: "int".to_string(),
                 got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                 location: None,
+                stack_trace: None,
             }),
         }
     }
@@ -2180,6 +2274,7 @@ impl VM {
                 expected: "float".to_string(),
                 got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                 location: None,
+                stack_trace: None,
             }),
         }
     }
@@ -2371,6 +2466,7 @@ impl VM {
                     let frame = self.call_stack.last().ok_or_else(|| VMError::StackUnderflow {
                 operation: "get_current_frame".to_string(),
                 stack_size: self.call_stack.len(),
+                stack_trace: None,
             })?;
                     let chunk_id = frame.chunk_id;
                     let ip = frame.ip;
@@ -2379,6 +2475,7 @@ impl VM {
                         return Err(VMError::InvalidJumpTarget {
                     target: ip,
                     chunk_size: self.bytecode.chunks[chunk_id].instructions.len(),
+                    stack_trace: None,
                 });
                     }
                     
@@ -2413,6 +2510,7 @@ impl VM {
                 expected: "function".to_string(),
                 got: value_type_name(&v).to_string(),
                 location: None,
+                stack_trace: None,
             }),
         }
     }
@@ -2528,6 +2626,7 @@ impl VM {
             .ok_or_else(|| VMError::InvalidConstantIndex {
                 index: idx,
                 max_index: self.bytecode.chunks[self.current_chunk()].constants.len(),
+                stack_trace: None,
             })?;
             
         match value {
@@ -2537,6 +2636,7 @@ impl VM {
                 expected: "string constant".to_string(),
                 got: value_type_name(value).to_string(),
                 location: None,
+                stack_trace: None,
             }),
         }
     }
@@ -2552,6 +2652,7 @@ impl VM {
             .map_err(|e| VMError::ModuleError {
                 module_name: module_name.to_string(),
                 message: e.to_string(),
+                stack_trace: None,
             })?;
         
         // Create a module value with empty exports initially
@@ -2617,4 +2718,127 @@ enum VMState {
     Continue,
     Return,
     Halt,
+}
+
+#[cfg(test)]
+mod inline_tests {
+    use super::*;
+    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    
+    #[test]
+    fn test_vm_creation_inline() {
+        let mut bytecode = Bytecode::new();
+        let mut chunk = BytecodeChunk::new(Some("test".to_string()));
+        chunk.add_instruction(Instruction::new(Opcode::Halt));
+        bytecode.chunks.push(chunk);
+        
+        let vm = VM::new(bytecode);
+        assert_eq!(vm.stack.len(), 0);
+        assert_eq!(vm.globals.len(), 0);
+        assert_eq!(vm.call_stack.len(), 0);
+    }
+    
+    #[test]
+    fn test_usage_tracker_inline() {
+        let mut tracker = UsageTracker::new();
+        let node_id = NodeId(std::num::NonZeroU32::new(1).unwrap());
+        
+        tracker.register_chunk(0, node_id);
+        tracker.record_execution(0, 1000);
+        
+        let stats = tracker.get_stats(node_id);
+        assert!(stats.is_some());
+        assert_eq!(stats.unwrap().execution_count, 1);
+    }
+    
+    #[test]
+    fn test_call_frame_creation() {
+        let frame = CallFrame {
+            chunk_id: 0,
+            ip: 0,
+            stack_base: 0,
+            env: vec![],
+            start_time: Some(Instant::now()),
+        };
+        
+        assert_eq!(frame.chunk_id, 0);
+        assert_eq!(frame.ip, 0);
+        assert_eq!(frame.stack_base, 0);
+        assert!(frame.env.is_empty());
+        assert!(frame.start_time.is_some());
+    }
+    
+    #[test]
+    fn test_usage_tracker_error_recording() {
+        let mut tracker = UsageTracker::new();
+        let node_id = NodeId(std::num::NonZeroU32::new(1).unwrap());
+        
+        tracker.register_chunk(0, node_id);
+        tracker.record_error(0);
+        
+        let stats = tracker.get_stats(node_id);
+        assert!(stats.is_some());
+        assert_eq!(stats.unwrap().error_count, 1);
+    }
+    
+    #[test]
+    fn test_usage_tracker_hot_path() {
+        let mut tracker = UsageTracker::new();
+        let node_id = NodeId(std::num::NonZeroU32::new(1).unwrap());
+        
+        tracker.register_chunk(0, node_id);
+        
+        // Execute many times to trigger hot path detection
+        for _ in 0..1001 {
+            tracker.record_execution(0, 100);
+        }
+        
+        let stats = tracker.get_stats(node_id);
+        assert!(stats.is_some());
+        assert!(stats.unwrap().is_hot_path);
+    }
+    
+    #[test]
+    fn test_usage_tracker_all_stats() {
+        let mut tracker = UsageTracker::new();
+        let node_id1 = NodeId(std::num::NonZeroU32::new(1).unwrap());
+        let node_id2 = NodeId(std::num::NonZeroU32::new(2).unwrap());
+        
+        tracker.register_chunk(0, node_id1);
+        tracker.register_chunk(1, node_id2);
+        
+        tracker.record_execution(0, 100);
+        tracker.record_execution(1, 200);
+        
+        let all_stats = tracker.get_all_stats();
+        assert_eq!(all_stats.len(), 2);
+        assert!(all_stats.contains_key(&node_id1));
+        assert!(all_stats.contains_key(&node_id2));
+    }
+    
+    #[test]
+    fn test_value_conversions() {
+        let mut bytecode = Bytecode::new();
+        let mut chunk = BytecodeChunk::new(Some("test".to_string()));
+        chunk.add_instruction(Instruction::new(Opcode::Halt));
+        bytecode.chunks.push(chunk);
+        
+        let vm = VM::new(bytecode);
+        
+        // Test VM value to stdlib value conversion
+        let vm_val = Value::Int(42);
+        let stdlib_val = vm.vm_value_to_stdlib_value(&vm_val);
+        match stdlib_val {
+            StdlibValue::Int(i) => assert_eq!(i, 42),
+            _ => panic!("Expected integer"),
+        }
+        
+        // Test list conversion
+        let vm_list = Value::List(vec![Value::Int(1), Value::Int(2)]);
+        let stdlib_list = vm.vm_value_to_stdlib_value(&vm_list);
+        match stdlib_list {
+            StdlibValue::List(_) => {},
+            _ => panic!("Expected list"),
+        }
+    }
 }

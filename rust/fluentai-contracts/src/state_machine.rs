@@ -5,6 +5,7 @@
 //! and temporal properties over state sequences.
 
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroU32;
 use fluentai_core::ast::{Graph, NodeId};
 use crate::{
     contract::{Contract, ContractCondition, ContractKind},
@@ -13,7 +14,7 @@ use crate::{
 };
 
 /// State in a finite state machine
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct State {
     /// Unique state identifier
     pub id: String,
@@ -305,16 +306,22 @@ impl StateMachine {
     
     /// Create predicate for being in a state
     fn state_predicate(&self, state_id: &str) -> ContractCondition {
-        ContractCondition::new(NodeId(0), ContractKind::Invariant)
-            .with_message(format!("in_state_{}", state_id))
+        ContractCondition::with_message(
+            NodeId(NonZeroU32::new(1).unwrap()), 
+            ContractKind::Invariant,
+            format!("in_state_{}", state_id)
+        )
     }
     
     /// Create formula for a transition
     fn transition_formula(&self, trans: &Transition) -> TemporalFormula {
         let from_pred = self.state_predicate(&trans.from);
         let to_pred = self.state_predicate(&trans.to);
-        let event_pred = ContractCondition::new(NodeId(0), ContractKind::Precondition)
-            .with_message(format!("event_{}", trans.event));
+        let event_pred = ContractCondition::with_message(
+            NodeId(NonZeroU32::new(1).unwrap()),
+            ContractKind::Precondition,
+            format!("event_{}", trans.event)
+        );
         
         let mut ante_preds = vec![atom(from_pred), atom(event_pred)];
         

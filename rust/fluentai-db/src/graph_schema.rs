@@ -3,9 +3,9 @@
 //! This module provides AST-based schema definitions that integrate with
 //! FluentAi's graph structure for better analysis and optimization.
 
-use fluentai_core::ast::{Graph, Node, NodeId, NodeKind};
+use fluentai_core::ast::{Graph, Node, NodeId};
 use std::collections::HashMap;
-use crate::error::DbResult;
+use std::num::NonZeroU32;
 
 /// Schema represented as an AST graph
 #[derive(Debug, Clone)]
@@ -362,7 +362,6 @@ impl Default for CompatibilityLevel {
 /// Schema graph builder
 pub struct SchemaGraphBuilder {
     graph: Graph,
-    current_id: u32,
     schemas: HashMap<String, NodeId>,
     tables: HashMap<(String, String), TableNode>,
     relationships: Vec<RelationshipEdge>,
@@ -372,7 +371,6 @@ impl SchemaGraphBuilder {
     pub fn new() -> Self {
         Self {
             graph: Graph::new(),
-            current_id: 0,
             schemas: HashMap::new(),
             tables: HashMap::new(),
             relationships: Vec::new(),
@@ -381,13 +379,13 @@ impl SchemaGraphBuilder {
     
     /// Create a new schema
     pub fn schema(&mut self, name: &str) -> SchemaBuilder {
-        let id = self.next_id();
-        let node = Node {
-            id,
-            kind: NodeKind::Extension(format!("Schema:{}", name)),
-            ..Default::default()
+        // Use a Module node to represent a schema
+        let node = Node::Module {
+            name: format!("Schema:{}", name),
+            exports: Vec::new(),
+            body: NodeId(NonZeroU32::new(1).unwrap()), // placeholder
         };
-        self.graph.add_node(node);
+        let id = self.graph.add_node(node);
         self.schemas.insert(name.to_string(), id);
         
         SchemaBuilder {
@@ -414,10 +412,6 @@ impl SchemaGraphBuilder {
         }
     }
     
-    fn next_id(&mut self) -> NodeId {
-        self.current_id += 1;
-        NodeId(self.current_id)
-    }
     
     /// Build the final schema graph
     pub fn build(self) -> SchemaGraph {
@@ -441,14 +435,15 @@ pub struct SchemaBuilder<'a> {
 impl<'a> SchemaBuilder<'a> {
     /// Add a table to this schema
     pub fn table(&mut self, name: &str) -> TableBuilder {
-        let id = self.builder.next_id();
-        let node = Node {
-            id,
-            kind: NodeKind::Extension(format!("Table:{}:{}", self.schema_name, name)),
-            ..Default::default()
+        // Use a Module node to represent a table
+        let node = Node::Module {
+            name: format!("Table:{}:{}", self.schema_name, name),
+            exports: Vec::new(),
+            body: NodeId(NonZeroU32::new(1).unwrap()), // placeholder
         };
-        self.builder.graph.add_node(node);
-        self.builder.graph.add_edge(self.schema_id, id);
+        let id = self.builder.graph.add_node(node);
+        // Note: add_edge doesn't exist in the current Graph API
+        // We'll need to track relationships differently
         
         TableBuilder {
             builder: self.builder,
@@ -478,26 +473,17 @@ pub struct TableBuilder<'a> {
 impl<'a> TableBuilder<'a> {
     /// Add a column to this table
     pub fn column(mut self, name: &str, data_type: &str) -> Self {
-        let col_id = self.builder.next_id();
-        let type_id = self.builder.next_id();
-        
         // Create column node
-        let col_node = Node {
-            id: col_id,
-            kind: NodeKind::Extension(format!("Column:{}", name)),
-            ..Default::default()
+        let col_node = Node::Variable {
+            name: format!("Column:{}", name),
         };
-        self.builder.graph.add_node(col_node);
-        self.builder.graph.add_edge(self.table_id, col_id);
+        let col_id = self.builder.graph.add_node(col_node);
         
         // Create type node
-        let type_node = Node {
-            id: type_id,
-            kind: NodeKind::Extension(format!("DataType:{}", data_type)),
-            ..Default::default()
+        let type_node = Node::Variable {
+            name: format!("DataType:{}", data_type),
         };
-        self.builder.graph.add_node(type_node);
-        self.builder.graph.add_edge(col_id, type_id);
+        let type_id = self.builder.graph.add_node(type_node);
         
         self.columns.push(ColumnNode {
             id: col_id,
@@ -554,10 +540,16 @@ impl<'a> RelationshipBuilder<'a> {
     
     /// Add a join condition
     pub fn join_on(mut self, left_col: &str, operator: JoinOperator, right_col: &str) -> Self {
-        // In a real implementation, we'd look up the column NodeIds
-        // For now, create placeholder nodes
-        let left_id = self.builder.next_id();
-        let right_id = self.builder.next_id();
+        // Create placeholder nodes for columns
+        let left_node = Node::Variable {
+            name: format!("JoinColumn:{}", left_col),
+        };
+        let left_id = self.builder.graph.add_node(left_node);
+        
+        let right_node = Node::Variable {
+            name: format!("JoinColumn:{}", right_col),
+        };
+        let right_id = self.builder.graph.add_node(right_node);
         
         self.join_conditions.push(JoinCondition {
             left_column: left_id,
@@ -587,7 +579,8 @@ impl<'a> RelationshipBuilder<'a> {
             });
             
             // Add edge in graph
-            self.builder.graph.add_edge(from, to);
+            // Note: Graph API doesn't support edges directly
+            // We track relationships in our own structure
         }
     }
 }

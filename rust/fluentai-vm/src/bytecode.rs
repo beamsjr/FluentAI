@@ -228,8 +228,8 @@ impl fmt::Display for Value {
                 write!(f, "}}")
             }
             Value::Function { .. } => write!(f, "<function>"),
-            Value::Promise(id) => write!(f, "<promise:{}>", id),
-            Value::Channel(id) => write!(f, "<channel:{}>", id),
+            Value::Promise(id) => write!(f, "<{}>", id),
+            Value::Channel(id) => write!(f, "<{}>", id),
             Value::Cell(idx) => write!(f, "<cell:{}>", idx),
             Value::Tagged { tag, values } => {
                 write!(f, "{}", tag)?;

@@ -130,6 +130,12 @@ pub struct Graph {
     pub metadata: FxHashMap<NodeId, NodeMetadata>,
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Graph {
     pub fn new() -> Self {
         Self {
@@ -442,7 +448,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pattern {
     Variable(String),
     Literal(Literal),
@@ -795,3 +801,6 @@ impl Node {
         }
     }
 }
+#[cfg(test)]
+#[path = "ast_tests.rs"]
+mod tests;

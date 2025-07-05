@@ -28,7 +28,7 @@ fn compile_and_run(graph: &Graph) -> Result<Value> {
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(graph)?;
     let mut vm = VM::new(bytecode);
-    vm.run()
+    Ok(vm.run()?)
 }
 
 #[test]

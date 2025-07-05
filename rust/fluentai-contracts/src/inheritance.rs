@@ -4,6 +4,7 @@
 //! to be extended, refined, and composed in a modular way.
 
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroU32;
 use fluentai_core::ast::{Graph, NodeId};
 use crate::{
     contract::{Contract, ContractCondition, ContractKind},
@@ -568,7 +569,7 @@ impl ContractHierarchy {
         // For now, we'll document that exactly one set of contracts must hold
         // In a real implementation, we would create proper AST nodes for XOR logic
         composed.preconditions.push(ContractCondition {
-            expression: NodeId(0), // Placeholder - would need proper AST node
+            expression: NodeId(NonZeroU32::new(1).unwrap()), // Placeholder - would need proper AST node
             message: Some(format!(
                 "Exactly one of {} or {} must hold (XOR composition)",
                 first.function_name,
@@ -617,7 +618,7 @@ impl ContractHierarchy {
         // If antecedent has preconditions, then consequent's preconditions must also hold
         if !antecedent.preconditions.is_empty() && !consequent.preconditions.is_empty() {
             composed.preconditions.push(ContractCondition {
-                expression: NodeId(0), // Placeholder - would need proper AST node
+                expression: NodeId(NonZeroU32::new(1).unwrap()), // Placeholder - would need proper AST node
                 message: Some(format!(
                     "If {} preconditions hold, then {} preconditions must also hold",
                     antecedent.function_name,
@@ -632,7 +633,7 @@ impl ContractHierarchy {
         // If antecedent's postconditions hold, then consequent's postconditions must hold
         if !antecedent.postconditions.is_empty() && !consequent.postconditions.is_empty() {
             composed.postconditions.push(ContractCondition {
-                expression: NodeId(0), // Placeholder - would need proper AST node
+                expression: NodeId(NonZeroU32::new(1).unwrap()), // Placeholder - would need proper AST node
                 message: Some(format!(
                     "If {} postconditions hold, then {} postconditions must also hold",
                     antecedent.function_name,
