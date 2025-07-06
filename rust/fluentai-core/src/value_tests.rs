@@ -563,4 +563,372 @@ mod tests {
         assert!(some1.deep_eq(&some2));
         assert!(!some1.deep_eq(&some3));
     }
+    
+    // ===== Error Tests =====
+    
+    #[test]
+    fn test_value_error_type_error() {
+        let err = ValueError::TypeError {
+            expected: "integer",
+            actual: "string",
+        };
+        
+        assert_eq!(format!("{}", err), "Type error: expected integer, got string");
+        assert!(err.to_string().contains("Type error"));
+        
+        // Test debug format
+        let debug_str = format!("{:?}", err);
+        assert!(debug_str.contains("TypeError"));
+    }
+    
+    #[test]
+    fn test_value_error_index_out_of_bounds() {
+        let err = ValueError::IndexOutOfBounds {
+            index: 5,
+            length: 3,
+        };
+        
+        assert_eq!(format!("{}", err), "Index 5 out of bounds for list of length 3");
+        assert!(err.to_string().contains("out of bounds"));
+    }
+    
+    #[test]
+    fn test_value_error_key_not_found() {
+        let err = ValueError::KeyNotFound("missing_key".to_string());
+        
+        assert_eq!(format!("{}", err), "Key not found: missing_key");
+        assert!(err.to_string().contains("Key not found"));
+    }
+    
+    #[test]
+    fn test_value_error_invalid_operation() {
+        let err = ValueError::InvalidOperation("Cannot divide by zero".to_string());
+        
+        assert_eq!(format!("{}", err), "Invalid operation: Cannot divide by zero");
+        assert!(err.to_string().contains("Invalid operation"));
+    }
+    
+    #[test]
+    fn test_value_error_conversion_error() {
+        let err = ValueError::ConversionError {
+            from: "string",
+            to: "integer",
+            reason: "invalid number format".to_string(),
+        };
+        
+        assert_eq!(
+            format!("{}", err),
+            "Cannot convert string to integer: invalid number format"
+        );
+        assert!(err.to_string().contains("Cannot convert"));
+    }
+    
+    #[test]
+    fn test_value_error_division_by_zero() {
+        let err = ValueError::DivisionByZero;
+        
+        assert_eq!(format!("{}", err), "Division by zero");
+    }
+    
+    #[test]
+    fn test_value_error_arity_mismatch() {
+        let err = ValueError::ArityMismatch {
+            expected: 2,
+            actual: 3,
+        };
+        
+        assert_eq!(format!("{}", err), "Function expects 2 arguments, got 3");
+        assert!(err.to_string().contains("expects 2 arguments"));
+    }
+    
+    #[test]
+    fn test_value_error_equality() {
+        let err1 = ValueError::TypeError {
+            expected: "integer",
+            actual: "string",
+        };
+        let err2 = ValueError::TypeError {
+            expected: "integer",
+            actual: "string",
+        };
+        let err3 = ValueError::TypeError {
+            expected: "float",
+            actual: "string",
+        };
+        
+        assert_eq!(err1, err2);
+        assert_ne!(err1, err3);
+        
+        // Test clone
+        let err_clone = err1.clone();
+        assert_eq!(err1, err_clone);
+    }
+    
+    #[test]
+    fn test_value_error_std_error() {
+        use std::error::Error;
+        
+        let err = ValueError::DivisionByZero;
+        
+        // Test that it implements std::error::Error
+        let _: &dyn Error = &err;
+        
+        // Source should be None for these errors
+        assert!(err.source().is_none());
+    }
+    
+    #[test]
+    fn test_value_result_type() {
+        // Test Ok case
+        let result: ValueResult<i32> = Ok(42);
+        assert_eq!(result.unwrap(), 42);
+        
+        // Test Err case
+        let result: ValueResult<i32> = Err(ValueError::DivisionByZero);
+        assert!(result.is_err());
+        match result {
+            Err(ValueError::DivisionByZero) => {},
+            _ => panic!("Wrong error type"),
+        }
+    }
+    
+    // ===== Additional Coverage Tests =====
+    
+    #[test]
+    fn test_deep_eq_edge_cases() {
+        // Test deep_eq with different types
+        assert!(!Value::Integer(42).deep_eq(&Value::String("42".to_string())));
+        assert!(!Value::List(vec![]).deep_eq(&Value::Vector(vec![])));
+        assert!(!Value::Symbol("sym".to_string()).deep_eq(&Value::String("sym".to_string())));
+        
+        // Test deep_eq with NativeFunction
+        let native1 = Value::NativeFunction {
+            name: "test".to_string(),
+            arity: 1,
+            function: Arc::new(|_| Ok(Value::Nil)),
+        };
+        let native2 = Value::NativeFunction {
+            name: "test".to_string(),
+            arity: 1,
+            function: Arc::new(|_| Ok(Value::Nil)),
+        };
+        // Different function pointers, so not equal
+        assert!(!native1.deep_eq(&native2));
+        
+        // Test deep_eq with complex nested structures
+        let map1 = {
+            let mut m = FxHashMap::default();
+            m.insert("list".to_string(), Value::List(vec![Value::Integer(1), Value::Integer(2)]));
+            m.insert("value".to_string(), Value::String("test".to_string()));
+            Value::Map(m)
+        };
+        
+        let map2 = {
+            let mut m = FxHashMap::default();
+            m.insert("list".to_string(), Value::List(vec![Value::Integer(1), Value::Integer(2)]));
+            m.insert("value".to_string(), Value::String("test".to_string()));
+            Value::Map(m)
+        };
+        
+        assert!(map1.deep_eq(&map2));
+        
+        // Test with missing key
+        let map3 = {
+            let mut m = FxHashMap::default();
+            m.insert("list".to_string(), Value::List(vec![Value::Integer(1), Value::Integer(2)]));
+            Value::Map(m)
+        };
+        
+        assert!(!map1.deep_eq(&map3));
+    }
+    
+    #[test]
+    fn test_procedure_with_environment() {
+        let mut env = FxHashMap::default();
+        env.insert("x".to_string(), Value::Integer(10));
+        env.insert("y".to_string(), Value::String("captured".to_string()));
+        
+        let proc = Procedure {
+            name: Some("closure".to_string()),
+            params: vec!["z".to_string()],
+            body: NodeId::new(1).unwrap(),
+            env: Some(env),
+        };
+        
+        let proc_val = Value::Procedure(Arc::new(proc));
+        assert!(proc_val.is_procedure());
+        
+        let proc_ref = proc_val.as_procedure().unwrap();
+        assert_eq!(proc_ref.name, Some("closure".to_string()));
+        assert_eq!(proc_ref.params.len(), 1);
+        assert!(proc_ref.env.is_some());
+        
+        let env_ref = proc_ref.env.as_ref().unwrap();
+        assert_eq!(env_ref.len(), 2);
+    }
+    
+    #[test]
+    fn test_native_function_execution() {
+        let counter = Arc::new(std::sync::Mutex::new(0));
+        let counter_clone = counter.clone();
+        
+        let native = Value::NativeFunction {
+            name: "increment".to_string(),
+            arity: 1,
+            function: Arc::new(move |args| {
+                if args.len() != 1 {
+                    return Err(ValueError::ArityMismatch {
+                        expected: 1,
+                        actual: args.len(),
+                    });
+                }
+                
+                let n = args[0].as_integer()?;
+                let mut count = counter_clone.lock().unwrap();
+                *count += 1;
+                Ok(Value::Integer(n + 1))
+            }),
+        };
+        
+        // Test function properties
+        assert!(native.is_callable());
+        assert!(!native.is_procedure());
+        
+        // Test execution through the function pointer
+        if let Value::NativeFunction { function, .. } = &native {
+            let result = function(&[Value::Integer(5)]).unwrap();
+            assert_eq!(result, Value::Integer(6));
+            
+            // Test arity error
+            let err = function(&[]).unwrap_err();
+            match err {
+                ValueError::ArityMismatch { expected: 1, actual: 0 } => {},
+                _ => panic!("Wrong error type"),
+            }
+        }
+        
+        // Verify side effect
+        assert_eq!(*counter.lock().unwrap(), 1);
+    }
+    
+    #[test]
+    fn test_display_edge_cases() {
+        // Test nested list display
+        let nested = Value::List(vec![
+            Value::List(vec![Value::Integer(1)]),
+            Value::List(vec![Value::List(vec![Value::Integer(2)])]),
+        ]);
+        assert_eq!(format!("{}", nested), "((1) ((2)))");
+        
+        // Test tagged with multiple values
+        let tagged = Value::Tagged {
+            tag: "Triple".to_string(),
+            values: vec![
+                Value::Integer(1),
+                Value::String("two".to_string()),
+                Value::Boolean(true),
+            ],
+        };
+        assert_eq!(format!("{}", tagged), "Triple(1 \"two\" #t)");
+        
+        // Test empty tagged
+        let empty_tagged = Value::Tagged {
+            tag: "Empty".to_string(),
+            values: vec![],
+        };
+        assert_eq!(format!("{}", empty_tagged), "Empty()");
+        
+        // Test procedure with name
+        let named_proc = Value::Procedure(Arc::new(Procedure {
+            name: Some("my-func".to_string()),
+            params: vec!["x".to_string(), "y".to_string()],
+            body: NodeId::new(1).unwrap(),
+            env: None,
+        }));
+        assert_eq!(format!("{}", named_proc), "#<procedure>");
+    }
+    
+    #[test]
+    fn test_numeric_comparison_nan() {
+        // Test NaN comparison
+        let nan = Value::Float(f64::NAN);
+        let num = Value::Float(1.0);
+        
+        // NaN comparisons: NaN < x and NaN > x are both false, so it returns Equal
+        let result = nan.compare_numeric(&num).unwrap();
+        assert_eq!(result, std::cmp::Ordering::Equal);
+        
+        // NaN compared to itself also returns Equal (even though NaN != NaN)
+        let nan2 = Value::Float(f64::NAN);
+        let result2 = nan.compare_numeric(&nan2).unwrap();
+        assert_eq!(result2, std::cmp::Ordering::Equal);
+        
+        // This is a limitation of the current implementation
+        // In IEEE 754, NaN comparisons should be unordered
+    }
+    
+    #[test]
+    fn test_float_special_values() {
+        // Test infinity
+        let inf = Value::Float(f64::INFINITY);
+        let neg_inf = Value::Float(f64::NEG_INFINITY);
+        let num = Value::Float(1000.0);
+        
+        assert_eq!(inf.type_name(), "float");
+        assert!(inf.is_float());
+        assert!(inf.is_number());
+        
+        // Display of special values
+        assert_eq!(format!("{}", inf), "inf");
+        assert_eq!(format!("{}", neg_inf), "-inf");
+        
+        // Comparisons with infinity
+        use std::cmp::Ordering;
+        assert_eq!(inf.compare_numeric(&num).unwrap(), Ordering::Greater);
+        assert_eq!(neg_inf.compare_numeric(&num).unwrap(), Ordering::Less);
+    }
+    
+    #[test]
+    fn test_procedure_equality_with_env() {
+        let mut env1 = FxHashMap::default();
+        env1.insert("x".to_string(), Value::Integer(1));
+        
+        let mut env2 = FxHashMap::default();
+        env2.insert("x".to_string(), Value::Integer(2));
+        
+        let proc1 = Procedure {
+            name: Some("func".to_string()),
+            params: vec!["y".to_string()],
+            body: NodeId::new(1).unwrap(),
+            env: Some(env1),
+        };
+        
+        let proc2 = Procedure {
+            name: Some("func".to_string()),
+            params: vec!["y".to_string()],
+            body: NodeId::new(1).unwrap(),
+            env: Some(env2),
+        };
+        
+        // Same structure but different environments
+        // The PartialEq implementation doesn't compare environments
+        assert_eq!(proc1, proc2);
+    }
+    
+    #[test]
+    fn test_truthy_edge_cases() {
+        // Test various edge cases for truthiness
+        assert!(Value::Integer(-1).is_truthy());
+        assert!(Value::Float(-0.0).is_truthy());
+        assert!(Value::Float(f64::NAN).is_truthy());
+        assert!(Value::Symbol("false".to_string()).is_truthy());
+        assert!(Value::Symbol("nil".to_string()).is_truthy());
+        
+        // Tagged values are always truthy
+        let none_like = Value::Tagged {
+            tag: "None".to_string(),
+            values: vec![],
+        };
+        assert!(none_like.is_truthy());
+    }
 }

@@ -1,0 +1,29 @@
+;; test-runtime.fl - Minimal runtime test to verify what works
+
+;; Test 1: Can we print?
+(print-line "Starting FluentAI runtime test...")
+
+;; Test 2: Basic arithmetic
+(define x (+ 2 3))
+(print-line x)
+
+;; Test 3: Lists
+(define nums (list 1 2 3 4 5))
+(print-line nums)
+
+;; Test 4: Higher-order functions
+(define doubled (map (lambda (n) (* n 2)) nums))
+(print-line doubled)
+
+;; Test 5: Conditionals
+(define (classify-temp temp)
+  (cond
+    ((< temp 0) "freezing")
+    ((< temp 20) "cold")
+    ((< temp 30) "comfortable")
+    (else "hot")))
+
+(print-line (classify-temp 25))
+
+;; If we get here, basic functionality works!
+(print-line "Basic tests passed!")

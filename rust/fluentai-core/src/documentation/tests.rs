@@ -131,4 +131,94 @@ mod tests {
             }
         }
     }
+    
+    #[test]
+    fn test_get_builtins() {
+        let registry = DocumentationRegistry::new();
+        let builtins = registry.get_builtins();
+        
+        assert!(!builtins.is_empty());
+        
+        // Check for common built-in functions
+        let names: Vec<_> = builtins.iter().map(|b| b.name.as_ref()).collect();
+        assert!(names.contains(&"cons"));
+        assert!(names.contains(&"car"));
+        assert!(names.contains(&"cdr"));
+        assert!(names.contains(&"+"));
+        assert!(names.contains(&"-"));
+        assert!(names.contains(&"*"));
+        assert!(names.contains(&"/"));
+        assert!(names.contains(&"="));
+        assert!(names.contains(&"print"));
+        assert!(names.contains(&"string-length"));
+        
+        // Verify all builtins have proper documentation
+        for builtin in builtins {
+            assert!(!builtin.name.is_empty());
+            assert!(!builtin.signature.is_empty());
+            assert!(!builtin.description.is_empty());
+            assert!(!builtin.examples.is_empty());
+        }
+    }
+    
+    #[test]
+    fn test_list_user_facing() {
+        let registry = DocumentationRegistry::new();
+        let user_docs = registry.list_user_facing();
+        let all_docs = registry.list_all();
+        
+        // User-facing docs should be a subset of all docs
+        assert!(user_docs.len() <= all_docs.len());
+        
+        // All user-facing docs should have Public visibility
+        for doc in &user_docs {
+            assert_eq!(doc.visibility, crate::documentation::DocumentationVisibility::Public);
+        }
+        
+        // Should include common public constructs
+        let names: Vec<_> = user_docs.iter().map(|d| d.name.as_str()).collect();
+        assert!(names.contains(&"Lambda"));
+        assert!(names.contains(&"If"));
+        assert!(names.contains(&"List"));
+        assert!(names.contains(&"Integer"));
+    }
+    
+    #[test]
+    fn test_search_user_facing() {
+        let registry = DocumentationRegistry::new();
+        
+        // Search for function-related docs
+        let results = registry.search_user_facing("function");
+        
+        // All results should be public
+        for doc in &results {
+            assert_eq!(doc.visibility, crate::documentation::DocumentationVisibility::Public);
+        }
+        
+        // Should find Lambda and Application at least
+        let names: Vec<_> = results.iter().map(|d| d.name.as_str()).collect();
+        assert!(names.contains(&"Lambda"));
+        assert!(names.contains(&"Application"));
+        
+        // Compare with regular search to ensure filtering works
+        let all_results = registry.search("function");
+        assert!(results.len() <= all_results.len());
+    }
+    
+    #[test]
+    fn test_builtin_documentation_conversion() {
+        use crate::documentation::DocumentationCategory;
+        
+        let registry = DocumentationRegistry::new();
+        let builtins = registry.get_builtins();
+        
+        // Test that builtins can be converted to Documentation
+        for builtin in builtins {
+            let doc = builtin.to_documentation();
+            assert_eq!(doc.name, builtin.name);
+            assert_eq!(doc.category, DocumentationCategory::Function);
+            assert!(!doc.syntax.is_empty());
+            assert!(!doc.description.is_empty());
+        }
+    }
 }

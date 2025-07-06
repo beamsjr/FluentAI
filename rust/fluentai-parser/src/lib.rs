@@ -28,10 +28,16 @@ mod parser_coverage_tests;
 mod parser_depth_tests;
 
 #[cfg(test)]
+mod error_handling_tests;
+
+#[cfg(test)]
 mod iterative_integration_tests;
 
 #[cfg(test)]
 mod parsing_strategies_test;
+
+#[cfg(test)]
+mod lib_tests;
 
 pub use parser::{Parser, ParseResult};
 pub use error::{ParseError, ErrorKind};

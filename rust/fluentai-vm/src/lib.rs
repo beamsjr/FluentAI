@@ -56,3 +56,5 @@ mod debug_tests;
 mod vm_integration_tests;
 #[cfg(test)]
 mod vm_simple_coverage_tests;
+#[cfg(test)]
+mod memory_pool_tests;

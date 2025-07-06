@@ -1,12 +1,11 @@
 //! Demonstrates frame conditions in contracts
 
 use fluentai_contracts::{
-    Contract, ContractCondition, ContractKind,
+    Contract,
     FrameConditionManager, FrameConditionBuilder, FrameCondition,
-    FieldAccess, IndexAccess, IndexExpr, HeapRegion,
+    FieldAccess, IndexExpr, HeapRegion,
 };
-use fluentai_core::ast::{Graph, Node, NodeId, Literal};
-use std::num::NonZeroU32;
+use fluentai_core::ast::{Graph, Node, Literal};
 
 fn main() {
     println!("=== Frame Conditions Demo ===\n");
@@ -33,7 +32,7 @@ fn main() {
 }
 
 fn demo_pure_function() {
-    let graph = Graph::new();
+    let mut graph = Graph::new();
     
     // Pure function: add(x, y) = x + y
     let body = graph.add_node(Node::Variable { name: "add-body".to_string() });
@@ -92,8 +91,8 @@ fn demo_field_modification() {
     
     // Function that updates account balance
     // account.balance := account.balance + amount
-    let account = graph.add_node(Node::Variable { name: "account".to_string() });
-    let amount = graph.add_node(Node::Variable { name: "amount".to_string() });
+    let _account = graph.add_node(Node::Variable { name: "account".to_string() });
+    let _amount = graph.add_node(Node::Variable { name: "amount".to_string() });
     
     // Simplified representation of field access/update
     let body = graph.add_node(Node::Variable { name: "update-balance-body".to_string() });
@@ -111,7 +110,7 @@ fn demo_field_modification() {
     println!("  Other fields unchanged: account.id, account.name, etc.");
     
     // Check if a specific modification is allowed
-    let manager = FrameConditionManager::new(&graph);
+    let _manager = FrameConditionManager::new(&graph);
     let allowed_field = FieldAccess {
         object: "account".to_string(),
         field: "balance".to_string(),
@@ -158,7 +157,7 @@ fn demo_array_modification() {
 }
 
 fn demo_complex_frame() {
-    let graph = Graph::new();
+    let mut graph = Graph::new();
     
     // Complex function with multiple modifications
     let body = graph.add_node(Node::Variable { name: "complex-body".to_string() });
@@ -195,7 +194,7 @@ fn demo_complex_frame() {
 fn demo_bank_transfer() {
     println!("\n\nExample 6: Bank Transfer with Precise Frame Conditions\n");
     
-    let graph = Graph::new();
+    let mut graph = Graph::new();
     let body = graph.add_node(Node::Variable { name: "transfer-body".to_string() });
     let mut contract = Contract::new("transfer".to_string(), body);
     
