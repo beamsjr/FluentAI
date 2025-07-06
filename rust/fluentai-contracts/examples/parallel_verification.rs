@@ -3,6 +3,7 @@
 use fluentai_contracts::{
     Contract, ContractCondition, ContractKind,
     ParallelVerifier, ParallelVerificationConfig, ParallelCoordinator,
+    static_verification::VerificationResult,
 };
 use fluentai_core::ast::{Graph, Node, NodeId, Literal};
 use std::collections::HashMap;
@@ -126,7 +127,7 @@ fn demo_basic_parallel(graph: &Graph, contracts: &HashMap<String, Contract>) {
             println!("  Verified {} contracts in {:?}", results.len(), elapsed);
             
             let verified = results.values().filter(|r| {
-                matches!(r, fluentai_contracts::VerificationResult::Verified)
+                matches!(r, VerificationResult::Verified)
             }).count();
             
             println!("  Successfully verified: {}/{}", verified, results.len());
@@ -192,7 +193,7 @@ fn demo_performance_comparison(graph: &Graph, contracts: &HashMap<String, Contra
     // Sequential verification (simulated)
     println!("  Sequential verification:");
     let start_seq = Instant::now();
-    let mut seq_results = HashMap::new();
+    let mut seq_results: HashMap<String, VerificationResult> = HashMap::new();
     
     #[cfg(feature = "static")]
     {

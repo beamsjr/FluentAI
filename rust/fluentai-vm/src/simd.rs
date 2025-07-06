@@ -147,7 +147,7 @@ impl SimdOps {
             return Err(anyhow!("Array lengths must match"));
         }
         for i in 0..a.len() {
-            result[i] = a[i] + b[i];
+            result[i] = a[i].wrapping_add(b[i]);
         }
         Ok(())
     }
@@ -178,8 +178,9 @@ impl SimdOps {
                 let (all_f64_a, all_i64_a) = Self::check_numeric_list(list_a);
                 let (all_f64_b, all_i64_b) = Self::check_numeric_list(list_b);
                 
-                if all_f64_a && all_f64_b {
+                if (all_f64_a && all_f64_b) || (op == SimdOp::DotProduct && all_i64_a && all_i64_b) {
                     // Convert to f64 arrays and apply SIMD
+                    // For dot product, we also accept integer lists and convert them
                     let a_vec: Vec<f64> = list_a.iter()
                         .map(|v| match v {
                             Value::Float(f) => *f,

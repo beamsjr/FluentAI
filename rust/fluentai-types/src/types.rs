@@ -741,3 +741,7 @@ mod tests {
 #[cfg(test)]
 #[path = "types_tests.rs"]
 mod types_tests;
+
+#[cfg(test)]
+#[path = "types_edge_tests.rs"]
+mod types_edge_tests;

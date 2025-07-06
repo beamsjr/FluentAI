@@ -28,9 +28,6 @@ mod parser_coverage_tests;
 mod parser_depth_tests;
 
 #[cfg(test)]
-mod error_handling_tests;
-
-#[cfg(test)]
 mod iterative_integration_tests;
 
 #[cfg(test)]

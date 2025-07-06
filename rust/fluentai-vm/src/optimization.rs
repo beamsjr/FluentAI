@@ -149,7 +149,7 @@ struct LookupEntry {
 }
 
 #[derive(Clone)]
-enum CachedValue {
+pub enum CachedValue {
     /// Cached function/method
     Function { chunk_id: usize, arity: u32 },
     /// Cached property offset
@@ -306,7 +306,9 @@ impl ProfileInfo {
     /// Get biased branches (heavily favor one direction)
     pub fn biased_branches(&self, bias_threshold: f64) -> Vec<(usize, bool)> {
         let mut biased = Vec::new();
+        let mut checked = std::collections::HashSet::new();
         
+        // Check branches that were taken at least once
         for (&pc, &taken_count) in &self.branch_taken {
             let not_taken_count = self.branch_not_taken.get(&pc).copied().unwrap_or(0);
             let total = taken_count + not_taken_count;
@@ -316,6 +318,25 @@ impl ProfileInfo {
                 if taken_ratio > bias_threshold {
                     biased.push((pc, true));
                 } else if taken_ratio < (1.0 - bias_threshold) {
+                    biased.push((pc, false));
+                }
+            }
+            checked.insert(pc);
+        }
+        
+        // Also check branches that were never taken (only in branch_not_taken)
+        for (&pc, &not_taken_count) in &self.branch_not_taken {
+            if checked.contains(&pc) {
+                continue; // Already processed
+            }
+            
+            let taken_count = 0; // Never taken
+            let total = taken_count + not_taken_count;
+            
+            if total > 0 {
+                let taken_ratio = taken_count as f64 / total as f64;
+                // taken_ratio is 0, so it's definitely < (1.0 - bias_threshold)
+                if bias_threshold < 1.0 {
                     biased.push((pc, false));
                 }
             }

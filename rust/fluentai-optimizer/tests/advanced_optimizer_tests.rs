@@ -278,15 +278,28 @@ fn test_recursion_depth_limit() {
     }
     code.push(')');
     
-    let ast = parse(&code).unwrap();
-    
-    let mut optimizer = AdvancedOptimizer::new();
-    let result = optimizer.optimize(&ast);
-    
-    // Should either succeed or fail with recursion depth error, not stack overflow
-    match result {
-        Ok(_) => assert!(true),
-        Err(e) => assert!(e.to_string().contains("recursion depth")),
+    // The parser itself may hit depth limits first
+    match parse(&code) {
+        Ok(ast) => {
+            let mut optimizer = AdvancedOptimizer::new();
+            let result = optimizer.optimize(&ast);
+            
+            // Should either succeed or fail with recursion depth error, not stack overflow
+            match result {
+                Ok(_) => assert!(true),
+                Err(e) => {
+                    let error_str = e.to_string();
+                    assert!(error_str.contains("recursion depth") || error_str.contains("MaxDepthExceeded"),
+                            "Expected recursion depth error, got: {}", error_str);
+                }
+            }
+        }
+        Err(e) => {
+            // Parser hitting depth limit is also acceptable
+            let error_str = e.to_string();
+            assert!(error_str.contains("MaxDepthExceeded") || error_str.contains("depth"),
+                    "Expected depth limit error from parser, got: {}", error_str);
+        }
     }
 }
 

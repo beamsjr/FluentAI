@@ -132,6 +132,10 @@ fn check_write_allowed() -> Result<()> {
 // Re-implement I/O functions with effect awareness
 
 pub fn file_read_with_effects(args: &[Value]) -> Result<Value> {
+    if args.is_empty() {
+        return Err(anyhow!("file-read: expected 1 argument (path)"));
+    }
+    
     let path = match &args[0] {
         Value::String(s) => s,
         _ => return Err(anyhow!("file-read: expected string path")),
@@ -153,6 +157,10 @@ pub fn file_read_with_effects(args: &[Value]) -> Result<Value> {
 }
 
 pub fn file_write_with_effects(args: &[Value]) -> Result<Value> {
+    if args.len() < 2 {
+        return Err(anyhow!("file-write: expected 2 arguments (path, content)"));
+    }
+    
     let path = match &args[0] {
         Value::String(s) => s,
         _ => return Err(anyhow!("file-write: expected string path")),
@@ -201,6 +209,10 @@ pub fn print_line_with_effects(args: &[Value]) -> Result<Value> {
 }
 
 pub fn file_append_with_effects(args: &[Value]) -> Result<Value> {
+    if args.len() < 2 {
+        return Err(anyhow!("file-append: expected 2 arguments (path, content)"));
+    }
+    
     let path = match &args[0] {
         Value::String(s) => s,
         _ => return Err(anyhow!("file-append: expected string path")),
@@ -234,6 +246,10 @@ pub fn file_append_with_effects(args: &[Value]) -> Result<Value> {
 }
 
 pub fn file_delete_with_effects(args: &[Value]) -> Result<Value> {
+    if args.is_empty() {
+        return Err(anyhow!("file-delete: expected 1 argument (path)"));
+    }
+    
     let path = match &args[0] {
         Value::String(s) => s,
         _ => return Err(anyhow!("file-delete: expected string path")),
@@ -255,6 +271,10 @@ pub fn file_delete_with_effects(args: &[Value]) -> Result<Value> {
 }
 
 pub fn file_exists_with_effects(args: &[Value]) -> Result<Value> {
+    if args.is_empty() {
+        return Err(anyhow!("file-exists?: expected 1 argument (path)"));
+    }
+    
     let path = match &args[0] {
         Value::String(s) => s,
         _ => return Err(anyhow!("file-exists?: expected string path")),
@@ -274,6 +294,10 @@ pub fn file_exists_with_effects(args: &[Value]) -> Result<Value> {
 }
 
 pub fn dir_list_with_effects(args: &[Value]) -> Result<Value> {
+    if args.is_empty() {
+        return Err(anyhow!("dir-list: expected 1 argument (path)"));
+    }
+    
     let path = match &args[0] {
         Value::String(s) => s,
         _ => return Err(anyhow!("dir-list: expected string path")),
@@ -300,6 +324,10 @@ pub fn dir_list_with_effects(args: &[Value]) -> Result<Value> {
 }
 
 pub fn dir_create_with_effects(args: &[Value]) -> Result<Value> {
+    if args.is_empty() {
+        return Err(anyhow!("dir-create: expected 1 argument (path)"));
+    }
+    
     let path = match &args[0] {
         Value::String(s) => s,
         _ => return Err(anyhow!("dir-create: expected string path")),

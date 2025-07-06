@@ -7,6 +7,7 @@ use fluentai_contracts::{
 };
 use fluentai_parser::parse;
 use fluentai_core::ast::NodeId;
+use std::num::NonZero;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Basic Contract Inheritance
@@ -17,27 +18,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             function_name: "sort".to_string(),
             preconditions: vec![
                 ContractCondition {
-                    expression: NodeId(0), // Dummy node ID
+                    expression: NodeId(NonZero::new(1).unwrap()), // Dummy node ID
                     message: Some("Input must be a list".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(1),
+                    expression: NodeId(NonZero::new(1).unwrap()),
                     message: Some("Output is sorted".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(2),
+                    expression: NodeId(NonZero::new(2).unwrap()),
                     message: Some("Output has same elements as input".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(n log n)".to_string()),
             pure: true,
-            node_id: NodeId(0),
+            frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
         };
         
         // Derived contract for a stable sort
@@ -45,32 +53,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             function_name: "stable_sort".to_string(),
             preconditions: vec![
                 ContractCondition {
-                    expression: NodeId(0),
+                    expression: NodeId(NonZero::new(1).unwrap()),
                     message: Some("Input must be a list".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(1),
+                    expression: NodeId(NonZero::new(1).unwrap()),
                     message: Some("Output is sorted".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(2),
+                    expression: NodeId(NonZero::new(2).unwrap()),
                     message: Some("Output has same elements as input".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(3),
+                    expression: NodeId(NonZero::new(3).unwrap()),
                     message: Some("Equal elements maintain relative order".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(n log n)".to_string()),
             pure: true,
-            node_id: NodeId(0),
+            frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
         };
         
         let mut hierarchy = ContractHierarchy::new();
@@ -111,28 +128,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             required_preconditions: vec![],
             required_postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(10),
+                    expression: NodeId(NonZero::new(10).unwrap()),
                     message: Some("size() >= 0".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(11),
+                    expression: NodeId(NonZero::new(11).unwrap()),
                     message: Some("empty() iff size() == 0".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
             ],
             required_invariants: vec![
                 ContractCondition {
-                    expression: NodeId(12),
+                    expression: NodeId(NonZero::new(12).unwrap()),
                     message: Some("Capacity >= size".to_string()),
                     kind: ContractKind::Invariant,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             optional_conditions: vec![
                 ContractCondition {
-                    expression: NodeId(13),
+                    expression: NodeId(NonZero::new(13).unwrap()),
                     message: Some("Thread-safe operations".to_string()),
                     kind: ContractKind::Invariant,
+                    span: None,
+                    blame_label: None,
                 }
             ],
         };
@@ -143,26 +168,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             preconditions: vec![],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(10),
+                    expression: NodeId(NonZero::new(10).unwrap()),
                     message: Some("size() >= 0".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(11),
+                    expression: NodeId(NonZero::new(11).unwrap()),
                     message: Some("empty() iff size() == 0".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
             ],
             invariants: vec![
                 ContractCondition {
-                    expression: NodeId(12),
+                    expression: NodeId(NonZero::new(12).unwrap()),
                     message: Some("Capacity >= size".to_string()),
                     kind: ContractKind::Invariant,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             complexity: Some("O(1) for size, O(n) for search".to_string()),
             pure: false,
-            node_id: NodeId(0),
+            frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
         };
         
         let mut hierarchy = ContractHierarchy::new();
@@ -184,22 +216,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             function_name: "binary_search".to_string(),
             preconditions: vec![
                 ContractCondition {
-                    expression: NodeId(20),
+                    expression: NodeId(NonZero::new(20).unwrap()),
                     message: Some("Array is sorted".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(21),
+                    expression: NodeId(NonZero::new(21).unwrap()),
                     message: Some("Returns index if found, -1 otherwise".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(log n)".to_string()),
             pure: true,
-            node_id: NodeId(0),
+            frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
         };
         
         // Refined binary search with bounds checking
@@ -207,43 +244,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             function_name: "safe_binary_search".to_string(),
             preconditions: vec![
                 ContractCondition {
-                    expression: NodeId(20),
+                    expression: NodeId(NonZero::new(20).unwrap()),
                     message: Some("Array is sorted".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(22),
+                    expression: NodeId(NonZero::new(22).unwrap()),
                     message: Some("Array is non-null".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(23),
+                    expression: NodeId(NonZero::new(23).unwrap()),
                     message: Some("Search bounds are valid".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(21),
+                    expression: NodeId(NonZero::new(21).unwrap()),
                     message: Some("Returns index if found, -1 otherwise".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(24),
+                    expression: NodeId(NonZero::new(24).unwrap()),
                     message: Some("No array access out of bounds".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![
                 ContractCondition {
-                    expression: NodeId(25),
+                    expression: NodeId(NonZero::new(25).unwrap()),
                     message: Some("Low <= high throughout execution".to_string()),
                     kind: ContractKind::Invariant,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             complexity: Some("O(log n)".to_string()),
             pure: true,
-            node_id: NodeId(0),
+            frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
         };
         
         let mut hierarchy = ContractHierarchy::new();
@@ -284,20 +334,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             preconditions: vec![],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(30),
+                    expression: NodeId(NonZero::new(30).unwrap()),
                     message: Some("Input is non-null".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(31),
+                    expression: NodeId(NonZero::new(31).unwrap()),
                     message: Some("Input length > 0".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(1)".to_string()),
             pure: true,
-            node_id: NodeId(0),
+            frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
         };
         
         // Contract for processing
@@ -305,27 +360,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             function_name: "process_data".to_string(),
             preconditions: vec![
                 ContractCondition {
-                    expression: NodeId(30),
+                    expression: NodeId(NonZero::new(30).unwrap()),
                     message: Some("Input is non-null".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 },
                 ContractCondition {
-                    expression: NodeId(31),
+                    expression: NodeId(NonZero::new(31).unwrap()),
                     message: Some("Input length > 0".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(32),
+                    expression: NodeId(NonZero::new(32).unwrap()),
                     message: Some("Data is processed".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(n)".to_string()),
             pure: false,
-            node_id: NodeId(0),
+            frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
         };
         
         let mut hierarchy = ContractHierarchy::new();
@@ -356,60 +418,75 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 preconditions: vec![],
                 postconditions: vec![
                     ContractCondition {
-                        expression: NodeId(40),
+                        expression: NodeId(NonZero::new(40).unwrap()),
                         message: Some("Has name".to_string()),
                         kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                     }
                 ],
                 invariants: vec![],
                 complexity: None,
                 pure: true,
-                node_id: NodeId(0),
+                frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
             })
             .contract(Contract {
                 function_name: "Mammal".to_string(),
                 preconditions: vec![],
                 postconditions: vec![
                     ContractCondition {
-                        expression: NodeId(40),
+                        expression: NodeId(NonZero::new(40).unwrap()),
                         message: Some("Has name".to_string()),
                         kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                     },
                     ContractCondition {
-                        expression: NodeId(41),
+                        expression: NodeId(NonZero::new(41).unwrap()),
                         message: Some("Is warm-blooded".to_string()),
                         kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                     }
                 ],
                 invariants: vec![],
                 complexity: None,
                 pure: true,
-                node_id: NodeId(0),
+                frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
             })
             .contract(Contract {
                 function_name: "Dog".to_string(),
                 preconditions: vec![],
                 postconditions: vec![
                     ContractCondition {
-                        expression: NodeId(40),
+                        expression: NodeId(NonZero::new(40).unwrap()),
                         message: Some("Has name".to_string()),
                         kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                     },
                     ContractCondition {
-                        expression: NodeId(41),
+                        expression: NodeId(NonZero::new(41).unwrap()),
                         message: Some("Is warm-blooded".to_string()),
                         kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                     },
                     ContractCondition {
-                        expression: NodeId(42),
+                        expression: NodeId(NonZero::new(42).unwrap()),
                         message: Some("Can bark".to_string()),
                         kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                     }
                 ],
                 invariants: vec![],
                 complexity: None,
                 pure: true,
-                node_id: NodeId(0),
+                frame_condition: None,
+            node_id: NodeId(NonZero::new(1).unwrap()),
             })
             .inherits("Animal".to_string(), "Mammal".to_string(), InheritanceType::Standard)
             .inherits("Mammal".to_string(), "Dog".to_string(), InheritanceType::Standard)

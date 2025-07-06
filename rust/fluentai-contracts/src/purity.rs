@@ -283,6 +283,9 @@ impl<'a> PurityChecker<'a> {
 }
 
 #[cfg(test)]
+mod purity_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     

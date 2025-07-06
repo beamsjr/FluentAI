@@ -6,6 +6,7 @@ use fluentai_contracts::{
     parallel_execution::{ParallelSymbolicExecutor, ParallelConfig, benchmark_parallel_execution},
 };
 use std::time::Instant;
+use std::num::NonZero;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Parallel Symbolic Execution Demo ===\n");
@@ -52,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let parallel_executor = ParallelSymbolicExecutor::new(graph.clone());
         
         // Find function ID (simplified)
-        let function_id = fluentai_core::ast::NodeId(1); // Would need proper lookup
+        let function_id = fluentai_core::ast::NodeId(NonZero::new(1).unwrap()); // Would need proper lookup
         
         let start = Instant::now();
         let parallel_states = parallel_executor.execute_function(
@@ -102,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         let start = Instant::now();
         let states = parallel_executor.execute_function(
-            fluentai_core::ast::NodeId(1),
+            fluentai_core::ast::NodeId(NonZero::new(1).unwrap()),
             &["n".to_string()]
         )?;
         let duration = start.elapsed();
@@ -127,9 +128,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         // Execute multiple functions in parallel
         let functions = vec![
-            (fluentai_core::ast::NodeId(1), vec!["x".to_string()]),
-            (fluentai_core::ast::NodeId(2), vec!["x".to_string(), "y".to_string()]),
-            (fluentai_core::ast::NodeId(3), vec!["a".to_string(), "b".to_string(), "c".to_string()]),
+            (fluentai_core::ast::NodeId(NonZero::new(1).unwrap()), vec!["x".to_string()]),
+            (fluentai_core::ast::NodeId(NonZero::new(2).unwrap()), vec!["x".to_string(), "y".to_string()]),
+            (fluentai_core::ast::NodeId(NonZero::new(3).unwrap()), vec!["a".to_string(), "b".to_string(), "c".to_string()]),
         ];
         
         let start = Instant::now();

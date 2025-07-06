@@ -165,7 +165,7 @@ pub fn fresh_global_type_var(prefix: &str) -> TypeVariable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{FunctionType, ListType};
+    use crate::types::ListType;
 
     #[test]
     fn test_environment_basics() {

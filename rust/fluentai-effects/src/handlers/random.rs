@@ -3,7 +3,7 @@
 use crate::{EffectHandler, EffectResult};
 use async_trait::async_trait;
 use fluentai_core::{ast::EffectType, value::Value, error::Error};
-use rand::{thread_rng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 use std::sync::{Arc, Mutex};
 
@@ -45,7 +45,11 @@ impl EffectHandler for RandomHandler {
                 if args.len() >= 2 {
                     if let (Some(Value::Integer(min)), Some(Value::Integer(max))) = 
                         (args.get(0), args.get(1)) {
-                        Ok(Value::Integer(rng.gen_range(*min..*max)))
+                        if min >= max {
+                            Err(Error::Runtime("random:int requires min < max".to_string()))
+                        } else {
+                            Ok(Value::Integer(rng.gen_range(*min..*max)))
+                        }
                     } else {
                         Err(Error::Runtime("random:int requires integer bounds".to_string()))
                     }
@@ -58,7 +62,11 @@ impl EffectHandler for RandomHandler {
                 if args.len() >= 2 {
                     if let (Some(Value::Float(min)), Some(Value::Float(max))) = 
                         (args.get(0), args.get(1)) {
-                        Ok(Value::Float(rng.gen_range(*min..*max)))
+                        if min >= max {
+                            Err(Error::Runtime("random:float requires min < max".to_string()))
+                        } else {
+                            Ok(Value::Float(rng.gen_range(*min..*max)))
+                        }
                     } else {
                         Err(Error::Runtime("random:float requires float bounds".to_string()))
                     }

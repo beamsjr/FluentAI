@@ -2,7 +2,6 @@
 mod tests {
     use crate::types::*;
     use fluentai_core::ast::EffectType;
-    use rustc_hash::FxHashMap;
     use std::collections::HashSet;
     
     // ===== TypeKind Tests =====

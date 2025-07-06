@@ -292,4 +292,320 @@ mod advanced_unification_tests {
         assert_eq!(a_result.to_string(), "Int");
         assert_eq!(b_result.to_string(), "String");
     }
+
+    // ===== Additional Edge Case Tests =====
+
+    #[test]
+    fn test_substitution_contains_var() {
+        let mut subst = Substitution::new();
+        subst.insert("T".to_string(), TypedValue::primitive(PrimitiveType::int()));
+        
+        assert!(subst.contains_var("T"));
+        assert!(!subst.contains_var("U"));
+    }
+
+    #[test]
+    fn test_substitution_default() {
+        let subst1 = Substitution::new();
+        let subst2 = Substitution::default();
+        
+        // Both should be empty
+        assert!(!subst1.contains_var("T"));
+        assert!(!subst2.contains_var("T"));
+    }
+
+    #[test]
+    fn test_unifier_default() {
+        let unifier1 = Unifier::new();
+        let unifier2 = Unifier::default();
+        
+        // Both should have empty substitutions
+        assert!(!unifier1.substitution().contains_var("T"));
+        assert!(!unifier2.substitution().contains_var("T"));
+    }
+
+    #[test]
+    fn test_tuple_unification() {
+        let mut unifier = Unifier::new();
+        
+        // Create tuple types
+        let tuple1 = TypedValue::tuple(TupleType::new(vec![
+            TypedValue::primitive(PrimitiveType::int()),
+            TypedValue::primitive(PrimitiveType::string()),
+        ]));
+        
+        let tuple2 = TypedValue::tuple(TupleType::new(vec![
+            TypedValue::primitive(PrimitiveType::int()),
+            TypedValue::primitive(PrimitiveType::string()),
+        ]));
+        
+        // Should unify
+        assert!(unifier.unify(&tuple1, &tuple2).is_ok());
+        
+        // Different element types shouldn't unify
+        let tuple3 = TypedValue::tuple(TupleType::new(vec![
+            TypedValue::primitive(PrimitiveType::bool()),
+            TypedValue::primitive(PrimitiveType::string()),
+        ]));
+        
+        let mut unifier2 = Unifier::new();
+        assert!(unifier2.unify(&tuple1, &tuple3).is_err());
+        
+        // Different arities shouldn't unify
+        let tuple4 = TypedValue::tuple(TupleType::new(vec![
+            TypedValue::primitive(PrimitiveType::int()),
+        ]));
+        
+        let mut unifier3 = Unifier::new();
+        let result = unifier3.unify(&tuple1, &tuple4);
+        assert!(result.is_err());
+        match result {
+            Err(UnificationError::ArityMismatch { expected, found }) => {
+                assert_eq!(expected, 2);
+                assert_eq!(found, 1);
+            }
+            _ => panic!("Expected ArityMismatch error"),
+        }
+    }
+
+    #[test]
+    fn test_record_field_mismatch() {
+        let mut unifier = Unifier::new();
+        
+        // Create records with different number of fields
+        let mut fields1 = FxHashMap::default();
+        fields1.insert("x".to_string(), TypedValue::primitive(PrimitiveType::int()));
+        let record1 = TypedValue::record(RecordType { fields: fields1 });
+        
+        let mut fields2 = FxHashMap::default();
+        fields2.insert("x".to_string(), TypedValue::primitive(PrimitiveType::int()));
+        fields2.insert("y".to_string(), TypedValue::primitive(PrimitiveType::string()));
+        let record2 = TypedValue::record(RecordType { fields: fields2 });
+        
+        // Should fail with RecordFieldMismatch
+        let result = unifier.unify(&record1, &record2);
+        assert!(matches!(result, Err(UnificationError::RecordFieldMismatch)));
+    }
+
+    #[test]
+    fn test_variant_payload_mismatch() {
+        let mut unifier = Unifier::new();
+        
+        // Create variants with mismatched payloads
+        let variant1 = TypedValue::variant(
+            VariantType::new()
+                .with_variant("Some", Some(TypedValue::primitive(PrimitiveType::int())))
+                .with_variant("None", None)
+        );
+        
+        let variant2 = TypedValue::variant(
+            VariantType::new()
+                .with_variant("Some", None) // No payload where one is expected
+                .with_variant("None", None)
+        );
+        
+        // Should fail with VariantMismatch
+        let result = unifier.unify(&variant1, &variant2);
+        assert!(matches!(result, Err(UnificationError::VariantMismatch)));
+    }
+
+    #[test]
+    fn test_variant_tag_mismatch() {
+        let mut unifier = Unifier::new();
+        
+        // Create variants with different tags
+        let variant1 = TypedValue::variant(
+            VariantType::new()
+                .with_variant("Ok", Some(TypedValue::primitive(PrimitiveType::int())))
+                .with_variant("Err", Some(TypedValue::primitive(PrimitiveType::string())))
+        );
+        
+        let variant2 = TypedValue::variant(
+            VariantType::new()
+                .with_variant("Success", Some(TypedValue::primitive(PrimitiveType::int())))
+                .with_variant("Failure", Some(TypedValue::primitive(PrimitiveType::string())))
+        );
+        
+        // Should fail with VariantMismatch
+        assert!(unifier.unify(&variant1, &variant2).is_err());
+    }
+
+    #[test]
+    fn test_effect_payload_mismatch() {
+        let mut unifier = Unifier::new();
+        
+        // Create effect types with mismatched payloads
+        let effect1 = TypedValue::effect(EffectTypeWrapper {
+            effect_kind: fluentai_core::ast::EffectType::IO,
+            payload_type: Some(Box::new(TypedValue::primitive(PrimitiveType::string()))),
+        });
+        
+        let effect2 = TypedValue::effect(EffectTypeWrapper {
+            effect_kind: fluentai_core::ast::EffectType::IO,
+            payload_type: None, // No payload where one is expected
+        });
+        
+        // Should fail
+        assert!(unifier.unify(&effect1, &effect2).is_err());
+    }
+
+    #[test]
+    fn test_kind_mismatch_error() {
+        let mut unifier = Unifier::new();
+        
+        let int_type = TypedValue::primitive(PrimitiveType::int());
+        let list_type = TypedValue::list(ListType::new(TypedValue::primitive(PrimitiveType::int())));
+        
+        // Should fail with KindMismatch
+        let result = unifier.unify(&int_type, &list_type);
+        assert!(result.is_err());
+        match result {
+            Err(UnificationError::KindMismatch { expected, found }) => {
+                assert_eq!(expected, TypeKind::Primitive);
+                assert_eq!(found, TypeKind::List);
+            }
+            _ => panic!("Expected KindMismatch error"),
+        }
+    }
+
+    #[test]
+    fn test_complex_occurs_check_in_record() {
+        let mut unifier = Unifier::new();
+        
+        // Create record with self-referential field
+        let t = TypedValue::variable(TypeVariable::new("T"));
+        let mut fields = FxHashMap::default();
+        fields.insert("self".to_string(), t.clone());
+        let record = TypedValue::record(RecordType { fields });
+        
+        // Should fail occurs check
+        assert!(unifier.unify(&t, &record).is_err());
+    }
+
+    #[test]
+    fn test_complex_occurs_check_in_variant() {
+        let mut unifier = Unifier::new();
+        
+        // Create variant with self-referential payload
+        let t = TypedValue::variable(TypeVariable::new("T"));
+        let variant = TypedValue::variant(
+            VariantType::new()
+                .with_variant("Recursive", Some(t.clone()))
+        );
+        
+        // Should fail occurs check
+        assert!(unifier.unify(&t, &variant).is_err());
+    }
+
+    #[test]
+    fn test_occurs_check_in_uncertain_type() {
+        let mut unifier = Unifier::new();
+        
+        let t = TypedValue::variable(TypeVariable::new("T"));
+        let uncertain = TypedValue::uncertain(UncertainType {
+            base_type: Box::new(t.clone()),
+            confidence: 0.9,
+            distribution: "normal".to_string(),
+        });
+        
+        // Should fail occurs check
+        assert!(unifier.unify(&t, &uncertain).is_err());
+    }
+
+    #[test]
+    fn test_occurs_check_in_temporal_type() {
+        let mut unifier = Unifier::new();
+        
+        let t = TypedValue::variable(TypeVariable::new("T"));
+        let temporal = TypedValue::temporal(TemporalType {
+            base_type: Box::new(t.clone()),
+            constraint: "always".to_string(),
+        });
+        
+        // Should fail occurs check
+        assert!(unifier.unify(&t, &temporal).is_err());
+    }
+
+    #[test]
+    fn test_occurs_check_in_effect_type() {
+        let mut unifier = Unifier::new();
+        
+        let t = TypedValue::variable(TypeVariable::new("T"));
+        let effect = TypedValue::effect(EffectTypeWrapper {
+            effect_kind: fluentai_core::ast::EffectType::IO,
+            payload_type: Some(Box::new(t.clone())),
+        });
+        
+        // Should fail occurs check
+        assert!(unifier.unify(&t, &effect).is_err());
+    }
+
+    #[test]
+    fn test_substitution_application_on_functions() {
+        let mut subst = Substitution::new();
+        subst.insert("T".to_string(), TypedValue::primitive(PrimitiveType::int()));
+        
+        // Create a function with type variable
+        let func = TypedValue::function(FunctionType::new(
+            vec![TypedValue::variable(TypeVariable::new("T"))],
+            TypedValue::variable(TypeVariable::new("T")),
+        ));
+        
+        // Apply substitution
+        let result = subst.apply_type(&func);
+        
+        // Check that T was replaced with Int
+        match &result.inner {
+            TypedValueInner::Function(f) => {
+                assert_eq!(f.params[0].to_string(), "Int");
+                assert_eq!(f.result.to_string(), "Int");
+            }
+            _ => panic!("Expected function type"),
+        }
+    }
+
+    #[test]
+    fn test_error_display() {
+        // Test error display implementations
+        let err1 = UnificationError::TypeMismatch("Int".to_string(), "String".to_string());
+        assert!(err1.to_string().contains("Cannot unify Int with String"));
+        
+        let err2 = UnificationError::OccursCheck("T".to_string(), "[T]".to_string());
+        assert!(err2.to_string().contains("Occurs check failed: T occurs in [T]"));
+        
+        let err3 = UnificationError::KindMismatch {
+            expected: TypeKind::Function,
+            found: TypeKind::List,
+        };
+        assert!(err3.to_string().contains("Kind mismatch"));
+        
+        let err4 = UnificationError::ArityMismatch {
+            expected: 2,
+            found: 3,
+        };
+        assert!(err4.to_string().contains("Arity mismatch: expected 2 arguments, found 3"));
+        
+        let err5 = UnificationError::RecordFieldMismatch;
+        assert!(err5.to_string().contains("Record field mismatch"));
+        
+        let err6 = UnificationError::VariantMismatch;
+        assert!(err6.to_string().contains("Variant mismatch"));
+    }
+
+    #[test]
+    fn test_unify_with_type_constraints() {
+        let mut unifier = Unifier::new();
+        
+        // Create type variables with constraints
+        let t1 = TypedValue::variable(
+            TypeVariable::new("T").with_constraint(TypeConstraint::Numeric)
+        );
+        let t2 = TypedValue::variable(
+            TypeVariable::new("U").with_constraint(TypeConstraint::Comparable)
+        );
+        
+        // Currently constraints are not checked during unification
+        // But they should unify as variables
+        assert!(unifier.unify(&t1, &t2).is_ok());
+    }
 }

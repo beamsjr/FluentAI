@@ -347,6 +347,9 @@ impl FrameConditionBuilder {
 }
 
 #[cfg(test)]
+mod frame_conditions_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     

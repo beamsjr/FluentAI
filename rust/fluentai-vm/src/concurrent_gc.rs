@@ -621,6 +621,15 @@ impl ConcurrentGc {
     }
 }
 
+impl Drop for ConcurrentGc {
+    fn drop(&mut self) {
+        // Signal shutdown to GC thread
+        self.shutdown.store(true, Ordering::SeqCst);
+        // Note: We can't join the thread here because we don't have ownership
+        // The thread will exit on its own when it sees the shutdown flag
+    }
+}
+
 impl Generation {
     fn new(size: usize) -> Self {
         Self {

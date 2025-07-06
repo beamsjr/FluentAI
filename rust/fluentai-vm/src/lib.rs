@@ -36,7 +36,7 @@ pub use typed_stack::{TypedStack, TypeTag};
 pub use memory_pool::{MemoryPool, PoolConfig, ObjectPool, SlabAllocator};
 pub use concurrent::{LockFreeStack, LockFreeQueue, BoundedQueue, WorkStealingDeque};
 pub use fast_channel::{FastChannel, ChannelMode, channel, Sender, Receiver};
-pub use optimization::{InstructionFusion, InlineCache, ProfileInfo, FusedOpcode};
+pub use optimization::{InstructionFusion, InlineCache, ProfileInfo, FusedOpcode, CachedValue};
 pub use simd::{SimdOps, SimdOp, PortableSimd};
 pub use concurrent_gc::{ConcurrentGc, ConcurrentGcConfig};
 pub use usage_tracker::{UsageTracker, UsageStats};
@@ -58,3 +58,11 @@ mod vm_integration_tests;
 mod vm_simple_coverage_tests;
 #[cfg(test)]
 mod memory_pool_tests;
+#[cfg(test)]
+mod gc_tests;
+#[cfg(test)]
+mod security_tests;
+#[cfg(test)]
+mod error_tests;
+#[cfg(test)]
+mod builder_tests;

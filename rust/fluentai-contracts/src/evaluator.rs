@@ -557,3 +557,6 @@ impl<'a> ConditionEvaluator<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod evaluator_tests;

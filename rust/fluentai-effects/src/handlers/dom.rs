@@ -256,7 +256,7 @@ impl EffectHandler for DomHandler {
                     Err(Error::Runtime("dom:add_event_listener requires 3 arguments".to_string()))
                 }
             }
-            _ => self.handle_sync(operation, args),
+            _ => Err(Error::Runtime(format!("Unknown DOM operation: {}", operation))),
         }
     }
     

@@ -104,12 +104,14 @@ fn demo_factorial() {
             .with_blame("n must be non-negative".to_string())
     );
     
+    // Create termination measure: n decreases
+    let measure = {
+        let mut measure_builder = TerminationMeasureBuilder::new(&mut graph);
+        measure_builder.numeric_measure("n")
+    };
+    
     // Create termination checker and add measure
     let mut checker = TerminationChecker::new(&graph);
-    
-    // Add termination measure: n decreases
-    let mut measure_builder = TerminationMeasureBuilder::new(&mut graph);
-    let measure = measure_builder.numeric_measure("n");
     checker.add_termination_measure("factorial".to_string(), measure);
     
     match checker.analyze_contract(&contract) {

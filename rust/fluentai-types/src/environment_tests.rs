@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
     use crate::environment::{TypeEnvironment, TypeEnvironmentBuilder};
-    use crate::types::{PrimitiveType, FunctionType, ListType, TypedValue, TypeConstraint};
+    use crate::types::{PrimitiveType, FunctionType, ListType, TypedValue, RecordType};
     use fluentai_core::ast::EffectType;
     use std::collections::HashSet;
+    use rustc_hash::FxHashMap;
     
     // ===== Basic Environment Tests =====
     
@@ -396,5 +397,149 @@ mod tests {
         // Should continue from the same counter
         assert_eq!(var1.name, "T0");
         assert_eq!(var2.name, "T1");
+    }
+
+    // ===== Additional Edge Case Tests =====
+
+    #[test]
+    fn test_environment_default() {
+        let env1 = TypeEnvironment::new();
+        let env2 = TypeEnvironment::default();
+        
+        // Both should have the same primitive types
+        assert_eq!(env1.lookup("Int"), env2.lookup("Int"));
+        assert_eq!(env1.lookup("String"), env2.lookup("String"));
+    }
+
+    #[test]
+    fn test_child_environment() {
+        let mut parent = TypeEnvironment::new();
+        parent.bind("x", TypedValue::primitive(PrimitiveType::int()));
+        
+        let mut child = parent.child();
+        
+        // Child should have parent's bindings
+        assert!(child.lookup("x").is_some());
+        assert_eq!(child.lookup("x").unwrap().to_string(), "Int");
+        
+        // Child should have one more scope than parent
+        assert_eq!(child.scope_depth(), parent.scope_depth() + 1);
+        
+        // Binding in child shouldn't affect parent
+        child.bind("y", TypedValue::primitive(PrimitiveType::string()));
+        assert!(child.lookup("y").is_some());
+        assert!(parent.lookup("y").is_none());
+    }
+
+    #[test]
+    fn test_type_definition_lookup() {
+        let mut env = TypeEnvironment::new();
+        
+        // Define a custom type alias
+        let my_list = TypedValue::list(ListType::new(
+            TypedValue::primitive(PrimitiveType::int())
+        ));
+        env.define_type("IntList", my_list.clone());
+        
+        // Should be able to look it up via regular lookup
+        assert!(env.lookup("IntList").is_some());
+        assert_eq!(env.lookup("IntList").unwrap(), &my_list);
+        
+        // Should not find undefined types
+        assert!(env.lookup("UndefinedType").is_none());
+    }
+
+    #[test]
+    fn test_scope_depth() {
+        let mut env = TypeEnvironment::new();
+        
+        // Initial scope depth
+        let initial_depth = env.scope_depth();
+        
+        // Push some scopes
+        env.push_scope();
+        assert_eq!(env.scope_depth(), initial_depth + 1);
+        
+        env.push_scope();
+        assert_eq!(env.scope_depth(), initial_depth + 2);
+        
+        // Pop scopes
+        env.pop_scope();
+        assert_eq!(env.scope_depth(), initial_depth + 1);
+        
+        env.pop_scope();
+        assert_eq!(env.scope_depth(), initial_depth);
+    }
+
+    #[test]
+    fn test_type_variables_are_unique() {
+        let mut env1 = TypeEnvironment::new();
+        let mut env2 = TypeEnvironment::new();
+        
+        // Fresh type variables from same environment should be unique
+        let t1 = env1.fresh_type("T");
+        let t2 = env1.fresh_type("T");
+        
+        // Even with same prefix, they should be different
+        assert_ne!(t1.to_string(), t2.to_string());
+        
+        // Different environments start with same counter, so they would produce same names
+        let t3 = env2.fresh_type("T");
+        assert_eq!(t3.to_string(), "T0"); // Same as t1 was
+    }
+
+    #[test]
+    fn test_complex_type_definitions() {
+        let mut env = TypeEnvironment::new();
+        
+        // Define a function type
+        let int_to_string = TypedValue::function(FunctionType::new(
+            vec![TypedValue::primitive(PrimitiveType::int())],
+            TypedValue::primitive(PrimitiveType::string()),
+        ));
+        env.define_type("IntToString", int_to_string.clone());
+        
+        // Define a record type
+        let mut fields = FxHashMap::default();
+        fields.insert("x".to_string(), TypedValue::primitive(PrimitiveType::float()));
+        fields.insert("y".to_string(), TypedValue::primitive(PrimitiveType::float()));
+        let point = TypedValue::record(RecordType { fields });
+        env.define_type("Point", point.clone());
+        
+        // Both should be retrievable
+        assert_eq!(env.lookup("IntToString"), Some(&int_to_string));
+        assert_eq!(env.lookup("Point"), Some(&point));
+    }
+
+    #[test]
+    fn test_pop_scope_beyond_initial() {
+        let mut env = TypeEnvironment::new();
+        
+        // Should have at least one scope initially
+        let initial_depth = env.scope_depth();
+        assert!(initial_depth > 0);
+        
+        // Pop all scopes except the last one
+        for _ in 1..initial_depth {
+            env.pop_scope();
+        }
+        
+        // Should still have one scope
+        assert_eq!(env.scope_depth(), 1);
+        
+        // Popping the last scope should have no effect (maintains at least 1)
+        env.pop_scope();
+        assert_eq!(env.scope_depth(), 1); // Maintains at least 1 scope
+    }
+
+    #[test]
+    fn test_environment_builder_default() {
+        let builder = TypeEnvironmentBuilder::new();
+        let env = builder.build();
+        
+        // Should have primitive types from default environment
+        assert!(env.lookup("Int").is_some());
+        assert!(env.lookup("String").is_some());
+        assert!(env.lookup("Bool").is_some());
     }
 }

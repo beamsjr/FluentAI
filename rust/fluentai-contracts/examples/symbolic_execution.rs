@@ -36,34 +36,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   x))
         "#;
         
-        let graph = parse(program)?;
+        let mut graph = parse(program)?;
         
         // Find the function node
         let function_id = find_definition(&graph, "abs")
             .expect("Function 'abs' not found");
         
         // Create a contract: result should always be non-negative
+        // Build nodes separately to avoid borrow checker issues
+        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
+        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
+        let zero_lit = graph.add_node(fluentai_core::ast::Node::Literal(
+            fluentai_core::ast::Literal::Integer(0)
+        ));
+        
+        let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
+            function: ge_fn,
+            args: vec![result_var, zero_lit],
+        });
+        
         let contract = Contract {
             function_name: "abs".to_string(),
             preconditions: vec![],
             postconditions: vec![
                 ContractCondition {
-                    expression: graph.add_node(fluentai_core::ast::Node::Application {
-                        function: graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() } ),
-                        args: vec![
-                            graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() } ),
-                            graph.add_node(fluentai_core::ast::Node::Literal(
-                                fluentai_core::ast::Literal::Integer(0)
-                            )),
-                        ],
-                    }),
+                    expression: postcond_expr,
                     message: Some("Result must be non-negative".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: Some("postcondition".to_string()),
                 }
             ],
             invariants: vec![],
             complexity: None,
             pure: true,
+            frame_condition: None,
             node_id: function_id,
         };
         
@@ -100,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                       0)))
         "#;
         
-        let graph = parse(program)?;
+        let mut graph = parse(program)?;
         
         let function_id = find_definition(&graph, "sign")
             .expect("Function 'sign' not found");
@@ -136,7 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
               (sum-helper 1 0))
         "#;
         
-        let graph = parse(program)?;
+        let mut graph = parse(program)?;
         
         let function_id = find_definition(&graph, "sum-to-n")
             .expect("Function 'sum-to-n' not found");
@@ -164,51 +171,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   (/ x y)))
         "#;
         
-        let graph = parse(program)?;
+        let mut graph = parse(program)?;
         
         let function_id = find_definition(&graph, "safe-divide")
             .expect("Function 'safe-divide' not found");
         
         // Contract: if y != 0, result should be x/y
+        // Build nodes separately to avoid borrow checker issues
+        let or_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "or".to_string() });
+        let eq_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() });
+        let eq_fn2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() });
+        let div_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "/".to_string() });
+        let y_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() });
+        let y_var2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() });
+        let x_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "x".to_string() });
+        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
+        let zero_lit = graph.add_node(fluentai_core::ast::Node::Literal(
+            fluentai_core::ast::Literal::Integer(0)
+        ));
+        
+        // Build y == 0 check
+        let y_eq_zero = graph.add_node(fluentai_core::ast::Node::Application {
+            function: eq_fn,
+            args: vec![y_var, zero_lit],
+        });
+        
+        // Build x/y expression
+        let x_div_y = graph.add_node(fluentai_core::ast::Node::Application {
+            function: div_fn,
+            args: vec![x_var, y_var2],
+        });
+        
+        // Build result == x/y
+        let result_eq_div = graph.add_node(fluentai_core::ast::Node::Application {
+            function: eq_fn2,
+            args: vec![result_var, x_div_y],
+        });
+        
+        // Build final OR expression
+        let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
+            function: or_fn,
+            args: vec![y_eq_zero, result_eq_div],
+        });
+        
         let contract = Contract {
             function_name: "safe-divide".to_string(),
             preconditions: vec![],
             postconditions: vec![
                 ContractCondition {
-                    expression: graph.add_node(fluentai_core::ast::Node::Application {
-                        function: graph.add_node(fluentai_core::ast::Node::Variable { name: "or".to_string() } ),
-                        args: vec![
-                            graph.add_node(fluentai_core::ast::Node::Application {
-                                function: graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() } ),
-                                args: vec![
-                                    graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() } ),
-                                    graph.add_node(fluentai_core::ast::Node::Literal(
-                                        fluentai_core::ast::Literal::Integer(0)
-                                    )),
-                                ],
-                            }),
-                            graph.add_node(fluentai_core::ast::Node::Application {
-                                function: graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() } ),
-                                args: vec![
-                                    graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() } ),
-                                    graph.add_node(fluentai_core::ast::Node::Application {
-                                        function: graph.add_node(fluentai_core::ast::Node::Variable { name: "/".to_string() } ),
-                                        args: vec![
-                                            graph.add_node(fluentai_core::ast::Node::Variable { name: "x".to_string() } ),
-                                            graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() } ),
-                                        ],
-                                    }),
-                                ],
-                            }),
-                        ],
-                    }),
+                    expression: postcond_expr,
                     message: Some("Result should be x/y when y != 0".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: Some("postcondition".to_string()),
                 }
             ],
             invariants: vec![],
             complexity: None,
             pure: true,
+            frame_condition: None,
             node_id: function_id,
         };
         

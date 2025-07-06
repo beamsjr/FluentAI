@@ -77,6 +77,9 @@ mod inference_tests;
 mod unification_tests;
 
 #[cfg(test)]
+mod checker_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use fluentai_parser::parse;

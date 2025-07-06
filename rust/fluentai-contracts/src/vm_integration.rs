@@ -229,6 +229,9 @@ pub mod example {
 }
 
 #[cfg(test)]
+mod vm_integration_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use fluentai_parser::parse;

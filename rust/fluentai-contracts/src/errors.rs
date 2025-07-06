@@ -233,3 +233,6 @@ impl ContractViolation {
 
 /// Result type for contract operations
 pub type ContractResult<T> = Result<T, ContractError>;
+
+#[cfg(test)]
+mod errors_tests;

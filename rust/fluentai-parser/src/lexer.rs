@@ -67,7 +67,8 @@ pub enum Token<'a> {
 }
 
 /// Process escape sequences in strings
-fn process_string_escapes(s: &str) -> String {
+#[doc(hidden)]
+pub fn process_string_escapes(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut chars = s.chars();
     
@@ -140,3 +141,7 @@ impl<'a> Lexer<'a> {
 #[cfg(test)]
 #[path = "lexer_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "lexer_edge_tests.rs"]
+mod edge_tests;

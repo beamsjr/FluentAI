@@ -292,3 +292,6 @@ impl VerificationContext {
         self.bindings.insert(name, value);
     }
 }
+
+#[cfg(test)]
+mod runtime_tests;

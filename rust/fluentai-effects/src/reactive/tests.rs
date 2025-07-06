@@ -146,8 +146,17 @@ mod tests {
             state.set("c".to_string(), Value::Integer(3));
         });
         
+        // Flush updates synchronously for test
+        ctx.scheduler.flush_sync();
+        
+        // Give a tiny bit of time for any async operations
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        
+        // Force re-evaluation to ensure we get the latest value
+        let result = computed.get();
+        
         // Should only recompute once after batch
-        assert_eq!(computed.get(), Value::Integer(6));
+        assert_eq!(result, Value::Integer(6), "Expected 6, got {:?}", result);
         
         // In an ideal implementation, this would be 2 (initial + one batch update)
         // But without proper batching, it might be higher

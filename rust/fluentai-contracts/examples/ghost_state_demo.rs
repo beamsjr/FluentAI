@@ -134,17 +134,20 @@ fn demo_ghost_variables() {
 
 fn demo_history_variables() {
     let mut graph = Graph::new();
-    let mut builder = GhostStateBuilder::new(&mut graph);
     
-    // Track history of temperature readings
+    // Add nodes first
     let temp = graph.add_node(Node::Variable { name: "temperature".to_string() });
+    let body = graph.add_node(Node::Variable { name: "update-temp-body".to_string() });
+    
+    // Now use builder for ghost state
+    let mut builder = GhostStateBuilder::new(&mut graph);
     let history_expr = builder.history(temp, "temp_history");
+    drop(builder); // Release the borrow
     
     // Contract: temperature should not change too rapidly
     // forall i in indices(temp_history), 
     //   abs(temp_history[i] - temp_history[i-1]) < 10
     
-    let body = graph.add_node(Node::Variable { name: "update-temp-body".to_string() });
     let mut contract = Contract::new("update_temperature".to_string(), body);
     
     // Add history variable
@@ -164,10 +167,13 @@ fn demo_history_variables() {
 
 fn demo_model_fields() {
     let mut graph = Graph::new();
-    let mut builder = GhostStateBuilder::new(&mut graph);
     
-    // Model fields provide abstract view of data structures
+    // Add nodes first
     let list = graph.add_node(Node::Variable { name: "list".to_string() });
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
+    
+    // Now use builder for model fields
+    let mut builder = GhostStateBuilder::new(&mut graph);
     
     // Model field: list.size (abstract size, not computed)
     let size_field = builder.model_field(list, "size");
@@ -175,8 +181,9 @@ fn demo_model_fields() {
     // Model field: list.capacity (abstract capacity)
     let capacity_field = builder.model_field(list, "capacity");
     
+    drop(builder); // Release the borrow
+    
     // Invariant: 0 <= size <= capacity
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
     let le = graph.add_node(Node::Variable { name: "<=".to_string() });
     
     let size_ge_zero = graph.add_node(Node::Application {
@@ -219,14 +226,20 @@ fn demo_bank_account() {
     println!("\n\nExample 5: Bank Account with Complete Ghost State\n");
     
     let mut graph = Graph::new();
-    let mut builder = GhostStateBuilder::new(&mut graph);
     
-    // Account state
+    // First, add all the basic nodes we need
     let balance = graph.add_node(Node::Variable { name: "balance".to_string() });
     let amount = graph.add_node(Node::Variable { name: "amount".to_string() });
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
+    let account = graph.add_node(Node::Variable { name: "account".to_string() });
+    let deposit_body = graph.add_node(Node::Variable { name: "deposit-body".to_string() });
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
+    
+    // Now create the builder and use it for ghost state
+    let mut builder = GhostStateBuilder::new(&mut graph);
     
     // Ghost variables
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
     let total_deposits = builder.ghost_var("total_deposits", Some(zero));
     let total_withdrawals = builder.ghost_var("total_withdrawals", Some(zero));
     let transaction_count = builder.ghost_var("transaction_count", Some(zero));
@@ -235,23 +248,25 @@ fn demo_bank_account() {
     let balance_history = builder.history(balance, "balance_history");
     
     // Model fields
-    let account = graph.add_node(Node::Variable { name: "account".to_string() });
     let min_balance = builder.model_field(account, "min_balance");
     let max_balance = builder.model_field(account, "max_balance");
     
-    // Contract for deposit operation
-    let deposit_body = graph.add_node(Node::Variable { name: "deposit-body".to_string() });
+    // Get old values
+    let old_balance = builder.old(balance);
+    let old_deposits = builder.old(total_deposits);
+    
+    // Drop the builder to release the mutable borrow
+    drop(builder);
+    
+    // Now we can use graph again
     let mut deposit_contract = Contract::new("deposit".to_string(), deposit_body);
     
     // Postconditions using ghost state
     // 1. balance = old(balance) + amount
-    let old_balance = builder.old(balance);
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
     let new_balance = graph.add_node(Node::Application {
         function: plus,
         args: vec![old_balance, amount],
     });
-    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
     let balance_postcond = graph.add_node(Node::Application {
         function: eq,
         args: vec![balance, new_balance],
@@ -263,7 +278,6 @@ fn demo_bank_account() {
     );
     
     // 2. total_deposits = old(total_deposits) + amount
-    let old_deposits = builder.old(total_deposits);
     let new_deposits = graph.add_node(Node::Application {
         function: plus,
         args: vec![old_deposits, amount],

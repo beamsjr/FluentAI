@@ -56,8 +56,12 @@ impl EffectHandler for TimeHandler {
             "sleep" => {
                 // Support synchronous sleep for testing
                 if let Some(Value::Integer(ms)) = args.first() {
-                    std::thread::sleep(std::time::Duration::from_millis(*ms as u64));
-                    Ok(Value::Nil)
+                    if *ms < 0 {
+                        Err(Error::Runtime("time:sleep requires non-negative milliseconds".to_string()))
+                    } else {
+                        std::thread::sleep(std::time::Duration::from_millis(*ms as u64));
+                        Ok(Value::Nil)
+                    }
                 } else {
                     Err(Error::Runtime("time:sleep requires milliseconds".to_string()))
                 }
@@ -70,8 +74,12 @@ impl EffectHandler for TimeHandler {
         match operation {
             "sleep" => {
                 if let Some(Value::Integer(ms)) = args.first() {
-                    sleep(Duration::from_millis(*ms as u64)).await;
-                    Ok(Value::Nil)
+                    if *ms < 0 {
+                        Err(Error::Runtime("time:sleep requires non-negative milliseconds".to_string()))
+                    } else {
+                        sleep(Duration::from_millis(*ms as u64)).await;
+                        Ok(Value::Nil)
+                    }
                 } else {
                     Err(Error::Runtime("time:sleep requires milliseconds".to_string()))
                 }
