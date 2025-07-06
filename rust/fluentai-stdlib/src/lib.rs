@@ -6,6 +6,8 @@
 pub mod value;
 pub mod core;
 pub mod strings;
+pub mod strings_extended;
+pub mod chars;
 pub mod collections;
 pub mod math;
 pub mod io;
@@ -32,6 +34,8 @@ pub fn init_stdlib() -> StdlibRegistry {
     // Register all modules
     core::register(&mut registry);
     strings::register(&mut registry);
+    strings_extended::register(&mut registry);
+    chars::register(&mut registry);
     collections::register(&mut registry);
     math::register(&mut registry);
     io::register(&mut registry);

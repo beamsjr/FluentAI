@@ -25,6 +25,12 @@ pub enum ParseError {
     
     #[error("Invalid syntax: {0}")]
     InvalidSyntax(String),
+    
+    #[error("Maximum parsing depth exceeded: depth {depth} exceeds limit of {max_depth}")]
+    MaxDepthExceeded {
+        depth: usize,
+        max_depth: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +41,7 @@ pub enum ErrorKind {
     InvalidEscape,
     UnclosedDelimiter,
     InvalidSyntax,
+    MaxDepthExceeded,
 }
 
 impl ParseError {
@@ -46,6 +53,7 @@ impl ParseError {
             ParseError::InvalidEscape(_) => ErrorKind::InvalidEscape,
             ParseError::UnclosedDelimiter(_) => ErrorKind::UnclosedDelimiter,
             ParseError::InvalidSyntax(_) => ErrorKind::InvalidSyntax,
+            ParseError::MaxDepthExceeded { .. } => ErrorKind::MaxDepthExceeded,
         }
     }
 }

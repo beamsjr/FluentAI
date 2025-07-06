@@ -1,0 +1,134 @@
+;; iot-pipeline.fl - Main IoT data processing pipeline
+;; Implements the sensor data processing logic with multiple versions
+
+(module iot-pipeline
+  (import iot-types)
+  (import iot-streams)
+  
+  (export process-stream-v1        ; Act I: Naive implementation
+          process-stream-v2        ; Act II: With contracts
+          process-stream-v3        ; Act III: Optimized
+          process-stream-final     ; Act IV: Production-ready
+          
+          ;; Individual pipeline stages
+          enrich-with-metadata
+          detect-anomalies
+          log-anomalies)
+
+  ;; ==================== Act I: Naive Implementation ====================
+  ;; Simple, clean implementation using functional constructs
+  
+  (define (process-stream-v1 data-stream)
+    ;; Step 1: Enrich each reading with metadata
+    (let ((enriched (map enrich-with-metadata data-stream)))
+      ;; Step 2: Filter for anomalies
+      (let ((anomalies (filter detect-anomalies enriched)))
+        ;; Step 3: Log the anomalies
+        (map log-anomalies anomalies))))
+  
+  ;; Enrichment function - adds location and unit metadata
+  (define (enrich-with-metadata reading)
+    (enrich-reading reading
+      (make-map "location" (get-sensor-location (sensor-id reading))
+                "unit" "celsius"
+                "processed-at" (current-time))))
+  
+  ;; Simple anomaly detection - temperature threshold based
+  (define (detect-anomalies reading)
+    (let ((value (sensor-value reading))
+          (sensor-type (map-get (sensor-metadata reading) "type")))
+      (cond
+        ;; Temperature sensors: flag if > 40°C or < -10°C
+        ((eq? sensor-type "temperature")
+         (or (> value 40.0) (< value -10.0)))
+        ;; Pressure sensors: flag if outside normal range
+        ((eq? sensor-type "pressure")
+         (or (> value 1100.0) (< value 900.0)))
+        ;; Humidity sensors: flag if outside 0-100%
+        ((eq? sensor-type "humidity")
+         (or (> value 100.0) (< value 0.0)))
+        ;; Unknown sensor type
+        (else false))))
+  
+  ;; Logging function with side effect
+  (define (log-anomalies anomaly-reading)
+    (effect io print-line 
+      (string-format "ANOMALY DETECTED: Sensor {} at {} - Value: {}"
+                    (sensor-id anomaly-reading)
+                    (sensor-timestamp anomaly-reading)
+                    (sensor-value anomaly-reading)))
+    anomaly-reading)
+  
+  ;; Helper to get sensor location (mock implementation)
+  (define (get-sensor-location sensor-id)
+    (cond
+      ((string-starts-with? sensor-id "temp-") "Building A")
+      ((string-starts-with? sensor-id "pres-") "Building B")
+      ((string-starts-with? sensor-id "hum-") "Building C")
+      (else "Unknown")))
+  
+  ;; ==================== Act II: With Contracts ====================
+  ;; Same logic but with formal contracts for correctness
+  
+  ;; Contract specification (will be defined in iot-contracts.fl)
+  ;; For now, we add runtime validation
+  (define (process-stream-v2 data-stream)
+    ;; Validate input
+    (if (not (and (list? data-stream)
+                  (all? valid-sensor-reading? data-stream)))
+        (error "process-stream-v2: invalid input stream"))
+    
+    ;; Process with validation at each step
+    (let* ((enriched (map (lambda (r)
+                           (let ((result (enrich-with-metadata r)))
+                             (if (not (valid-sensor-reading? result))
+                                 (error "Enrichment produced invalid reading")
+                                 result)))
+                         data-stream))
+           (anomalies (filter detect-anomalies enriched))
+           (logged (map log-anomalies anomalies)))
+      
+      ;; Validate output
+      (if (not (is-subset? logged data-stream))
+          (error "Output contains data not in input!")
+          logged)))
+  
+  ;; ==================== Act III: Optimized Implementation ====================
+  ;; Fused operations for single-pass processing
+  
+  (define (process-stream-v3 data-stream)
+    ;; Single pass with fused map-filter
+    (fold-left
+      (lambda (acc reading)
+        (let ((enriched (enrich-with-metadata reading)))
+          (if (detect-anomalies enriched)
+              (cons (log-anomalies enriched) acc)
+              acc)))
+      []
+      data-stream))
+  
+  ;; ==================== Act IV: Production Implementation ====================
+  ;; Stream-based processing with async channels
+  
+  (define (process-stream-final sensor-stream)
+    ;; Use stream processing for real-time handling
+    (|> sensor-stream
+        (stream-map enrich-with-metadata)
+        (stream-filter detect-anomalies) 
+        (stream-map log-anomalies)))
+  
+  ;; Helper predicates
+  (define (all? pred lst)
+    (if (null? lst)
+        true
+        (and (pred (car lst))
+             (all? pred (cdr lst)))))
+  
+  (define (is-subset? subset superset)
+    (all? (lambda (x) (member? x superset)) subset))
+  
+  (define (member? x lst)
+    (if (null? lst)
+        false
+        (or (equal? x (car lst))
+            (member? x (cdr lst))))))

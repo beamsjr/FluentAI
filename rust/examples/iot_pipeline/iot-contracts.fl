@@ -1,0 +1,191 @@
+;; iot-contracts.fl - Formal contract specifications for IoT pipeline
+;; Defines correctness properties that can be verified
+
+(module iot-contracts
+  (import iot-types)
+  
+  (export define-contract
+          verify-contract
+          
+          ;; Contract specifications
+          process-stream-contract
+          enrichment-contract
+          anomaly-detection-contract
+          
+          ;; Property predicates
+          preserves-data-integrity
+          maintains-subset-property
+          is-deterministic
+          has-linear-complexity)
+
+  ;; Contract definition structure
+  ;; Since FluentAI doesn't have built-in spec:contract, we simulate it
+  (define (define-contract name properties)
+    (make-tagged "contract" name properties))
+  
+  ;; ==================== Main Pipeline Contract ====================
+  (define process-stream-contract
+    (define-contract "process-stream"
+      (make-map
+        ;; Preconditions
+        "requires" [(lambda (data-stream)
+                     (and (list? data-stream)
+                          (all? valid-sensor-reading? data-stream)))]
+        
+        ;; Postconditions  
+        "ensures" [(lambda (input output)
+                    ;; Output must be subset of input
+                    (is-subset? output input))
+                   
+                   (lambda (input output)
+                    ;; All output must be valid anomalies
+                    (all? (lambda (reading)
+                           (and (valid-sensor-reading? reading)
+                                (detect-anomalies reading)))
+                          output))
+                   
+                   (lambda (input output)
+                    ;; No data can be invented
+                    (all? (lambda (out-reading)
+                           (exists? (lambda (in-reading)
+                                     (same-sensor-data? in-reading out-reading))
+                                   input))
+                          output))]
+        
+        ;; Properties
+        "pure" false  ; Has logging side effects
+        "deterministic" true
+        "complexity" "O(n)")))
+  
+  ;; ==================== Enrichment Contract ====================
+  (define enrichment-contract
+    (define-contract "enrich-with-metadata"
+      (make-map
+        "requires" [(lambda (reading)
+                     (valid-sensor-reading? reading))]
+        
+        "ensures" [(lambda (input output)
+                    ;; Core data preserved
+                    (and (eq? (sensor-id input) (sensor-id output))
+                         (= (sensor-timestamp input) (sensor-timestamp output))
+                         (= (sensor-value input) (sensor-value output))))
+                   
+                   (lambda (input output)
+                    ;; Metadata properly extended
+                    (let ((in-meta (sensor-metadata input))
+                          (out-meta (sensor-metadata output)))
+                      (all? (lambda (key)
+                             (equal? (map-get in-meta key)
+                                    (map-get out-meta key)))
+                            (map-keys in-meta))))]
+        
+        "pure" false  ; Uses current-time
+        "deterministic" false
+        "complexity" "O(1)")))
+  
+  ;; ==================== Anomaly Detection Contract ====================
+  (define anomaly-detection-contract
+    (define-contract "detect-anomalies"
+      (make-map
+        "requires" [(lambda (reading)
+                     (valid-sensor-reading? reading))]
+        
+        "ensures" [(lambda (reading result)
+                    ;; Result is boolean
+                    (bool? result))
+                   
+                   (lambda (reading result)
+                    ;; Consistent with thresholds
+                    (let ((value (sensor-value reading))
+                          (type (map-get (sensor-metadata reading) "type")))
+                      (cond
+                        ((eq? type "temperature")
+                         (eq? result (or (> value 40.0) (< value -10.0))))
+                        ((eq? type "pressure")
+                         (eq? result (or (> value 1100.0) (< value 900.0))))
+                        ((eq? type "humidity")
+                         (eq? result (or (> value 100.0) (< value 0.0))))
+                        (else (eq? result false)))))]
+        
+        "pure" true
+        "deterministic" true
+        "complexity" "O(1)")))
+  
+  ;; ==================== Verification Function ====================
+  (define (verify-contract contract-def function inputs expected-output)
+    (let ((props (tagged-values contract-def)))
+      ;; Check preconditions
+      (let ((requires (map-get props "requires")))
+        (if (not (all? (lambda (pred) (apply pred inputs)) requires))
+            (error "Contract precondition violated")))
+      
+      ;; Execute function
+      (let ((actual-output (apply function inputs)))
+        ;; Check postconditions
+        (let ((ensures (map-get props "ensures")))
+          (if (not (all? (lambda (pred) 
+                          (pred (car inputs) actual-output))
+                        ensures))
+              (error "Contract postcondition violated")))
+        
+        ;; Verify properties
+        (if (and (map-get props "deterministic")
+                 (not (equal? actual-output expected-output)))
+            (error "Determinism violated"))
+        
+        actual-output)))
+  
+  ;; ==================== Helper Predicates ====================
+  
+  (define (same-sensor-data? r1 r2)
+    (and (eq? (sensor-id r1) (sensor-id r2))
+         (= (sensor-timestamp r1) (sensor-timestamp r2))
+         (= (sensor-value r1) (sensor-value r2))))
+  
+  (define (exists? pred lst)
+    (if (null? lst)
+        false
+        (or (pred (car lst))
+            (exists? pred (cdr lst)))))
+  
+  (define (preserves-data-integrity input output)
+    ;; No sensor readings are modified, only filtered
+    (all? (lambda (out)
+           (exists? (lambda (in)
+                     (equal? out in))
+                   input))
+          output))
+  
+  (define (maintains-subset-property input output)
+    (is-subset? output input))
+  
+  (define (is-deterministic f)
+    ;; Test function with same input multiple times
+    (let ((test-input [(make-sensor-reading "test-1" 1000 25.0 (make-map))]))
+      (let ((result1 (f test-input))
+            (result2 (f test-input))
+            (result3 (f test-input)))
+        (and (equal? result1 result2)
+             (equal? result2 result3)))))
+  
+  (define (has-linear-complexity f input-sizes)
+    ;; Empirically test if execution time grows linearly
+    ;; This is a simplified check - real implementation would measure time
+    (all? (lambda (size)
+           ;; Generate test data of given size
+           (let ((test-data (generate-test-readings size)))
+             ;; In real implementation, measure execution time
+             ;; For now, just verify it completes
+             (f test-data)
+             true))
+          input-sizes))
+  
+  ;; Test data generator
+  (define (generate-test-readings n)
+    (map (lambda (i)
+          (make-sensor-reading 
+            (string-format "sensor-{}" i)
+            (* i 1000)
+            (+ 20.0 (* (random) 10.0))
+            (make-map "type" "temperature")))
+         (range 0 n))))

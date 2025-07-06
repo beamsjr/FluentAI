@@ -37,6 +37,9 @@ pub fn register(registry: &mut StdlibRegistry) {
         // Character operations
         StdlibFunction::pure("char->int", char_to_int, 1, Some(1), "Get ASCII/Unicode value of character"),
         StdlibFunction::pure("int->char", int_to_char, 1, Some(1), "Convert ASCII/Unicode value to character"),
+        
+        // Symbol operations
+        StdlibFunction::pure("symbol->string", symbol_to_string, 1, Some(1), "Convert symbol to string (identity function due to VM limitations)"),
     ]);
 }
 
@@ -352,5 +355,20 @@ fn int_to_char(args: &[Value]) -> Result<Value> {
             }
         }
         _ => Err(anyhow!("int->char: expected integer")),
+    }
+}
+
+// Symbol operations
+
+fn symbol_to_string(args: &[Value]) -> Result<Value> {
+    match &args[0] {
+        Value::String(s) => {
+            // In the current VM implementation, symbols are represented as strings
+            // This is an identity function, but we keep it for compatibility
+            // TODO: When symbols are properly implemented in the VM, this should
+            // check for a Symbol type and convert it to String
+            Ok(Value::String(s.clone()))
+        }
+        _ => Err(anyhow!("symbol->string: expected symbol (currently represented as string)")),
     }
 }

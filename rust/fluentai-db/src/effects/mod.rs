@@ -1,5 +1,6 @@
 //! Database effect types and handlers
 
+use async_trait::async_trait;
 use fluentai_effects::EffectHandler;
 use fluentai_core::ast::EffectType;
 use fluentai_core::value::Value as CoreValue;
@@ -7,7 +8,6 @@ use fluentai_core::Result as CoreResult;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, Mutex};
-use tokio::runtime::Handle;
 
 use crate::connection::ConnectionPool;
 use crate::transaction::Transaction;
@@ -168,13 +168,65 @@ impl Clone for DbHandler {
     }
 }
 
+#[async_trait]
 impl EffectHandler for DbHandler {
     fn effect_type(&self) -> EffectType {
         // Database operations are IO effects
         EffectType::IO
     }
     
-    fn handle_sync(&self, operation: &str, args: &[CoreValue]) -> CoreResult<CoreValue> {
+    fn handle_sync(&self, operation: &str, _args: &[CoreValue]) -> CoreResult<CoreValue> {
+        // Only handle synchronous operations that don't require database access
+        match operation {
+            "db:stats" => {
+                // Can be handled synchronously since it just reads Arc values
+                let mut stats = FxHashMap::default();
+                
+                // Try to get pool status without blocking
+                let connected = if let Ok(pool_lock) = self.connection_pool.try_read() {
+                    pool_lock.is_some()
+                } else {
+                    false
+                };
+                stats.insert("connected".to_string(), CoreValue::Boolean(connected));
+                
+                // Get transaction depth
+                let depth = if let Ok(depth_lock) = self.transaction_depth.try_read() {
+                    *depth_lock as i64
+                } else {
+                    0
+                };
+                stats.insert("transaction_depth".to_string(), CoreValue::Integer(depth));
+                
+                // Get prepared statement count
+                let stmt_count = if let Ok(stmts) = self.prepared_statements.try_read() {
+                    stmts.len() as i64
+                } else {
+                    0
+                };
+                stats.insert("prepared_statements".to_string(), CoreValue::Integer(stmt_count));
+                
+                Ok(CoreValue::Map(stats))
+            }
+            "db:is-connected" => {
+                // Simple check without actual connection test
+                let connected = if let Ok(pool_lock) = self.connection_pool.try_read() {
+                    pool_lock.is_some()
+                } else {
+                    false
+                };
+                Ok(CoreValue::Boolean(connected))
+            }
+            _ => {
+                // All other operations require async handling
+                Err(fluentai_core::error::Error::Runtime(
+                    format!("Database operation '{}' requires async handler", operation)
+                ))
+            }
+        }
+    }
+    
+    async fn handle_async(&self, operation: &str, args: &[CoreValue]) -> CoreResult<CoreValue> {
         // Parse the database operation
         let db_op = match operation {
             "db:connect" => DbEffectType::Connect,
@@ -192,9 +244,7 @@ impl EffectHandler for DbHandler {
             )),
         };
         
-        // Most database operations need to run in async context
-        let handle = Handle::current();
-        let result = handle.block_on(async {
+        {
             let value = match db_op {
                 DbEffectType::Connect => {
                     // Extract connection string
@@ -453,9 +503,7 @@ impl EffectHandler for DbHandler {
                 }
             };
             Ok(value)
-        });
-        
-        result
+        }
     }
 }
 

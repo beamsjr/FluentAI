@@ -12,14 +12,23 @@ pub struct Parser<'a> {
     graph: Graph,
     #[allow(dead_code)]
     arena: Option<&'a Bump>,
+    /// Current parsing depth to prevent stack overflow
+    depth: usize,
+    /// Maximum allowed parsing depth
+    max_depth: usize,
 }
 
 impl<'a> Parser<'a> {
+    /// Default maximum parsing depth
+    const DEFAULT_MAX_DEPTH: usize = 1000;
+    
     pub fn new(source: &'a str) -> Self {
         Self {
             lexer: Lexer::new(source),
             graph: Graph::new(),
             arena: None,
+            depth: 0,
+            max_depth: Self::DEFAULT_MAX_DEPTH,
         }
     }
     
@@ -28,7 +37,32 @@ impl<'a> Parser<'a> {
             lexer: Lexer::new(source),
             graph: Graph::new(),
             arena: Some(arena),
+            depth: 0,
+            max_depth: Self::DEFAULT_MAX_DEPTH,
         }
+    }
+    
+    /// Set the maximum parsing depth
+    pub fn with_max_depth(mut self, max_depth: usize) -> Self {
+        self.max_depth = max_depth;
+        self
+    }
+    
+    /// Check and increment depth, returning error if max depth exceeded
+    fn enter_recursion(&mut self) -> ParseResult<()> {
+        if self.depth >= self.max_depth {
+            return Err(ParseError::MaxDepthExceeded {
+                depth: self.depth,
+                max_depth: self.max_depth,
+            });
+        }
+        self.depth += 1;
+        Ok(())
+    }
+    
+    /// Decrement depth when leaving a recursive call
+    fn exit_recursion(&mut self) {
+        self.depth = self.depth.saturating_sub(1);
     }
     
     pub fn parse(&mut self) -> ParseResult<Graph> {
@@ -49,7 +83,9 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_expr(&mut self) -> ParseResult<NodeId> {
-        match self.lexer.peek_token() {
+        self.enter_recursion()?;
+        
+        let result = match self.lexer.peek_token() {
             Some(Token::LParen) => self.parse_list(),
             Some(Token::LBracket) => self.parse_list_literal(),
             Some(Token::Integer(_)) => self.parse_integer(),
@@ -60,10 +96,20 @@ impl<'a> Parser<'a> {
             Some(Token::QualifiedSymbol(_)) => self.parse_qualified_symbol(),
             Some(_) => Err(ParseError::InvalidSyntax("Expected expression".to_string())),
             None => Err(ParseError::UnexpectedEof),
-        }
+        };
+        
+        self.exit_recursion();
+        result
     }
     
     fn parse_list(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_list_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_list_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_token(Token::LParen)?;
         
         // Check for empty list
@@ -102,6 +148,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_application(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_application_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_application_inner(&mut self) -> ParseResult<NodeId> {
         let function = self.parse_expr()?;
         let mut args = Vec::new();
         
@@ -116,6 +169,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_lambda(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_lambda_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_lambda_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("lambda")?;
         self.expect_token(Token::LParen)?;
         
@@ -137,6 +197,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_let(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_let_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_let_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("let")?;
         self.expect_token(Token::LParen)?;
         
@@ -165,6 +232,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_letrec(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_letrec_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_letrec_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("letrec")?;
         self.expect_token(Token::LParen)?;
         
@@ -193,6 +267,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_if(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_if_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_if_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("if")?;
         
         let condition = self.parse_expr()?;
@@ -210,6 +291,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_sequence(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_sequence_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_sequence_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("do")?;
         
         let mut exprs = Vec::new();
@@ -241,6 +329,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_effect(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_effect_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_effect_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("effect")?;
         
         // Parse effect type:operation
@@ -287,6 +382,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_match(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_match_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_match_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("match")?;
         
         let expr = self.parse_expr()?;
@@ -309,6 +411,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_pattern(&mut self) -> ParseResult<Pattern> {
+        self.enter_recursion()?;
+        let result = self.parse_pattern_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_pattern_inner(&mut self) -> ParseResult<Pattern> {
         match self.lexer.peek_token().cloned() {
             Some(Token::Symbol(name)) if name == "_" => {
                 self.lexer.next_token();
@@ -350,6 +459,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_list_literal(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_list_literal_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_list_literal_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_token(Token::LBracket)?;
         
         let mut elements = Vec::new();
@@ -445,6 +561,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_async(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_async_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_async_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("async")?;
         let body = self.parse_expr()?;
         self.expect_token(Token::RParen)?;
@@ -454,6 +577,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_await(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_await_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_await_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("await")?;
         let expr = self.parse_expr()?;
         self.expect_token(Token::RParen)?;
@@ -463,6 +593,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_spawn(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_spawn_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_spawn_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("spawn")?;
         let expr = self.parse_expr()?;
         self.expect_token(Token::RParen)?;
@@ -480,6 +617,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_send(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_send_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_send_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("send!")?;
         let channel = self.parse_expr()?;
         let value = self.parse_expr()?;
@@ -490,6 +634,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_receive(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_receive_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_receive_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("recv!")?;
         let channel = self.parse_expr()?;
         self.expect_token(Token::RParen)?;
@@ -532,6 +683,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_module(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_module_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_module_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("module")?;
         
         // Parse module name
@@ -663,6 +821,13 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_contract(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_contract_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_contract_inner(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("spec:contract")?;
         
         // Parse function name

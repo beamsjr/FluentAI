@@ -71,6 +71,12 @@ pub fn basic_env() -> TypeEnvironment {
 }
 
 #[cfg(test)]
+mod inference_tests;
+
+#[cfg(test)]
+mod unification_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use fluentai_parser::parse;

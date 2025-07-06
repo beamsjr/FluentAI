@@ -1,7 +1,7 @@
 //! Common subexpression elimination pass
 
 use fluentai_core::ast::{Graph, Node, NodeId, Literal};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
 use crate::analysis::EffectAnalysis;
@@ -22,12 +22,41 @@ impl CommonSubexpressionEliminationPass {
     /// Generate a structural hash for a node
     fn node_hash(&self, node: &Node, graph: &Graph, node_mapping: &FxHashMap<NodeId, NodeId>) -> u64 {
         let mut hasher = DefaultHasher::new();
-        self.hash_node(node, graph, node_mapping, &mut hasher);
+        let mut visited = FxHashSet::default();
+        self.hash_node_with_visited(node, graph, node_mapping, &mut hasher, &mut visited);
         hasher.finish()
     }
 
-    /// Hash a node structurally
-    fn hash_node<H: Hasher>(&self, node: &Node, graph: &Graph, node_mapping: &FxHashMap<NodeId, NodeId>, hasher: &mut H) {
+    /// Hash a node structurally with cycle detection
+    fn hash_node_with_visited<H: Hasher>(
+        &self, 
+        node: &Node, 
+        graph: &Graph, 
+        node_mapping: &FxHashMap<NodeId, NodeId>, 
+        hasher: &mut H,
+        visited: &mut FxHashSet<NodeId>
+    ) {
+        // Helper to hash a node reference
+        let hash_node_ref = |node_id: NodeId, hasher: &mut H, visited: &mut FxHashSet<NodeId>| {
+            let mapped_id = node_mapping.get(&node_id).copied().unwrap_or(node_id);
+            
+            // Check for cycles
+            if !visited.insert(mapped_id) {
+                // Already visiting this node - just hash the ID to break the cycle
+                "cycle".hash(hasher);
+                mapped_id.hash(hasher);
+                return;
+            }
+            
+            if let Some(node) = graph.get_node(mapped_id) {
+                self.hash_node_with_visited(node, graph, node_mapping, hasher, visited);
+            } else {
+                mapped_id.hash(hasher);
+            }
+            
+            visited.remove(&mapped_id);
+        };
+
         match node {
             Node::Literal(lit) => {
                 "literal".hash(hasher);
@@ -60,33 +89,18 @@ impl CommonSubexpressionEliminationPass {
             Node::Application { function, args } => {
                 "app".hash(hasher);
                 // Hash the function structurally
-                let mapped_func = node_mapping.get(function).copied().unwrap_or(*function);
-                if let Some(func_node) = graph.get_node(mapped_func) {
-                    self.hash_node(func_node, graph, node_mapping, hasher);
-                } else {
-                    mapped_func.hash(hasher);
-                }
+                hash_node_ref(*function, hasher, visited);
                 // Hash each argument structurally
                 args.len().hash(hasher);
                 for arg in args {
-                    let mapped_arg = node_mapping.get(arg).copied().unwrap_or(*arg);
-                    if let Some(arg_node) = graph.get_node(mapped_arg) {
-                        self.hash_node(arg_node, graph, node_mapping, hasher);
-                    } else {
-                        mapped_arg.hash(hasher);
-                    }
+                    hash_node_ref(*arg, hasher, visited);
                 }
             }
             Node::List(items) => {
                 "list".hash(hasher);
                 items.len().hash(hasher);
                 for item in items {
-                    let mapped_item = node_mapping.get(item).copied().unwrap_or(*item);
-                    if let Some(item_node) = graph.get_node(mapped_item) {
-                        self.hash_node(item_node, graph, node_mapping, hasher);
-                    } else {
-                        mapped_item.hash(hasher);
-                    }
+                    hash_node_ref(*item, hasher, visited);
                 }
             }
             _ => {
@@ -96,9 +110,23 @@ impl CommonSubexpressionEliminationPass {
         }
     }
 
-    /// Check if nodes are structurally equal
+    /// Check if nodes are structurally equal with cycle detection
     fn nodes_equal(&self, node1: &Node, node2: &Node, graph1: &Graph, graph2: &Graph, 
                    mapping1: &FxHashMap<NodeId, NodeId>, mapping2: &FxHashMap<NodeId, NodeId>) -> bool {
+        let mut visited = FxHashSet::default();
+        self.nodes_equal_with_visited(node1, node2, graph1, graph2, mapping1, mapping2, &mut visited)
+    }
+    
+    fn nodes_equal_with_visited(
+        &self, 
+        node1: &Node, 
+        node2: &Node, 
+        graph1: &Graph, 
+        graph2: &Graph,
+        mapping1: &FxHashMap<NodeId, NodeId>, 
+        mapping2: &FxHashMap<NodeId, NodeId>,
+        visited: &mut FxHashSet<(NodeId, NodeId)>
+    ) -> bool {
         match (node1, node2) {
             (Node::Literal(l1), Node::Literal(l2)) => l1 == l2,
             (Node::Variable { name: n1 }, Node::Variable { name: n2 }) => n1 == n2,
@@ -110,22 +138,45 @@ impl CommonSubexpressionEliminationPass {
                 // Compare functions structurally
                 let mapped_f1 = mapping1.get(f1).copied().unwrap_or(*f1);
                 let mapped_f2 = mapping2.get(f2).copied().unwrap_or(*f2);
-                if let (Some(func1), Some(func2)) = (graph1.get_node(mapped_f1), graph2.get_node(mapped_f2)) {
-                    if !self.nodes_equal(func1, func2, graph1, graph2, mapping1, mapping2) {
-                        return false;
-                    }
-                } else if mapped_f1 != mapped_f2 {
+                
+                // Check for cycles
+                if !visited.insert((mapped_f1, mapped_f2)) {
+                    // Already comparing these nodes - assume equal to break cycle
+                    return true;
+                }
+                
+                let func_equal = if let (Some(func1), Some(func2)) = (graph1.get_node(mapped_f1), graph2.get_node(mapped_f2)) {
+                    self.nodes_equal_with_visited(func1, func2, graph1, graph2, mapping1, mapping2, visited)
+                } else {
+                    mapped_f1 == mapped_f2
+                };
+                
+                visited.remove(&(mapped_f1, mapped_f2));
+                
+                if !func_equal {
                     return false;
                 }
+                
                 // Compare arguments structurally
                 for (arg1, arg2) in a1.iter().zip(a2.iter()) {
                     let mapped_a1 = mapping1.get(arg1).copied().unwrap_or(*arg1);
                     let mapped_a2 = mapping2.get(arg2).copied().unwrap_or(*arg2);
-                    if let (Some(arg_node1), Some(arg_node2)) = (graph1.get_node(mapped_a1), graph2.get_node(mapped_a2)) {
-                        if !self.nodes_equal(arg_node1, arg_node2, graph1, graph2, mapping1, mapping2) {
-                            return false;
-                        }
-                    } else if mapped_a1 != mapped_a2 {
+                    
+                    // Check for cycles
+                    if !visited.insert((mapped_a1, mapped_a2)) {
+                        // Already comparing these nodes - assume equal to break cycle
+                        continue;
+                    }
+                    
+                    let args_equal = if let (Some(arg_node1), Some(arg_node2)) = (graph1.get_node(mapped_a1), graph2.get_node(mapped_a2)) {
+                        self.nodes_equal_with_visited(arg_node1, arg_node2, graph1, graph2, mapping1, mapping2, visited)
+                    } else {
+                        mapped_a1 == mapped_a2
+                    };
+                    
+                    visited.remove(&(mapped_a1, mapped_a2));
+                    
+                    if !args_equal {
                         return false;
                     }
                 }
@@ -138,11 +189,22 @@ impl CommonSubexpressionEliminationPass {
                 for (item1, item2) in i1.iter().zip(i2.iter()) {
                     let mapped_i1 = mapping1.get(item1).copied().unwrap_or(*item1);
                     let mapped_i2 = mapping2.get(item2).copied().unwrap_or(*item2);
-                    if let (Some(item_node1), Some(item_node2)) = (graph1.get_node(mapped_i1), graph2.get_node(mapped_i2)) {
-                        if !self.nodes_equal(item_node1, item_node2, graph1, graph2, mapping1, mapping2) {
-                            return false;
-                        }
-                    } else if mapped_i1 != mapped_i2 {
+                    
+                    // Check for cycles
+                    if !visited.insert((mapped_i1, mapped_i2)) {
+                        // Already comparing these nodes - assume equal to break cycle
+                        continue;
+                    }
+                    
+                    let items_equal = if let (Some(item_node1), Some(item_node2)) = (graph1.get_node(mapped_i1), graph2.get_node(mapped_i2)) {
+                        self.nodes_equal_with_visited(item_node1, item_node2, graph1, graph2, mapping1, mapping2, visited)
+                    } else {
+                        mapped_i1 == mapped_i2
+                    };
+                    
+                    visited.remove(&(mapped_i1, mapped_i2));
+                    
+                    if !items_equal {
                         return false;
                     }
                 }
@@ -210,15 +272,20 @@ impl OptimizationPass for CommonSubexpressionEliminationPass {
                 
                 // Only eliminate pure expressions
                 if effect_analysis.pure_nodes.contains(&node_id) {
-                    // Generate structural hash
-                    let hash = self.node_hash(node, graph, &node_mapping);
+                    // First map the node to use the new references
+                    let mapped_node = map_node_refs(node, &node_mapping);
+                    
+                    // Generate structural hash on the mapped node
+                    let empty_mapping = FxHashMap::default();
+                    let hash = self.node_hash(&mapped_node, &optimized, &empty_mapping);
                     
                     // Check if we've seen a structurally equal expression
                     let mut found_match = false;
                     if let Some(candidates) = expr_cache.get(&hash) {
                         for &existing_id in candidates {
                             if let Some(existing_node) = optimized.get_node(existing_id) {
-                                if self.nodes_equal(node, existing_node, graph, &optimized, &node_mapping, &node_mapping) {
+                                // Compare the mapped nodes directly in the optimized graph
+                                if self.nodes_equal(&mapped_node, existing_node, &optimized, &optimized, &empty_mapping, &empty_mapping) {
                                     // Reuse existing node
                                     node_mapping.insert(node_id, existing_id);
                                     self.eliminated_count += 1;
@@ -231,7 +298,6 @@ impl OptimizationPass for CommonSubexpressionEliminationPass {
                     
                     if !found_match {
                         // Add new expression
-                        let mapped_node = map_node_refs(node, &node_mapping);
                         let new_id = optimized.add_node(mapped_node);
                         node_mapping.insert(node_id, new_id);
                         expr_cache.entry(hash).or_default().push(new_id);
