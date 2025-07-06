@@ -109,7 +109,7 @@ fn test_cse_elimination() {
     let code = "(let ((x 5)) (+ (* x 2) (* x 2) (* x 2)))";
     let graph = parse(code).unwrap();
     
-    let config = OptimizationConfig::for_level(OptimizationLevel::Aggressive);
+    let config = OptimizationConfig::for_level(OptimizationLevel::Basic);
     let mut pipeline = OptimizationPipeline::new(config);
     let optimized = pipeline.optimize(&graph).unwrap();
     

@@ -63,7 +63,7 @@ fn run_test(code: &str, context: Arc<EffectContext>, runtime: Arc<EffectRuntime>
         }
         Err(e) => {
             println!("  Error: {}", e);
-            return Err(e);
+            return Err(e.into());
         }
     }
     

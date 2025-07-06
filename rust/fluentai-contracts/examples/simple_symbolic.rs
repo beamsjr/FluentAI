@@ -93,11 +93,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match &constraint.constraint {
                     SymbolicValue::BinOp { op, left, right } => {
                         let left_str = match left.as_ref() {
-                            SymbolicValue::Symbolic(s) => s.clone(),
+                            SymbolicValue::Symbolic { name, .. } => name.clone(),
                             _ => format!("{:?}", left),
                         };
                         let right_str = match right.as_ref() {
-                            SymbolicValue::Symbolic(s) => s.clone(),
+                            SymbolicValue::Symbolic { name, .. } => name.clone(),
                             _ => format!("{:?}", right),
                         };
                         println!("  Constraint: {} {} {} = {}", left_str, op, right_str, constraint.expected);

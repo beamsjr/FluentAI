@@ -29,16 +29,18 @@ fn main() {
     
     // Test 2: Parse it back
     println!("\nTest 2: Parsing the quantified expression");
-    let parser = QuantifierParser::new(&builder.graph);
-    match parser.parse_quantifier(quantified) {
-        Ok(Some(quant)) => {
-            println!("Parsed successfully!");
-            println!("  Quantifier: {:?}", quant.quantifier);
-            println!("  Bound vars: {:?}", quant.bound_vars);
-            println!("  Body: {:?}", quant.body);
+    {
+        let parser = QuantifierParser::new(&builder.graph);
+        match parser.parse_quantifier(quantified) {
+            Ok(Some(quant)) => {
+                println!("Parsed successfully!");
+                println!("  Quantifier: {:?}", quant.quantifier);
+                println!("  Bound vars: {:?}", quant.bound_vars);
+                println!("  Body: {:?}", quant.body);
+            }
+            Ok(None) => println!("Not a quantified expression"),
+            Err(e) => println!("Parse error: {}", e),
         }
-        Ok(None) => println!("Not a quantified expression"),
-        Err(e) => println!("Parse error: {}", e),
     }
     
     // Test 3: Build an exists expression
@@ -61,13 +63,16 @@ fn main() {
     println!("Created exists expression: {:?}", exists_expr);
     
     // Test 4: Parse the exists expression
-    match parser.parse_quantifier(exists_expr) {
-        Ok(Some(quant)) => {
-            println!("Parsed exists expression:");
-            println!("  Quantifier: {:?}", quant.quantifier);
-            assert_eq!(quant.quantifier, Quantifier::Exists);
+    {
+        let parser = QuantifierParser::new(&builder.graph);
+        match parser.parse_quantifier(exists_expr) {
+            Ok(Some(quant)) => {
+                println!("Parsed exists expression:");
+                println!("  Quantifier: {:?}", quant.quantifier);
+                assert_eq!(quant.quantifier, Quantifier::Exists);
+            }
+            _ => println!("Failed to parse exists expression"),
         }
-        _ => println!("Failed to parse exists expression"),
     }
     
     println!("\n✅ Quantifier implementation is working correctly!");

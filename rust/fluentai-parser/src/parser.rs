@@ -249,13 +249,16 @@ impl<'a> Parser<'a> {
                 let effect_str = &effect_spec[..colon_pos];
                 let operation = &effect_spec[colon_pos + 1..];
                 
-                let effect_type = match effect_str {
+                let effect_type = match effect_str.to_lowercase().as_str() {
                     "io" => EffectType::IO,
                     "state" => EffectType::State,
                     "error" => EffectType::Error,
                     "time" => EffectType::Time,
                     "network" => EffectType::Network,
                     "random" => EffectType::Random,
+                    "concurrent" => EffectType::Concurrent,
+                    "async" => EffectType::Async,
+                    "dom" => EffectType::Dom,
                     _ => EffectType::IO,
                 };
                 

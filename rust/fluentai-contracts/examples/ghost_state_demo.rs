@@ -39,18 +39,32 @@ fn demo_old_values() {
     let eq = graph.add_node(Node::Variable { name: "=".to_string() });
     let body = graph.add_node(Node::Variable { name: "withdraw-body".to_string() });
     
-    // Create builder after adding all nodes
-    let mut builder = GhostStateBuilder::new(&mut graph);
-    
     // Contract for withdraw function
     // Postcondition: result = old(balance) - amount
+    let mut builder = GhostStateBuilder::new(&mut graph);
     let old_balance = builder.old(balance);
-    let expected = builder.add_application(minus, vec![old_balance, amount]);
-    let postcond = builder.add_application(eq, vec![result, expected]);
+    
+    // Create expected value: old(balance) - amount
+    let expected = graph.add_node(Node::Application {
+        function: minus,
+        args: vec![old_balance, amount],
+    });
+    
+    // Create postcondition: result = expected
+    let postcond = graph.add_node(Node::Application {
+        function: eq,
+        args: vec![result, expected],
+    });
+    
     let mut contract = Contract::new("withdraw".to_string(), body);
     contract.add_postcondition(
-        ContractCondition::new(postcond, ContractKind::Postcondition)
-            .with_blame("result = old(balance) - amount".to_string())
+        ContractCondition {
+            expression: postcond,
+            message: Some("result = old(balance) - amount".to_string()),
+            kind: ContractKind::Postcondition,
+            span: None,
+            blame_label: Some("postcondition".to_string()),
+        }
     );
     
     // Process ghost state
@@ -64,22 +78,27 @@ fn demo_old_values() {
 
 fn demo_ghost_variables() {
     let mut graph = Graph::new();
-    let mut builder = GhostStateBuilder::new(&mut graph);
     
-    // Ghost variable to track operation count
+    // Create nodes first
     let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let ghost_count = builder.ghost_var("operation_count", Some(zero));
-    
-    // Use in contract: each operation increments ghost counter
     let one = graph.add_node(Node::Literal(Literal::Integer(1)));
     let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
+    
+    // Use builder for ghost operations
+    let mut builder = GhostStateBuilder::new(&mut graph);
+    let ghost_count = builder.ghost_var("operation_count", Some(zero));
     let old_count = builder.old(ghost_count);
+    
+    // Drop builder to release borrow
+    drop(builder);
+    
+    // Now we can use graph again
     let new_count = graph.add_node(Node::Application {
         function: plus,
         args: vec![old_count, one],
     });
     
-    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
     let postcond = graph.add_node(Node::Application {
         function: eq,
         args: vec![ghost_count, new_count],
@@ -88,8 +107,13 @@ fn demo_ghost_variables() {
     let body = graph.add_node(Node::Variable { name: "operation-body".to_string() });
     let mut contract = Contract::new("operation".to_string(), body);
     contract.add_postcondition(
-        ContractCondition::new(postcond, ContractKind::Postcondition)
-            .with_blame("ghost operation_count = old(operation_count) + 1".to_string())
+        ContractCondition {
+            expression: postcond,
+            message: Some("ghost operation_count = old(operation_count) + 1".to_string()),
+            kind: ContractKind::Postcondition,
+            span: None,
+            blame_label: Some("postcondition".to_string()),
+        }
     );
     
     // Add ghost variable to manager
@@ -174,8 +198,13 @@ fn demo_model_fields() {
     let body = graph.add_node(Node::Variable { name: "list-op-body".to_string() });
     let mut contract = Contract::new("list_operation".to_string(), body);
     contract.add_invariant(
-        ContractCondition::new(invariant, ContractKind::Invariant)
-            .with_blame("0 <= list.size <= list.capacity".to_string())
+        ContractCondition {
+            expression: invariant,
+            message: Some("0 <= list.size <= list.capacity".to_string()),
+            kind: ContractKind::Invariant,
+            span: None,
+            blame_label: Some("invariant".to_string()),
+        }
     );
     
     println!("  Model fields for list:");
@@ -245,8 +274,13 @@ fn demo_bank_account() {
     });
     
     deposit_contract.add_postcondition(
-        ContractCondition::new(deposits_postcond, ContractKind::Postcondition)
-            .with_blame("Ghost: total_deposits increases by amount".to_string())
+        ContractCondition {
+            expression: deposits_postcond,
+            message: Some("Ghost: total_deposits increases by amount".to_string()),
+            kind: ContractKind::Postcondition,
+            span: None,
+            blame_label: Some("postcondition".to_string()),
+        }
     );
     
     // Invariant: balance = total_deposits - total_withdrawals
@@ -261,8 +295,13 @@ fn demo_bank_account() {
     });
     
     deposit_contract.add_invariant(
-        ContractCondition::new(invariant, ContractKind::Invariant)
-            .with_blame("balance = total_deposits - total_withdrawals".to_string())
+        ContractCondition {
+            expression: invariant,
+            message: Some("balance = total_deposits - total_withdrawals".to_string()),
+            kind: ContractKind::Invariant,
+            span: None,
+            blame_label: Some("invariant".to_string()),
+        }
     );
     
     println!("  Bank Account Contract with Ghost State:");

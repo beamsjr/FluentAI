@@ -84,7 +84,7 @@ mod tests {
         builder.relationship(
             ("app", "posts"),
             ("app", "users"),
-            RelationshipType::ManyToOne,
+            RelationshipType::OneToMany,
         )
         .cardinality(0, None)
         .join_on("user_id", JoinOperator::Equals, "id")
@@ -94,7 +94,7 @@ mod tests {
         
         assert_eq!(schema.relationships.len(), 1);
         let rel = &schema.relationships[0];
-        assert_eq!(rel.relationship_type, RelationshipType::ManyToOne);
+        assert_eq!(rel.relationship_type, RelationshipType::OneToMany);
         assert_eq!(rel.cardinality.min, 0);
         assert!(rel.cardinality.max.is_none());
         assert_eq!(rel.join_conditions.len(), 1);
@@ -105,12 +105,8 @@ mod tests {
     fn test_column_statistics() {
         let mut builder = SchemaGraphBuilder::new();
         
-        let mut table_builder = builder.schema("stats")
-            .table("products");
-        
-        // In a real implementation, we'd have methods to set column statistics
-        // For now, we'll create a table and verify the structure exists
-        table_builder
+        builder.schema("stats")
+            .table("products")
             .column("id", "bigint")
             .column("price", "decimal(10,2)")
             .column("category", "varchar(50)")
@@ -173,7 +169,7 @@ mod tests {
         builder.relationship(
             ("social", "user_groups"),
             ("social", "users"),
-            RelationshipType::ManyToOne,
+            RelationshipType::OneToMany,
         )
         .join_on("user_id", JoinOperator::Equals, "id")
         .build();
@@ -181,7 +177,7 @@ mod tests {
         builder.relationship(
             ("social", "user_groups"),
             ("social", "groups"),
-            RelationshipType::ManyToOne,
+            RelationshipType::OneToMany,
         )
         .join_on("group_id", JoinOperator::Equals, "id")
         .build();
@@ -240,12 +236,12 @@ mod tests {
                 partitioning: Some(PartitioningStrategy::Composite {
                     strategies: vec![
                         PartitioningStrategy::Range {
-                            column: NodeId(1),
-                            boundaries: vec![NodeId(2), NodeId(3)],
+                            column: node_id(1),
+                            boundaries: vec![node_id(2), node_id(3)],
                         },
                         PartitioningStrategy::List {
-                            column: NodeId(4),
-                            values: vec![vec![NodeId(5)], vec![NodeId(6)]],
+                            column: node_id(4),
+                            values: vec![vec![node_id(5)], vec![node_id(6)]],
                         },
                     ],
                 }),
@@ -271,8 +267,8 @@ mod tests {
         let unique = ConstraintType::Unique;
         let primary = ConstraintType::PrimaryKey;
         let foreign = ConstraintType::ForeignKey {
-            target_table: NodeId(1),
-            target_column: NodeId(2),
+            target_table: node_id(1),
+            target_column: node_id(2),
             on_delete: ForeignKeyAction::Cascade,
             on_update: ForeignKeyAction::Restrict,
         };
@@ -297,16 +293,16 @@ mod tests {
         // Add access patterns
         schema.metadata.access_patterns.push(AccessPattern {
             name: "user_dashboard".to_string(),
-            tables: vec![NodeId(1), NodeId(2)],
-            columns: vec![NodeId(10), NodeId(11), NodeId(12)],
+            tables: vec![node_id(1), node_id(2)],
+            columns: vec![node_id(10), node_id(11), node_id(12)],
             frequency: 1000.0,
             avg_execution_time: 15.5,
         });
         
         schema.metadata.access_patterns.push(AccessPattern {
             name: "admin_reports".to_string(),
-            tables: vec![NodeId(1), NodeId(2), NodeId(3)],
-            columns: vec![NodeId(20), NodeId(21)],
+            tables: vec![node_id(1), node_id(2), node_id(3)],
+            columns: vec![node_id(20), node_id(21)],
             frequency: 50.0,
             avg_execution_time: 250.0,
         });

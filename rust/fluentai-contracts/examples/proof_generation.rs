@@ -39,11 +39,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     expression: postcond_expr,
                     message: Some("Result must be non-negative".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: None,
             pure: true,
+            frame_condition: None,
             node_id: postcond_expr, // dummy
         };
         
@@ -96,6 +99,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     expression: precond_expr,
                     message: Some("n must be non-negative".to_string()),
                     kind: ContractKind::Precondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             postconditions: vec![
@@ -103,11 +108,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     expression: postcond_expr,
                     message: Some("Result must be positive".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(n)".to_string()),
             pure: true,
+            frame_condition: None,
             node_id: postcond_expr,
         };
         
@@ -154,11 +162,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     expression: postcond_expr,
                     message: Some("Sum must be non-negative".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(n)".to_string()),
             pure: true,
+            frame_condition: None,
             node_id: postcond_expr,
         };
         
@@ -258,11 +269,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     expression: postcond_expr,
                     message: Some("Result must be >= both arguments".to_string()),
                     kind: ContractKind::Postcondition,
+                    span: None,
+                    blame_label: None,
                 }
             ],
             invariants: vec![],
             complexity: Some("O(1)".to_string()),
             pure: true,
+            frame_condition: None,
             node_id: postcond_expr,
         };
         

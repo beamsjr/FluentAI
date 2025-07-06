@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-fluentai-core = { path = "../../fluentai-core" }
-fluentai-optimizer = { path = "../../fluentai-optimizer" }
+fluentai-core = { path = "../fluentai-core" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -40,12 +40,12 @@ fn test_forall_quantifier() {
     // Create contract with the quantified expression
     let mut contract = Contract::new(
         "all_positive".to_string(),
-        NodeId::new(NonZeroU32::new(1).unwrap())
+        NodeId(NonZeroU32::new(1).unwrap())
     );
     
     contract.add_postcondition(
         ContractCondition::new(quantified, ContractKind::Postcondition)
-            .with_blame("All elements must be positive".to_string())
+            .with_message("All elements must be positive".to_string())
     );
     
     assert_eq!(contract.postconditions.len(), 1);
@@ -76,7 +76,7 @@ fn test_exists_quantifier() {
     // Create contract
     let mut contract = Contract::new(
         "contains".to_string(),
-        NodeId::new(NonZeroU32::new(1).unwrap())
+        NodeId(NonZeroU32::new(1).unwrap())
     );
     
     contract.add_precondition(
@@ -112,5 +112,5 @@ fn test_nested_quantifiers() {
     );
     
     // Verify the expression was created
-    assert_ne!(quantified, NodeId::new(NonZeroU32::new(1).unwrap()));
+    assert_ne!(quantified, NodeId(NonZeroU32::new(1).unwrap()));
 }

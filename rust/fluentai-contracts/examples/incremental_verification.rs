@@ -42,7 +42,7 @@ fn main() {
     
     // Contract for add: ensures result >= x and result >= y
     let mut add_contract = Contract::new("add".to_string(), add_body);
-    add_contract.function_name = Some("add".to_string());
+    // function_name is already set in the constructor
     
     let result = graph.add_node(Node::Variable { name: "result".to_string() });
     let ge = graph.add_node(Node::Variable { name: ">=".to_string() });
@@ -68,7 +68,7 @@ fn main() {
     
     // Contract for double: ensures result = 2 * n
     let mut double_contract = Contract::new("double".to_string(), double_body);
-    double_contract.function_name = Some("double".to_string());
+    // function_name is already set in the constructor
     
     let two = graph.add_node(Node::Literal(Literal::Integer(2)));
     let times = graph.add_node(Node::Variable { name: "*".to_string() });

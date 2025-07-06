@@ -296,7 +296,7 @@ mod tests {
             name: name.to_string(),
             path: PathBuf::from(format!("{}.cl", id)),
             graph: Graph::new(),
-            root: NodeId(0),
+            root: NodeId::new(1).unwrap(),
             exports: vec![],
             dependencies: deps,
             metadata: FxHashMap::default(),

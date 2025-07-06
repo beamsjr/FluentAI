@@ -52,7 +52,11 @@ impl EffectHandler for IOHandler {
             "write_file" => {
                 if args.len() >= 2 {
                     if let (Some(Value::String(path)), Some(content)) = (args.get(0), args.get(1)) {
-                        std::fs::write(path, content.to_string())
+                        let content_str = match content {
+                            Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        };
+                        std::fs::write(path, content_str)
                             .map(|_| Value::Nil)
                             .map_err(|e| Error::Runtime(format!("Failed to write file: {}", e)))
                     } else {

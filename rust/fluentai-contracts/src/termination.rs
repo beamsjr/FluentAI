@@ -5,6 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 use fluentai_core::ast::{Graph, Node, NodeId, Literal, Pattern};
+use std::num::NonZeroU32;
 use crate::{
     contract::Contract,
     errors::{ContractError, ContractResult},
@@ -368,7 +369,7 @@ mod tests {
         
         let contract = Contract::new(
             "add".to_string(),
-            NodeId::new(NonZeroU32::new(1).unwrap())
+            NodeId(NonZeroU32::new(1).unwrap())
         );
         
         let result = checker.analyze_contract(&contract);

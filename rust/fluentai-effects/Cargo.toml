@@ -24,6 +24,10 @@ rustc-hash.workspace = true
 # Optional dependencies
 fluentai-di = { path = "../fluentai-di", optional = true }
 
+[dev-dependencies]
+fluentai-parser = { path = "../fluentai-parser" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
+
 [features]
 default = []
 di = ["fluentai-di"]

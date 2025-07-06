@@ -12,6 +12,7 @@ pub mod passes;
 pub mod pipeline;
 pub mod stats;
 pub mod di;
+pub mod visitor;
 
 pub use graph_optimizer::GraphOptimizer;
 pub use advanced_optimizer::AdvancedOptimizer;

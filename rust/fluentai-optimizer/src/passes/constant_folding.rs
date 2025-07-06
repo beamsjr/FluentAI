@@ -24,25 +24,36 @@ impl OptimizationPass for ConstantFoldingPass {
 
     fn run(&mut self, graph: &Graph) -> Result<Graph> {
         self.folded_count = 0;
-        let mut optimized = Graph::new();
-        let mut node_mapping = FxHashMap::default();
-
-        // Process all nodes
-        for (node_id, node) in &graph.nodes {
-            if let Some(folded) = fold_constants(graph, &node_mapping, node) {
-                let new_id = optimized.add_node(folded);
-                node_mapping.insert(*node_id, new_id);
-                self.folded_count += 1;
-            } else {
-                let mapped = map_node_refs(node, &node_mapping);
-                let new_id = optimized.add_node(mapped);
-                node_mapping.insert(*node_id, new_id);
+        let mut optimized = graph.clone();
+        
+        // Keep folding until no more changes
+        loop {
+            let mut changed = false;
+            let nodes: Vec<_> = optimized.nodes.keys().copied().collect();
+            
+            for node_id in nodes {
+                if let Some(node) = optimized.get_node(node_id).cloned() {
+                    if let Some(folded) = fold_constants_in_optimized(&optimized, &node) {
+                        optimized.nodes.insert(node_id, folded);
+                        self.folded_count += 1;
+                        changed = true;
+                    }
+                }
+            }
+            
+            if !changed {
+                break;
             }
         }
-
-        // Update root
-        if let Some(root) = graph.root_id {
-            optimized.root_id = node_mapping.get(&root).copied();
+        
+        // Special case: if the root is now a literal, return just that
+        if let Some(root_id) = optimized.root_id {
+            if let Some(Node::Literal(lit)) = optimized.get_node(root_id) {
+                let mut result = Graph::new();
+                let new_root = result.add_node(Node::Literal(lit.clone()));
+                result.root_id = Some(new_root);
+                return Ok(result);
+            }
         }
 
         Ok(optimized)
@@ -53,19 +64,16 @@ impl OptimizationPass for ConstantFoldingPass {
     }
 }
 
-/// Try to fold constants in a node
-fn fold_constants(graph: &Graph, mapping: &FxHashMap<NodeId, NodeId>, node: &Node) -> Option<Node> {
+/// Try to fold constants in a node within the optimized graph
+fn fold_constants_in_optimized(graph: &Graph, node: &Node) -> Option<Node> {
     match node {
         Node::Application { function, args } => {
-            // Get mapped function
-            let func_id = mapping.get(function).copied().unwrap_or(*function);
-            
-            if let Some(Node::Variable { name }) = graph.get_node(func_id) {
+            // Look at the function in the graph
+            if let Some(Node::Variable { name }) = graph.get_node(*function) {
                 // Check if all arguments are literals
                 let mut literals = Vec::new();
                 for arg_id in args {
-                    let mapped_id = mapping.get(arg_id).copied().unwrap_or(*arg_id);
-                    match graph.get_node(mapped_id) {
+                    match graph.get_node(*arg_id) {
                         Some(Node::Literal(lit)) => literals.push(lit.clone()),
                         _ => return None,
                     }
@@ -91,6 +99,7 @@ fn evaluate_builtin(name: &str, args: &[Literal]) -> Option<Node> {
         ("-", [Integer(a), Integer(b)]) => Integer(a - b),
         ("*", [Integer(a), Integer(b)]) => Integer(a * b),
         ("/", [Integer(a), Integer(b)]) if *b != 0 => Integer(a / b),
+        ("mod", [Integer(a), Integer(b)]) if *b != 0 => Integer(a % b),
         
         // Comparison
         ("<", [Integer(a), Integer(b)]) => Boolean(a < b),
@@ -102,46 +111,12 @@ fn evaluate_builtin(name: &str, args: &[Literal]) -> Option<Node> {
         ("or", [Boolean(a), Boolean(b)]) => Boolean(*a || *b),
         ("not", [Boolean(a)]) => Boolean(!a),
         
+        // String operations
+        ("str-concat", [String(a), String(b)]) => String(format!("{}{}", a, b)),
+        
         _ => return None,
     };
     
     Some(Node::Literal(result))
 }
 
-/// Map node references through the mapping
-fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
-    match node {
-        Node::Application { function, args } => {
-            Node::Application {
-                function: mapping.get(function).copied().unwrap_or(*function),
-                args: args.iter()
-                    .map(|id| mapping.get(id).copied().unwrap_or(*id))
-                    .collect(),
-            }
-        }
-        Node::Lambda { params, body } => {
-            Node::Lambda {
-                params: params.clone(),
-                body: mapping.get(body).copied().unwrap_or(*body),
-            }
-        }
-        Node::Let { bindings, body } => {
-            Node::Let {
-                bindings: bindings.iter()
-                    .map(|(name, id)| {
-                        (name.clone(), mapping.get(id).copied().unwrap_or(*id))
-                    })
-                    .collect(),
-                body: mapping.get(body).copied().unwrap_or(*body),
-            }
-        }
-        Node::If { condition, then_branch, else_branch } => {
-            Node::If {
-                condition: mapping.get(condition).copied().unwrap_or(*condition),
-                then_branch: mapping.get(then_branch).copied().unwrap_or(*then_branch),
-                else_branch: mapping.get(else_branch).copied().unwrap_or(*else_branch),
-            }
-        }
-        _ => node.clone(),
-    }
-}

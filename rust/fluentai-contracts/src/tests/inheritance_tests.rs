@@ -5,6 +5,7 @@ use crate::{
     contract::{Contract, ContractCondition, ContractKind},
 };
 use fluentai_core::ast::NodeId;
+use std::num::NonZeroU32;
 
 #[test]
 fn test_basic_inheritance() {
@@ -14,40 +15,40 @@ fn test_basic_inheritance() {
     let base = Contract {
         function_name: "base_function".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("x > 0".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("result > 0".to_string())
         ],
         invariants: vec![],
         complexity: None,
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     // Create derived contract
     let derived = Contract {
         function_name: "derived_function".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("x > 0".to_string()),
-            ContractCondition::new(NodeId(3), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Precondition)
                 .with_message("x < 100".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("result > 0".to_string()),
-            ContractCondition::new(NodeId(4), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Postcondition)
                 .with_message("result < 100".to_string())
         ],
         invariants: vec![],
         complexity: None,
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     hierarchy.add_contract(base);
@@ -77,9 +78,9 @@ fn test_inheritance_cycle_detection() {
     let mut hierarchy = ContractHierarchy::new();
     
     // Create contracts
-    let contract_a = Contract::new("contract_a".to_string(), NodeId(0));
-    let contract_b = Contract::new("contract_b".to_string(), NodeId(1));
-    let contract_c = Contract::new("contract_c".to_string(), NodeId(2));
+    let contract_a = Contract::new("contract_a".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
+    let contract_b = Contract::new("contract_b".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
+    let contract_c = Contract::new("contract_c".to_string(), NodeId(NonZeroU32::new(2).unwrap()));
     
     hierarchy.add_contract(contract_a);
     hierarchy.add_contract(contract_b);
@@ -117,35 +118,35 @@ fn test_contract_composition() {
     let contract1 = Contract {
         function_name: "contract1".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("x > 0".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("result != null".to_string())
         ],
         invariants: vec![],
         complexity: None,
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     let contract2 = Contract {
         function_name: "contract2".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(3), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Precondition)
                 .with_message("y > 0".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(4), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Postcondition)
                 .with_message("result > 0".to_string())
         ],
         invariants: vec![],
         complexity: None,
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     hierarchy.add_contract(contract1);
@@ -187,7 +188,7 @@ fn test_contract_composition() {
 fn test_refinement_rules() {
     let mut hierarchy = ContractHierarchy::new();
     
-    let base = Contract::new("base".to_string(), NodeId(0));
+    let base = Contract::new("base".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
     hierarchy.add_contract(base);
     
     // Add refinement rule
@@ -211,11 +212,11 @@ fn test_interface_implementation() {
     let interface = ContractInterface {
         name: "Sortable".to_string(),
         required_preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("input != null".to_string())
         ],
         required_postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("is_sorted(result)".to_string())
         ],
         required_invariants: vec![],
@@ -228,20 +229,20 @@ fn test_interface_implementation() {
     let impl_contract = Contract {
         function_name: "quick_sort".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("input != null".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("is_sorted(result)".to_string()),
-            ContractCondition::new(NodeId(3), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Postcondition)
                 .with_message("result.length == input.length".to_string())
         ],
         invariants: vec![],
         complexity: Some("O(n log n)".to_string()),
         pure: false,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     hierarchy.add_contract(impl_contract);

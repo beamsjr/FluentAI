@@ -11,3 +11,6 @@ mod state_machine_tests;
 
 #[cfg(test)]
 mod composition_tests;
+
+#[cfg(test)]
+mod unit_tests;

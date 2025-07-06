@@ -8,6 +8,7 @@ use crate::symbolic_verification::SymbolicViolation;
 use crate::test_generation::TestCase;
 use crate::errors::{ContractError, ContractResult};
 use fluentai_core::ast::{Graph, NodeId, Node, Literal};
+use std::num::NonZeroU32;
 use std::collections::HashMap;
 
 #[cfg(feature = "static")]
@@ -335,7 +336,7 @@ impl CounterexampleGenerator {
                 location: Some(format!("Branch {}", i + 1)),
                 operation,
                 state: current_state.clone(),
-                is_critical: i >= state.path_constraints.len() - 3, // Last few are often critical
+                is_critical: i >= state.path_constraints.len().saturating_sub(3), // Last few are often critical
             });
             
             if trace.len() >= self.max_trace_length {
@@ -595,18 +596,29 @@ mod tests {
         let violation = SymbolicViolation {
             condition_type: ContractConditionType::Postcondition,
             condition: crate::contract::ContractCondition {
-                expression: NodeId(0),
-                description: Some("Result should be positive".to_string()),
+                expression: NodeId(NonZeroU32::new(1).unwrap()),
+                message: Some("Result should be positive".to_string()),
+                kind: crate::contract::ContractKind::Postcondition,
+                span: None,
+                blame_label: None,
             },
             violating_state: state,
             path_description: "x > 0".to_string(),
         };
         
+        // Create a graph with a node for the condition
+        let mut graph = Graph::new();
+        let condition_node = graph.add_node(Node::Literal(Literal::Boolean(true)));
+        
+        // Update the violation to use the actual node
+        let mut updated_violation = violation;
+        updated_violation.condition.expression = condition_node;
+        
         let generator = CounterexampleGenerator::new();
         let counterexample = generator.generate_counterexample(
-            &violation,
+            &updated_violation,
             &["x".to_string()],
-            &Graph::new(),
+            &graph,
         ).unwrap();
         
         // Check that we generated inputs

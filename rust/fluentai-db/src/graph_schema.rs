@@ -396,12 +396,12 @@ impl SchemaGraphBuilder {
     }
     
     /// Add a relationship between tables
-    pub fn relationship(
-        &mut self,
-        from: (&str, &str), // (schema, table)
-        to: (&str, &str),   // (schema, table)
+    pub fn relationship<'a>(
+        &'a mut self,
+        from: (&'a str, &'a str), // (schema, table)
+        to: (&'a str, &'a str),   // (schema, table)
         rel_type: RelationshipType,
-    ) -> RelationshipBuilder {
+    ) -> RelationshipBuilder<'a> {
         RelationshipBuilder {
             builder: self,
             from_table: from,

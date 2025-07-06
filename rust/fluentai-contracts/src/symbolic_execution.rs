@@ -114,7 +114,7 @@ impl SymbolicState {
     pub fn fresh_symbol(&mut self, prefix: &str) -> SymbolicValue {
         let name = format!("{}_{}", prefix, self.symbol_counter);
         self.symbol_counter += 1;
-        SymbolicValue::Symbolic { name, ty: None }
+        SymbolicValue::Symbolic { name, ty: Some(SymbolicType::Integer) }
     }
     
     /// Generate a fresh symbolic variable with type hint
@@ -650,7 +650,7 @@ mod tests {
         let sym2 = state.fresh_symbol("x");
         
         match (&sym1, &sym2) {
-            (SymbolicValue::Symbolic(s1), SymbolicValue::Symbolic(s2)) => {
+            (SymbolicValue::Symbolic { name: s1, .. }, SymbolicValue::Symbolic { name: s2, .. }) => {
                 assert_ne!(s1, s2);
                 assert!(s1.starts_with("x_"));
                 assert!(s2.starts_with("x_"));
@@ -665,8 +665,8 @@ mod tests {
     
     #[test]
     fn test_symbolic_value_creation() {
-        let val1 = SymbolicValue::Concrete(Literal::Int(42));
-        let val2 = SymbolicValue::Symbolic("x".to_string());
+        let val1 = SymbolicValue::Concrete(Literal::Integer(42));
+        let val2 = SymbolicValue::Symbolic { name: "x".to_string(), ty: Some(SymbolicType::Integer) };
         
         let binop = SymbolicValue::BinOp {
             op: "+".to_string(),
@@ -677,8 +677,8 @@ mod tests {
         match binop {
             SymbolicValue::BinOp { op, left, right } => {
                 assert_eq!(op, "+");
-                assert!(matches!(*left, SymbolicValue::Concrete(Literal::Int(42))));
-                assert!(matches!(*right, SymbolicValue::Symbolic(ref s) if s == "x"));
+                assert!(matches!(*left, SymbolicValue::Concrete(Literal::Integer(42))));
+                assert!(matches!(*right, SymbolicValue::Symbolic { ref name, .. } if name == "x"));
             }
             _ => panic!("Expected binary operation"),
         }

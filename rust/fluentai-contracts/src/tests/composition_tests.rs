@@ -5,6 +5,7 @@ use crate::{
     contract::{Contract, ContractCondition, ContractKind},
 };
 use fluentai_core::ast::NodeId;
+use std::num::NonZeroU32;
 
 #[test]
 fn test_xor_composition() {
@@ -14,35 +15,35 @@ fn test_xor_composition() {
     let contract_a = Contract {
         function_name: "process_type_a".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("is_type_a(input)".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("result.type == 'A'".to_string())
         ],
         invariants: vec![],
         complexity: Some("O(n)".to_string()),
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     let contract_b = Contract {
         function_name: "process_type_b".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(3), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Precondition)
                 .with_message("is_type_b(input)".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(4), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Postcondition)
                 .with_message("result.type == 'B'".to_string())
         ],
         invariants: vec![],
         complexity: Some("O(n^2)".to_string()),
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     hierarchy.add_contract(contract_a);
@@ -68,7 +69,7 @@ fn test_xor_composition() {
 fn test_xor_composition_requires_two_contracts() {
     let mut hierarchy = ContractHierarchy::new();
     
-    let contract = Contract::new("single".to_string(), NodeId(0));
+    let contract = Contract::new("single".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
     hierarchy.add_contract(contract);
     
     // XOR with single contract should fail
@@ -81,8 +82,8 @@ fn test_xor_composition_requires_two_contracts() {
     assert!(result.unwrap_err().to_string().contains("exactly 2"));
     
     // XOR with three contracts should also fail
-    hierarchy.add_contract(Contract::new("second".to_string(), NodeId(1)));
-    hierarchy.add_contract(Contract::new("third".to_string(), NodeId(2)));
+    hierarchy.add_contract(Contract::new("second".to_string(), NodeId(NonZeroU32::new(1).unwrap())));
+    hierarchy.add_contract(Contract::new("third".to_string(), NodeId(NonZeroU32::new(2).unwrap())));
     
     let result = hierarchy.compose_contracts(
         &["single".to_string(), "second".to_string(), "third".to_string()],
@@ -100,36 +101,36 @@ fn test_implication_composition() {
     let validate_contract = Contract {
         function_name: "validate_input".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("input != null".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("is_valid(input)".to_string())
         ],
         invariants: vec![],
         complexity: None,
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     // Consequent: processes validated input
     let process_contract = Contract {
         function_name: "process_validated".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(3), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Precondition)
                 .with_message("is_valid(input)".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(4), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Postcondition)
                 .with_message("result.processed == true".to_string())
         ],
         invariants: vec![],
         complexity: None,
         pure: false,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     hierarchy.add_contract(validate_contract);
@@ -164,27 +165,27 @@ fn test_implication_empty_conditions() {
         function_name: "no_preconditions".to_string(),
         preconditions: vec![],
         postconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Postcondition)
         ],
         invariants: vec![],
         complexity: None,
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     // Contract with preconditions
     let with_pre = Contract {
         function_name: "with_preconditions".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Precondition)
         ],
         postconditions: vec![],
         invariants: vec![],
         complexity: None,
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     hierarchy.add_contract(no_pre);
@@ -212,18 +213,18 @@ fn test_complex_composition_chain() {
         let contract = Contract {
             function_name: format!("contract_{}", i),
             preconditions: vec![
-                ContractCondition::new(NodeId(i * 2), ContractKind::Precondition)
+                ContractCondition::new(NodeId(NonZeroU32::new(i * 2).unwrap()), ContractKind::Precondition)
                     .with_message(format!("pre_{}", i))
             ],
             postconditions: vec![
-                ContractCondition::new(NodeId(i * 2 + 1), ContractKind::Postcondition)
+                ContractCondition::new(NodeId(NonZeroU32::new(i * 2 + 1).unwrap()), ContractKind::Postcondition)
                     .with_message(format!("post_{}", i))
             ],
             invariants: vec![],
             complexity: None,
             pure: true,
             frame_condition: None,
-            node_id: NodeId(0),
+            node_id: NodeId(NonZeroU32::new(1).unwrap()),
         };
         hierarchy.add_contract(contract);
     }
@@ -255,36 +256,36 @@ fn test_sequential_composition() {
     let parse = Contract {
         function_name: "parse".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
                 .with_message("is_string(input)".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
                 .with_message("is_ast(result)".to_string())
         ],
         invariants: vec![],
         complexity: Some("O(n)".to_string()),
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     // Second step: optimize AST
     let optimize = Contract {
         function_name: "optimize".to_string(),
         preconditions: vec![
-            ContractCondition::new(NodeId(3), ContractKind::Precondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Precondition)
                 .with_message("is_ast(input)".to_string())
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(4), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Postcondition)
                 .with_message("is_optimized_ast(result)".to_string())
         ],
         invariants: vec![],
         complexity: Some("O(n^2)".to_string()),
         pure: true,
         frame_condition: None,
-        node_id: NodeId(0),
+        node_id: NodeId(NonZeroU32::new(1).unwrap()),
     };
     
     hierarchy.add_contract(parse);

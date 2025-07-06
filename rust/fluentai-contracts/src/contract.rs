@@ -234,7 +234,7 @@ impl ContractCondition {
     }
     
     /// Create a condition with a custom message
-    pub fn with_message(expression: NodeId, kind: ContractKind, message: String) -> Self {
+    pub fn new_with_message(expression: NodeId, kind: ContractKind, message: String) -> Self {
         Self {
             expression,
             message: Some(message),
@@ -253,6 +253,12 @@ impl ContractCondition {
     /// Set the blame label for this condition
     pub fn with_blame(mut self, blame: String) -> Self {
         self.blame_label = Some(blame);
+        self
+    }
+    
+    /// Add a message to this condition (builder pattern)
+    pub fn with_message(mut self, message: String) -> Self {
+        self.message = Some(message);
         self
     }
 }

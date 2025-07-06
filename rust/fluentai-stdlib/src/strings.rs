@@ -185,7 +185,8 @@ fn string_capitalize(args: &[Value]) -> Result<Value> {
             match chars.next() {
                 None => Ok(Value::String(String::new())),
                 Some(first) => {
-                    let capitalized = first.to_uppercase().collect::<String>() + chars.as_str();
+                    let capitalized = first.to_uppercase().collect::<String>() 
+                        + &chars.as_str().to_lowercase();
                     Ok(Value::String(capitalized))
                 }
             }

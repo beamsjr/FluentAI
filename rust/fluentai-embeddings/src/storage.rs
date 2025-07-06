@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 
 /// Trait for embedding storage backends
 #[async_trait]
@@ -147,16 +147,20 @@ impl FileStorage {
     }
     
     async fn save_index(&self) -> Result<()> {
-        let index = self.index.read()
-            .map_err(|_| anyhow!("Lock poisoned"))?;
+        let (json, index_path) = {
+            let index = self.index.read()
+                .map_err(|_| anyhow!("Lock poisoned"))?;
+            
+            let index_data: FxHashMap<u64, String> = index
+                .iter()
+                .map(|(id, path)| (id.0, path.to_string_lossy().to_string()))
+                .collect();
+            
+            let json = serde_json::to_string_pretty(&index_data)?;
+            let index_path = self.base_path.join("index.json");
+            (json, index_path)
+        };
         
-        let index_data: FxHashMap<u64, String> = index
-            .iter()
-            .map(|(id, path)| (id.0, path.to_string_lossy().to_string()))
-            .collect();
-        
-        let json = serde_json::to_string_pretty(&index_data)?;
-        let index_path = self.base_path.join("index.json");
         fs::write(index_path, json).await?;
         
         Ok(())
@@ -234,16 +238,19 @@ impl EmbeddingStorage for FileStorage {
         k: usize,
         threshold: f32,
     ) -> Result<Vec<(EmbeddingId, f32)>> {
-        let index = self.index.read()
-            .map_err(|_| anyhow!("Lock poisoned"))?;
+        let ids: Vec<_> = {
+            let index = self.index.read()
+                .map_err(|_| anyhow!("Lock poisoned"))?;
+            index.keys().cloned().collect()
+        };
         
         let mut similarities = Vec::new();
         
-        for (id, _) in index.iter() {
-            let embedding = self.retrieve(*id).await?;
+        for id in ids {
+            let embedding = self.retrieve(id).await?;
             let similarity = cosine_similarity(query, &embedding);
             if similarity >= threshold {
-                similarities.push((*id, similarity));
+                similarities.push((id, similarity));
             }
         }
         

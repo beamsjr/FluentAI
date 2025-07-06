@@ -438,17 +438,31 @@ impl MLOptimizationHints {
         // Generate hints based on score and patterns
         for (node_id, node) in &graph.nodes {
             match node {
-                Node::Lambda { .. } if score > self.thresholds[&OptimizationHint::Inline] => {
+                Node::Lambda { .. } if score > self.thresholds.get(&OptimizationHint::Inline).copied().unwrap_or(0.6) => {
                     hints.push((*node_id, OptimizationHint::Inline));
                 }
-                Node::Application { .. } if features.has_loops && score > self.thresholds[&OptimizationHint::Unroll] => {
+                Node::Application { .. } if features.has_loops && score > self.thresholds.get(&OptimizationHint::Unroll).copied().unwrap_or(0.7) => {
                     hints.push((*node_id, OptimizationHint::Unroll));
+                }
+                Node::Application { function, .. } if features.arithmetic_ops > 10 => {
+                    // Check if it's an arithmetic operation
+                    if let Some(Node::Variable { name }) = graph.get_node(*function) {
+                        if is_arithmetic_op(name) && score > 0.5 {
+                            hints.push((*node_id, OptimizationHint::Vectorize));
+                        }
+                    }
                 }
                 _ => {}
             }
         }
 
         hints
+    }
+    
+    /// Apply optimization hints to a graph (placeholder for now)
+    pub fn apply_hints(&self, _graph: &Graph, _hints: &[(NodeId, OptimizationHint)]) {
+        // This would integrate with the optimization pipeline
+        // For now, it's just a placeholder for testing
     }
 }
 
@@ -458,9 +472,75 @@ impl Default for MLOptimizationHints {
     }
 }
 
+impl Default for ProgramFeatures {
+    fn default() -> Self {
+        Self {
+            node_count: 0,
+            depth: 0,
+            branching_factor: 0.0,
+            cycle_count: 0,
+            arithmetic_ops: 0,
+            memory_ops: 0,
+            control_flow_ops: 0,
+            function_calls: 0,
+            data_dependencies: 0,
+            live_variables: 0,
+            register_pressure: 0.0,
+            has_recursion: false,
+            has_loops: false,
+            has_map_pattern: false,
+            has_reduce_pattern: false,
+            uses_integers: false,
+            uses_floats: false,
+            uses_lists: false,
+            uses_higher_order: false,
+            estimated_iterations: None,
+            data_size_hint: None,
+            hotness_score: 0.0,
+        }
+    }
+}
+
+/// Simple prediction model for testing
+pub struct SimplePredictionModel;
+
+impl SimplePredictionModel {
+    /// Create a new simple prediction model
+    pub fn new() -> Self {
+        Self
+    }
+    
+    /// Predict optimization hints based on features
+    pub fn predict(&self, features: &ProgramFeatures) -> Vec<(OptimizationHint, f32)> {
+        let mut hints = Vec::new();
+        
+        // Simple heuristic rules
+        if features.has_loops && features.arithmetic_ops > 10 {
+            hints.push((OptimizationHint::Unroll, 0.8));
+        }
+        
+        if features.arithmetic_ops > 20 && features.data_dependencies < 10 {
+            hints.push((OptimizationHint::Vectorize, 0.7));
+        }
+        
+        if features.function_calls > 5 && features.node_count < 50 {
+            hints.push((OptimizationHint::Inline, 0.6));
+        }
+        
+        if features.has_recursion && features.estimated_iterations.unwrap_or(0) > 100 {
+            hints.push((OptimizationHint::Memoize, 0.7));
+        }
+        
+        hints
+    }
+}
+
 /// Check if a function name is an arithmetic operation
 fn is_arithmetic_op(name: &str) -> bool {
-    matches!(name, "+" | "-" | "*" | "/" | "mod")
+    matches!(name, 
+        "+" | "-" | "*" | "/" | "mod" | "expt" | "sqrt" | 
+        "sin" | "cos" | "tan" | "log" | "exp" | "abs"
+    )
 }
 
 /// Check if a function name is a memory operation
@@ -469,4 +549,327 @@ fn is_memory_op(name: &str) -> bool {
         "car" | "cdr" | "cons" | "list" | "append" |
         "ref" | "deref" | "set!" | "vector-ref" | "vector-set!"
     )
+}
+
+/// Check if a function name is a control flow operation
+fn is_control_flow_op(name: &str) -> bool {
+    matches!(name, 
+        "if" | "cond" | "case" | "match" | "call/cc" | 
+        "call-with-current-continuation" | "begin" | "do"
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ml_hints::*;
+    use fluentai_core::ast::{Graph, Node, NodeId, Literal};
+
+    #[test]
+    fn test_optimization_hint_traits() {
+        // Test that OptimizationHint implements expected traits
+        let hint = OptimizationHint::Inline;
+        
+        // Test Debug
+        assert_eq!(format!("{:?}", hint), "Inline");
+        
+        // Test Clone
+        let cloned = hint.clone();
+        assert_eq!(hint, cloned);
+        
+        // Test PartialEq
+        assert_eq!(OptimizationHint::Inline, OptimizationHint::Inline);
+        assert_ne!(OptimizationHint::Inline, OptimizationHint::Unroll);
+        
+        // Test Hash
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(OptimizationHint::Inline);
+        assert!(set.contains(&OptimizationHint::Inline));
+    }
+
+    #[test]
+    fn test_program_features_default() {
+        let features = ProgramFeatures::default();
+        
+        assert_eq!(features.node_count, 0);
+        assert_eq!(features.depth, 0);
+        assert_eq!(features.branching_factor, 0.0);
+        assert_eq!(features.cycle_count, 0);
+        assert_eq!(features.arithmetic_ops, 0);
+        assert_eq!(features.memory_ops, 0);
+        assert_eq!(features.control_flow_ops, 0);
+        assert_eq!(features.function_calls, 0);
+        assert_eq!(features.data_dependencies, 0);
+        assert_eq!(features.live_variables, 0);
+        assert_eq!(features.register_pressure, 0.0);
+        assert!(!features.has_loops);
+        assert!(!features.has_map_pattern);
+        assert!(!features.has_reduce_pattern);
+        assert!(!features.uses_floats);
+        assert!(!features.uses_lists);
+        assert!(!features.uses_higher_order);
+        assert_eq!(features.data_size_hint, None);
+        assert_eq!(features.hotness_score, 0.0);
+    }
+
+    #[test]
+    fn test_feature_extractor_basic() {
+        let extractor = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+        
+        // Create a simple expression: (+ 1 2)
+        let one = graph.add_node(Node::Literal(Literal::Integer(1)));
+        let two = graph.add_node(Node::Literal(Literal::Integer(2)));
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+        let app = graph.add_node(Node::Application {
+            function: plus,
+            args: vec![one, two],
+        });
+        graph.root_id = Some(app);
+        
+        let features = extractor.extract_features(&graph);
+        
+        assert_eq!(features.node_count, 4);
+        assert_eq!(features.arithmetic_ops, 1);
+        assert_eq!(features.function_calls, 1);
+        assert!(features.depth > 0);
+    }
+
+    #[test]
+    fn test_feature_extractor_control_flow() {
+        let extractor = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+        
+        // Create: (if #t 1 2)
+        let cond = graph.add_node(Node::Literal(Literal::Boolean(true)));
+        let then_val = graph.add_node(Node::Literal(Literal::Integer(1)));
+        let else_val = graph.add_node(Node::Literal(Literal::Integer(2)));
+        let if_node = graph.add_node(Node::If {
+            condition: cond,
+            then_branch: then_val,
+            else_branch: else_val,
+        });
+        graph.root_id = Some(if_node);
+        
+        let features = extractor.extract_features(&graph);
+        
+        assert_eq!(features.control_flow_ops, 1);
+        assert!(features.branching_factor > 0.0);
+    }
+
+    #[test]
+    fn test_feature_extractor_higher_order() {
+        let extractor = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+        
+        // Create: (lambda (x) x)
+        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() });
+        let lambda = graph.add_node(Node::Lambda {
+            params: vec!["x".to_string()],
+            body: x_ref,
+        });
+        graph.root_id = Some(lambda);
+        
+        let features = extractor.extract_features(&graph);
+        
+        assert!(features.uses_higher_order);
+    }
+
+    #[test]
+    fn test_feature_extractor_lists() {
+        let extractor = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+        
+        // Create: (cons 1 '())
+        let one = graph.add_node(Node::Literal(Literal::Integer(1)));
+        let nil = graph.add_node(Node::List(vec![]));
+        let cons = graph.add_node(Node::Variable { name: "cons".to_string() });
+        let app = graph.add_node(Node::Application {
+            function: cons,
+            args: vec![one, nil],
+        });
+        graph.root_id = Some(app);
+        
+        let features = extractor.extract_features(&graph);
+        
+        assert!(features.uses_lists);
+        assert_eq!(features.memory_ops, 1);
+    }
+
+    #[test]
+    fn test_feature_extractor_map_pattern() {
+        let extractor = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+        
+        // Create: (map f list)
+        let f = graph.add_node(Node::Variable { name: "f".to_string() });
+        let list = graph.add_node(Node::Variable { name: "list".to_string() });
+        let map_fn = graph.add_node(Node::Variable { name: "map".to_string() });
+        let app = graph.add_node(Node::Application {
+            function: map_fn,
+            args: vec![f, list],
+        });
+        graph.root_id = Some(app);
+        
+        let features = extractor.extract_features(&graph);
+        
+        assert!(features.has_map_pattern);
+    }
+
+    #[test]
+    fn test_hint_generator() {
+        let mut hints = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+        
+        // Create a function with enough operations to trigger inlining hint
+        let mut nodes = vec![];
+        for i in 0..5 {
+            nodes.push(graph.add_node(Node::Literal(Literal::Integer(i))));
+        }
+        
+        // Create lambda body with multiple operations
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+        let mut sum = nodes[0];
+        for i in 1..5 {
+            sum = graph.add_node(Node::Application {
+                function: plus,
+                args: vec![sum, nodes[i]],
+            });
+        }
+        
+        let lambda = graph.add_node(Node::Lambda {
+            params: vec!["x".to_string()],
+            body: sum,
+        });
+        
+        // Apply the lambda
+        let x = graph.add_node(Node::Literal(Literal::Integer(10)));
+        let app = graph.add_node(Node::Application {
+            function: lambda,
+            args: vec![x],
+        });
+        graph.root_id = Some(app);
+        
+        // Generate hints
+        let generated_hints = hints.generate_hints(&graph);
+        
+        // Should suggest inlining for small functions
+        assert!(!generated_hints.is_empty());
+    }
+
+    #[test]
+    fn test_prediction_model_simple() {
+        let model = SimplePredictionModel::new();
+        
+        let mut features = ProgramFeatures::default();
+        features.node_count = 50;
+        features.arithmetic_ops = 20;
+        features.has_loops = true;
+        
+        let hints = model.predict(&features);
+        
+        // Should suggest unrolling for loops with arithmetic
+        assert!(hints.iter().any(|(h, _)| matches!(h, OptimizationHint::Unroll)));
+    }
+
+    #[test]
+    fn test_prediction_model_vectorization() {
+        let model = SimplePredictionModel::new();
+        
+        let mut features = ProgramFeatures::default();
+        features.arithmetic_ops = 30;
+        features.memory_ops = 10;
+        features.data_dependencies = 5;
+        
+        let hints = model.predict(&features);
+        
+        // Should suggest vectorization for arithmetic-heavy code
+        assert!(hints.iter().any(|(h, _)| matches!(h, OptimizationHint::Vectorize)));
+    }
+
+    #[test]
+    fn test_ml_optimization_hints_integration() {
+        let mut ml_hints = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+        
+        // Create a complex expression to get various hints
+        let mut values = vec![];
+        for i in 0..10 {
+            values.push(graph.add_node(Node::Literal(Literal::Integer(i))));
+        }
+        
+        // Create arithmetic operations
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+        let mult = graph.add_node(Node::Variable { name: "*".to_string() });
+        
+        let mut result = values[0];
+        for i in 1..10 {
+            let prod = graph.add_node(Node::Application {
+                function: mult,
+                args: vec![values[i], values[i]],
+            });
+            result = graph.add_node(Node::Application {
+                function: plus,
+                args: vec![result, prod],
+            });
+        }
+        
+        graph.root_id = Some(result);
+        
+        // Get optimization hints
+        let features = ml_hints.extract_features(&graph);
+        let hints = ml_hints.generate_hints(&graph);
+        
+        // Verify features were extracted
+        assert!(features.node_count > 20);
+        assert!(features.arithmetic_ops > 15);
+        
+        // Verify hints were generated
+        assert!(!hints.is_empty());
+        
+        // Apply hints (this tests the apply_hints method)
+        ml_hints.apply_hints(&graph, &hints);
+    }
+
+    #[test]
+    fn test_arithmetic_op_detection() {
+        assert!(is_arithmetic_op("+"));
+        assert!(is_arithmetic_op("-"));
+        assert!(is_arithmetic_op("*"));
+        assert!(is_arithmetic_op("/"));
+        assert!(is_arithmetic_op("mod"));
+        assert!(is_arithmetic_op("expt"));
+        assert!(is_arithmetic_op("sqrt"));
+        assert!(is_arithmetic_op("sin"));
+        assert!(is_arithmetic_op("cos"));
+        assert!(!is_arithmetic_op("cons"));
+        assert!(!is_arithmetic_op("map"));
+    }
+
+    #[test]
+    fn test_control_flow_detection() {
+        assert!(is_control_flow_op("if"));
+        assert!(is_control_flow_op("cond"));
+        assert!(is_control_flow_op("case"));
+        assert!(is_control_flow_op("match"));
+        assert!(is_control_flow_op("call/cc"));
+        assert!(!is_control_flow_op("map"));
+        assert!(!is_control_flow_op("+"));
+    }
+
+    #[test]
+    fn test_memory_op_detection() {
+        assert!(is_memory_op("car"));
+        assert!(is_memory_op("cdr"));
+        assert!(is_memory_op("cons"));
+        assert!(is_memory_op("list"));
+        assert!(is_memory_op("append"));
+        assert!(is_memory_op("ref"));
+        assert!(is_memory_op("deref"));
+        assert!(is_memory_op("set!"));
+        assert!(is_memory_op("vector-ref"));
+        assert!(is_memory_op("vector-set!"));
+        assert!(!is_memory_op("+"));
+        assert!(!is_memory_op("if"));
+    }
 }

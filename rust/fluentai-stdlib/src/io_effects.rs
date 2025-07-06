@@ -6,7 +6,7 @@
 use crate::value::Value;
 use anyhow::{anyhow, Result};
 use std::sync::Arc;
-use parking_lot::RwLock;
+use std::cell::RefCell;
 
 /// I/O effect context for stdlib functions
 pub struct IOEffectContext {
@@ -67,25 +67,26 @@ pub trait IOHandler: Send + Sync {
     fn print_line(&self, content: &str) -> Result<()>;
 }
 
-/// Global I/O effect context
-static IO_CONTEXT: RwLock<IOEffectContext> = RwLock::new(IOEffectContext {
-    io_allowed: true,
-    allowed_paths: None,
-    read_only: false,
-    io_handler: None,
-});
-
-/// Set the global I/O effect context
-pub fn set_io_context(context: IOEffectContext) {
-    *IO_CONTEXT.write() = context;
+/// Thread-local I/O effect context
+thread_local! {
+    static IO_CONTEXT: RefCell<IOEffectContext> = RefCell::new(IOEffectContext::default());
 }
 
-/// Get a reference to the global I/O effect context
+/// Set the thread-local I/O effect context
+pub fn set_io_context(context: IOEffectContext) {
+    IO_CONTEXT.with(|ctx| {
+        *ctx.borrow_mut() = context;
+    });
+}
+
+/// Get a reference to the thread-local I/O effect context
 pub fn with_io_context<F, R>(f: F) -> R
 where
     F: FnOnce(&IOEffectContext) -> R,
 {
-    f(&*IO_CONTEXT.read())
+    IO_CONTEXT.with(|ctx| {
+        f(&*ctx.borrow())
+    })
 }
 
 /// Check if a path is allowed
@@ -391,22 +392,22 @@ pub fn print_with_effects(args: &[Value]) -> Result<Value> {
 
 // Example sandbox handler that logs all I/O operations
 pub struct LoggingIOHandler {
-    log: Arc<RwLock<Vec<String>>>,
+    log: Arc<std::sync::Mutex<Vec<String>>>,
 }
 
 impl LoggingIOHandler {
     pub fn new() -> Self {
         Self {
-            log: Arc::new(RwLock::new(Vec::new())),
+            log: Arc::new(std::sync::Mutex::new(Vec::new())),
         }
     }
     
     pub fn get_log(&self) -> Vec<String> {
-        self.log.read().clone()
+        self.log.lock().unwrap().clone()
     }
     
     fn log_operation(&self, op: &str) {
-        self.log.write().push(op.to_string());
+        self.log.lock().unwrap().push(op.to_string());
     }
 }
 

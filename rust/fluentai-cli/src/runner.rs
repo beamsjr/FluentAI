@@ -185,7 +185,7 @@ pub async fn run_with_visualization(
     // Give user time to explore visualization
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     
-    result
+    result.map_err(|e| anyhow::anyhow!("VM error: {}", e))
 }
 
 #[cfg(feature = "visualization")]

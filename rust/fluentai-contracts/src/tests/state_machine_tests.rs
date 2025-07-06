@@ -4,9 +4,11 @@ use crate::{
     state_machine::*,
     temporal_dsl::*,
     contract::{ContractCondition, ContractKind},
+    TemporalFormula,
 };
 use fluentai_core::ast::NodeId;
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroU32;
 
 #[test]
 fn test_state_machine_creation() {
@@ -19,7 +21,7 @@ fn test_state_machine_creation() {
         is_initial: true,
         is_final: false,
         invariants: vec![
-            ContractCondition::new(NodeId(1), ContractKind::Invariant)
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant)
                 .with_message("credit >= 0".to_string())
         ],
         properties: HashMap::new(),
@@ -31,7 +33,7 @@ fn test_state_machine_creation() {
         is_initial: false,
         is_final: false,
         invariants: vec![
-            ContractCondition::new(NodeId(2), ContractKind::Invariant)
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Invariant)
                 .with_message("credit > 0".to_string())
         ],
         properties: HashMap::new(),
@@ -51,13 +53,13 @@ fn test_state_machine_creation() {
         from: "idle".to_string(),
         to: "selecting".to_string(),
         event: "insert_coin".to_string(),
-        guard: Some(ContractCondition::new(NodeId(3), ContractKind::Precondition)
+        guard: Some(ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Precondition)
             .with_message("coin_value > 0".to_string())),
         actions: vec![
             TransitionAction::Assign("credit".to_string(), serde_json::json!(1)),
         ],
         postconditions: vec![
-            ContractCondition::new(NodeId(4), ContractKind::Postcondition)
+            ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Postcondition)
                 .with_message("credit == old_credit + coin_value".to_string())
         ],
     });
@@ -134,7 +136,7 @@ fn test_state_machine_contract() {
                 name: "no_simultaneous_green".to_string(),
                 forbidden_states: HashSet::new(),
                 forbidden_predicates: vec![
-                    ContractCondition::new(NodeId(1), ContractKind::Invariant)
+                    ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant)
                         .with_message("north_green && east_green".to_string())
                 ],
                 forbidden_sequences: vec![],
@@ -186,7 +188,7 @@ fn test_state_machine_builder() {
             postconditions: vec![],
         })
         .unwrap()
-        .invariant(ContractCondition::new(NodeId(1), ContractKind::Invariant))
+        .invariant(ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant))
         .build();
     
     assert_eq!(machine.states.len(), 2);

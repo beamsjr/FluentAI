@@ -162,7 +162,8 @@ fn test_match_with_shadowed_variables() -> Result<()> {
     graph.root_id = Some(let_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(1)); // Should be inner x (from match), not outer
+    // The pattern-bound x should shadow the outer x, returning 1
+    assert_eq!(result, Value::Int(1)); // Pattern-bound x shadows outer x
     Ok(())
 }
 

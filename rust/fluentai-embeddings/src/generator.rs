@@ -70,16 +70,16 @@ impl FeatureBasedGenerator {
                     Literal::Integer(_) => features[1] = 1.0,
                     Literal::Float(_) => features[2] = 1.0,
                     Literal::String(_) => features[3] = 1.0,
-                    Literal::Bool(_) => features[4] = 1.0,
+                    Literal::Boolean(_) => features[4] = 1.0,
                     Literal::Nil => features[5] = 1.0,
                 }
             }
-            Node::Variable(_) => features[6] = 1.0,
+            Node::Variable { .. } => features[6] = 1.0,
             Node::Lambda { .. } => features[7] = 1.0,
             Node::Application { .. } => features[8] = 1.0,
             Node::If { .. } => features[9] = 1.0,
             Node::Let { .. } => features[10] = 1.0,
-            Node::Define { .. } => features[11] = 1.0,
+            Node::Letrec { .. } => features[11] = 1.0,
             Node::Effect { .. } => features[12] = 1.0,
             Node::List(_) => features[13] = 1.0,
             Node::Match { .. } => features[14] = 1.0,
@@ -88,7 +88,7 @@ impl FeatureBasedGenerator {
             Node::Async { .. } => features[17] = 1.0,
             Node::Await { .. } => features[18] = 1.0,
             Node::Spawn { .. } => features[19] = 1.0,
-            Node::Channel { .. } => features[20] = 1.0,
+            Node::Channel => features[20] = 1.0,
             _ => features[31] = 1.0, // Other
         }
         
@@ -142,17 +142,17 @@ impl EmbeddingGenerator for FeatureBasedGenerator {
         embedding.push(features.data_dependencies as f32 / 100.0);
         embedding.push(features.live_variables as f32 / 100.0);
         embedding.push(features.register_pressure);
-        embedding.push(features.memory_access_density);
         embedding.push(if features.has_recursion { 1.0 } else { 0.0 });
         embedding.push(if features.has_loops { 1.0 } else { 0.0 });
-        embedding.push(if features.has_closures { 1.0 } else { 0.0 });
-        embedding.push(if features.has_side_effects { 1.0 } else { 0.0 });
-        embedding.push(if features.is_pure { 1.0 } else { 0.0 });
-        embedding.push(if features.is_tail_recursive { 1.0 } else { 0.0 });
         embedding.push(if features.has_map_pattern { 1.0 } else { 0.0 });
         embedding.push(if features.has_reduce_pattern { 1.0 } else { 0.0 });
-        embedding.push(if features.has_filter_pattern { 1.0 } else { 0.0 });
-        embedding.push(features.pattern_confidence);
+        embedding.push(if features.uses_integers { 1.0 } else { 0.0 });
+        embedding.push(if features.uses_floats { 1.0 } else { 0.0 });
+        embedding.push(if features.uses_lists { 1.0 } else { 0.0 });
+        embedding.push(if features.uses_higher_order { 1.0 } else { 0.0 });
+        embedding.push(features.estimated_iterations.unwrap_or(0) as f32 / 1000.0);
+        embedding.push(features.data_size_hint.unwrap_or(0) as f32 / 10000.0);
+        embedding.push(features.hotness_score);
         
         // Pad to 32
         while embedding.len() < 64 {

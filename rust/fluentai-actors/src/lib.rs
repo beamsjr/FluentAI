@@ -3,7 +3,7 @@
 //! Provides Erlang/Akka-style actors with supervision, fault tolerance,
 //! and distributed communication capabilities.
 
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
 use async_trait::async_trait;
@@ -13,7 +13,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::timeout;
 use uuid::Uuid;
 use anyhow::{anyhow, Result};
-use tracing::{debug, error, info, warn};
+use tracing::error;
 
 pub mod mailbox;
 pub mod router;
@@ -21,7 +21,7 @@ pub mod supervision;
 pub mod cluster;
 pub mod persistence;
 
-use mailbox::{Mailbox, MailboxConfig};
+use mailbox::MailboxConfig;
 use supervision::{SupervisionStrategy, RestartStrategy};
 
 /// Actor reference for sending messages
@@ -43,7 +43,7 @@ impl ActorId {
 }
 
 /// Message trait that all actor messages must implement
-pub trait Message: Send + Sync + 'static {}
+pub trait Message: Send + Sync + Clone + 'static {}
 
 /// Envelope wrapping a message with metadata
 struct Envelope<M: Message> {
@@ -158,6 +158,7 @@ impl<M: Message> ActorContext<M> {
 }
 
 /// Actor system managing all actors
+#[derive(Debug)]
 pub struct ActorSystem {
     name: String,
     actors: DashMap<ActorId, ActorHandle>,
@@ -197,6 +198,7 @@ impl Default for ActorSystemConfig {
 }
 
 /// Internal actor handle
+#[derive(Debug)]
 struct ActorHandle {
     task: tokio::task::JoinHandle<()>,
     sender: mpsc::Sender<Box<dyn Any + Send>>,
@@ -348,7 +350,7 @@ impl<M: Message> ActorRef<M> {
     
     /// Ask pattern (request-reply)
     pub async fn ask<R: Message>(&self, msg: M, timeout_duration: Duration) -> Result<R> {
-        let (tx, rx) = oneshot::channel();
+        let (_tx, rx) = oneshot::channel();
         
         // This would need special handling for reply
         // For now, simplified implementation
@@ -394,7 +396,7 @@ pub mod behaviors {
         fn current_state(&self) -> &Self::State;
         fn set_state(&mut self, state: Self::State);
         
-        async fn on_transition(&mut self, from: &Self::State, to: &Self::State) -> Result<()> {
+        async fn on_transition(&mut self, _from: &Self::State, _to: &Self::State) -> Result<()> {
             Ok(())
         }
     }

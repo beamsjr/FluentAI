@@ -76,7 +76,7 @@ fn run_test(name: &str, code: &str, context: Arc<EffectContext>, runtime: Arc<Ef
         Ok(bc) => bc,
         Err(e) => {
             println!("  ✗ Compile error: {}", e);
-            return Err(e);
+            return Err(anyhow::anyhow!("Compile error: {}", e));
         }
     };
     println!("  ✓ Compiled");
@@ -96,7 +96,7 @@ fn run_test(name: &str, code: &str, context: Arc<EffectContext>, runtime: Arc<Ef
         }
         Err(e) => {
             println!("  ✗ Runtime error: {}", e);
-            return Err(e);
+            return Err(anyhow::anyhow!("Runtime error: {}", e));
         }
     }
     

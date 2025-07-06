@@ -9,7 +9,8 @@ use std::num::NonZeroU32;
 use fluentai_core::ast::{Graph, NodeId};
 use crate::{
     contract::{Contract, ContractCondition, ContractKind},
-    temporal::{TemporalFormula, TemporalOperator, temporal_dsl::*},
+    temporal::{TemporalFormula, TemporalOperator},
+    temporal_dsl::*,
     errors::{ContractError, ContractResult},
 };
 
@@ -306,7 +307,7 @@ impl StateMachine {
     
     /// Create predicate for being in a state
     fn state_predicate(&self, state_id: &str) -> ContractCondition {
-        ContractCondition::with_message(
+        ContractCondition::new_with_message(
             NodeId(NonZeroU32::new(1).unwrap()), 
             ContractKind::Invariant,
             format!("in_state_{}", state_id)
@@ -317,7 +318,7 @@ impl StateMachine {
     fn transition_formula(&self, trans: &Transition) -> TemporalFormula {
         let from_pred = self.state_predicate(&trans.from);
         let to_pred = self.state_predicate(&trans.to);
-        let event_pred = ContractCondition::with_message(
+        let event_pred = ContractCondition::new_with_message(
             NodeId(NonZeroU32::new(1).unwrap()),
             ContractKind::Precondition,
             format!("event_{}", trans.event)

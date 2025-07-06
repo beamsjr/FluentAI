@@ -243,7 +243,7 @@ impl<'a> QuantifierParser<'a> {
 
 /// Helper to build quantified expressions
 pub struct QuantifierBuilder {
-    graph: Graph,
+    pub graph: Graph,
 }
 
 impl QuantifierBuilder {

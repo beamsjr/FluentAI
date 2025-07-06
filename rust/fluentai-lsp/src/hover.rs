@@ -34,19 +34,26 @@ pub fn compute_hover(
         // If we have an AST, try to find the node at this position
         // TODO: Implement position-to-node mapping
         // For now, just check if it's a user-defined function
-        for (node_id, node) in &ast.nodes {
-            if let fluentai_core::ast::Node::Define { name, .. } = node {
-                if name == &word {
-                    if let Some(doc) = doc_service.get_node_documentation(ast, *node_id) {
-                        return Some(Hover {
-                            contents: HoverContents::Scalar(MarkedString::LanguageString(LanguageString {
-                                language: "markdown".to_string(),
-                                value: doc_service.format_hover(&doc),
-                            })),
-                            range: None,
-                        });
+        // Look for function definitions in Let/Letrec bindings
+        for (_node_id, node) in &ast.nodes {
+            match node {
+                fluentai_core::ast::Node::Let { bindings, .. } | 
+                fluentai_core::ast::Node::Letrec { bindings, .. } => {
+                    for (binding_name, binding_node_id) in bindings {
+                        if binding_name == &word {
+                            if let Some(doc) = doc_service.get_node_documentation(ast, *binding_node_id) {
+                                return Some(Hover {
+                                    contents: HoverContents::Scalar(MarkedString::LanguageString(LanguageString {
+                                        language: "markdown".to_string(),
+                                        value: doc_service.format_hover(&doc),
+                                    })),
+                                    range: None,
+                                });
+                            }
+                        }
                     }
                 }
+                _ => {}
             }
         }
         
@@ -54,7 +61,7 @@ pub fn compute_hover(
         return None;
     } else {
         // Legacy hardcoded documentation (to be removed)
-        match word.as_str() {
+        (match word.as_str() {
         // Arithmetic operators
         "+" => "**Addition**\n\n`(+ x y ...)`\n\nAdds two or more numbers together.",
         "-" => "**Subtraction**\n\n`(- x y ...)`\n\nSubtracts subsequent numbers from the first.",
@@ -96,13 +103,13 @@ pub fn compute_hover(
         "nil" => "**Nil**\n\nThe null/empty value.",
         
             _ => return None,
-        }
+        }).to_string()
     };
     
     Some(Hover {
         contents: HoverContents::Scalar(MarkedString::LanguageString(LanguageString {
             language: "markdown".to_string(),
-            value: hover_text.to_string(),
+            value: hover_text,
         })),
         range: None,
     })

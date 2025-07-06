@@ -117,7 +117,7 @@ mod tests {
             name: id.to_string(),
             path: PathBuf::from(format!("{}.cl", id)),
             graph: Graph::new(),
-            root: fluentai_core::ast::NodeId(0),
+            root: fluentai_core::ast::NodeId::new(1).unwrap(),
             exports: vec![],
             dependencies: vec![],
             metadata: FxHashMap::default(),

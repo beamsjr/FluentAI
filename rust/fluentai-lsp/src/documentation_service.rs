@@ -73,14 +73,14 @@ impl DocumentationService {
         // Otherwise, try to determine documentation from node type
         let node = graph.get_node(node_id)?;
         match node {
-            Node::Variable(name) => {
+            Node::Variable { name } => {
                 // Check if it's a built-in function
                 self.get_documentation(name)
             }
-            Node::Define { name, .. } => {
-                // For user-defined functions, generate documentation from context memory
+            Node::Lambda { .. } => {
+                // For lambda functions, generate documentation from context memory
                 if let Some(context) = graph.get_context_memory(node_id) {
-                    Some(self.generate_documentation_from_context(name, context))
+                    Some(self.generate_documentation_from_context("lambda", context))
                 } else {
                     None
                 }
@@ -198,16 +198,16 @@ mod tests {
         
         // Test getting operator documentation
         let doc = service.get_documentation("+").unwrap();
-        assert_eq!(doc.name, "+");
-        assert!(doc.description.contains("Addition"));
+        assert_eq!(doc.name, "Addition");
+        assert!(doc.description.contains("Adds"));
         
-        // Test getting keyword documentation
-        let doc = service.get_documentation("define").unwrap();
-        assert_eq!(doc.name, "define");
+        // Test getting another operator documentation
+        let doc = service.get_documentation("-").unwrap();
+        assert_eq!(doc.name, "Subtraction");
         
         // Test hover formatting
         let formatted = service.format_hover(&doc);
-        assert!(formatted.contains("**define**"));
+        assert!(formatted.contains("**Subtraction**"));
         assert!(formatted.contains(&doc.syntax));
     }
 }

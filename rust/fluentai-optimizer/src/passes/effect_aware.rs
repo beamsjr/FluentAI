@@ -48,103 +48,6 @@ impl EffectAwarePass {
         }
     }
 
-    /// Hoist pure computations out of effectful contexts
-    fn hoist_pure_computations(&mut self, 
-                                graph: &Graph, 
-                                effect_analysis: &EffectAnalysis,
-                                node_mapping: &mut FxHashMap<NodeId, NodeId>,
-                                optimized: &mut Graph) -> bool {
-        let mut hoisted = false;
-        
-        for (node_id, node) in &graph.nodes {
-            match node {
-                Node::Let { bindings, body } => {
-                    // Check if any bindings are pure and can be hoisted
-                    let mut pure_bindings = Vec::new();
-                    let mut effectful_bindings = Vec::new();
-                    
-                    for (name, value_id) in bindings {
-                        if effect_analysis.pure_nodes.contains(value_id) {
-                            pure_bindings.push((name.clone(), *value_id));
-                        } else {
-                            effectful_bindings.push((name.clone(), *value_id));
-                        }
-                    }
-                    
-                    // If we have both pure and effectful bindings, hoist the pure ones
-                    if !pure_bindings.is_empty() && !effectful_bindings.is_empty() {
-                        // Create outer let with pure bindings
-                        let inner_let = if effectful_bindings.is_empty() {
-                            *body
-                        } else {
-                            let inner = Node::Let {
-                                bindings: effectful_bindings,
-                                body: *body,
-                            };
-                            optimized.add_node(inner)
-                        };
-                        
-                        let outer = Node::Let {
-                            bindings: pure_bindings,
-                            body: inner_let,
-                        };
-                        
-                        let new_id = optimized.add_node(outer);
-                        node_mapping.insert(*node_id, new_id);
-                        self.pure_hoisted += 1;
-                        hoisted = true;
-                        continue;
-                    }
-                }
-                _ => {}
-            }
-            
-            // Default: copy node
-            let mapped_node = map_node_refs(node, node_mapping);
-            let new_id = optimized.add_node(mapped_node);
-            node_mapping.insert(*node_id, new_id);
-        }
-        
-        hoisted
-    }
-
-    /// Remove duplicate pure computations
-    fn remove_duplicate_pure(&mut self,
-                            graph: &Graph,
-                            effect_analysis: &EffectAnalysis,
-                            node_mapping: &mut FxHashMap<NodeId, NodeId>,
-                            optimized: &mut Graph) -> bool {
-        let mut removed = false;
-        let mut expr_cache: FxHashMap<String, NodeId> = FxHashMap::default();
-        
-        for (node_id, node) in &graph.nodes {
-            // Only consider pure nodes
-            if !effect_analysis.pure_nodes.contains(node_id) {
-                let mapped_node = map_node_refs(node, node_mapping);
-                let new_id = optimized.add_node(mapped_node);
-                node_mapping.insert(*node_id, new_id);
-                continue;
-            }
-            
-            // Create a canonical representation of the expression
-            let expr_key = self.canonicalize_expr(node, node_mapping);
-            
-            if let Some(&existing_id) = expr_cache.get(&expr_key) {
-                // Reuse existing computation
-                node_mapping.insert(*node_id, existing_id);
-                self.duplicates_removed += 1;
-                removed = true;
-            } else {
-                // New expression, add to cache
-                let mapped_node = map_node_refs(node, node_mapping);
-                let new_id = optimized.add_node(mapped_node);
-                node_mapping.insert(*node_id, new_id);
-                expr_cache.insert(expr_key, new_id);
-            }
-        }
-        
-        removed
-    }
 
     /// Create a canonical string representation of an expression
     fn canonicalize_expr(&self, node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> String {
@@ -179,28 +82,146 @@ impl OptimizationPass for EffectAwarePass {
         // Perform effect analysis
         let effect_analysis = EffectAnalysis::analyze(graph);
         
-        // Pass 1: Hoist pure computations
-        self.hoist_pure_computations(graph, &effect_analysis, &mut node_mapping, &mut optimized);
+        // Single pass: Process all nodes, hoisting pure computations and removing duplicates
+        let mut expr_cache: FxHashMap<String, NodeId> = FxHashMap::default();
         
-        // Pass 2: Remove duplicate pure computations
-        if !node_mapping.is_empty() {
-            let temp_graph = optimized;
-            optimized = Graph::new();
-            let mut new_mapping = FxHashMap::default();
-            self.remove_duplicate_pure(&temp_graph, &effect_analysis, &mut new_mapping, &mut optimized);
-            
-            // Update the original mapping
-            let updates: Vec<_> = node_mapping.iter()
-                .filter_map(|(old_id, temp_id)| {
-                    new_mapping.get(temp_id).map(|&new_id| (*old_id, new_id))
-                })
-                .collect();
-            
-            for (old_id, new_id) in updates {
-                node_mapping.insert(old_id, new_id);
+        // Process nodes in topological order starting from root
+        let mut visited = FxHashSet::default();
+        let mut work_stack = Vec::new();
+        
+        if let Some(root) = graph.root_id {
+            work_stack.push(root);
+        }
+        
+        // First, collect all nodes in dependency order
+        let mut ordered_nodes = Vec::new();
+        while let Some(node_id) = work_stack.pop() {
+            if !visited.insert(node_id) {
+                continue;
             }
-        } else {
-            self.remove_duplicate_pure(graph, &effect_analysis, &mut node_mapping, &mut optimized);
+            
+            ordered_nodes.push(node_id);
+            
+            if let Some(node) = graph.get_node(node_id) {
+                // Add dependencies to work stack
+                match node {
+                    Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                        work_stack.push(*body);
+                        for (_, value_id) in bindings.iter().rev() {
+                            work_stack.push(*value_id);
+                        }
+                    }
+                    Node::Application { function, args } => {
+                        work_stack.push(*function);
+                        for arg in args.iter().rev() {
+                            work_stack.push(*arg);
+                        }
+                    }
+                    Node::If { condition, then_branch, else_branch } => {
+                        work_stack.push(*else_branch);
+                        work_stack.push(*then_branch);
+                        work_stack.push(*condition);
+                    }
+                    Node::Lambda { body, .. } => {
+                        work_stack.push(*body);
+                    }
+                    Node::Effect { args, .. } => {
+                        for arg in args.iter().rev() {
+                            work_stack.push(*arg);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        
+        // Process nodes in reverse order (dependencies first)
+        ordered_nodes.reverse();
+        
+        // Also add any nodes that weren't reachable from root
+        for (node_id, _) in &graph.nodes {
+            if !visited.contains(node_id) {
+                ordered_nodes.push(*node_id);
+            }
+        }
+        
+        for node_id in ordered_nodes {
+            let node = match graph.get_node(node_id) {
+                Some(n) => n,
+                None => continue,
+            };
+            match node {
+                Node::Let { bindings, body } => {
+                    // Check if we can hoist pure computations
+                    let mut pure_bindings = Vec::new();
+                    let mut effectful_bindings = Vec::new();
+                    
+                    for (name, value_id) in bindings {
+                        if effect_analysis.pure_nodes.contains(value_id) {
+                            pure_bindings.push((name.clone(), *value_id));
+                        } else {
+                            effectful_bindings.push((name.clone(), *value_id));
+                        }
+                    }
+                    
+                    // If we have both pure and effectful bindings, hoist the pure ones
+                    if !pure_bindings.is_empty() && !effectful_bindings.is_empty() {
+                        // Map the bindings through node_mapping
+                        let mapped_effectful: Vec<_> = effectful_bindings.iter()
+                            .map(|(name, id)| (name.clone(), node_mapping.get(id).copied().unwrap_or(*id)))
+                            .collect();
+                        let mapped_pure: Vec<_> = pure_bindings.iter()
+                            .map(|(name, id)| (name.clone(), node_mapping.get(id).copied().unwrap_or(*id)))
+                            .collect();
+                        let mapped_body = node_mapping.get(body).copied().unwrap_or(*body);
+                        
+                        // Create inner let with effectful bindings
+                        let inner = Node::Let {
+                            bindings: mapped_effectful,
+                            body: mapped_body,
+                        };
+                        let inner_id = optimized.add_node(inner);
+                        
+                        // Create outer let with pure bindings
+                        let outer = Node::Let {
+                            bindings: mapped_pure,
+                            body: inner_id,
+                        };
+                        let new_id = optimized.add_node(outer);
+                        node_mapping.insert(node_id, new_id);
+                        self.pure_hoisted += 1;
+                        continue;
+                    }
+                    
+                    // Otherwise, just map the node normally
+                    let mapped_node = map_node_refs(node, &node_mapping);
+                    let new_id = optimized.add_node(mapped_node);
+                    node_mapping.insert(node_id, new_id);
+                }
+                _ => {
+                    // For pure nodes, check if we've seen this expression before
+                    if effect_analysis.pure_nodes.contains(&node_id) {
+                        let expr_key = self.canonicalize_expr(node, &node_mapping);
+                        
+                        if let Some(&existing_id) = expr_cache.get(&expr_key) {
+                            // Reuse existing computation
+                            node_mapping.insert(node_id, existing_id);
+                            self.duplicates_removed += 1;
+                        } else {
+                            // New expression, add to cache
+                            let mapped_node = map_node_refs(node, &node_mapping);
+                            let new_id = optimized.add_node(mapped_node);
+                            node_mapping.insert(node_id, new_id);
+                            expr_cache.insert(expr_key, new_id);
+                        }
+                    } else {
+                        // Effectful node, just copy it
+                        let mapped_node = map_node_refs(node, &node_mapping);
+                        let new_id = optimized.add_node(mapped_node);
+                        node_mapping.insert(node_id, new_id);
+                    }
+                }
+            }
         }
         
         // Update root

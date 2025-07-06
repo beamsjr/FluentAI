@@ -15,6 +15,7 @@ type ChannelReceiver = Arc<Mutex<mpsc::UnboundedReceiver<Value>>>;
 pub struct ConcurrentHandler {
     channels: Arc<DashMap<String, (ChannelSender, ChannelReceiver)>>,
     goroutines: Arc<DashMap<String, tokio::task::JoinHandle<()>>>,
+    mutexes: Arc<DashMap<String, Arc<Mutex<Value>>>>,
 }
 
 impl ConcurrentHandler {
@@ -22,6 +23,7 @@ impl ConcurrentHandler {
         Self {
             channels: Arc::new(DashMap::new()),
             goroutines: Arc::new(DashMap::new()),
+            mutexes: Arc::new(DashMap::new()),
         }
     }
 }
@@ -74,6 +76,18 @@ impl EffectHandler for ConcurrentHandler {
                 } else {
                     Err(Error::Runtime("concurrent:close requires channel ID".to_string()))
                 }
+            }
+            "mutex" => {
+                // Create a new mutex with optional initial value
+                let mutex_id = Uuid::new_v4().to_string();
+                let initial_value = args.first().cloned().unwrap_or(Value::Nil);
+                
+                self.mutexes.insert(
+                    mutex_id.clone(),
+                    Arc::new(Mutex::new(initial_value))
+                );
+                
+                Ok(Value::String(mutex_id))
             }
             _ => Err(Error::Runtime(format!("Unknown Concurrent operation: {}", operation))),
         }

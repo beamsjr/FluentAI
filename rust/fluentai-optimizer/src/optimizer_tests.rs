@@ -80,10 +80,7 @@ mod tests {
     
     #[test]
     fn test_pipeline_none_level() {
-        let config = OptimizationConfig {
-            level: OptimizationLevel::None,
-            ..Default::default()
-        };
+        let config = OptimizationConfig::for_level(OptimizationLevel::None);
         
         let mut pipeline = OptimizationPipeline::new(config);
         let graph = parse("(+ 1 2)").unwrap();
@@ -161,8 +158,20 @@ mod tests {
         assert!(result.is_ok());
         
         let optimized = result.unwrap();
-        // Should remove unused bindings
+        // Should remove unused bindings (y and z)
         assert!(optimized.nodes.len() < original_size);
+        
+        // Verify that we still have x but not y or z
+        let has_x = optimized.nodes.values().any(|node| {
+            matches!(node, Node::Literal(Literal::Integer(1)))
+        });
+        assert!(has_x, "Should keep used binding 'x'");
+        
+        // Count literals - should only have 1 (for x)
+        let literal_count = optimized.nodes.values().filter(|node| {
+            matches!(node, Node::Literal(Literal::Integer(_)))
+        }).count();
+        assert_eq!(literal_count, 1, "Should only have literal for x, not y or z");
     }
     
     #[test]

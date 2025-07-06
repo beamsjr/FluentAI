@@ -92,7 +92,7 @@ fn test_resource_limits() {
     // Should fail when trying to create the 6th cell
     assert!(result.is_err());
     let err = result.err().unwrap();
-    assert!(err.to_string().contains("Cell limit exceeded"));
+    assert!(err.to_string().contains("Resource limit exceeded for cells"));
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn test_channel_limits() {
     // Should fail when trying to create the 4th channel
     assert!(result.is_err());
     let err = result.err().unwrap();
-    assert!(err.to_string().contains("Channel limit exceeded"));
+    assert!(err.to_string().contains("Resource limit exceeded for channels"));
 }
 
 #[test]

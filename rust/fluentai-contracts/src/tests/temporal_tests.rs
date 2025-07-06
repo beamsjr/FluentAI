@@ -7,13 +7,14 @@ use crate::{
     contract::{ContractCondition, ContractKind},
 };
 use fluentai_core::ast::NodeId;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::num::NonZeroU32;
 
 #[test]
 fn test_temporal_formula_construction() {
     // Test basic temporal operators
-    let p = atom(ContractCondition::new(NodeId(1), ContractKind::Invariant));
-    let q = atom(ContractCondition::new(NodeId(2), ContractKind::Invariant));
+    let p = atom(ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant));
+    let q = atom(ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Invariant));
     
     // Always p
     let always_p = always(p.clone());
@@ -51,9 +52,9 @@ fn test_temporal_formula_construction() {
 
 #[test]
 fn test_temporal_contract_builder() {
-    let request = ContractCondition::new(NodeId(1), ContractKind::Precondition)
+    let request = ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition)
         .with_message("request_received".to_string());
-    let response = ContractCondition::new(NodeId(2), ContractKind::Postcondition)
+    let response = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition)
         .with_message("response_sent".to_string());
     
     // Build response property: Always(request -> Eventually response)
@@ -80,7 +81,7 @@ fn test_temporal_verifier() {
     let mut verifier = TemporalVerifier::new(TemporalVerificationConfig::default());
     
     // Create a simple safety property: Always(safe)
-    let safe = ContractCondition::new(NodeId(1), ContractKind::Invariant)
+    let safe = ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant)
         .with_message("system_safe".to_string());
     
     let formula = always(atom(safe));
@@ -141,7 +142,7 @@ fn test_bounded_model_checking() {
     };
     
     // Create a simple invariant property
-    let invariant = ContractCondition::new(NodeId(1), ContractKind::Invariant);
+    let invariant = ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant);
     let formula = TemporalFormula::Atomic(invariant);
     
     let contract = TemporalContract {
@@ -180,8 +181,8 @@ fn test_fairness_constraints() {
     // Test that fairness constraints are properly handled
     let mut verifier = TemporalVerifier::new(TemporalVerificationConfig::default());
     
-    let request = ContractCondition::new(NodeId(1), ContractKind::Precondition);
-    let grant = ContractCondition::new(NodeId(2), ContractKind::Postcondition);
+    let request = ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Precondition);
+    let grant = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition);
     
     // Fairness: if request infinitely often, then grant infinitely often
     let fairness = implies(
@@ -208,13 +209,13 @@ fn test_past_time_operators() {
     let verifier = TemporalVerifier::new(config);
     
     // Test Previously operator
-    let p = atom(ContractCondition::new(NodeId(1), ContractKind::Invariant));
-    let prev_p = TemporalFormula::Temporal(TemporalOperator::Previously(Box::new(p)));
+    let p = atom(ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant));
+    let prev_p = TemporalFormula::Temporal(TemporalOperator::Previously(Box::new(p.clone())));
     
     // Test Since operator
-    let q = atom(ContractCondition::new(NodeId(2), ContractKind::Invariant));
+    let q = atom(ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Invariant));
     let p_since_q = TemporalFormula::Temporal(TemporalOperator::Since(
-        Box::new(p.clone()),
+        Box::new(p),
         Box::new(q)
     ));
 }

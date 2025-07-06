@@ -35,8 +35,10 @@ impl ContextAwarePass {
                 // Estimate function size (would need better heuristics)
                 if let Some(node) = graph.get_node(node_id) {
                     if let Node::Lambda { body, .. } = node {
-                        let size = self.estimate_node_size(graph, *body);
-                        return size < 50; // Inline small hot functions
+                        // Count the entire lambda node, not just the body
+                        let size = self.estimate_node_size(graph, node_id);
+                        // Use a more conservative threshold
+                        return size < 30; // Inline only small hot functions
                     }
                 }
             }
@@ -145,60 +147,54 @@ impl ContextAwarePass {
             match &node {
                 Node::Lambda { .. } => {
                     if self.should_inline(graph, node_id) {
-                        // Mark for inlining by adding metadata
-                        let metadata = graph.metadata_mut(node_id);
-                        if let Some(context) = &mut metadata.context_memory {
-                            context.performance_hints.push(PerformanceHint {
-                                hint_type: PerformanceHintType::ShouldInline,
-                                confidence: 0.9,
-                                context: Some("Function is small and frequently called".to_string()),
-                            });
-                            changed = true;
-                        } else {
-                            metadata.context_memory = Some(fluentai_core::ast::ContextMemory {
+                        // Get existing context memory or create new one
+                        let mut context = graph.get_context_memory(node_id).cloned()
+                            .unwrap_or_else(|| fluentai_core::ast::ContextMemory {
                                 embedding_id: None,
                                 usage_stats: Default::default(),
                                 rationale: None,
-                                performance_hints: vec![PerformanceHint {
-                                    hint_type: PerformanceHintType::ShouldInline,
-                                    confidence: 0.9,
-                                    context: Some("Function is small and frequently called".to_string()),
-                                }],
+                                performance_hints: vec![],
                                 semantic_tags: vec![],
                                 last_modified: None,
                             });
-                            changed = true;
-                        }
+                        
+                        // Add the hint
+                        context.performance_hints.push(PerformanceHint {
+                            hint_type: PerformanceHintType::ShouldInline,
+                            confidence: 0.9,
+                            context: Some("Function is small and frequently called".to_string()),
+                        });
+                        
+                        // Set the updated context back
+                        graph.set_context_memory(node_id, context);
+                        changed = true;
                     }
                 }
                 Node::Application { function, .. } => {
                     // Check if this is a map/filter that can be vectorized
                     if let Some(Node::Variable { name }) = graph.get_node(*function) {
                         if (name == "map" || name == "filter") && self.can_vectorize(graph, node_id) {
-                            // Mark for vectorization
-                            let metadata = graph.metadata_mut(node_id);
-                            if let Some(context) = &mut metadata.context_memory {
-                                context.performance_hints.push(PerformanceHint {
-                                    hint_type: PerformanceHintType::CanVectorize,
-                                    confidence: 0.85,
-                                    context: Some("Array operation can be vectorized".to_string()),
-                                });
-                                changed = true;
-                            } else {
-                                metadata.context_memory = Some(fluentai_core::ast::ContextMemory {
+                            // Get existing context memory or create new one
+                            let mut context = graph.get_context_memory(node_id).cloned()
+                                .unwrap_or_else(|| fluentai_core::ast::ContextMemory {
                                     embedding_id: None,
                                     usage_stats: Default::default(),
                                     rationale: None,
-                                    performance_hints: vec![PerformanceHint {
-                                        hint_type: PerformanceHintType::CanVectorize,
-                                        confidence: 0.85,
-                                        context: Some("Array operation can be vectorized".to_string()),
-                                    }],
+                                    performance_hints: vec![],
                                     semantic_tags: vec![],
                                     last_modified: None,
                                 });
-                                changed = true;
-                            }
+                            
+                            // Add the hint
+                            context.performance_hints.push(PerformanceHint {
+                                hint_type: PerformanceHintType::CanVectorize,
+                                confidence: 0.85,
+                                context: Some("Array operation can be vectorized".to_string()),
+                            });
+                            
+                            // Set the updated context back
+                            graph.set_context_memory(node_id, context);
+                            changed = true;
                         }
                     }
                 }
@@ -207,6 +203,50 @@ impl ContextAwarePass {
         }
         
         changed
+    }
+}
+
+impl ContextAwarePass {
+    /// Remap node IDs within a node structure
+    fn remap_node_ids(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
+        match node {
+            Node::Application { function, args } => {
+                Node::Application {
+                    function: mapping.get(function).copied().unwrap_or(*function),
+                    args: args.iter().map(|id| mapping.get(id).copied().unwrap_or(*id)).collect(),
+                }
+            }
+            Node::Lambda { params, body } => {
+                Node::Lambda {
+                    params: params.clone(),
+                    body: mapping.get(body).copied().unwrap_or(*body),
+                }
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                Node::If {
+                    condition: mapping.get(condition).copied().unwrap_or(*condition),
+                    then_branch: mapping.get(then_branch).copied().unwrap_or(*then_branch),
+                    else_branch: mapping.get(else_branch).copied().unwrap_or(*else_branch),
+                }
+            }
+            Node::Let { bindings, body } => {
+                Node::Let {
+                    bindings: bindings.iter()
+                        .map(|(name, id)| (name.clone(), mapping.get(id).copied().unwrap_or(*id)))
+                        .collect(),
+                    body: mapping.get(body).copied().unwrap_or(*body),
+                }
+            }
+            Node::Letrec { bindings, body } => {
+                Node::Letrec {
+                    bindings: bindings.iter()
+                        .map(|(name, id)| (name.clone(), mapping.get(id).copied().unwrap_or(*id)))
+                        .collect(),
+                    body: mapping.get(body).copied().unwrap_or(*body),
+                }
+            }
+            _ => node.clone(), // For literals, variables, etc. that don't contain NodeIds
+        }
     }
 }
 
@@ -219,7 +259,7 @@ impl OptimizationPass for ContextAwarePass {
         let mut optimized = Graph::new();
         let mut node_mapping = FxHashMap::default();
         
-        // First pass: Copy all nodes and apply optimizations
+        // First pass: Copy all nodes
         for (node_id, node) in &graph.nodes {
             let new_node = node.clone();
             let new_id = optimized.add_node(new_node);
@@ -234,6 +274,15 @@ impl OptimizationPass for ContextAwarePass {
             if let Some(context) = graph.get_context_memory(*node_id) {
                 optimized.set_context_memory(new_id, context.clone());
             }
+        }
+        
+        // Update all node references
+        let remapped_nodes: Vec<(NodeId, Node)> = optimized.nodes.iter()
+            .map(|(id, node)| (*id, Self::remap_node_ids(node, &node_mapping)))
+            .collect();
+        
+        for (id, node) in remapped_nodes {
+            optimized.nodes.insert(id, node);
         }
         
         // Update root

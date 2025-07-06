@@ -5,7 +5,7 @@
 
 use anyhow::{anyhow, Result};
 use fluentai_core::ast::{Graph, Node, NodeId, EmbeddingId, ContextMemory};
-use fluentai_optimizer::ml_hints::{ProgramFeatures, FeatureExtractor};
+use fluentai_optimizer::ml_hints::{ProgramFeatures, MLOptimizationHints};
 use rustc_hash::FxHashMap;
 use serde::{Serialize, Deserialize};
 use std::sync::{Arc, RwLock};
@@ -148,7 +148,7 @@ impl EmbeddingService {
         let context_memory = graph.get_context_memory(node_id).cloned();
         
         // Extract structural features
-        let extractor = FeatureExtractor::new();
+        let extractor = MLOptimizationHints::new();
         let features = extractor.extract_features(&graph);
         
         // Get documentation if available

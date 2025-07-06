@@ -391,10 +391,12 @@ mod tests {
     #[test]
     fn test_ghost_state_builder() {
         let mut graph = Graph::new();
-        let mut builder = GhostStateBuilder::new(&mut graph);
         
-        // Build old(x)
+        // Create x node first
         let x = graph.add_node(Node::Variable { name: "x".to_string() });
+        
+        // Then create builder and build old(x)
+        let mut builder = GhostStateBuilder::new(&mut graph);
         let old_x = builder.old(x);
         
         // Verify structure

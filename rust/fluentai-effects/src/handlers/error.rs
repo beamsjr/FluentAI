@@ -22,7 +22,10 @@ impl EffectHandler for ErrorHandler {
         match operation {
             "raise" => {
                 let msg = args.first()
-                    .map(|v| v.to_string())
+                    .map(|v| match v {
+                        Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    })
                     .unwrap_or_else(|| "Error raised".to_string());
                 Err(Error::Runtime(msg))
             }

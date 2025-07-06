@@ -5,7 +5,7 @@ use parking_lot::{RwLock, Mutex};
 use fluentai_core::value::Value;
 use std::fmt::Debug;
 
-use super::{ReactiveContext, DependencyTracker};
+use super::{ReactiveContext, DependencyTracker, UpdateScheduler};
 
 /// A computed value that automatically recalculates when dependencies change
 #[derive(Clone)]
@@ -19,6 +19,7 @@ struct ComputedInner {
     cached_value: RwLock<Option<Value>>,
     is_dirty: Mutex<bool>,
     tracker: Arc<DependencyTracker>,
+    scheduler: Arc<UpdateScheduler>,
 }
 
 impl Debug for ComputedInner {
@@ -39,9 +40,9 @@ impl Computed {
     {
         let id = format!("computed_{}", uuid::Uuid::new_v4());
         
-        let tracker = ReactiveContext::current()
-            .map(|ctx| ctx.tracker.clone())
-            .unwrap_or_else(|| Arc::new(DependencyTracker::new()));
+        let (tracker, scheduler) = ReactiveContext::current()
+            .map(|ctx| (ctx.tracker.clone(), ctx.scheduler.clone()))
+            .unwrap_or_else(|| (Arc::new(DependencyTracker::new()), Arc::new(UpdateScheduler::new())));
             
         let inner = Arc::new(ComputedInner {
             id: id.clone(),
@@ -49,6 +50,7 @@ impl Computed {
             cached_value: RwLock::new(None),
             is_dirty: Mutex::new(true),
             tracker,
+            scheduler,
         });
         
         // Register this computed value for updates
@@ -84,17 +86,17 @@ impl Computed {
         // Clear old dependencies
         self.inner.tracker.clear_computation_deps(&self.inner.id);
         
-        // Compute within a tracking context
-        let value = if let Some(ctx) = ReactiveContext::current() {
-            ctx.with_computation(self.inner.id.clone(), || {
-                (self.inner.compute_fn)()
-            })
-        } else {
-            let ctx = ReactiveContext::new();
-            ctx.with_computation(self.inner.id.clone(), || {
-                (self.inner.compute_fn)()
-            })
+        // Create a context with our tracker and scheduler
+        let ctx = ReactiveContext {
+            current_computation: None,
+            tracker: self.inner.tracker.clone(),
+            scheduler: self.inner.scheduler.clone(),
         };
+        
+        // Compute within a tracking context
+        let value = ctx.with_computation(self.inner.id.clone(), || {
+            (self.inner.compute_fn)()
+        });
         
         // Update cached value and clear dirty flag
         *self.inner.cached_value.write() = Some(value.clone());

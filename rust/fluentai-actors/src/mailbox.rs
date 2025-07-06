@@ -1,7 +1,5 @@
 //! Mailbox implementation for actors
 
-use std::sync::Arc;
-
 /// Mailbox configuration
 #[derive(Debug, Clone)]
 pub struct MailboxConfig {

@@ -43,56 +43,65 @@ impl ControlFlowGraph {
     }
 
     fn analyze_node(&mut self, graph: &Graph, node_id: NodeId, pred: Option<NodeId>) {
-        // Add predecessor relationship
-        if let Some(p) = pred {
-            self.predecessors.entry(node_id).or_default().insert(p);
-            self.successors.entry(p).or_default().insert(node_id);
-        }
+        // Use iterative approach with explicit stack to avoid stack overflow
+        let mut work_stack = vec![(node_id, pred)];
+        let mut visited = FxHashSet::default();
+        
+        while let Some((current_id, predecessor)) = work_stack.pop() {
+            // Skip if already visited
+            if !visited.insert(current_id) {
+                continue;
+            }
+            
+            // Add predecessor relationship
+            if let Some(p) = predecessor {
+                self.predecessors.entry(current_id).or_default().insert(p);
+                self.successors.entry(p).or_default().insert(current_id);
+            }
 
-        if let Some(node) = graph.get_node(node_id) {
-            match node {
-                Node::If { condition, then_branch, else_branch } => {
-                    // Condition is evaluated first
-                    self.analyze_node(graph, *condition, Some(node_id));
-                    // Then both branches
-                    self.analyze_node(graph, *then_branch, Some(node_id));
-                    self.analyze_node(graph, *else_branch, Some(node_id));
-                }
-                Node::Application { function, args } => {
-                    // Function evaluated first
-                    self.analyze_node(graph, *function, Some(node_id));
-                    // Then arguments in order
-                    for arg in args {
-                        self.analyze_node(graph, *arg, Some(node_id));
+            if let Some(node) = graph.get_node(current_id) {
+                match node {
+                    Node::If { condition, then_branch, else_branch } => {
+                        // Add branches to work stack in reverse order (LIFO)
+                        work_stack.push((*else_branch, Some(current_id)));
+                        work_stack.push((*then_branch, Some(current_id)));
+                        work_stack.push((*condition, Some(current_id)));
                     }
-                }
-                Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
-                    // Bindings first
-                    for (_, value_id) in bindings {
-                        self.analyze_node(graph, *value_id, Some(node_id));
+                    Node::Application { function, args } => {
+                        // Add arguments in reverse order, then function
+                        for arg in args.iter().rev() {
+                            work_stack.push((*arg, Some(current_id)));
+                        }
+                        work_stack.push((*function, Some(current_id)));
                     }
-                    // Then body
-                    self.analyze_node(graph, *body, Some(node_id));
-                }
-                Node::Lambda { body, .. } => {
-                    self.analyze_node(graph, *body, Some(node_id));
-                }
-                Node::Match { expr, branches } => {
-                    self.analyze_node(graph, *expr, Some(node_id));
-                    for (_, branch_body) in branches {
-                        self.analyze_node(graph, *branch_body, Some(node_id));
+                    Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                        // Add body first, then bindings in reverse order
+                        work_stack.push((*body, Some(current_id)));
+                        for (_, value_id) in bindings.iter().rev() {
+                            work_stack.push((*value_id, Some(current_id)));
+                        }
                     }
-                }
-                Node::List(items) => {
-                    // Analyze each item in the list
-                    for item in items {
-                        self.analyze_node(graph, *item, Some(node_id));
+                    Node::Lambda { body, .. } => {
+                        work_stack.push((*body, Some(current_id)));
                     }
-                }
-                _ => {
-                    // Leaf nodes are potential exits
-                    if self.successors.get(&node_id).map_or(true, |s| s.is_empty()) {
-                        self.exits.insert(node_id);
+                    Node::Match { expr, branches } => {
+                        // Add branches in reverse order, then expression
+                        for (_, branch_body) in branches.iter().rev() {
+                            work_stack.push((*branch_body, Some(current_id)));
+                        }
+                        work_stack.push((*expr, Some(current_id)));
+                    }
+                    Node::List(items) => {
+                        // Add items in reverse order
+                        for item in items.iter().rev() {
+                            work_stack.push((*item, Some(current_id)));
+                        }
+                    }
+                    _ => {
+                        // Leaf nodes are potential exits
+                        if self.successors.get(&current_id).map_or(true, |s| s.is_empty()) {
+                            self.exits.insert(current_id);
+                        }
                     }
                 }
             }
@@ -291,21 +300,36 @@ impl EffectAnalysis {
             const_evaluable: FxHashSet::default(),
         };
 
-        // Analyze each node
+        // Use a shared cache to avoid recomputing effects for the same node
+        let mut effect_cache = FxHashMap::default();
+        
+        // First pass: Analyze effects for each node
         for (node_id, node) in &graph.nodes {
             let mut visited = FxHashSet::default();
-            let effects = analysis.analyze_node_effects_with_visited(graph, *node_id, node, &mut visited);
-            
-            if effects.is_empty() || (effects.len() == 1 && effects.contains(&EffectType::Pure)) {
+            let effects = analysis.analyze_node_effects_with_cache(graph, *node_id, node, &mut visited, &mut effect_cache);
+            analysis.node_effects.insert(*node_id, effects);
+        }
+        
+        // Second pass: Mark pure nodes
+        for (node_id, effects) in &analysis.node_effects {
+            if effects.is_empty() {
                 analysis.pure_nodes.insert(*node_id);
-                
-                // Check if const evaluable
-                if analysis.is_const_evaluable(graph, *node_id, node) {
+            }
+        }
+        
+        // Third pass: Check const evaluable (needs pure_nodes to be populated)
+        // May need multiple iterations to handle nested const evaluable expressions
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (node_id, node) in &graph.nodes {
+                if analysis.pure_nodes.contains(node_id) && 
+                   !analysis.const_evaluable.contains(node_id) &&
+                   analysis.is_const_evaluable(graph, *node_id, node) {
                     analysis.const_evaluable.insert(*node_id);
+                    changed = true;
                 }
             }
-            
-            analysis.node_effects.insert(*node_id, effects);
         }
 
         analysis
@@ -316,31 +340,128 @@ impl EffectAnalysis {
         self.analyze_node_effects_with_visited(graph, node_id, node, &mut visited)
     }
 
-    fn analyze_node_effects_with_visited(&self, graph: &Graph, node_id: NodeId, node: &Node, visited: &mut FxHashSet<NodeId>) -> FxHashSet<EffectType> {
+    fn analyze_node_effects_with_cache(&self, graph: &Graph, node_id: NodeId, node: &Node, visited: &mut FxHashSet<NodeId>, cache: &mut FxHashMap<NodeId, FxHashSet<EffectType>>) -> FxHashSet<EffectType> {
         // Check for cycles
         if !visited.insert(node_id) {
-            // We've already visited this node - assume pure to break the cycle
+            // We've already visited this node - check cache
+            if let Some(effects) = cache.get(&node_id) {
+                return effects.clone();
+            }
+            // Otherwise assume pure to break the cycle
             let mut effects = FxHashSet::default();
             effects.insert(EffectType::Pure);
             return effects;
+        }
+        
+        let mut effects = FxHashSet::default();
+        
+        // Helper to analyze child nodes with caching
+        let mut analyze_child = |child_id: NodeId| -> FxHashSet<EffectType> {
+            if let Some(cached) = cache.get(&child_id) {
+                return cached.clone();
+            }
+            
+            if let Some(child_node) = graph.get_node(child_id) {
+                let child_effects = self.analyze_node_effects_with_cache(graph, child_id, child_node, visited, cache);
+                cache.insert(child_id, child_effects.clone());
+                child_effects
+            } else {
+                FxHashSet::default()
+            }
+        };
+
+        match node {
+            Node::Literal(_) => {
+                // Literals have no effects
+            }
+            Node::Variable { .. } => {
+                // Variables have no effects
+            }
+            Node::Lambda { .. } => {
+                // Lambdas themselves have no effects
+            }
+            Node::Effect { effect_type, .. } => {
+                effects.insert(*effect_type);
+            }
+            Node::Application { function, args } => {
+                // Check if this is an effect primitive
+                if let Some(Node::Variable { name }) = graph.get_node(*function) {
+                    if let Some(effect_type) = is_effect_primitive(name) {
+                        effects.insert(effect_type);
+                    }
+                }
+                
+                // Collect effects from function and arguments
+                effects.extend(analyze_child(*function));
+                for arg in args {
+                    effects.extend(analyze_child(*arg));
+                }
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                effects.extend(analyze_child(*condition));
+                effects.extend(analyze_child(*then_branch));
+                effects.extend(analyze_child(*else_branch));
+            }
+            Node::List(items) => {
+                // Lists have no effects, but analyze contained items
+                for item in items {
+                    effects.extend(analyze_child(*item));
+                }
+            }
+            Node::Let { bindings, body } => {
+                // Analyze bindings
+                for (_, binding_id) in bindings {
+                    effects.extend(analyze_child(*binding_id));
+                }
+                // Analyze body
+                effects.extend(analyze_child(*body));
+            }
+            Node::Letrec { bindings, body } => {
+                // Analyze bindings
+                for (_, binding_id) in bindings {
+                    effects.extend(analyze_child(*binding_id));
+                }
+                // Analyze body
+                effects.extend(analyze_child(*body));
+            }
+            _ => {
+                // Default to no effects for other nodes
+            }
+        }
+
+        effects
+    }
+    
+    fn analyze_node_effects_with_visited(&self, graph: &Graph, node_id: NodeId, node: &Node, visited: &mut FxHashSet<NodeId>) -> FxHashSet<EffectType> {
+        // Check for cycles
+        if !visited.insert(node_id) {
+            // We've already visited this node - assume no effects to break the cycle
+            return FxHashSet::default();
         }
 
         let mut effects = FxHashSet::default();
 
         match node {
             Node::Literal(_) => {
-                effects.insert(EffectType::Pure);
+                // Literals have no effects
             }
             Node::Variable { .. } => {
-                effects.insert(EffectType::Pure);
+                // Variables have no effects
             }
             Node::Lambda { .. } => {
-                effects.insert(EffectType::Pure);
+                // Lambdas themselves have no effects
             }
             Node::Effect { effect_type, .. } => {
                 effects.insert(*effect_type);
             }
             Node::Application { function, args } => {
+                // Check if this is an effect primitive
+                if let Some(Node::Variable { name }) = graph.get_node(*function) {
+                    if let Some(effect_type) = is_effect_primitive(name) {
+                        effects.insert(effect_type);
+                    }
+                }
+                
                 // Collect effects from function and arguments
                 if let Some(func_node) = graph.get_node(*function) {
                     effects.extend(self.analyze_node_effects_with_visited(graph, *function, func_node, visited));
@@ -363,32 +484,55 @@ impl EffectAnalysis {
                 }
             }
             Node::List(items) => {
-                // Lists are pure, but analyze contained items
-                effects.insert(EffectType::Pure);
+                // Lists have no effects, but analyze contained items
                 for item in items {
                     if let Some(item_node) = graph.get_node(*item) {
                         effects.extend(self.analyze_node_effects_with_visited(graph, *item, item_node, visited));
                     }
                 }
             }
+            Node::Let { bindings, body } => {
+                // Analyze bindings
+                for (_, binding_id) in bindings {
+                    if let Some(binding_node) = graph.get_node(*binding_id) {
+                        effects.extend(self.analyze_node_effects_with_visited(graph, *binding_id, binding_node, visited));
+                    }
+                }
+                // Analyze body
+                if let Some(body_node) = graph.get_node(*body) {
+                    effects.extend(self.analyze_node_effects_with_visited(graph, *body, body_node, visited));
+                }
+            }
+            Node::Letrec { bindings, body } => {
+                // Analyze bindings
+                for (_, binding_id) in bindings {
+                    if let Some(binding_node) = graph.get_node(*binding_id) {
+                        effects.extend(self.analyze_node_effects_with_visited(graph, *binding_id, binding_node, visited));
+                    }
+                }
+                // Analyze body
+                if let Some(body_node) = graph.get_node(*body) {
+                    effects.extend(self.analyze_node_effects_with_visited(graph, *body, body_node, visited));
+                }
+            }
             _ => {
-                // Default to pure for other nodes
-                effects.insert(EffectType::Pure);
+                // Default to no effects for other nodes
             }
         }
 
         effects
     }
 
-    fn is_const_evaluable(&self, graph: &Graph, _node_id: NodeId, node: &Node) -> bool {
+    fn is_const_evaluable(&self, graph: &Graph, node_id: NodeId, node: &Node) -> bool {
         match node {
             Node::Literal(_) => true,
             Node::Application { function, args } => {
                 // Check if function is a known pure primitive
                 if let Some(Node::Variable { name }) = graph.get_node(*function) {
-                    if is_pure_primitive(name) {
+                    if is_pure_primitive(name) && !is_effect_primitive(name).is_some() {
                         // Check if all arguments are const evaluable
                         return args.iter().all(|arg_id| {
+                            // Either already marked as const evaluable, or is a literal
                             self.const_evaluable.contains(arg_id) ||
                             graph.get_node(*arg_id).map_or(false, |n| {
                                 matches!(n, Node::Literal(_))
@@ -411,8 +555,50 @@ fn is_pure_primitive(name: &str) -> bool {
         "and" | "or" | "not" |
         "car" | "cdr" | "cons" | "list" |
         "list-len" | "list-empty?" |
-        "str-len" | "str-concat" | "str-upper" | "str-lower"
+        "str-len" | "str-concat" | "str-upper" | "str-lower" |
+        "abs" | "min" | "max" | "sqrt"
     )
+}
+
+/// Check if a function name is an effect primitive and return its effect type
+pub fn is_effect_primitive(name: &str) -> Option<EffectType> {
+    match name {
+        // IO effects
+        "print" | "println" | "display" | "newline" |
+        "read-line" | "read-file" | "write-file" | "append-file" |
+        "delete-file" | "file-exists?" => Some(EffectType::IO),
+        
+        // State effects
+        "set!" | "ref" | "ref-set!" | "ref-get" |
+        "atom" | "swap!" | "reset!" | "compare-and-set!" |
+        "set-car!" | "set-cdr!" | "vector-set!" => Some(EffectType::State),
+        
+        // Error effects
+        "raise" | "error" | "throw" | "assert" | "panic" => Some(EffectType::Error),
+        
+        // Time effects
+        "sleep" | "current-time" | "current-milliseconds" => Some(EffectType::Time),
+        
+        // Random effects
+        "random" | "random-int" | "random-float" | "random-seed!" => Some(EffectType::Random),
+        
+        // Network effects
+        "http-get" | "http-post" | "http-put" | "http-delete" |
+        "fetch" | "websocket-connect" | "tcp-connect" => Some(EffectType::Network),
+        
+        // Async effects
+        "spawn" | "await" | "promise" | "future" | "async" => Some(EffectType::Async),
+        
+        // Concurrent effects
+        "channel" | "chan-send!" | "chan-receive" |
+        "mutex" | "lock!" | "unlock!" | "thread-spawn" => Some(EffectType::Concurrent),
+        
+        // DOM effects
+        "dom-get-element" | "dom-create-element" | "dom-set-attribute" |
+        "dom-add-event-listener" | "dom-remove-element" | "dom-query-selector" => Some(EffectType::Dom),
+        
+        _ => None,
+    }
 }
 
 /// Alias analysis for optimization

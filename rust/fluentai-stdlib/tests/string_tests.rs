@@ -76,7 +76,7 @@ fn test_string_capitalize() {
     
     assert_eq!(
         capitalize.call(&[Value::String("HELLO".to_string())]).unwrap(),
-        Value::String("HELLO".to_string())
+        Value::String("Hello".to_string())
     );
     
     assert_eq!(

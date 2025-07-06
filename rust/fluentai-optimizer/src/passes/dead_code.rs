@@ -33,7 +33,21 @@ impl DeadCodeEliminationPass {
                 Node::Lambda { body, .. } => {
                     self.mark_reachable(graph, *body, reachable);
                 }
-                Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                Node::Let { bindings, body } => {
+                    // First mark the body as reachable
+                    self.mark_reachable(graph, *body, reachable);
+                    
+                    // Then only mark bindings that are used in the reachable set
+                    let used_vars = self.find_used_variables(graph, reachable);
+                    for (name, value_id) in bindings {
+                        // Always mark bindings with side effects
+                        if used_vars.contains(name) || self.has_side_effects(graph, *value_id) {
+                            self.mark_reachable(graph, *value_id, reachable);
+                        }
+                    }
+                }
+                Node::Letrec { bindings, body } => {
+                    // For letrec, all bindings are potentially mutually recursive
                     for (_, value_id) in bindings {
                         self.mark_reachable(graph, *value_id, reachable);
                     }
@@ -72,6 +86,93 @@ impl DeadCodeEliminationPass {
                 }
                 _ => {}
             }
+        }
+    }
+    
+    /// Find variables used in the reachable nodes
+    fn find_used_variables(&self, graph: &Graph, reachable: &FxHashSet<NodeId>) -> FxHashSet<String> {
+        let mut used = FxHashSet::default();
+        
+        for node_id in reachable {
+            if let Some(node) = graph.get_node(*node_id) {
+                self.collect_used_vars(node, &mut used);
+            }
+        }
+        
+        used
+    }
+    
+    /// Collect variable names used in a node
+    fn collect_used_vars(&self, node: &Node, used: &mut FxHashSet<String>) {
+        match node {
+            Node::Variable { name } => {
+                used.insert(name.clone());
+            }
+            _ => {}
+        }
+    }
+    
+    /// Check if a node has side effects
+    fn has_side_effects(&self, graph: &Graph, node_id: NodeId) -> bool {
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                // Effect nodes always have side effects
+                Node::Effect { .. } => true,
+                // Spawn/Await have implicit effects
+                Node::Spawn { .. } | Node::Await { .. } => true,
+                // Send/Receive have side effects
+                Node::Send { .. } | Node::Receive { .. } => true,
+                // Applications might have side effects if they call effectful functions
+                Node::Application { function, args } => {
+                    // Check if it's a known effectful function
+                    if let Some(Node::Variable { name }) = graph.get_node(*function) {
+                        // Known effectful functions
+                        if matches!(name.as_str(), "print" | "println" | "error" | "panic" | "debug" | "log") {
+                            return true;
+                        }
+                    }
+                    // Recursively check if any arguments have side effects
+                    args.iter().any(|arg| self.has_side_effects(graph, *arg))
+                }
+                // Let/Letrec might have side effects in their bindings
+                Node::Let { bindings, body } => {
+                    bindings.iter().any(|(_, value_id)| self.has_side_effects(graph, *value_id)) ||
+                    self.has_side_effects(graph, *body)
+                }
+                Node::Letrec { bindings, body } => {
+                    bindings.iter().any(|(_, value_id)| self.has_side_effects(graph, *value_id)) ||
+                    self.has_side_effects(graph, *body)
+                }
+                // If/Match might have side effects in their branches
+                Node::If { condition, then_branch, else_branch } => {
+                    self.has_side_effects(graph, *condition) ||
+                    self.has_side_effects(graph, *then_branch) ||
+                    self.has_side_effects(graph, *else_branch)
+                }
+                Node::Match { expr, branches } => {
+                    self.has_side_effects(graph, *expr) ||
+                    branches.iter().any(|(_, branch)| self.has_side_effects(graph, *branch))
+                }
+                // Lists might have side effects in their elements
+                Node::List(items) => {
+                    items.iter().any(|item| self.has_side_effects(graph, *item))
+                }
+                // Async might have side effects
+                Node::Async { body } => self.has_side_effects(graph, *body),
+                // Lambda bodies are not evaluated until called
+                Node::Lambda { .. } => false,
+                // Pure nodes
+                Node::Literal(_) | Node::Variable { .. } => false,
+                // Module-related nodes - check their contents
+                Node::Module { body, .. } => self.has_side_effects(graph, *body),
+                Node::Import { .. } => false, // Imports themselves don't have side effects
+                Node::Export { .. } => false, // Exports themselves don't have side effects
+                Node::QualifiedVariable { .. } => false, // Just a reference
+                Node::Channel => false, // Channel creation is considered pure
+                Node::Contract { .. } => false, // Contracts themselves don't have side effects
+            }
+        } else {
+            false
         }
     }
 }

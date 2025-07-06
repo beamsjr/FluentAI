@@ -72,7 +72,7 @@ fn test_power_functions() {
     let pow = stdlib.get("pow").unwrap();
     assert_eq!(
         pow.call(&[Value::Int(2), Value::Int(3)]).unwrap(),
-        Value::Float(8.0)
+        Value::Int(8)
     );
     assert_eq!(
         pow.call(&[Value::Float(2.0), Value::Float(3.0)]).unwrap(),
@@ -80,7 +80,7 @@ fn test_power_functions() {
     );
     assert_eq!(
         pow.call(&[Value::Int(5), Value::Int(0)]).unwrap(),
-        Value::Float(1.0)
+        Value::Int(1)
     );
     assert_eq!(
         pow.call(&[Value::Int(10), Value::Int(-1)]).unwrap(),
@@ -102,8 +102,12 @@ fn test_power_functions() {
         Value::Float(1.4142135623730951)
     );
     
-    // Test sqrt of negative number
-    assert!(sqrt.call(&[Value::Int(-1)]).is_err());
+    // Test sqrt of negative number returns NaN
+    let sqrt_neg = sqrt.call(&[Value::Int(-1)]).unwrap();
+    match sqrt_neg {
+        Value::Float(f) => assert!(f.is_nan()),
+        _ => panic!("Expected float"),
+    }
 }
 
 #[test]
@@ -203,9 +207,17 @@ fn test_trigonometric() {
         _ => panic!("Expected float"),
     }
     
-    // Test asin out of domain
-    assert!(asin.call(&[Value::Float(2.0)]).is_err());
-    assert!(asin.call(&[Value::Float(-2.0)]).is_err());
+    // Test asin out of domain - returns NaN
+    let asin_2 = asin.call(&[Value::Float(2.0)]).unwrap();
+    match asin_2 {
+        Value::Float(f) => assert!(f.is_nan()),
+        _ => panic!("Expected float"),
+    }
+    let asin_neg2 = asin.call(&[Value::Float(-2.0)]).unwrap();
+    match asin_neg2 {
+        Value::Float(f) => assert!(f.is_nan()),
+        _ => panic!("Expected float"),
+    }
     
     // Test acos
     let acos = stdlib.get("acos").unwrap();

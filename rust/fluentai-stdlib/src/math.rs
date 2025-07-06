@@ -9,9 +9,9 @@ use std::f64::consts;
 pub fn register(registry: &mut StdlibRegistry) {
     registry.register_all(vec![
         // Basic arithmetic
-        StdlibFunction::pure("+", add, 2, None, "Addition"),
-        StdlibFunction::pure("-", subtract, 2, Some(2), "Subtraction"),
-        StdlibFunction::pure("*", multiply, 2, None, "Multiplication"),
+        StdlibFunction::pure("+", add, 0, None, "Addition"),
+        StdlibFunction::pure("-", subtract, 1, Some(2), "Subtraction"),
+        StdlibFunction::pure("*", multiply, 0, None, "Multiplication"),
         StdlibFunction::pure("/", divide, 2, Some(2), "Division"),
         
         // Number predicates
@@ -65,6 +65,10 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("gcd", gcd, 2, Some(2), "Greatest common divisor"),
         StdlibFunction::pure("lcm", lcm, 2, Some(2), "Least common multiple"),
         
+        // Comparison functions
+        StdlibFunction::pure("max", max, 1, None, "Maximum of numbers"),
+        StdlibFunction::pure("min", min, 1, None, "Minimum of numbers"),
+        
         // Statistical functions
         StdlibFunction::pure("sum", sum, 1, Some(1), "Sum of numbers in a list"),
         StdlibFunction::pure("product", product, 1, Some(1), "Product of numbers in a list"),
@@ -98,12 +102,22 @@ fn add(args: &[Value]) -> Result<Value> {
 }
 
 fn subtract(args: &[Value]) -> Result<Value> {
-    match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
-        (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
-        _ => Err(anyhow!("-: expected numbers")),
+    if args.len() == 1 {
+        // Unary minus (negation)
+        match &args[0] {
+            Value::Int(n) => Ok(Value::Int(-n)),
+            Value::Float(f) => Ok(Value::Float(-f)),
+            _ => Err(anyhow!("-: expected number")),
+        }
+    } else {
+        // Binary subtraction
+        match (&args[0], &args[1]) {
+            (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
+            (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
+            (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
+            (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
+            _ => Err(anyhow!("-: expected numbers")),
+        }
     }
 }
 
@@ -126,6 +140,68 @@ fn multiply(args: &[Value]) -> Result<Value> {
         Ok(Value::Int(result as i64))
     } else {
         Ok(Value::Float(result))
+    }
+}
+
+// Comparison functions
+
+fn max(args: &[Value]) -> Result<Value> {
+    if args.is_empty() {
+        return Err(anyhow!("max: expected at least one argument"));
+    }
+    
+    let mut result = match &args[0] {
+        Value::Int(i) => *i as f64,
+        Value::Float(f) => *f,
+        _ => return Err(anyhow!("max: expected numbers")),
+    };
+    let mut is_float = matches!(&args[0], Value::Float(_));
+    
+    for arg in &args[1..] {
+        match arg {
+            Value::Int(i) => result = result.max(*i as f64),
+            Value::Float(f) => {
+                result = result.max(*f);
+                is_float = true;
+            }
+            _ => return Err(anyhow!("max: expected numbers")),
+        }
+    }
+    
+    if is_float || result.fract() != 0.0 {
+        Ok(Value::Float(result))
+    } else {
+        Ok(Value::Int(result as i64))
+    }
+}
+
+fn min(args: &[Value]) -> Result<Value> {
+    if args.is_empty() {
+        return Err(anyhow!("min: expected at least one argument"));
+    }
+    
+    let mut result = match &args[0] {
+        Value::Int(i) => *i as f64,
+        Value::Float(f) => *f,
+        _ => return Err(anyhow!("min: expected numbers")),
+    };
+    let mut is_float = matches!(&args[0], Value::Float(_));
+    
+    for arg in &args[1..] {
+        match arg {
+            Value::Int(i) => result = result.min(*i as f64),
+            Value::Float(f) => {
+                result = result.min(*f);
+                is_float = true;
+            }
+            _ => return Err(anyhow!("min: expected numbers")),
+        }
+    }
+    
+    if is_float || result.fract() != 0.0 {
+        Ok(Value::Float(result))
+    } else {
+        Ok(Value::Int(result as i64))
     }
 }
 
@@ -238,17 +314,11 @@ fn tan(args: &[Value]) -> Result<Value> {
 
 fn asin(args: &[Value]) -> Result<Value> {
     let x = to_float(&args[0])?;
-    if x < -1.0 || x > 1.0 {
-        return Err(anyhow!("asin: input out of range [-1, 1]"));
-    }
     Ok(Value::Float(x.asin()))
 }
 
 fn acos(args: &[Value]) -> Result<Value> {
     let x = to_float(&args[0])?;
-    if x < -1.0 || x > 1.0 {
-        return Err(anyhow!("acos: input out of range [-1, 1]"));
-    }
     Ok(Value::Float(x.acos()))
 }
 
@@ -321,16 +391,27 @@ fn log2(args: &[Value]) -> Result<Value> {
 }
 
 fn pow(args: &[Value]) -> Result<Value> {
-    let base = to_float(&args[0])?;
-    let exp = to_float(&args[1])?;
-    Ok(Value::Float(base.powf(exp)))
+    match (&args[0], &args[1]) {
+        (Value::Int(base), Value::Int(exp)) if *exp >= 0 => {
+            // For positive integer exponents, we can use integer arithmetic
+            let result = (*base as f64).powi(*exp as i32);
+            if result.fract() == 0.0 && result >= i64::MIN as f64 && result <= i64::MAX as f64 {
+                Ok(Value::Int(result as i64))
+            } else {
+                Ok(Value::Float(result))
+            }
+        }
+        _ => {
+            // For all other cases, use floating point
+            let base = to_float(&args[0])?;
+            let exp = to_float(&args[1])?;
+            Ok(Value::Float(base.powf(exp)))
+        }
+    }
 }
 
 fn sqrt(args: &[Value]) -> Result<Value> {
     let x = to_float(&args[0])?;
-    if x < 0.0 {
-        return Err(anyhow!("sqrt: input must be non-negative"));
-    }
     Ok(Value::Float(x.sqrt()))
 }
 

@@ -122,6 +122,7 @@ impl Compiler {
             }
             Node::Channel => {
                 self.emit(Instruction::new(Opcode::Channel));
+                self.stack_depth += 1; // Channel creates a new channel on the stack
             }
             Node::Send { channel, value } => {
                 self.compile_send(graph, *channel, *value)?;
@@ -263,6 +264,8 @@ impl Compiler {
                     match opcode {
                         // Binary operators
                         Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod |
+                        Opcode::AddInt | Opcode::SubInt | Opcode::MulInt | Opcode::DivInt |
+                        Opcode::AddFloat | Opcode::SubFloat | Opcode::MulFloat | Opcode::DivFloat |
                         Opcode::Eq | Opcode::Ne | Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge |
                         Opcode::And | Opcode::Or | Opcode::StrConcat | Opcode::ListCons => {
                             if args.len() != 2 {
@@ -413,10 +416,8 @@ impl Compiler {
         self.compile_node(graph, func)?;
         
         if is_tail_call {
-            eprintln!("DEBUG compile_application: tail call detected, stack_depth={}, arg_count={}", self.stack_depth, args.len());
             self.emit(Instruction::with_arg(Opcode::TailCall, args.len() as u32));
         } else {
-            eprintln!("DEBUG compile_application: before Call, stack_depth={}, arg_count={}", self.stack_depth, args.len());
             self.emit(Instruction::with_arg(Opcode::Call, args.len() as u32));
         }
         
@@ -426,7 +427,6 @@ impl Compiler {
     fn compile_lambda(&mut self, graph: &ASTGraph, params: &[String], body: NodeId) -> Result<()> {
         // Find free variables - variables used in body but not defined as parameters
         let free_vars = self.find_free_variables(graph, body, params)?;
-        eprintln!("DEBUG compile_lambda: found {} free vars: {:?}", free_vars.len(), free_vars);
         
         // Emit code to push captured values onto stack
         for var in &free_vars {
@@ -511,25 +511,20 @@ impl Compiler {
         self.scope_bases.push(self.stack_depth);
         self.cell_vars.push(HashSet::new());
         let scope_idx = self.locals.len() - 1;
-        eprintln!("DEBUG compile_let: new scope {} with base {}", scope_idx, self.stack_depth);
         
         // Compile bindings
         for (_i, (name, value)) in bindings.iter().enumerate() {
-            eprintln!("DEBUG: Before compiling {}: stack_depth={}", name, self.stack_depth);
             let before_depth = self.stack_depth;
             self.compile_node(graph, *value)?;
-            eprintln!("DEBUG: After compiling {}: stack_depth={}", name, self.stack_depth);
             
             // After compiling the value, it should be on top of the stack
             // We expect exactly one value to be added
             if self.stack_depth != before_depth + 1 {
-                eprintln!("WARNING: Expected stack_depth {} but got {}", before_depth + 1, self.stack_depth);
             }
             
             // The value is at position stack_depth - 1
             let abs_pos = self.stack_depth - 1;
             self.locals[scope_idx].insert(name.clone(), abs_pos);
-            eprintln!("DEBUG: Stored {} at position {}", name, abs_pos);
         }
         
         // Compile body (preserving tail position - let body is in tail position)
@@ -667,6 +662,16 @@ impl Compiler {
             "*" => Some(Opcode::Mul),
             "/" => Some(Opcode::Div),
             "%" => Some(Opcode::Mod),
+            // Specialized integer arithmetic
+            "+int" => Some(Opcode::AddInt),
+            "-int" => Some(Opcode::SubInt),
+            "*int" => Some(Opcode::MulInt),
+            "/int" => Some(Opcode::DivInt),
+            // Specialized float arithmetic
+            "+float" => Some(Opcode::AddFloat),
+            "-float" => Some(Opcode::SubFloat),
+            "*float" => Some(Opcode::MulFloat),
+            "/float" => Some(Opcode::DivFloat),
             "=" | "==" => Some(Opcode::Eq),
             "!=" | "<>" => Some(Opcode::Ne),
             "<" => Some(Opcode::Lt),
@@ -722,21 +727,18 @@ impl Compiler {
                 // Call pops: the function + all arguments, then pushes the result
                 // Net effect: -(arg_count + 1) + 1 = -arg_count
                 self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize);
-                eprintln!("DEBUG emit Call: arg_count={}, new stack_depth={}", instruction.arg, self.stack_depth);
             }
             Opcode::MakeClosure => {
                 // MakeClosure consumes N captured values and produces 1 function
                 let capture_count = (instruction.arg & 0xFFFF) as usize;
                 let old_depth = self.stack_depth;
                 self.stack_depth = self.stack_depth.saturating_sub(capture_count).saturating_add(1);
-                eprintln!("DEBUG emit MakeClosure: captures={}, stack_depth {} -> {}", capture_count, old_depth, self.stack_depth);
             },
             Opcode::MakeFunc => {
                 self.stack_depth += 1;
             }
             Opcode::Load | Opcode::LoadGlobal | Opcode::LoadCaptured => {
                 self.stack_depth += 1;
-                eprintln!("DEBUG emit {:?}: stack_depth -> {}", instruction.opcode, self.stack_depth);
             }
             Opcode::MakeCell => {
                 // Consumes initial value, produces cell
@@ -860,8 +862,15 @@ impl Compiler {
     }
     
     fn compile_spawn(&mut self, graph: &ASTGraph, expr: NodeId) -> Result<()> {
-        // Compile the expression (should be a function)
-        self.compile_node(graph, expr)?;
+        // Check if the expression is a lambda that needs special handling
+        if let Some(Node::Lambda { params, body }) = graph.get_node(expr) {
+            // For lambdas, we need to check if they have free variables
+            // If so, they need to be compiled as closures
+            self.compile_lambda(graph, params, *body)?;
+        } else {
+            // For other expressions, compile normally
+            self.compile_node(graph, expr)?;
+        }
         // Emit spawn instruction
         self.emit(Instruction::new(Opcode::Spawn));
         Ok(())
@@ -1012,6 +1021,10 @@ impl Compiler {
     }
     
     fn compile_match(&mut self, graph: &ASTGraph, expr: NodeId, branches: &[(Pattern, NodeId)]) -> Result<()> {
+        // Validate that we have at least one branch
+        if branches.is_empty() {
+            return Err(anyhow!("Match expression must have at least one branch"));
+        }
         
         // Compile the expression to match
         self.compile_node(graph, expr)?;
@@ -1061,53 +1074,62 @@ impl Compiler {
                     // Special handling for cons pattern
                     // The matched value (list) is on top of stack at position stack_depth-1
                     
+                    // Save the position where the list currently is
+                    // Note: compile_pattern_test leaves a boolean on the stack
+                    // So the stack is: [..., list, bool]
+                    // The list is at stack_depth - 2
+                    let list_position = self.stack_depth - 2;
+                    
                     // Extract head (this consumes the list and produces head)
                     self.emit(Instruction::new(Opcode::Dup)); // Duplicate the list
+                    self.stack_depth += 1; // Dup increases stack
+                    
                     self.emit(Instruction::new(Opcode::ListHead)); // Get head
+                    // ListHead doesn't change stack depth (consumes list, produces head)
                     
                     // Extract tail (need the list again)
                     self.emit(Instruction::new(Opcode::Swap)); // Swap head and original list
+                    // Swap doesn't change stack depth
+                    
                     self.emit(Instruction::new(Opcode::ListTail)); // Get tail
+                    // ListTail doesn't change stack depth (consumes list, produces tail)
                     
                     // Stack now has [head, tail] where the list used to be
+                    // head is at list_position, tail is at list_position + 1
                     
                     // Set up scope for bindings
                     self.locals.push(HashMap::new());
                     self.captured.push(HashMap::new());
-                    
-                    // After extraction, head and tail are the top 2 values on the stack
-                    // But we need to know their positions relative to the runtime stack
-                    // When the match started, the list was the only thing we added to the stack
-                    // So at runtime, head will be at position 0 and tail at position 1
-                    
-                    self.scope_bases.push(0); // Frame starts at 0
+                    self.scope_bases.push(list_position); // Base of our new scope
                     self.cell_vars.push(HashSet::new());
                     let scope_idx = self.locals.len() - 1;
                     
-                    // Bind head and tail with runtime positions
-                    // At runtime, after extracting from the list:
-                    // - position 0: head (first item from list)
-                    // - position 1: tail (rest of list)
+                    // Bind head and tail with their final positions
+                    // After Dup/ListHead/Swap/ListTail operations:
+                    // Initial: [..., list] at list_position
+                    // After Dup: [..., list, list]
+                    // After ListHead: [..., list, head]
+                    // After Swap: [..., head, list]
+                    // After ListTail: [..., head, tail]
+                    // So head ends up at list_position and tail at list_position + 1
                     if let Pattern::Constructor { patterns, .. } = pattern {
                         if let Pattern::Variable(head_name) = &patterns[0] {
-                            self.locals[scope_idx].insert(head_name.clone(), 0);
+                            self.locals[scope_idx].insert(head_name.clone(), list_position);
                         }
                         if let Pattern::Variable(tail_name) = &patterns[1] {
-                            self.locals[scope_idx].insert(tail_name.clone(), 1);
+                            self.locals[scope_idx].insert(tail_name.clone(), list_position + 1);
                         }
                     }
                 } else {
                     // Regular pattern binding
                     self.locals.push(HashMap::new());
                     self.captured.push(HashMap::new());
-                    eprintln!("DEBUG compile_match: creating scope with stack_depth={}", self.stack_depth);
                     self.scope_bases.push(self.stack_depth);
                     self.cell_vars.push(HashSet::new());
                     let scope_idx = self.locals.len() - 1;
                     
                     // Add pattern bindings
                     for (name, pos) in &bindings {
-                        eprintln!("DEBUG compile_match: binding {} to position {}", name, pos);
                         self.locals[scope_idx].insert(name.clone(), *pos);
                     }
                 }
@@ -1365,6 +1387,9 @@ impl Compiler {
         // Encode both indices in arg
         let arg = ((module_idx as u32) << 16) | (var_idx as u32);
         self.emit(Instruction::with_arg(Opcode::LoadQualified, arg));
+        
+        // LoadQualified pushes one value onto the stack
+        self.stack_depth += 1;
         
         Ok(())
     }

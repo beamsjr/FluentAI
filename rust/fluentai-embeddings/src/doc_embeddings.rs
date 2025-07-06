@@ -1,6 +1,6 @@
 //! Generate embeddings from documentation
 
-use crate::{EmbeddingService, EmbeddingGenerator, EmbeddingId};
+use crate::{EmbeddingService, EmbeddingId};
 use fluentai_core::documentation::{Documentation, DocumentationRegistry, OperatorDoc, KeywordDoc, BuiltinDoc};
 use anyhow::Result;
 use std::collections::HashMap;
@@ -25,29 +25,33 @@ impl DocumentationEmbeddingService {
         let mut embeddings = HashMap::new();
         
         // Generate embeddings for all documentation
-        for doc in self.registry.list_all() {
+        let docs: Vec<_> = self.registry.list_all().to_vec();
+        for doc in docs {
             let embedding_id = self.generate_doc_embedding(&doc.name, &doc).await?;
             embeddings.insert(doc.name.clone(), embedding_id);
         }
         
         // Generate embeddings for operators
-        for op in self.registry.get_operators() {
+        let operators: Vec<_> = self.registry.get_operators().to_vec();
+        for op in operators {
             let key = format!("op_{}", op.symbol);
-            let embedding_id = self.generate_operator_embedding(op).await?;
+            let embedding_id = self.generate_operator_embedding(&op).await?;
             embeddings.insert(key, embedding_id);
         }
         
         // Generate embeddings for keywords
-        for kw in self.registry.get_keywords() {
+        let keywords: Vec<_> = self.registry.get_keywords().to_vec();
+        for kw in keywords {
             let key = format!("kw_{}", kw.keyword);
-            let embedding_id = self.generate_keyword_embedding(kw).await?;
+            let embedding_id = self.generate_keyword_embedding(&kw).await?;
             embeddings.insert(key, embedding_id);
         }
         
         // Generate embeddings for built-ins
-        for builtin in self.registry.get_builtins() {
+        let builtins: Vec<_> = self.registry.get_builtins().to_vec();
+        for builtin in builtins {
             let key = format!("builtin_{}_{}", builtin.module, builtin.name);
-            let embedding_id = self.generate_builtin_embedding(builtin).await?;
+            let embedding_id = self.generate_builtin_embedding(&builtin).await?;
             embeddings.insert(key, embedding_id);
         }
         
@@ -57,28 +61,28 @@ impl DocumentationEmbeddingService {
     /// Generate embedding for a documentation entry
     async fn generate_doc_embedding(&mut self, name: &str, doc: &Documentation) -> Result<EmbeddingId> {
         let features = self.extract_doc_features(name, doc);
-        let embedding = self.embedding_service.generator.generate_from_features(&features)?;
+        let embedding = self.generate_embedding_from_features(features)?;
         self.embedding_service.store_embedding(embedding).await
     }
     
     /// Generate embedding for an operator
     async fn generate_operator_embedding(&mut self, op: &OperatorDoc) -> Result<EmbeddingId> {
         let features = self.extract_operator_features(op);
-        let embedding = self.embedding_service.generator.generate_from_features(&features)?;
+        let embedding = self.generate_embedding_from_features(features)?;
         self.embedding_service.store_embedding(embedding).await
     }
     
     /// Generate embedding for a keyword
     async fn generate_keyword_embedding(&mut self, kw: &KeywordDoc) -> Result<EmbeddingId> {
         let features = self.extract_keyword_features(kw);
-        let embedding = self.embedding_service.generator.generate_from_features(&features)?;
+        let embedding = self.generate_embedding_from_features(features)?;
         self.embedding_service.store_embedding(embedding).await
     }
     
     /// Generate embedding for a built-in function
     async fn generate_builtin_embedding(&mut self, builtin: &BuiltinDoc) -> Result<EmbeddingId> {
         let features = self.extract_builtin_features(builtin);
-        let embedding = self.embedding_service.generator.generate_from_features(&features)?;
+        let embedding = self.generate_embedding_from_features(features)?;
         self.embedding_service.store_embedding(embedding).await
     }
     
@@ -98,7 +102,7 @@ impl DocumentationEmbeddingService {
         }
         
         // Category features
-        self.add_category_features(&mut features, &doc.category);
+        self.add_category_enum_features(&mut features, &doc.category);
         
         // Example count as a feature
         features.insert("example_count".to_string(), doc.examples.len() as f32);
@@ -169,7 +173,7 @@ impl DocumentationEmbeddingService {
         features.insert("builtin_arity".to_string(), arg_count);
         
         // Category features based on module
-        match builtin.module.as_str() {
+        match builtin.module {
             "math" => features.insert("cat_numeric".to_string(), 1.0),
             "string" => features.insert("cat_string".to_string(), 1.0),
             "list" => features.insert("cat_collection".to_string(), 1.0),
@@ -205,6 +209,35 @@ impl DocumentationEmbeddingService {
         }
     }
     
+    /// Generate embedding from features using the default generator
+    fn generate_embedding_from_features(&self, features: HashMap<String, f32>) -> Result<Vec<f32>> {
+        // Use the FeatureBasedGenerator directly
+        let generator = crate::generator::FeatureBasedGenerator::new();
+        generator.generate_from_features(&features)
+    }
+    
+    /// Add category-based features from enum
+    fn add_category_enum_features(&self, features: &mut HashMap<String, f32>, category: &fluentai_core::documentation::DocumentationCategory) {
+        use fluentai_core::documentation::DocumentationCategory;
+        
+        let cat_str = match category {
+            DocumentationCategory::Literal => "literal",
+            DocumentationCategory::Variable => "variable",
+            DocumentationCategory::Function => "function",
+            DocumentationCategory::ControlFlow => "control_flow",
+            DocumentationCategory::DataStructure => "data_structure",
+            DocumentationCategory::PatternMatching => "pattern_matching",
+            DocumentationCategory::Module => "module",
+            DocumentationCategory::Async => "async",
+            DocumentationCategory::Effect => "effect",
+            DocumentationCategory::Operator => "operator",
+            DocumentationCategory::Keyword => "keyword",
+            DocumentationCategory::Verification => "verification",
+        };
+        
+        features.insert(format!("cat_{}", cat_str), 1.0);
+    }
+    
     /// Add category-based features
     fn add_category_features(&self, features: &mut HashMap<String, f32>, category: &str) {
         let categories = [
@@ -230,7 +263,7 @@ impl DocumentationEmbeddingService {
         let mut query_features = HashMap::new();
         self.add_text_features(&mut query_features, "query", query);
         
-        let query_embedding = self.embedding_service.generator.generate_from_features(&query_features)?;
+        let query_embedding = self.generate_embedding_from_features(query_features)?;
         let query_id = self.embedding_service.store_embedding(query_embedding).await?;
         
         // Find similar embeddings

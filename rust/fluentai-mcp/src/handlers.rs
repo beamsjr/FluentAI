@@ -226,5 +226,6 @@ fn format_value(value: &Value) -> String {
             }
         }
         Value::Module { name, .. } => format!("<module:{}>", name),
+        Value::GcHandle(_) => "<gc-handle>".to_string(),
     }
 }

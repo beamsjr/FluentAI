@@ -173,11 +173,9 @@ impl OptimizationPass for InlinePass {
             match node {
                 Node::Application { function, args } => {
                     // Check if we're applying an inline candidate
-                    let func_id = node_mapping.get(function).copied().unwrap_or(*function);
-                    
-                    if inline_candidates.contains(&func_id) {
+                    if inline_candidates.contains(function) {
                         // Inline the function
-                        if let Some(Node::Lambda { body, params, .. }) = graph.get_node(func_id) {
+                        if let Some(Node::Lambda { body, params, .. }) = graph.get_node(*function) {
                             // Map arguments first
                             let mapped_args: Vec<_> = args.iter()
                                 .map(|&arg| {
@@ -211,9 +209,14 @@ impl OptimizationPass for InlinePass {
                     node_mapping.insert(*node_id, mapped_node);
                 }
                 _ => {
-                    // Copy other nodes normally
-                    let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized);
-                    node_mapping.insert(*node_id, mapped_node);
+                    // Don't copy inlined lambdas
+                    if matches!(node, Node::Lambda { .. }) && inline_candidates.contains(node_id) {
+                        // Don't add this node to the optimized graph
+                    } else {
+                        // Copy other nodes normally
+                        let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized);
+                        node_mapping.insert(*node_id, mapped_node);
+                    }
                 }
             }
         }

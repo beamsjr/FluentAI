@@ -60,7 +60,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
         });
         
         let mut contract = Contract::new(name.clone(), body);
-        contract.function_name = Some(name.clone());
+        contract.function_name = name.clone();
         
         // Add preconditions
         let zero = graph.add_node(Node::Literal(Literal::Integer(0)));

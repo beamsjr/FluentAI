@@ -354,10 +354,10 @@ mod tests {
         assert_eq!(repl.paren_depth, 1);
         
         repl.update_paren_depth("(* 2 3))");
-        assert_eq!(repl.paren_depth, 1);
+        assert_eq!(repl.paren_depth, 0); // 1 open - 2 close = -1, but clamped to 0
         
         repl.paren_depth = 0;
         repl.update_paren_depth("(let ((x 1) (y 2))");
-        assert_eq!(repl.paren_depth, 2);
+        assert_eq!(repl.paren_depth, 1);
     }
 }

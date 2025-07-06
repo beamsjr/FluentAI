@@ -196,7 +196,22 @@ impl OptimizationPipeline {
 
         match self.config.level {
             OptimizationLevel::None => {
-                // No optimization
+                // Check if any individual passes are enabled
+                if self.passes.is_empty() {
+                    // No optimization
+                } else {
+                    // Run individual passes that are explicitly enabled
+                    let mut pass_stats = Vec::new();
+                    for pass in &mut self.passes {
+                        optimized = pass.run(&optimized)?;
+                        // Collect stats from the pass
+                        pass_stats.push(pass.stats());
+                    }
+                    // Merge stats after the loop
+                    for stats_str in pass_stats {
+                        self.merge_pass_stats_str(&stats_str);
+                    }
+                }
             }
             OptimizationLevel::Basic => {
                 // Use basic graph optimizer
@@ -212,25 +227,28 @@ impl OptimizationPipeline {
                 self.stats.merge(&optimizer.stats());
 
                 // Run additional passes for aggressive mode
-                if self.config.level == OptimizationLevel::Aggressive {
-                    for _iteration in 0..self.config.max_iterations {
-                        let before = optimized.nodes.len();
-                        
-                        // Run individual passes
-                        for pass in &mut self.passes {
-                            if pass.is_applicable(&optimized) {
-                                optimized = pass.run(&optimized)?;
-                            }
-                        }
-
-                        let after = optimized.nodes.len();
-                        
-                        // Stop if no changes
-                        if before == after {
-                            break;
-                        }
-                    }
-                }
+                // TEMPORARILY DISABLED: The individual optimization passes have bugs
+                // that create dangling node references when they mix IDs from the
+                // original and optimized graphs. This needs to be fixed properly.
+                // if self.config.level == OptimizationLevel::Aggressive {
+                //     for _iteration in 0..self.config.max_iterations {
+                //         let before = optimized.nodes.len();
+                //         
+                //         // Run individual passes
+                //         for pass in &mut self.passes {
+                //             if pass.is_applicable(&optimized) {
+                //                 optimized = pass.run(&optimized)?;
+                //             }
+                //         }
+                //
+                //         let after = optimized.nodes.len();
+                //         
+                //         // Stop if no changes
+                //         if before == after {
+                //             break;
+                //         }
+                //     }
+                // }
             }
         }
 
@@ -243,6 +261,38 @@ impl OptimizationPipeline {
     /// Get optimization statistics
     pub fn stats(&self) -> &OptimizationStats {
         &self.stats
+    }
+    
+    /// Merge stats from a pass stats string
+    fn merge_pass_stats_str(&mut self, stats_str: &str) {
+        
+        // Look for specific patterns in the stats string
+        if stats_str.contains("Dead Code Elimination") {
+            // Extract eliminated count from "Dead Code Elimination pass: N nodes eliminated"
+            if let Some(pos) = stats_str.find(" nodes eliminated") {
+                let start = stats_str[..pos].rfind(' ').unwrap_or(0) + 1;
+                if let Ok(count) = stats_str[start..pos].parse::<usize>() {
+                    self.stats.dead_code_eliminated += count;
+                }
+            }
+        } else if stats_str.contains("Constant Folding") {
+            // Extract folded count
+            if let Some(pos) = stats_str.find(" constants folded") {
+                let start = stats_str[..pos].rfind(' ').unwrap_or(0) + 1;
+                if let Ok(count) = stats_str[start..pos].parse::<usize>() {
+                    self.stats.pure_expressions_evaluated += count;
+                }
+            }
+        } else if stats_str.contains("Tail Call Optimization") {
+            // Extract tail calls optimized from "Tail Call Optimization pass: N tail calls optimized"
+            if let Some(pos) = stats_str.find(" tail calls optimized") {
+                let start = stats_str[..pos].rfind(' ').unwrap_or(0) + 1;
+                if let Ok(count) = stats_str[start..pos].parse::<usize>() {
+                    self.stats.tail_calls_optimized += count;
+                }
+            }
+        }
+        // Add more patterns as needed for other passes
     }
 
     /// Add custom pass

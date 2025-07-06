@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use fluentai_core::ast::{Graph, NodeId};
+use std::num::NonZeroU32;
 use crate::{
     contract::{Contract, ContractCondition, ContractKind},
     errors::{ContractError, ContractResult},
@@ -560,7 +561,7 @@ mod tests {
     fn test_temporal_formula_creation() {
         // Create a simple temporal formula: always(x > 0)
         let condition = ContractCondition::new(
-            NodeId(0),
+            NodeId(NonZeroU32::new(1).unwrap()),
             ContractKind::Invariant,
         );
         
@@ -577,8 +578,8 @@ mod tests {
     #[test]
     fn test_until_formula() {
         // Create: (x > 0) until (y == 1)
-        let cond1 = ContractCondition::new(NodeId(1), ContractKind::Invariant);
-        let cond2 = ContractCondition::new(NodeId(2), ContractKind::Invariant);
+        let cond1 = ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant);
+        let cond2 = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Invariant);
         
         let formula = until(atom(cond1), atom(cond2));
         

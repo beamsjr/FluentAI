@@ -40,7 +40,7 @@ fn demo_non_recursive() {
     });
     
     let mut contract = Contract::new("add".to_string(), body);
-    contract.function_name = Some("add".to_string());
+    // function_name is already set in Contract::new
     
     let mut checker = TerminationChecker::new(&graph);
     match checker.analyze_contract(&contract) {
@@ -91,7 +91,7 @@ fn demo_factorial() {
     });
     
     let mut contract = Contract::new("factorial".to_string(), body);
-    contract.function_name = Some("factorial".to_string());
+    // function_name is already set in Contract::new
     
     // Add precondition: n >= 0
     let ge = graph.add_node(Node::Variable { name: ">=".to_string() });
@@ -160,12 +160,14 @@ fn demo_list_length() {
     });
     
     let mut contract = Contract::new("length".to_string(), body);
-    contract.function_name = Some("length".to_string());
+    // function_name is already set in Contract::new
     
     // Create termination checker with list measure
+    let measure = {
+        let mut measure_builder = TerminationMeasureBuilder::new(&mut graph);
+        measure_builder.list_length_measure("lst")
+    };
     let mut checker = TerminationChecker::new(&graph);
-    let mut measure_builder = TerminationMeasureBuilder::new(&mut graph);
-    let measure = measure_builder.list_length_measure("lst");
     checker.add_termination_measure("length".to_string(), measure);
     
     match checker.analyze_contract(&contract) {
@@ -186,16 +188,17 @@ fn demo_ackermann() {
     let body = graph.add_node(Node::Variable { name: "ackermann-body".to_string() });
     
     let mut contract = Contract::new("ackermann".to_string(), body);
-    contract.function_name = Some("ackermann".to_string());
+    // function_name is already set in Contract::new
     
     // Create lexicographic termination measure (m, n)
+    let measure = {
+        let mut measure_builder = TerminationMeasureBuilder::new(&mut graph);
+        measure_builder.lexicographic_measure(vec![
+            ("m", m),
+            ("n", n),
+        ])
+    };
     let mut checker = TerminationChecker::new(&graph);
-    let mut measure_builder = TerminationMeasureBuilder::new(&mut graph);
-    
-    let measure = measure_builder.lexicographic_measure(vec![
-        ("m", m),
-        ("n", n),
-    ]);
     checker.add_termination_measure("ackermann".to_string(), measure);
     
     println!("  Ackermann function requires lexicographic termination measure (m, n)");

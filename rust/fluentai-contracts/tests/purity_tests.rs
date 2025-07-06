@@ -42,26 +42,25 @@ fn create_test_graph() -> Graph {
 
 #[test]
 fn test_literal_is_pure() {
-    let graph = create_test_graph();
-    let mut checker = PurityChecker::new(&graph);
-    
+    let mut graph = create_test_graph();
     let lit = graph.add_node(Node::Literal(Literal::Integer(42)));
+    
+    let mut checker = PurityChecker::new(&graph);
     assert!(checker.is_pure(lit).unwrap());
 }
 
 #[test]
 fn test_variable_is_pure() {
-    let graph = create_test_graph();
-    let mut checker = PurityChecker::new(&graph);
-    
+    let mut graph = create_test_graph();
     let var = graph.add_node(Node::Variable { name: "x".to_string() });
+    
+    let mut checker = PurityChecker::new(&graph);
     assert!(checker.is_pure(var).unwrap());
 }
 
 #[test]
 fn test_pure_arithmetic_is_pure() {
     let mut graph = Graph::new();
-    let mut checker = PurityChecker::new(&graph);
     
     let lit_1 = graph.add_node(Node::Literal(Literal::Integer(1)));
     let lit_2 = graph.add_node(Node::Literal(Literal::Integer(2)));
@@ -71,14 +70,13 @@ fn test_pure_arithmetic_is_pure() {
         args: vec![lit_1, lit_2],
     });
     
+    let mut checker = PurityChecker::new(&graph);
     assert!(checker.is_pure(add_expr).unwrap());
 }
 
 #[test]
 fn test_print_is_impure() {
     let mut graph = Graph::new();
-    let mut checker = PurityChecker::new(&graph);
-    checker.register_impure_builtins();
     
     let print_fn = graph.add_node(Node::Variable { name: "print".to_string() });
     let msg = graph.add_node(Node::Literal(Literal::String("hello".to_string())));
@@ -87,13 +85,14 @@ fn test_print_is_impure() {
         args: vec![msg],
     });
     
+    let mut checker = PurityChecker::new(&graph);
+    checker.register_impure_builtins();
     assert!(!checker.is_pure(print_expr).unwrap());
 }
 
 #[test]
 fn test_lambda_definition_is_pure() {
     let mut graph = Graph::new();
-    let mut checker = PurityChecker::new(&graph);
     
     let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
     let lambda = graph.add_node(Node::Lambda {
@@ -101,13 +100,13 @@ fn test_lambda_definition_is_pure() {
         body: x_var,
     });
     
+    let mut checker = PurityChecker::new(&graph);
     assert!(checker.is_pure(lambda).unwrap());
 }
 
 #[test]
 fn test_if_expression_purity() {
     let mut graph = Graph::new();
-    let mut checker = PurityChecker::new(&graph);
     
     // Pure if: (if true 1 2)
     let cond = graph.add_node(Node::Literal(Literal::Boolean(true)));
@@ -119,10 +118,13 @@ fn test_if_expression_purity() {
         else_branch,
     });
     
+    let mut checker = PurityChecker::new(&graph);
     assert!(checker.is_pure(pure_if).unwrap());
     
+    // Need to drop the checker to modify graph again
+    drop(checker);
+    
     // Impure if: (if true (print "yes") 2)
-    checker.register_impure_builtins();
     let print_fn = graph.add_node(Node::Variable { name: "print".to_string() });
     let msg = graph.add_node(Node::Literal(Literal::String("yes".to_string())));
     let impure_then = graph.add_node(Node::Application {
@@ -135,14 +137,14 @@ fn test_if_expression_purity() {
         else_branch,
     });
     
-    assert!(!checker.is_pure(impure_if).unwrap());
+    let mut checker2 = PurityChecker::new(&graph);
+    checker2.register_impure_builtins();
+    assert!(!checker2.is_pure(impure_if).unwrap());
 }
 
 #[test]
 fn test_contract_purity_validation() {
     let mut graph = Graph::new();
-    let mut checker = PurityChecker::new(&graph);
-    checker.register_impure_builtins();
     
     // Create a contract with pure precondition
     let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
@@ -153,11 +155,15 @@ fn test_contract_purity_validation() {
         args: vec![x_var, zero],
     });
     
-    let mut contract = Contract::new("test_func".to_string(), NodeId::new(NonZeroU32::new(1).unwrap()));
+    let mut contract = Contract::new("test_func".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
     contract.add_precondition(ContractCondition::new(pure_condition, ContractKind::Precondition));
     
+    let mut checker = PurityChecker::new(&graph);
     // Should pass validation
     assert!(checker.validate_contract_purity(&contract).is_ok());
+    
+    // Need to drop the checker to modify graph again
+    drop(checker);
     
     // Create a contract with impure postcondition
     let print_fn = graph.add_node(Node::Variable { name: "print".to_string() });
@@ -170,5 +176,7 @@ fn test_contract_purity_validation() {
     contract.add_postcondition(ContractCondition::new(impure_condition, ContractKind::Postcondition));
     
     // Should fail validation
-    assert!(checker.validate_contract_purity(&contract).is_err());
+    let mut checker2 = PurityChecker::new(&graph);
+    checker2.register_impure_builtins();
+    assert!(checker2.validate_contract_purity(&contract).is_err());
 }

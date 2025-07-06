@@ -5,6 +5,7 @@ use fluentai_contracts::{
 };
 use fluentai_core::ast::{Graph, Node, NodeId, Literal};
 use anyhow::Result;
+use std::num::NonZeroU32;
 
 fn main() -> Result<()> {
     println!("=== Contract Verification API Demo ===\n");
@@ -47,18 +48,22 @@ fn build_contract_demo() -> Result<()> {
     });
     
     // Build the contract
-    let mut contract = Contract::new("factorial".to_string(), NodeId(0));
+    let mut contract = Contract::new("factorial".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
     
     contract.add_precondition(ContractCondition {
         expression: precond_expr,
         message: Some("n must be non-negative".to_string()),
         kind: ContractKind::Precondition,
+        span: None,
+        blame_label: None,
     });
     
     contract.add_postcondition(ContractCondition {
         expression: postcond_expr,
         message: Some("factorial result must be at least 1".to_string()),
         kind: ContractKind::Postcondition,
+        span: None,
+        blame_label: None,
     });
     
     // Mark as pure function
@@ -121,18 +126,22 @@ fn analyze_contract_demo() -> Result<()> {
         args: vec![partial_sum, zero2],
     });
     
-    let mut contract = Contract::new("array_sum".to_string(), NodeId(0));
+    let mut contract = Contract::new("array_sum".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
     
     contract.add_precondition(ContractCondition {
         expression: precond,
         message: Some("array must not be empty".to_string()),
         kind: ContractKind::Precondition,
+        span: None,
+        blame_label: None,
     });
     
     contract.add_invariant(ContractCondition {
         expression: invariant,
         message: Some("partial sum remains non-negative".to_string()),
         kind: ContractKind::Invariant,
+        span: None,
+        blame_label: None,
     });
     
     // Analyze the contract

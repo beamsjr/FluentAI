@@ -4,7 +4,7 @@ use fluentai_core::ast::{Graph, Node, NodeId, Literal};
 use rustc_hash::{FxHashMap, FxHashSet};
 use crate::stats::OptimizationStats;
 use crate::analysis::EffectAnalysis;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use std::time::Instant;
 
 /// Basic graph optimizer with fundamental optimizations
@@ -69,8 +69,10 @@ impl GraphOptimizer {
             let mut node_mapping = FxHashMap::default();
             let mut folded_count = 0;
 
-            // Process nodes
-            let nodes: Vec<_> = current.nodes.keys().copied().collect();
+            // Process nodes in deterministic order
+            let mut nodes: Vec<_> = current.nodes.keys().copied().collect();
+            nodes.sort_by_key(|n| n.0);
+            
             for node_id in nodes {
                 if let Some(node) = current.get_node(node_id) {
                     if let Some(folded) = self.try_fold_node_in_optimized(&current, &optimized, &node_mapping, node_id, node) {
@@ -105,32 +107,39 @@ impl GraphOptimizer {
     /// Try to fold a node into a constant (with access to optimized graph)
     fn try_fold_node_in_optimized(&mut self, current: &Graph, optimized: &Graph, 
                                   mapping: &FxHashMap<NodeId, NodeId>, 
-                                  _node_id: NodeId, node: &Node) -> Option<Node> {
+                                  node_id: NodeId, node: &Node) -> Option<Node> {
         match node {
             Node::Application { function, args } => {
                 // Check if it's a foldable function
-                if let Some(Node::Variable { name }) = current.get_node(*function) {
-                    // Try to get literal values from optimized graph
-                    let mut arg_values = Vec::new();
-                    for arg_id in args {
-                        // First check if we've already optimized this arg
-                        if let Some(new_id) = mapping.get(arg_id) {
-                            if let Some(Node::Literal(lit)) = optimized.get_node(*new_id) {
-                                arg_values.push(lit.clone());
-                                continue;
-                            }
-                        }
-                        // Otherwise check in current graph
-                        if let Some(Node::Literal(lit)) = current.get_node(*arg_id) {
-                            arg_values.push(lit.clone());
-                        } else {
-                            return None;
-                        }
-                    }
+                let func_name = if let Some(Node::Variable { name }) = current.get_node(*function) {
+                    name.clone()
+                } else {
+                    return None;
+                };
+                
+                // Only try to fold pure primitives
+                if !is_pure_primitive(&func_name) {
+                    return None;
+                }
+                
+                // Try to get literal values from current graph or optimized graph
+                let mut arg_values = Vec::new();
+                for arg_id in args {
+                    // Look up the argument in the optimized graph if mapped, otherwise in current
+                    let arg_node = if let Some(new_id) = mapping.get(arg_id) {
+                        optimized.get_node(*new_id)
+                    } else {
+                        current.get_node(*arg_id)
+                    };
                     
-                    if arg_values.len() == args.len() && is_pure_primitive(name) {
-                        return evaluate_primitive(name, &arg_values);
+                    match arg_node {
+                        Some(Node::Literal(lit)) => arg_values.push(lit.clone()),
+                        _ => return None, // Can't fold if any arg is not a literal
                     }
+                }
+                
+                if arg_values.len() == args.len() {
+                    return evaluate_primitive(&func_name, &arg_values);
                 }
             }
             Node::If { condition, then_branch, else_branch } => {
@@ -190,12 +199,18 @@ impl GraphOptimizer {
             return None;
         }
 
-        // Get argument values
+        // Get argument values - need to check both original and mapped nodes
         let mut arg_values = Vec::new();
         for arg_id in args {
-            let mapped_id = mapping.get(arg_id).copied().unwrap_or(*arg_id);
-            match graph.get_node(mapped_id)? {
-                Node::Literal(lit) => arg_values.push(lit.clone()),
+            // First try the mapped node
+            let node = if let Some(&mapped_id) = mapping.get(arg_id) {
+                graph.get_node(mapped_id)
+            } else {
+                graph.get_node(*arg_id)
+            };
+            
+            match node {
+                Some(Node::Literal(lit)) => arg_values.push(lit.clone()),
                 _ => return None,
             }
         }
@@ -212,6 +227,7 @@ impl GraphOptimizer {
         if let Some(root) = graph.root_id {
             self.mark_reachable(graph, root, &mut reachable);
         }
+        
 
         // Build new graph with only reachable nodes
         let mut optimized = Graph::new();
@@ -231,7 +247,7 @@ impl GraphOptimizer {
         // Second pass: Update all references now that all nodes are mapped
         for (old_id, new_id) in temp_nodes {
             if let Some(node) = graph.get_node(old_id) {
-                let updated_node = self.copy_with_mapping(node, &node_mapping);
+                let updated_node = self.copy_with_mapping_safe(node, &node_mapping, &reachable)?;
                 optimized.nodes.insert(new_id, updated_node);
             }
         }
@@ -244,6 +260,161 @@ impl GraphOptimizer {
         self.stats.dead_code_eliminated = graph.nodes.len() - optimized.nodes.len();
 
         Ok(optimized)
+    }
+
+    /// Check if a node or its children have any effects
+    fn has_effects(&self, graph: &Graph, node_id: NodeId) -> bool {
+        // Use the effect analysis if available
+        if let Some(ref ea) = self.effect_analysis {
+            !ea.pure_nodes.contains(&node_id)
+        } else {
+            // Fallback: check for effect nodes directly
+            self.contains_effect_node(graph, node_id)
+        }
+    }
+    
+    /// Check if a subtree contains any effect nodes
+    fn contains_effect_node(&self, graph: &Graph, node_id: NodeId) -> bool {
+        let mut visited = FxHashSet::default();
+        self.check_for_effects(graph, node_id, &mut visited)
+    }
+    
+    /// Recursively check for effect nodes
+    fn check_for_effects(&self, graph: &Graph, node_id: NodeId, visited: &mut FxHashSet<NodeId>) -> bool {
+        if !visited.insert(node_id) {
+            return false;
+        }
+        
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Effect { .. } => return true,
+                Node::Application { function, args } => {
+                    if self.check_for_effects(graph, *function, visited) {
+                        return true;
+                    }
+                    for arg in args {
+                        if self.check_for_effects(graph, *arg, visited) {
+                            return true;
+                        }
+                    }
+                }
+                Node::Lambda { body, .. } => {
+                    return self.check_for_effects(graph, *body, visited);
+                }
+                Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                    for (_, value_id) in bindings {
+                        if self.check_for_effects(graph, *value_id, visited) {
+                            return true;
+                        }
+                    }
+                    return self.check_for_effects(graph, *body, visited);
+                }
+                Node::If { condition, then_branch, else_branch } => {
+                    return self.check_for_effects(graph, *condition, visited) ||
+                           self.check_for_effects(graph, *then_branch, visited) ||
+                           self.check_for_effects(graph, *else_branch, visited);
+                }
+                Node::List(items) => {
+                    for item in items {
+                        if self.check_for_effects(graph, *item, visited) {
+                            return true;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Find all variables used in an expression
+    fn find_used_variables(&self, graph: &Graph, node_id: NodeId) -> FxHashSet<String> {
+        let mut used = FxHashSet::default();
+        let mut visited = FxHashSet::default();
+        self.collect_used_variables(graph, node_id, &mut used, &mut visited);
+        used
+    }
+    
+    /// Recursively collect used variables
+    fn collect_used_variables(&self, graph: &Graph, node_id: NodeId, used: &mut FxHashSet<String>, visited: &mut FxHashSet<NodeId>) {
+        if !visited.insert(node_id) {
+            return; // Already visited
+        }
+        
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Variable { name } => {
+                    used.insert(name.clone());
+                }
+                Node::Application { function, args } => {
+                    self.collect_used_variables(graph, *function, used, visited);
+                    for arg in args {
+                        self.collect_used_variables(graph, *arg, used, visited);
+                    }
+                }
+                Node::Lambda { body, .. } => {
+                    self.collect_used_variables(graph, *body, used, visited);
+                }
+                Node::Let { bindings, body } => {
+                    // First collect variables from the body
+                    self.collect_used_variables(graph, *body, used, visited);
+                    
+                    // Then check binding values for variables (they might reference outer scope)
+                    for (_, value_id) in bindings {
+                        self.collect_used_variables(graph, *value_id, used, visited);
+                    }
+                }
+                Node::Letrec { bindings, body } => {
+                    self.collect_used_variables(graph, *body, used, visited);
+                    for (_, value_id) in bindings {
+                        self.collect_used_variables(graph, *value_id, used, visited);
+                    }
+                }
+                Node::If { condition, then_branch, else_branch } => {
+                    self.collect_used_variables(graph, *condition, used, visited);
+                    self.collect_used_variables(graph, *then_branch, used, visited);
+                    self.collect_used_variables(graph, *else_branch, used, visited);
+                }
+                Node::List(items) => {
+                    for item in items {
+                        self.collect_used_variables(graph, *item, used, visited);
+                    }
+                }
+                Node::Match { expr, branches } => {
+                    self.collect_used_variables(graph, *expr, used, visited);
+                    for (_, branch_body) in branches {
+                        self.collect_used_variables(graph, *branch_body, used, visited);
+                    }
+                }
+                Node::Effect { args, .. } => {
+                    for arg in args {
+                        self.collect_used_variables(graph, *arg, used, visited);
+                    }
+                }
+                Node::Async { body } | Node::Await { expr: body } | Node::Spawn { expr: body } => {
+                    self.collect_used_variables(graph, *body, used, visited);
+                }
+                Node::Send { channel, value } => {
+                    self.collect_used_variables(graph, *channel, used, visited);
+                    self.collect_used_variables(graph, *value, used, visited);
+                }
+                Node::Receive { channel } => {
+                    self.collect_used_variables(graph, *channel, used, visited);
+                }
+                Node::Contract { preconditions, postconditions, invariants, .. } => {
+                    for pre in preconditions {
+                        self.collect_used_variables(graph, *pre, used, visited);
+                    }
+                    for post in postconditions {
+                        self.collect_used_variables(graph, *post, used, visited);
+                    }
+                    for inv in invariants {
+                        self.collect_used_variables(graph, *inv, used, visited);
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Mark node and its dependencies as reachable
@@ -263,7 +434,29 @@ impl GraphOptimizer {
                 Node::Lambda { body, .. } => {
                     self.mark_reachable(graph, *body, reachable);
                 }
-                Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                Node::Let { bindings, body } => {
+                    // For let bindings, only mark used bindings as reachable
+                    self.mark_reachable(graph, *body, reachable);
+                    
+                    // Find which variables are used in the body
+                    let used_vars = self.find_used_variables(graph, *body);
+                    
+                    // Mark bindings that are used OR have effects
+                    for (name, value_id) in bindings {
+                        // Always preserve bindings with effects (e.g., from 'do' expressions)
+                        // The "_" binding is used by the parser for sequencing effects
+                        if name == "_" || used_vars.contains(name) {
+                            self.mark_reachable(graph, *value_id, reachable);
+                        } else {
+                            // Check if the binding has effects before discarding
+                            if self.has_effects(graph, *value_id) {
+                                self.mark_reachable(graph, *value_id, reachable);
+                            }
+                        }
+                    }
+                }
+                Node::Letrec { bindings, body } => {
+                    // For letrec, all bindings must be kept (mutual recursion)
                     for (_, value_id) in bindings {
                         self.mark_reachable(graph, *value_id, reachable);
                     }
@@ -286,6 +479,7 @@ impl GraphOptimizer {
                     }
                 }
                 Node::Effect { args, .. } => {
+                    // Effects must always be preserved
                     for arg in args {
                         self.mark_reachable(graph, *arg, reachable);
                     }
@@ -368,9 +562,8 @@ impl GraphOptimizer {
         match node {
             Node::Literal(_) => Some(node.clone()),
             Node::Application { function, args } => {
-                let func_id = mapping.get(function).copied().unwrap_or(*function);
-                
-                if let Some(Node::Variable { name }) = graph.get_node(func_id) {
+                // Get the function name from the original graph
+                if let Some(Node::Variable { name }) = graph.get_node(*function) {
                     self.try_fold_primitive(graph, mapping, name, args)
                 } else {
                     None
@@ -447,6 +640,134 @@ impl GraphOptimizer {
             }
             _ => format!("node:{:?}", node),
         }
+    }
+
+    /// Copy a node with updated references (safe version that validates references)
+    fn copy_with_mapping_safe(&self, node: &Node, mapping: &FxHashMap<NodeId, NodeId>, _reachable: &FxHashSet<NodeId>) -> Result<Node> {
+        let map_node_id = |id: &NodeId| -> Result<NodeId> {
+            mapping.get(id).copied().ok_or_else(|| {
+                anyhow!("Invalid node reference: NodeId({}) is not in the reachable set", id.0)
+            })
+        };
+
+        let node = match node {
+            Node::Application { function, args } => {
+                Node::Application {
+                    function: map_node_id(function)?,
+                    args: args.iter()
+                        .map(map_node_id)
+                        .collect::<Result<Vec<_>>>()?,
+                }
+            }
+            Node::Lambda { params, body } => {
+                Node::Lambda {
+                    params: params.clone(),
+                    body: map_node_id(body)?,
+                }
+            }
+            Node::Let { bindings, body } => {
+                // Only include bindings that are reachable
+                let filtered_bindings = bindings.iter()
+                    .filter(|(_, value_id)| mapping.contains_key(value_id))
+                    .map(|(name, value_id)| {
+                        Ok((name.clone(), map_node_id(value_id)?))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                    
+                Node::Let {
+                    bindings: filtered_bindings,
+                    body: map_node_id(body)?,
+                }
+            }
+            Node::Letrec { bindings, body } => {
+                Node::Letrec {
+                    bindings: bindings.iter()
+                        .map(|(name, value_id)| {
+                            Ok((name.clone(), map_node_id(value_id)?))
+                        })
+                        .collect::<Result<Vec<_>>>()?,
+                    body: map_node_id(body)?,
+                }
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                Node::If {
+                    condition: map_node_id(condition)?,
+                    then_branch: map_node_id(then_branch)?,
+                    else_branch: map_node_id(else_branch)?,
+                }
+            }
+            Node::List(items) => {
+                Node::List(
+                    items.iter()
+                        .map(map_node_id)
+                        .collect::<Result<Vec<_>>>()?
+                )
+            }
+            Node::Match { expr, branches } => {
+                Node::Match {
+                    expr: map_node_id(expr)?,
+                    branches: branches.iter()
+                        .map(|(pattern, body)| {
+                            Ok((pattern.clone(), map_node_id(body)?))
+                        })
+                        .collect::<Result<Vec<_>>>()?,
+                }
+            }
+            Node::Effect { effect_type, operation, args } => {
+                Node::Effect {
+                    effect_type: *effect_type,
+                    operation: operation.clone(),
+                    args: args.iter()
+                        .map(map_node_id)
+                        .collect::<Result<Vec<_>>>()?,
+                }
+            }
+            Node::Async { body } => {
+                Node::Async {
+                    body: map_node_id(body)?,
+                }
+            }
+            Node::Await { expr } => {
+                Node::Await {
+                    expr: map_node_id(expr)?,
+                }
+            }
+            Node::Spawn { expr } => {
+                Node::Spawn {
+                    expr: map_node_id(expr)?,
+                }
+            }
+            Node::Send { channel, value } => {
+                Node::Send {
+                    channel: map_node_id(channel)?,
+                    value: map_node_id(value)?,
+                }
+            }
+            Node::Receive { channel } => {
+                Node::Receive {
+                    channel: map_node_id(channel)?,
+                }
+            }
+            Node::Contract { function_name, preconditions, postconditions, invariants, complexity, pure } => {
+                Node::Contract {
+                    function_name: function_name.clone(),
+                    preconditions: preconditions.iter()
+                        .map(map_node_id)
+                        .collect::<Result<Vec<_>>>()?,
+                    postconditions: postconditions.iter()
+                        .map(map_node_id)
+                        .collect::<Result<Vec<_>>>()?,
+                    invariants: invariants.iter()
+                        .map(map_node_id)
+                        .collect::<Result<Vec<_>>>()?,
+                    complexity: complexity.clone(),
+                    pure: *pure,
+                }
+            }
+            _ => node.clone(),
+        };
+        
+        Ok(node)
     }
 
     /// Copy a node with updated references

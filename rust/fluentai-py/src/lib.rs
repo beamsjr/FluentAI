@@ -318,6 +318,7 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
             py_dict.set_item("exports", py_exports)?;
             Ok(py_dict.to_object(py))
         }
+        Value::GcHandle(_) => Ok("<gc-handle>".to_object(py)),
     }
 }
 
@@ -415,6 +416,20 @@ fn opcode_to_u8(opcode: &fluentai_vm::bytecode::Opcode) -> u8 {
         BeginModule => 87,
         EndModule => 88,
         ExportBinding => 89,
+        AddFloat => 90,
+        SubFloat => 91,
+        MulFloat => 92,
+        DivFloat => 93,
+        LtFloat => 94,
+        LeFloat => 95,
+        GtFloat => 96,
+        GeFloat => 97,
+        UnboxInt => 98,
+        UnboxFloat => 99,
+        BoxInt => 100,
+        BoxFloat => 101,
+        IsInt => 102,
+        IsFloat => 103,
     }
 }
 
