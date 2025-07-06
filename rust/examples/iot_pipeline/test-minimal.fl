@@ -1,0 +1,53 @@
+;; test-minimal.fl - Absolutely minimal test using only core FluentAI features
+
+;; Test basic list operations
+(define readings [25.5 45.0 22.0 38.5 55.0])
+
+;; Test map
+(define doubled (map (lambda (x) (* x 2)) readings))
+(print "Doubled values:")
+(print doubled)
+
+;; Test filter  
+(define high-temps (filter (lambda (x) (> x 40.0)) readings))
+(print "High temperatures:")
+(print high-temps)
+
+;; Test fold
+(define sum (fold-left + 0 readings))
+(define count (length readings))
+(define average (/ sum count))
+(print "Average temperature:")
+(print average)
+
+;; Test basic predicates
+(print "Has anomalies:")
+(print (any? (lambda (x) (> x 50.0)) readings))
+
+;; Define a simple record using lists
+(define (make-reading id value)
+  (list 'reading id value))
+
+(define (reading-id r)
+  (list-ref r 1))
+
+(define (reading-value r)
+  (list-ref r 2))
+
+;; Test with structured data
+(define sensor-data
+  [(make-reading "s1" 25.5)
+   (make-reading "s2" 45.0)
+   (make-reading "s3" 22.0)])
+
+(print "Sensor readings:")
+(map (lambda (r)
+       (print (string-append "Sensor " (reading-id r) ": " (number->string (reading-value r)))))
+     sensor-data)
+
+;; Helper for any?
+(define (any? pred lst)
+  (if (null? lst)
+      false
+      (or (pred (car lst))
+          (any? pred (cdr lst)))))
