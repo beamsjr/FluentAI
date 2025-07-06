@@ -1,0 +1,22 @@
+;; Test file that uses only syntax validated by parser tests
+
+;; Basic operations that we know parse correctly
+(define x 42)
+(define lst [1 2 3 4 5])
+(define doubled (map (lambda (x) (* x 2)) lst))
+
+;; Print is the issue - let's check alternatives
+;; The parser tests use effect syntax
+(effect io print-line "Hello from FluentAI!")
+(effect io print-line "Doubled values:")
+(effect io print doubled)
+
+;; Test filter
+(define high (filter (lambda (x) (> x 5)) doubled))
+(effect io print-line "Values > 5:")
+(effect io print high)
+
+;; Test fold
+(define sum (fold-left + 0 lst))
+(effect io print-line "Sum:")
+(effect io print sum)

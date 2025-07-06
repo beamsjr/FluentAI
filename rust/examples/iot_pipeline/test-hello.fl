@@ -1,0 +1,9 @@
+;; test-hello.fl - Simplest possible test
+
+(print "Hello from FluentAI!")
+
+(define x 42)
+(print x)
+
+(define y (+ 10 20))
+(print y)

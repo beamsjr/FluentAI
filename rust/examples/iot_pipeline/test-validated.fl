@@ -1,0 +1,83 @@
+;; test-validated.fl - Validated syntax test for IoT demo concepts
+;; Uses only functions confirmed to exist in stdlib
+
+;; Test 1: Basic values and printing
+(print-line "=== IoT Demo Validation Test ===")
+(print-line "")
+
+(define sensor-values [25.5 45.0 22.0 38.5 55.0 18.0])
+(print-line "Sensor values:")
+(print-line sensor-values)
+(print-line "")
+
+;; Test 2: Map operation
+(print-line "Testing map operation:")
+(define celsius-to-fahrenheit 
+  (lambda (c) (+ (* c 1.8) 32)))
+(define fahrenheit-values 
+  (map celsius-to-fahrenheit sensor-values))
+(print-line "Fahrenheit values:")
+(print-line fahrenheit-values)
+(print-line "")
+
+;; Test 3: Filter operation
+(print-line "Testing filter operation:")
+(define is-anomaly? 
+  (lambda (temp) (or (> temp 40.0) (< temp 10.0))))
+(define anomalies 
+  (filter is-anomaly? sensor-values))
+(print-line "Anomalies detected (>40°C or <10°C):")
+(print-line anomalies)
+(print-line "")
+
+;; Test 4: Fold operation
+(print-line "Testing fold operation:")
+(define sum (fold-left + 0 sensor-values))
+(define count (length sensor-values))
+(define average (/ sum count))
+(print-line (string-append "Sum: " (number->string sum)))
+(print-line (string-append "Count: " (number->string count)))
+(print-line (string-append "Average: " (number->string average)))
+(print-line "")
+
+;; Test 5: Simulated sensor reading using lists
+(print-line "Testing sensor reading structure:")
+(define (make-sensor-reading id timestamp value type)
+  (list 'sensor-reading id timestamp value type))
+
+(define (sensor-value reading)
+  (list-ref reading 3))
+
+(define (sensor-type reading)
+  (list-ref reading 4))
+
+(define test-readings
+  (list
+    (make-sensor-reading "temp-001" 1000 25.5 "temperature")
+    (make-sensor-reading "temp-002" 1100 45.0 "temperature")
+    (make-sensor-reading "pres-001" 1200 1020.0 "pressure")))
+
+(print-line "Created sensor readings:")
+(map (lambda (r) 
+       (print-line 
+         (string-append "  Sensor: " 
+                       (list-ref r 1) 
+                       " Value: " 
+                       (number->string (sensor-value r)))))
+     test-readings)
+(print-line "")
+
+;; Test 6: Pipeline simulation
+(print-line "Testing pipeline concept:")
+(define (process-readings readings)
+  (filter (lambda (r)
+           (and (string=? (sensor-type r) "temperature")
+                (> (sensor-value r) 40.0)))
+          readings))
+
+(define processed (process-readings test-readings))
+(print-line (string-append "Anomalies found: " (number->string (length processed))))
+(print-line "")
+
+(print-line "=== Validation Complete ===")
+(print-line "If you see this, the core concepts work!")
