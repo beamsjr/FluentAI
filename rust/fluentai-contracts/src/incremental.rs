@@ -4,7 +4,7 @@
 //! and functions, enabling incremental re-verification only when dependencies change.
 
 use std::collections::{HashMap, HashSet};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use fluentai_core::ast::{Graph, Node, NodeId};
 use crate::{
     contract::Contract,

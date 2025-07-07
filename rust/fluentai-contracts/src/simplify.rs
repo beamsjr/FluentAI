@@ -3,9 +3,8 @@
 //! This module provides simplification of symbolic expressions to reduce
 //! the complexity of constraints sent to the SMT solver.
 
-use crate::symbolic_execution::{SymbolicValue, SymbolicType, ListOperation};
+use crate::symbolic_execution::{SymbolicValue, ListOperation};
 use fluentai_core::ast::Literal;
-use std::collections::HashMap;
 
 /// Simplify a symbolic value by applying constant folding and algebraic identities
 pub fn simplify(value: &SymbolicValue) -> SymbolicValue {

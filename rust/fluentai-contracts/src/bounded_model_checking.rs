@@ -3,12 +3,10 @@
 //! This module implements BMC algorithms for verifying temporal properties
 //! up to a fixed bound, which is often sufficient for finding bugs in practice.
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::num::NonZeroU32;
+use std::collections::{HashMap, HashSet};
 use crate::{
-    temporal::{TemporalFormula, TemporalOperator, TemporalContract, ExecutionTrace, TemporalState},
-    errors::{ContractError, ContractResult},
-    Contract, ContractCondition,
+    temporal::{TemporalFormula, TemporalOperator, TemporalContract},
+    errors::ContractResult,
 };
 
 /// BMC solver for temporal properties
@@ -276,7 +274,7 @@ impl BoundedModelChecker {
     fn generate_paths(&self, initial: &BMCState, k: usize) -> Vec<Vec<BMCState>> {
         let mut paths = vec![vec![initial.clone()]];
         
-        for i in 1..=k {
+        for _i in 1..=k {
             let mut new_paths = Vec::new();
             
             for path in &paths {
@@ -423,7 +421,7 @@ impl BoundedModelChecker {
     }
     
     /// Evaluate atomic proposition in a state
-    fn evaluate_atomic(&self, formula: &TemporalFormula, state: &BMCState) -> ContractResult<bool> {
+    fn evaluate_atomic(&self, formula: &TemporalFormula, _state: &BMCState) -> ContractResult<bool> {
         // Extract the atomic condition from the formula
         if let TemporalFormula::Atomic(condition) = formula {
             // Check if this is an invariant (which should always hold)
@@ -621,6 +619,8 @@ impl BMCEncoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ContractCondition;
+    use std::num::NonZeroU32;
     
     #[test]
     fn test_bmc_safety() {

@@ -697,14 +697,6 @@ impl Compiler {
             "gc-collect" => Some(Opcode::GcCollect),
             "tail-call" => Some(Opcode::TailCall),
             "tail-return" => Some(Opcode::TailReturn),
-            // Specialized arithmetic
-            "+int" => Some(Opcode::AddInt),
-            "-int" => Some(Opcode::SubInt),
-            "*int" => Some(Opcode::MulInt),
-            "/int" => Some(Opcode::DivInt),
-            "+float" => Some(Opcode::AddFloat),
-            "-float" => Some(Opcode::SubFloat),
-            "*float" => Some(Opcode::MulFloat),
             _ => None,
         }
     }

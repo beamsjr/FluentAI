@@ -1,11 +1,11 @@
 //! Lock-free concurrent data structures for high-performance packet processing
 
-use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use std::ptr::{self, NonNull};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::ptr;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::alloc::{alloc, dealloc, Layout};
-use crossbeam_epoch::{self as epoch, Atomic, Owned, Shared, Guard};
+use crossbeam_epoch::{self as epoch, Atomic, Owned};
 use crossbeam_utils::CachePadded;
 
 /// Lock-free stack using Treiber's algorithm

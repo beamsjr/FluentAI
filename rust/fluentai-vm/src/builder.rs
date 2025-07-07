@@ -8,7 +8,7 @@ use crate::vm::VM;
 use crate::bytecode::Bytecode;
 use crate::bytecode::Value;
 use crate::security::{SecurityManager, SecurityPolicy};
-use crate::gc::{GarbageCollector, GcConfig};
+use crate::gc::GcConfig;
 use fluentai_effects::{EffectContext, EffectRuntime};
 use fluentai_stdlib::StdlibRegistry;
 use fluentai_modules::{ModuleLoader, ModuleConfig};

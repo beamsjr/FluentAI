@@ -1,7 +1,6 @@
 //! Type-specialized stack frames for efficient unboxed value storage
 
 use crate::bytecode::Value;
-use crate::unboxed::{UnboxedValue, BoxedValue};
 use anyhow::{anyhow, Result};
 
 /// Type tags for stack values

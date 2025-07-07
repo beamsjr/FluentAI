@@ -1,7 +1,7 @@
 //! Module loading functionality
 
 use crate::{ModuleInfo, ModuleConfig, ModuleCache, ModuleError, Result};
-use fluentai_core::ast::{Graph, Node, NodeId, Literal};
+use fluentai_core::ast::{Graph, Node, Literal};
 use fluentai_parser::parse;
 use rustc_hash::FxHashSet;
 use std::fs;
@@ -142,7 +142,7 @@ impl ModuleLoader {
         let root = graph.root_id.unwrap_or_else(|| {
             // Create a dummy node if there's no root
             let dummy = Node::Literal(Literal::Nil);
-            graph.add_node(dummy)
+            graph.add_node(dummy).expect("Failed to create dummy root node")
         });
         
         Ok(ModuleInfo {

@@ -1,10 +1,18 @@
 //! AST representation using an efficient graph structure
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::num::NonZeroU32;
 use crate::documentation::{DocumentedNode, Documentation, DocumentationCategory, DocumentationVisibility};
+
+/// Type alias for the HashMap implementation used in the AST
+/// This allows easy switching between different hash map implementations
+pub type AstHashMap<K, V> = FxHashMap<K, V>;
+
+/// Type alias for the HashSet implementation used in the AST
+/// This allows easy switching between different hash set implementations
+pub type AstHashSet<T> = FxHashSet<T>;
 
 /// Node identifier in the AST graph
 /// 
@@ -99,17 +107,61 @@ pub enum PerformanceHintType {
     /// This function should be inlined
     ShouldInline,
     /// This loop should be unrolled
-    ShouldUnroll,
+    ShouldUnroll {
+        /// Optional unroll factor (None means complete unrolling)
+        factor: Option<usize>,
+    },
     /// This operation can be vectorized
-    CanVectorize,
+    CanVectorize {
+        /// SIMD width hint (e.g., 128, 256, 512 bits)
+        simd_width: Option<u32>,
+    },
     /// This computation can be parallelized
-    CanParallelize,
+    CanParallelize {
+        /// Suggested parallelism strategy
+        strategy: ParallelismStrategy,
+    },
     /// Results should be memoized
-    ShouldMemoize,
+    ShouldMemoize {
+        /// Maximum cache size hint
+        max_cache_size: Option<usize>,
+    },
     /// Memory access pattern hint
-    MemoryAccessPattern(String),
+    MemoryAccessPattern(MemoryPattern),
     /// Custom hint
     Custom(String),
+}
+
+/// Memory access patterns for optimization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MemoryPattern {
+    /// Sequential access pattern
+    Sequential,
+    /// Strided access with given stride
+    Strided(usize),
+    /// Random access pattern
+    Random,
+    /// Streaming (no reuse)
+    Streaming,
+    /// Spatial locality (nearby elements accessed together)
+    SpatialLocality,
+    /// Temporal locality (same elements reused)
+    TemporalLocality,
+}
+
+/// Parallelism strategies
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ParallelismStrategy {
+    /// Data parallelism (same operation on different data)
+    DataParallel,
+    /// Task parallelism (different operations in parallel)
+    TaskParallel,
+    /// Pipeline parallelism (stages of computation)
+    Pipeline,
+    /// Map-reduce pattern
+    MapReduce,
+    /// Fork-join pattern
+    ForkJoin,
 }
 
 /// AST graph representation
@@ -121,13 +173,13 @@ pub enum PerformanceHintType {
 /// - The root_id, if present, must point to a valid node
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
-    pub nodes: FxHashMap<NodeId, Node>,
+    pub nodes: AstHashMap<NodeId, Node>,
     pub root_id: Option<NodeId>,
     /// Next ID to assign. Starts at 1 and monotonically increases.
     /// IDs are never reused, even after node deletion.
     next_id: u32,
     /// Optional metadata for nodes
-    pub metadata: FxHashMap<NodeId, NodeMetadata>,
+    pub metadata: AstHashMap<NodeId, NodeMetadata>,
 }
 
 impl Default for Graph {
@@ -139,19 +191,24 @@ impl Default for Graph {
 impl Graph {
     pub fn new() -> Self {
         Self {
-            nodes: FxHashMap::default(),
+            nodes: AstHashMap::default(),
             root_id: None,
             next_id: 1, // Start at 1 since 0 is reserved for null
-            metadata: FxHashMap::default(),
+            metadata: AstHashMap::default(),
         }
     }
 
-    pub fn add_node(&mut self, node: Node) -> NodeId {
+    pub fn add_node(&mut self, node: Node) -> crate::error::Result<NodeId> {
+        // Check for overflow before incrementing
+        if self.next_id == u32::MAX {
+            return Err(crate::error::Error::GraphNodeIdOverflow);
+        }
+        
         // SAFETY: next_id starts at 1 and only increments, so it's always non-zero
-        let id = NodeId(NonZeroU32::new(self.next_id).expect("NodeId overflow"));
+        let id = NodeId(NonZeroU32::new(self.next_id).unwrap());
         self.next_id += 1;
         self.nodes.insert(id, node);
-        id
+        Ok(id)
     }
 
     pub fn get_node(&self, id: NodeId) -> Option<&Node> {
@@ -229,15 +286,96 @@ impl Graph {
     }
     
     /// Performs a depth-first traversal starting from the given node
+    /// Uses iterative implementation to avoid stack overflow on deep graphs
     pub fn dfs_from(&self, start: NodeId, mut visitor: impl FnMut(NodeId, &Node)) {
-        let mut visited = std::collections::HashSet::new();
+        self.dfs_iterative(start, &mut visitor);
+    }
+    
+    /// Performs an iterative depth-first traversal to avoid stack overflow
+    pub fn dfs_iterative(&self, start: NodeId, visitor: &mut impl FnMut(NodeId, &Node)) {
+        let mut visited = AstHashSet::default();
+        let mut stack = vec![start];
+        
+        while let Some(node_id) = stack.pop() {
+            if !visited.insert(node_id) {
+                continue; // Already visited
+            }
+            
+            if let Some(node) = self.get_node(node_id) {
+                visitor(node_id, node);
+                
+                // Push children onto stack in reverse order for correct DFS order
+                match node {
+                    Node::Lambda { body, .. } => {
+                        stack.push(*body);
+                    }
+                    Node::Application { function, args } => {
+                        // Push in reverse order so they're processed in correct order
+                        for arg in args.iter().rev() {
+                            stack.push(*arg);
+                        }
+                        stack.push(*function);
+                    }
+                    Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+                        stack.push(*body);
+                        for (_, value) in bindings.iter().rev() {
+                            stack.push(*value);
+                        }
+                    }
+                    Node::If { condition, then_branch, else_branch } => {
+                        stack.push(*else_branch);
+                        stack.push(*then_branch);
+                        stack.push(*condition);
+                    }
+                    Node::Match { expr, branches } => {
+                        for (_, branch) in branches.iter().rev() {
+                            stack.push(*branch);
+                        }
+                        stack.push(*expr);
+                    }
+                    Node::List(items) => {
+                        for item in items.iter().rev() {
+                            stack.push(*item);
+                        }
+                    }
+                    Node::Effect { args, .. } => {
+                        for arg in args.iter().rev() {
+                            stack.push(*arg);
+                        }
+                    }
+                    Node::Send { channel, value } => {
+                        stack.push(*value);
+                        stack.push(*channel);
+                    }
+                    Node::Receive { channel } => {
+                        stack.push(*channel);
+                    }
+                    Node::Async { body } => {
+                        stack.push(*body);
+                    }
+                    Node::Await { expr } | Node::Spawn { expr } => {
+                        stack.push(*expr);
+                    }
+                    Node::Module { body, .. } => {
+                        stack.push(*body);
+                    }
+                    _ => {} // Leaf nodes
+                }
+            }
+        }
+    }
+    
+    /// Performs a recursive depth-first traversal (legacy method, may overflow on deep graphs)
+    /// Consider using dfs_from() or dfs_iterative() instead
+    pub fn dfs_recursive(&self, start: NodeId, mut visitor: impl FnMut(NodeId, &Node)) {
+        let mut visited = AstHashSet::default();
         self.dfs_helper(start, &mut visited, &mut visitor);
     }
     
     fn dfs_helper(
         &self,
         node_id: NodeId,
-        visited: &mut std::collections::HashSet<NodeId>,
+        visited: &mut AstHashSet<NodeId>,
         visitor: &mut impl FnMut(NodeId, &Node),
     ) {
         if !visited.insert(node_id) {
@@ -321,10 +459,139 @@ impl Graph {
                 Node::Effect { args, .. } => {
                     children.extend(args);
                 }
+                Node::Send { channel, value } => {
+                    children.push(*channel);
+                    children.push(*value);
+                }
+                Node::Receive { channel } => {
+                    children.push(*channel);
+                }
+                Node::Async { body } => {
+                    children.push(*body);
+                }
+                Node::Await { expr } | Node::Spawn { expr } => {
+                    children.push(*expr);
+                }
+                Node::Module { body, .. } => {
+                    children.push(*body);
+                }
                 _ => {} // Leaf nodes have no children
             }
         }
         children
+    }
+    
+    /// Validates the graph structure and checks all invariants
+    /// 
+    /// # Invariants checked:
+    /// - All NodeId references point to existing nodes
+    /// - The root_id (if present) points to a valid node
+    /// - No orphaned nodes (all nodes reachable from root or metadata)
+    /// - No cycles in non-recursive contexts
+    /// - Node IDs are within expected range
+    pub fn validate(&self) -> crate::error::Result<()> {
+        // Check if root exists when specified
+        if let Some(root) = self.root_id {
+            if !self.nodes.contains_key(&root) {
+                return Err(crate::error::Error::Other(
+                    anyhow::anyhow!("Root node {} does not exist in graph", root)
+                ));
+            }
+        }
+        
+        // Collect all referenced node IDs
+        let mut referenced_nodes = AstHashSet::default();
+        
+        // Check all nodes and their references
+        for (&node_id, _node) in &self.nodes {
+            // Check node ID is within valid range
+            if node_id.get() == 0 || node_id.get() >= self.next_id {
+                return Err(crate::error::Error::Other(
+                    anyhow::anyhow!("Invalid node ID {}: outside valid range 1..{}", node_id, self.next_id)
+                ));
+            }
+            
+            // Get all child references from this node
+            let children = self.children(node_id);
+            for child_id in children {
+                // Check that referenced nodes exist
+                if !self.nodes.contains_key(&child_id) {
+                    return Err(crate::error::Error::Other(
+                        anyhow::anyhow!("Node {} references non-existent node {}", node_id, child_id)
+                    ));
+                }
+                referenced_nodes.insert(child_id);
+            }
+        }
+        
+        // Add root to referenced nodes if it exists
+        if let Some(root) = self.root_id {
+            referenced_nodes.insert(root);
+        }
+        
+        // Check for orphaned nodes (optional - may be too strict for some use cases)
+        let all_nodes: AstHashSet<_> = self.nodes.keys().copied().collect();
+        let orphaned: Vec<_> = all_nodes.difference(&referenced_nodes).collect();
+        
+        // Allow orphaned nodes if they have metadata (they might be referenced externally)
+        for &orphan in &orphaned {
+            if !self.metadata.contains_key(&orphan) && Some(*orphan) != self.root_id {
+                // This is a warning, not an error - some use cases may have intentionally orphaned nodes
+                // You could make this stricter if needed
+                eprintln!("Warning: Node {} is orphaned (not reachable from root)", orphan);
+            }
+        }
+        
+        // Validate metadata references
+        for (meta_id, _) in &self.metadata {
+            if !self.nodes.contains_key(meta_id) {
+                return Err(crate::error::Error::Other(
+                    anyhow::anyhow!("Metadata exists for non-existent node {}", meta_id)
+                ));
+            }
+        }
+        
+        // Check for cycles (simplified check - full cycle detection would be more complex)
+        if let Some(root) = self.root_id {
+            let mut visited = AstHashSet::default();
+            let mut stack = AstHashSet::default();
+            if self.has_cycle_from(root, &mut visited, &mut stack) {
+                return Err(crate::error::Error::Other(
+                    anyhow::anyhow!("Graph contains a cycle")
+                ));
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Helper method to detect cycles using DFS
+    fn has_cycle_from(
+        &self,
+        node_id: NodeId,
+        visited: &mut AstHashSet<NodeId>,
+        stack: &mut AstHashSet<NodeId>,
+    ) -> bool {
+        if stack.contains(&node_id) {
+            return true; // Found a cycle
+        }
+        
+        if visited.contains(&node_id) {
+            return false; // Already processed this node
+        }
+        
+        visited.insert(node_id);
+        stack.insert(node_id);
+        
+        // Check children
+        for child in self.children(node_id) {
+            if self.has_cycle_from(child, visited, stack) {
+                return true;
+            }
+        }
+        
+        stack.remove(&node_id);
+        false
     }
 }
 

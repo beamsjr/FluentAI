@@ -76,12 +76,12 @@ impl GraphOptimizer {
             for node_id in nodes {
                 if let Some(node) = current.get_node(node_id) {
                     if let Some(folded) = self.try_fold_node_in_optimized(&current, &optimized, &node_mapping, node_id, node) {
-                        let new_id = optimized.add_node(folded);
+                        let new_id = optimized.add_node(folded)?;
                         node_mapping.insert(node_id, new_id);
                         folded_count += 1;
                     } else {
                         let new_node = self.copy_with_mapping(node, &node_mapping);
-                        let new_id = optimized.add_node(new_node);
+                        let new_id = optimized.add_node(new_node)?;
                         node_mapping.insert(node_id, new_id);
                     }
                 }
@@ -107,7 +107,7 @@ impl GraphOptimizer {
     /// Try to fold a node into a constant (with access to optimized graph)
     fn try_fold_node_in_optimized(&mut self, current: &Graph, optimized: &Graph, 
                                   mapping: &FxHashMap<NodeId, NodeId>, 
-                                  node_id: NodeId, node: &Node) -> Option<Node> {
+                                  _node_id: NodeId, node: &Node) -> Option<Node> {
         match node {
             Node::Application { function, args } => {
                 // Check if it's a foldable function
@@ -238,7 +238,7 @@ impl GraphOptimizer {
         let mut temp_nodes = Vec::new();
         for node_id in &reachable {
             if let Some(node) = graph.get_node(*node_id) {
-                let new_id = optimized.add_node(node.clone());
+                let new_id = optimized.add_node(node.clone())?;
                 node_mapping.insert(*node_id, new_id);
                 temp_nodes.push((*node_id, new_id));
             }
@@ -521,7 +521,7 @@ impl GraphOptimizer {
         for node_id in &nodes {
             if graph.get_node(*node_id).is_some() {
                 let placeholder = Node::Literal(Literal::Nil);
-                let new_id = optimized.add_node(placeholder);
+                let new_id = optimized.add_node(placeholder)?;
                 node_mapping.insert(*node_id, new_id);
             }
         }
@@ -584,7 +584,7 @@ impl GraphOptimizer {
         for node_id in &nodes {
             if graph.get_node(*node_id).is_some() {
                 let placeholder = Node::Literal(Literal::Nil);
-                let new_id = optimized.add_node(placeholder);
+                let new_id = optimized.add_node(placeholder)?;
                 node_mapping.insert(*node_id, new_id);
             }
         }

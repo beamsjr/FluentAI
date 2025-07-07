@@ -44,34 +44,34 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
         let name = format!("function_{}", i);
         
         // Create a simple arithmetic contract
-        let x = graph.add_node(Node::Variable { name: "x".to_string() });
-        let y = graph.add_node(Node::Variable { name: "y".to_string() });
-        let result = graph.add_node(Node::Variable { name: "result".to_string() });
+        let x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+        let y = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+        let result = graph.add_node(Node::Variable { name: "result".to_string() }).expect("Failed to add node");
         
         // Body: result = x + y + i
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
-        let i_lit = graph.add_node(Node::Literal(Literal::Integer(i as i64)));
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+        let i_lit = graph.add_node(Node::Literal(Literal::Integer(i as i64))).expect("Failed to add node");
         let x_plus_y = graph.add_node(Node::Application {
             function: plus,
             args: vec![x, y],
-        });
+        }).expect("Failed to add node");
         let body = graph.add_node(Node::Application {
             function: plus,
             args: vec![x_plus_y, i_lit],
-        });
+        }).expect("Failed to add node");
         
         let mut contract = Contract::new(name.clone(), body);
         contract.function_name = name.clone();
         
         // Add preconditions
-        let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-        let ge = graph.add_node(Node::Variable { name: ">=".to_string() });
+        let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+        let ge = graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
         
         // x >= 0
         let precond1 = graph.add_node(Node::Application {
             function: ge,
             args: vec![x, zero],
-        });
+        }).expect("Failed to add node");
         contract.add_precondition(
             ContractCondition::new(precond1, ContractKind::Precondition)
                 .with_blame("x must be non-negative".to_string())
@@ -81,7 +81,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
         let precond2 = graph.add_node(Node::Application {
             function: ge,
             args: vec![y, zero],
-        });
+        }).expect("Failed to add node");
         contract.add_precondition(
             ContractCondition::new(precond2, ContractKind::Precondition)
                 .with_blame("y must be non-negative".to_string())
@@ -92,7 +92,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
         let postcond1 = graph.add_node(Node::Application {
             function: ge,
             args: vec![result, x],
-        });
+        }).expect("Failed to add node");
         contract.add_postcondition(
             ContractCondition::new(postcond1, ContractKind::Postcondition)
                 .with_blame("result must be >= x".to_string())
@@ -104,7 +104,7 @@ fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
             let postcond2 = graph.add_node(Node::Application {
                 function: ge,
                 args: vec![result, y],
-            });
+            }).expect("Failed to add node");
             contract.add_postcondition(
                 ContractCondition::new(postcond2, ContractKind::Postcondition)
                     .with_blame("result must be >= y".to_string())

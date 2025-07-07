@@ -1,6 +1,6 @@
 //! Time effect handler
 
-use crate::{EffectHandler, EffectResult};
+use crate::{EffectHandler, EffectResult, format_effect_error};
 use async_trait::async_trait;
 use fluentai_core::{ast::EffectType, value::Value, error::Error};
 use chrono::{Utc, Local};
@@ -42,7 +42,7 @@ impl EffectHandler for TimeHandler {
                             .ok_or_else(|| Error::Runtime("Invalid timestamp".to_string()))?;
                         Ok(Value::String(dt.format(format).to_string()))
                     } else {
-                        Err(Error::Runtime("time:format requires timestamp and format string".to_string()))
+                        Err(Error::Runtime(format_effect_error("Time", operation, "requires timestamp and format string")))
                     }
                 } else if let Some(Value::Integer(timestamp)) = args.first() {
                     // Default to RFC3339 if no format string provided
@@ -50,20 +50,20 @@ impl EffectHandler for TimeHandler {
                         .ok_or_else(|| Error::Runtime("Invalid timestamp".to_string()))?;
                     Ok(Value::String(dt.to_rfc3339()))
                 } else {
-                    Err(Error::Runtime("time:format requires timestamp".to_string()))
+                    Err(Error::Runtime(format_effect_error("Time", operation, "requires timestamp")))
                 }
             }
             "sleep" => {
                 // Support synchronous sleep for testing
                 if let Some(Value::Integer(ms)) = args.first() {
                     if *ms < 0 {
-                        Err(Error::Runtime("time:sleep requires non-negative milliseconds".to_string()))
+                        Err(Error::Runtime(format_effect_error("Time", operation, "requires non-negative milliseconds")))
                     } else {
                         std::thread::sleep(std::time::Duration::from_millis(*ms as u64));
                         Ok(Value::Nil)
                     }
                 } else {
-                    Err(Error::Runtime("time:sleep requires milliseconds".to_string()))
+                    Err(Error::Runtime(format_effect_error("Time", operation, "requires milliseconds")))
                 }
             }
             _ => Err(Error::Runtime(format!("Unknown Time operation: {}", operation))),
@@ -75,13 +75,13 @@ impl EffectHandler for TimeHandler {
             "sleep" => {
                 if let Some(Value::Integer(ms)) = args.first() {
                     if *ms < 0 {
-                        Err(Error::Runtime("time:sleep requires non-negative milliseconds".to_string()))
+                        Err(Error::Runtime(format_effect_error("Time", operation, "requires non-negative milliseconds")))
                     } else {
                         sleep(Duration::from_millis(*ms as u64)).await;
                         Ok(Value::Nil)
                     }
                 } else {
-                    Err(Error::Runtime("time:sleep requires milliseconds".to_string()))
+                    Err(Error::Runtime(format_effect_error("Time", operation, "requires milliseconds")))
                 }
             }
             _ => self.handle_sync(operation, args),

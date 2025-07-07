@@ -31,7 +31,7 @@ mod tests {
     #[test]
     fn test_cfg_single_node() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
         graph.root_id = Some(node_id);
         
         let cfg = ControlFlowGraph::build(&graph);

@@ -30,22 +30,22 @@ fn build_contract_demo() -> Result<()> {
     // ensures: result >= 1
     
     // Create precondition: n >= 0
-    let n_var = graph.add_node(Node::Variable { name: "n".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let ge_op = graph.add_node(Node::Variable { name: ">=".to_string() });
+    let n_var = graph.add_node(Node::Variable { name: "n".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let ge_op = graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
     let precond_expr = graph.add_node(Node::Application {
         function: ge_op,
         args: vec![n_var, zero],
-    });
+    }).expect("Failed to add node");
     
     // Create postcondition: result >= 1
-    let result_var = graph.add_node(Node::Variable { name: "result".to_string() });
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let ge_op2 = graph.add_node(Node::Variable { name: ">=".to_string() });
+    let result_var = graph.add_node(Node::Variable { name: "result".to_string() }).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let ge_op2 = graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
     let postcond_expr = graph.add_node(Node::Application {
         function: ge_op2,
         args: vec![result_var, one],
-    });
+    }).expect("Failed to add node");
     
     // Build the contract
     let mut contract = Contract::new("factorial".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
@@ -102,29 +102,29 @@ fn analyze_contract_demo() -> Result<()> {
     // ensures: result >= min(arr)
     // invariant: partial_sum >= 0 (if all elements are non-negative)
     
-    let arr_var = graph.add_node(Node::Variable { name: "arr".to_string() });
-    let len_op = graph.add_node(Node::Variable { name: "length".to_string() });
+    let arr_var = graph.add_node(Node::Variable { name: "arr".to_string() }).expect("Failed to add node");
+    let len_op = graph.add_node(Node::Variable { name: "length".to_string() }).expect("Failed to add node");
     let arr_len = graph.add_node(Node::Application {
         function: len_op,
         args: vec![arr_var],
-    });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let gt_op = graph.add_node(Node::Variable { name: ">".to_string() });
+    }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let gt_op = graph.add_node(Node::Variable { name: ">".to_string() }).expect("Failed to add node");
     
     let precond = graph.add_node(Node::Application {
         function: gt_op,
         args: vec![arr_len, zero],
-    });
+    }).expect("Failed to add node");
     
     // Create invariant: partial_sum >= 0
-    let partial_sum = graph.add_node(Node::Variable { name: "partial_sum".to_string() });
-    let zero2 = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let ge_op = graph.add_node(Node::Variable { name: ">=".to_string() });
+    let partial_sum = graph.add_node(Node::Variable { name: "partial_sum".to_string() }).expect("Failed to add node");
+    let zero2 = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let ge_op = graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
     
     let invariant = graph.add_node(Node::Application {
         function: ge_op,
         args: vec![partial_sum, zero2],
-    });
+    }).expect("Failed to add node");
     
     let mut contract = Contract::new("array_sum".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
     

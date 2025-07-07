@@ -7,6 +7,7 @@
 use fluentai_core::ast::{Graph, Node, NodeId};
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::error::DiError;
 
 /// Service definition as an AST node
 #[derive(Debug, Clone)]
@@ -215,14 +216,14 @@ impl GraphContainer {
     }
     
     /// Register a service in the graph
-    pub fn register_service(&mut self, service: ServiceNode) -> NodeId {
+    pub fn register_service(&mut self, service: ServiceNode) -> Result<NodeId, DiError> {
         let id = service.id;
         
         // Add to graph as a variable node (representing the service)
         let node = Node::Variable {
             name: format!("service_{}", id.get()),
         };
-        let actual_id = self.graph.add_node(node);
+        let actual_id = self.graph.add_node(node)?;
         
         // Update service with actual ID from graph
         let mut service = service;
@@ -234,7 +235,7 @@ impl GraphContainer {
         // Invalidate optimization cache for this path
         self.optimization_cache.resolution_paths.remove(&actual_id);
         
-        actual_id
+        Ok(actual_id)
     }
     
     /// Analyze service dependencies using graph algorithms
@@ -469,7 +470,7 @@ impl ServiceGraphBuilder {
     
     /// Start building a new service
     pub fn service(&mut self, interface: &str) -> ServiceNodeBuilder {
-        let interface_id = self.create_symbol_node(interface);
+        let interface_id = self.create_symbol_node(interface).expect("Failed to create interface node");
         ServiceNodeBuilder {
             builder: self,
             interface_id,
@@ -481,12 +482,12 @@ impl ServiceGraphBuilder {
     }
     
     /// Create a symbol node for type names
-    fn create_symbol_node(&mut self, name: &str) -> NodeId {
+    fn create_symbol_node(&mut self, name: &str) -> Result<NodeId, DiError> {
         let node = Node::Variable {
             name: name.to_string(),
         };
         
-        self.container.graph.add_node(node)
+        Ok(self.container.graph.add_node(node).map_err(|_| DiError::Other("Graph node ID overflow".to_string()))?)
     }
     
     /// Build the final container
@@ -511,7 +512,7 @@ pub struct ServiceNodeBuilder<'a> {
 impl<'a> ServiceNodeBuilder<'a> {
     /// Set the implementation type
     pub fn implementation(mut self, impl_name: &str) -> Self {
-        self.implementation_id = Some(self.builder.create_symbol_node(impl_name));
+        self.implementation_id = Some(self.builder.create_symbol_node(impl_name).expect("Failed to create implementation node"));
         self
     }
     
@@ -523,7 +524,7 @@ impl<'a> ServiceNodeBuilder<'a> {
     
     /// Add a dependency
     pub fn depends_on(mut self, service: &str, kind: DependencyKind) -> Self {
-        let target = self.builder.create_symbol_node(service);
+        let target = self.builder.create_symbol_node(service).expect("Failed to create dependency node");
         self.dependencies.push(DependencyEdge {
             target,
             kind,
@@ -540,7 +541,7 @@ impl<'a> ServiceNodeBuilder<'a> {
     }
     
     /// Register the service
-    pub fn register(self) -> NodeId {
+    pub fn register(self) -> Result<NodeId, DiError> {
         // Create a temporary ID that will be replaced by graph.add_node
         let temp_id = NodeId::new(1).unwrap(); // Will be replaced
         

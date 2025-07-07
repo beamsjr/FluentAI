@@ -3,12 +3,10 @@
 //! This module provides detailed counterexample generation when contracts fail,
 //! including minimal test cases, execution traces, and debugging information.
 
-use crate::symbolic_execution::{SymbolicValue, SymbolicState, PathConstraint, SymbolicType};
+use crate::symbolic_execution::{SymbolicValue, SymbolicState, PathConstraint};
 use crate::symbolic_verification::SymbolicViolation;
-use crate::test_generation::TestCase;
-use crate::errors::{ContractError, ContractResult};
-use fluentai_core::ast::{Graph, NodeId, Node, Literal};
-use std::num::NonZeroU32;
+use crate::errors::ContractResult;
+use fluentai_core::ast::{Graph, Literal};
 use std::collections::HashMap;
 
 #[cfg(feature = "static")]
@@ -275,7 +273,7 @@ impl CounterexampleGenerator {
         constraints: &[PathConstraint],
     ) -> ContractResult<Vec<PathConstraint>> {
         // Delta debugging approach: try to find minimal failing set
-        let mut minimal = constraints.to_vec();
+        let minimal = constraints.to_vec();
         
         // Try removing each constraint
         let mut i = 0;
@@ -297,7 +295,7 @@ impl CounterexampleGenerator {
         &self,
         state: &SymbolicState,
         inputs: &HashMap<String, Literal>,
-        graph: &Graph,
+        _graph: &Graph,
     ) -> ContractResult<Vec<ExecutionStep>> {
         let mut trace = Vec::new();
         let mut step_count = 0;
@@ -434,14 +432,14 @@ impl CounterexampleGenerator {
     /// Generate suggestions for fixing the contract violation
     fn generate_suggestions(
         &self,
-        state: &SymbolicState,
+        _state: &SymbolicState,
         constraints: &[PathConstraint],
     ) -> ContractResult<Vec<String>> {
         let mut suggestions = Vec::new();
         
         // Look for common patterns
         for constraint in constraints {
-            if let SymbolicValue::BinOp { op, left, right } = &constraint.constraint {
+            if let SymbolicValue::BinOp { op, left: _, right } = &constraint.constraint {
                 match op.as_str() {
                     "/" => {
                         // Division - check for division by zero
@@ -573,8 +571,10 @@ pub fn format_counterexample(counterexample: &Counterexample) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::symbolic_execution::SymbolicState;
+    use crate::symbolic_execution::{SymbolicState, SymbolicType};
     use crate::symbolic_verification::{SymbolicViolation, ContractConditionType};
+    use fluentai_core::ast::{Node, NodeId};
+    use std::num::NonZeroU32;
     
     #[test]
     fn test_counterexample_generation() {
@@ -608,7 +608,7 @@ mod tests {
         
         // Create a graph with a node for the condition
         let mut graph = Graph::new();
-        let condition_node = graph.add_node(Node::Literal(Literal::Boolean(true)));
+        let condition_node = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add literal node");
         
         // Update the violation to use the actual node
         let mut updated_violation = violation;

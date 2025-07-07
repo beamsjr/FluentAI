@@ -18,46 +18,46 @@ impl TestGraphBuilder {
     }
     
     fn add_literal(&mut self, lit: Literal) -> NodeId {
-        self.graph.add_node(Node::Literal(lit))
+        self.graph.add_node(Node::Literal(lit)).expect("Failed to add literal")
     }
     
     fn add_variable(&mut self, name: &str) -> NodeId {
-        self.graph.add_node(Node::Variable { name: name.to_string() })
+        self.graph.add_node(Node::Variable { name: name.to_string() }).expect("Failed to add variable")
     }
     
     fn add_application(&mut self, func_name: &str, args: Vec<NodeId>) -> NodeId {
         let func_id = self.add_variable(func_name);
-        self.graph.add_node(Node::Application { function: func_id, args })
+        self.graph.add_node(Node::Application { function: func_id, args }).expect("Failed to add application")
     }
     
     fn add_lambda(&mut self, params: Vec<String>, body: NodeId) -> NodeId {
-        self.graph.add_node(Node::Lambda { params, body })
+        self.graph.add_node(Node::Lambda { params, body }).expect("Failed to add lambda")
     }
     
     fn add_if(&mut self, condition: NodeId, then_branch: NodeId, else_branch: NodeId) -> NodeId {
-        self.graph.add_node(Node::If { condition, then_branch, else_branch })
+        self.graph.add_node(Node::If { condition, then_branch, else_branch }).expect("Failed to add if")
     }
     
     fn add_let(&mut self, bindings: Vec<(String, NodeId)>, body: NodeId) -> NodeId {
-        self.graph.add_node(Node::Let { bindings, body })
+        self.graph.add_node(Node::Let { bindings, body }).expect("Failed to add let")
     }
     
     fn add_list(&mut self, elements: Vec<NodeId>) -> NodeId {
-        self.graph.add_node(Node::List(elements))
+        self.graph.add_node(Node::List(elements)).expect("Failed to add list")
     }
     
     // Note: We're simplifying and not using Match nodes since they require Pattern types
     
     fn add_effect(&mut self, effect_type: EffectType, operation: String, args: Vec<NodeId>) -> NodeId {
-        self.graph.add_node(Node::Effect { effect_type, operation, args })
+        self.graph.add_node(Node::Effect { effect_type, operation, args }).expect("Failed to add effect")
     }
     
     fn add_send(&mut self, channel: NodeId, value: NodeId) -> NodeId {
-        self.graph.add_node(Node::Send { channel, value })
+        self.graph.add_node(Node::Send { channel, value }).expect("Failed to add send")
     }
     
     fn add_receive(&mut self, channel: NodeId) -> NodeId {
-        self.graph.add_node(Node::Receive { channel })
+        self.graph.add_node(Node::Receive { channel }).expect("Failed to add receive")
     }
     
     fn build(self) -> Graph {
@@ -561,7 +561,7 @@ fn test_contract_node_pure() {
         invariants: vec![],
         complexity: None,
         pure: true,
-    });
+    }).expect("Failed to add contract node");
     
     let mut checker = PurityChecker::new(&graph);
     assert!(checker.is_pure(contract_node).unwrap());
@@ -785,7 +785,7 @@ fn test_invalid_function_node() {
     let app_node = builder.graph.add_node(Node::Application {
         function: invalid_func_id,
         args: vec![arg],
-    });
+    }).expect("Failed to add application node");
     
     let graph = builder.build();
     let mut checker = PurityChecker::new(&graph);

@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
         if matches!(self.lexer.peek_token(), Some(Token::RParen)) {
             self.lexer.next_token();
             let node = Node::List(vec![]);
-            return Ok(self.graph.add_node(node));
+            return Ok(self.graph.add_node(node)?);
         }
         
         // Check for special forms
@@ -165,7 +165,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Application { function, args };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_lambda(&mut self) -> ParseResult<NodeId> {
@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Lambda { params, body };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_let(&mut self) -> ParseResult<NodeId> {
@@ -228,7 +228,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Let { bindings, body };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_letrec(&mut self) -> ParseResult<NodeId> {
@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Letrec { bindings, body };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_if(&mut self) -> ParseResult<NodeId> {
@@ -287,7 +287,7 @@ impl<'a> Parser<'a> {
             then_branch,
             else_branch,
         };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_sequence(&mut self) -> ParseResult<NodeId> {
@@ -311,7 +311,7 @@ impl<'a> Parser<'a> {
         // TODO: Add Sequence node type
         if exprs.is_empty() {
             let node = Node::Literal(Literal::Nil);
-            Ok(self.graph.add_node(node))
+            Ok(self.graph.add_node(node)?)
         } else if exprs.len() == 1 {
             Ok(exprs[0])
         } else {
@@ -322,7 +322,7 @@ impl<'a> Parser<'a> {
                     bindings: vec![("_".to_string(), expr)],
                     body: result,
                 };
-                result = self.graph.add_node(node);
+                result = self.graph.add_node(node)?;
             }
             Ok(result)
         }
@@ -375,7 +375,7 @@ impl<'a> Parser<'a> {
                 operation,
                 args,
             };
-            Ok(self.graph.add_node(node))
+            Ok(self.graph.add_node(node)?)
         } else {
             Err(ParseError::InvalidSyntax("Expected effect specification".to_string()))
         }
@@ -407,7 +407,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Match { expr, branches };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_pattern(&mut self) -> ParseResult<Pattern> {
@@ -477,18 +477,18 @@ impl<'a> Parser<'a> {
         
         // Build list using cons operations
         let nil = Node::List(vec![]);
-        let mut result = self.graph.add_node(nil);
+        let mut result = self.graph.add_node(nil)?;
         
         for elem in elements.into_iter().rev() {
             // Create cons application
             let cons_node = Node::Variable { name: "cons".to_string() };
-            let cons_id = self.graph.add_node(cons_node);
+            let cons_id = self.graph.add_node(cons_node)?;
             
             let app = Node::Application {
                 function: cons_id,
                 args: vec![elem, result],
             };
-            result = self.graph.add_node(app);
+            result = self.graph.add_node(app)?;
         }
         
         Ok(result)
@@ -497,7 +497,7 @@ impl<'a> Parser<'a> {
     fn parse_integer(&mut self) -> ParseResult<NodeId> {
         if let Some(Token::Integer(n)) = self.lexer.next_token() {
             let node = Node::Literal(Literal::Integer(n));
-            Ok(self.graph.add_node(node))
+            Ok(self.graph.add_node(node)?)
         } else {
             Err(ParseError::InvalidSyntax("Expected integer".to_string()))
         }
@@ -506,7 +506,7 @@ impl<'a> Parser<'a> {
     fn parse_float(&mut self) -> ParseResult<NodeId> {
         if let Some(Token::Float(f)) = self.lexer.next_token() {
             let node = Node::Literal(Literal::Float(f));
-            Ok(self.graph.add_node(node))
+            Ok(self.graph.add_node(node)?)
         } else {
             Err(ParseError::InvalidSyntax("Expected float".to_string()))
         }
@@ -515,7 +515,7 @@ impl<'a> Parser<'a> {
     fn parse_string(&mut self) -> ParseResult<NodeId> {
         let s = self.parse_string_literal()?;
         let node = Node::Literal(Literal::String(s));
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_string_literal(&mut self) -> ParseResult<String> {
@@ -529,7 +529,7 @@ impl<'a> Parser<'a> {
     fn parse_boolean(&mut self) -> ParseResult<NodeId> {
         if let Some(Token::Boolean(b)) = self.lexer.next_token() {
             let node = Node::Literal(Literal::Boolean(b));
-            Ok(self.graph.add_node(node))
+            Ok(self.graph.add_node(node)?)
         } else {
             Err(ParseError::InvalidSyntax("Expected boolean".to_string()))
         }
@@ -538,7 +538,7 @@ impl<'a> Parser<'a> {
     fn parse_symbol(&mut self) -> ParseResult<NodeId> {
         if let Some(Token::Symbol(name)) = self.lexer.next_token() {
             let node = Node::Variable { name: name.to_string() };
-            Ok(self.graph.add_node(node))
+            Ok(self.graph.add_node(node)?)
         } else {
             Err(ParseError::InvalidSyntax("Expected symbol".to_string()))
         }
@@ -573,7 +573,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Async { body };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_await(&mut self) -> ParseResult<NodeId> {
@@ -589,7 +589,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Await { expr };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_spawn(&mut self) -> ParseResult<NodeId> {
@@ -605,7 +605,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Spawn { expr };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_channel(&mut self) -> ParseResult<NodeId> {
@@ -613,7 +613,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Channel;
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_send(&mut self) -> ParseResult<NodeId> {
@@ -630,7 +630,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Send { channel, value };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_receive(&mut self) -> ParseResult<NodeId> {
@@ -646,7 +646,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Receive { channel };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn expect_symbol(&mut self, expected: &str) -> ParseResult<()> {
@@ -673,7 +673,7 @@ impl<'a> Parser<'a> {
                     module_name: parts[0].to_string(),
                     variable_name: parts[1].to_string(),
                 };
-                Ok(self.graph.add_node(node))
+                Ok(self.graph.add_node(node)?)
             } else {
                 Err(ParseError::InvalidSyntax("Invalid qualified symbol".to_string()))
             }
@@ -722,7 +722,7 @@ impl<'a> Parser<'a> {
                 self.expect_token(Token::RParen)?;
                 
                 let node = Node::Module { name, exports, body };
-                return Ok(self.graph.add_node(node));
+                return Ok(self.graph.add_node(node)?);
             }
         }
         
@@ -731,7 +731,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Module { name, exports, body };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_import(&mut self) -> ParseResult<NodeId> {
@@ -784,7 +784,7 @@ impl<'a> Parser<'a> {
             import_list,
             import_all,
         };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_export(&mut self) -> ParseResult<NodeId> {
@@ -817,7 +817,7 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         
         let node = Node::Export { export_list };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_contract(&mut self) -> ParseResult<NodeId> {
@@ -907,7 +907,7 @@ impl<'a> Parser<'a> {
             complexity,
             pure,
         };
-        Ok(self.graph.add_node(node))
+        Ok(self.graph.add_node(node)?)
     }
 }
 

@@ -281,22 +281,22 @@ fn test_compile_nested_let() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create (let ((x 10)) (let ((y 20)) (+ x y)))
-    let x_val = graph.add_node(Node::Literal(Literal::Integer(10)));
-    let y_val = graph.add_node(Node::Literal(Literal::Integer(20)));
+    let x_val = graph.add_node(Node::Literal(Literal::Integer(10)))?;
+    let y_val = graph.add_node(Node::Literal(Literal::Integer(20)))?;
     
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y_var = graph.add_node(Node::Variable { name: "y".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() })?;
+    let y_var = graph.add_node(Node::Variable { name: "y".to_string() })?;
     
     // For this test, we'll just check variable access
     let inner_let = graph.add_node(Node::Let {
         bindings: vec![("y".to_string(), y_val)],
         body: y_var,
-    });
+    })?;
     
     let outer_let = graph.add_node(Node::Let {
         bindings: vec![("x".to_string(), x_val)],
         body: inner_let,
-    });
+    })?;
     graph.root_id = Some(outer_let);
     
     let result = compile_and_run(&graph)?;

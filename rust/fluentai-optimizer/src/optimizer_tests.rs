@@ -216,12 +216,12 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a malformed graph with dangling references
-        let node1 = graph.add_node(Node::Variable { name: "x".to_string() });
+        let node1 = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
         let node2 = NodeId(NonZeroU32::new(999).unwrap()); // Non-existent
         graph.add_node(Node::Application { 
             function: node1, 
             args: vec![node2] 
-        });
+        }).expect("Failed to add node");
         
         let result = optimizer.optimize(&graph);
         // Should handle gracefully

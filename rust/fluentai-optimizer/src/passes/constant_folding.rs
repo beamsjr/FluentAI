@@ -1,7 +1,6 @@
 //! Constant folding optimization pass
 
-use fluentai_core::ast::{Graph, Node, NodeId, Literal};
-use rustc_hash::FxHashMap;
+use fluentai_core::ast::{Graph, Node, Literal};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
 
@@ -50,7 +49,7 @@ impl OptimizationPass for ConstantFoldingPass {
         if let Some(root_id) = optimized.root_id {
             if let Some(Node::Literal(lit)) = optimized.get_node(root_id) {
                 let mut result = Graph::new();
-                let new_root = result.add_node(Node::Literal(lit.clone()));
+                let new_root = result.add_node(Node::Literal(lit.clone()))?;
                 result.root_id = Some(new_root);
                 return Ok(result);
             }

@@ -1,8 +1,7 @@
 //! Lint rules for FluentAi
 
 use crate::diagnostic::LintDiagnostic;
-use crate::visitor::Visitor;
-use fluentai_core::ast::{Graph, Node, NodeId};
+use fluentai_core::ast::Graph;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 

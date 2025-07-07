@@ -4,7 +4,7 @@ use fluentai_core::ast::{Graph, Node, NodeId, EffectType};
 use rustc_hash::{FxHashMap, FxHashSet};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
-use crate::analysis::{EffectAnalysis, TypeAnalysis};
+use crate::analysis::EffectAnalysis;
 
 /// Effect-aware optimization pass
 pub struct EffectAwarePass {
@@ -180,14 +180,14 @@ impl OptimizationPass for EffectAwarePass {
                             bindings: mapped_effectful,
                             body: mapped_body,
                         };
-                        let inner_id = optimized.add_node(inner);
+                        let inner_id = optimized.add_node(inner)?;
                         
                         // Create outer let with pure bindings
                         let outer = Node::Let {
                             bindings: mapped_pure,
                             body: inner_id,
                         };
-                        let new_id = optimized.add_node(outer);
+                        let new_id = optimized.add_node(outer)?;
                         node_mapping.insert(node_id, new_id);
                         self.pure_hoisted += 1;
                         continue;
@@ -195,7 +195,7 @@ impl OptimizationPass for EffectAwarePass {
                     
                     // Otherwise, just map the node normally
                     let mapped_node = map_node_refs(node, &node_mapping);
-                    let new_id = optimized.add_node(mapped_node);
+                    let new_id = optimized.add_node(mapped_node)?;
                     node_mapping.insert(node_id, new_id);
                 }
                 _ => {
@@ -210,14 +210,14 @@ impl OptimizationPass for EffectAwarePass {
                         } else {
                             // New expression, add to cache
                             let mapped_node = map_node_refs(node, &node_mapping);
-                            let new_id = optimized.add_node(mapped_node);
+                            let new_id = optimized.add_node(mapped_node)?;
                             node_mapping.insert(node_id, new_id);
                             expr_cache.insert(expr_key, new_id);
                         }
                     } else {
                         // Effectful node, just copy it
                         let mapped_node = map_node_refs(node, &node_mapping);
-                        let new_id = optimized.add_node(mapped_node);
+                        let new_id = optimized.add_node(mapped_node)?;
                         node_mapping.insert(node_id, new_id);
                     }
                 }

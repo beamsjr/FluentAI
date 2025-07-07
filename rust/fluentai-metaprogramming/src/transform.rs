@@ -300,7 +300,7 @@ impl Transformer {
             _ => node.clone(), // Simplified - would need to handle all node types
         };
         
-        let new_id = target.add_node(new_node);
+        let new_id = target.add_node(new_node)?;
         id_mapping.insert(node_id, new_id);
         Ok(new_id)
     }
@@ -342,14 +342,19 @@ impl Transformer {
         // Add new nodes
         let mut id_mapping = FxHashMap::default();
         for (old_id, node) in new_graph.nodes {
-            let new_id = graph.add_node(node);
+            let new_id = graph.add_node(node)?;
             id_mapping.insert(old_id, new_id);
         }
+        
+        // Create a proper mapping for update_node_ids
+        let node_id_mapping: FxHashMap<NodeId, NodeId> = id_mapping.iter()
+            .map(|(k, v)| (*k, *v))
+            .collect();
         
         // Update references in new nodes
         for &new_id in id_mapping.values() {
             if let Some(node) = graph.nodes.get_mut(&new_id) {
-                self.update_node_ids(node, &id_mapping);
+                self.update_node_ids(node, &node_id_mapping);
             }
         }
         

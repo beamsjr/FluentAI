@@ -1,7 +1,7 @@
 //! Partial evaluation pass
 
 use fluentai_core::ast::{Graph, Node, NodeId, Literal};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use anyhow::Result;
 use crate::passes::OptimizationPass;
 use crate::analysis::EffectAnalysis;
@@ -125,13 +125,13 @@ impl OptimizationPass for PartialEvaluationPass {
         // Process all nodes
         for (node_id, node) in &graph.nodes {
             if let Some(evaluated) = self.try_partial_eval(graph, node, &known_values, &effect_analysis) {
-                let new_id = optimized.add_node(evaluated);
+                let new_id = optimized.add_node(evaluated)?;
                 node_mapping.insert(*node_id, new_id);
                 self.evaluated_count += 1;
             } else {
                 // Copy node with mapped references
                 let mapped_node = map_node_refs(node, &node_mapping);
-                let new_id = optimized.add_node(mapped_node);
+                let new_id = optimized.add_node(mapped_node)?;
                 node_mapping.insert(*node_id, new_id);
             }
         }

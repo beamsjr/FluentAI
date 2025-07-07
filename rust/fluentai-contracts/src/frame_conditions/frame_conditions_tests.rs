@@ -418,7 +418,7 @@ fn test_extract_from_contract_empty() {
     let mut graph = create_test_graph();
     
     // Create a simple function body
-    let body = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let body = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     
     let mut contract = create_test_contract("pure_func");
     contract.node_id = body;
@@ -434,7 +434,7 @@ fn test_extract_from_contract_empty() {
 #[test]
 fn test_extract_index_constant() {
     let mut graph = create_test_graph();
-    let node = graph.add_node(Node::Literal(Literal::Integer(5)));
+    let node = graph.add_node(Node::Literal(Literal::Integer(5))).expect("Failed to add node");
     
     let manager = FrameConditionManager::new(&graph);
     let index = manager.extract_index(node);
@@ -445,7 +445,7 @@ fn test_extract_index_constant() {
 #[test]
 fn test_extract_index_variable() {
     let mut graph = create_test_graph();
-    let node = graph.add_node(Node::Variable { name: "i".to_string() });
+    let node = graph.add_node(Node::Variable { name: "i".to_string() }).expect("Failed to add node");
     
     let manager = FrameConditionManager::new(&graph);
     let index = manager.extract_index(node);
@@ -456,7 +456,7 @@ fn test_extract_index_variable() {
 #[test]
 fn test_extract_index_default() {
     let mut graph = create_test_graph();
-    let node = graph.add_node(Node::Literal(Literal::Float(3.14)));
+    let node = graph.add_node(Node::Literal(Literal::Float(3.14))).expect("Failed to add node");
     
     let manager = FrameConditionManager::new(&graph);
     let index = manager.extract_index(node);
@@ -510,13 +510,13 @@ fn test_analyze_modifications_set() {
     let mut graph = create_test_graph();
     
     // Create AST for: (set! x 42)
-    let set_func = graph.add_node(Node::Variable { name: "set!".to_string() });
-    let var_x = graph.add_node(Node::Variable { name: "x".to_string() });
-    let val = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let set_func = graph.add_node(Node::Variable { name: "set!".to_string() }).expect("Failed to add node");
+    let var_x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let val = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     let set_app = graph.add_node(Node::Application {
         function: set_func,
         args: vec![var_x, val],
-    });
+    }).expect("Failed to add node");
     
     let mut contract = create_test_contract("mutating_func");
     contract.node_id = set_app;
@@ -535,14 +535,14 @@ fn test_analyze_modifications_array_set() {
     let mut graph = create_test_graph();
     
     // Create AST for: (vector-set! arr 0 value)
-    let set_func = graph.add_node(Node::Variable { name: "vector-set!".to_string() });
-    let arr = graph.add_node(Node::Variable { name: "arr".to_string() });
-    let idx = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let val = graph.add_node(Node::Literal(Literal::Integer(99)));
+    let set_func = graph.add_node(Node::Variable { name: "vector-set!".to_string() }).expect("Failed to add node");
+    let arr = graph.add_node(Node::Variable { name: "arr".to_string() }).expect("Failed to add node");
+    let idx = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let val = graph.add_node(Node::Literal(Literal::Integer(99))).expect("Failed to add node");
     let set_app = graph.add_node(Node::Application {
         function: set_func,
         args: vec![arr, idx, val],
-    });
+    }).expect("Failed to add node");
     
     let mut contract = create_test_contract("array_mutate");
     contract.node_id = set_app;
@@ -560,13 +560,13 @@ fn test_analyze_modifications_allocation() {
     let mut graph = create_test_graph();
     
     // Create AST for: (cons 1 2)
-    let cons_func = graph.add_node(Node::Variable { name: "cons".to_string() });
-    let arg1 = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let arg2 = graph.add_node(Node::Literal(Literal::Integer(2)));
+    let cons_func = graph.add_node(Node::Variable { name: "cons".to_string() }).expect("Failed to add node");
+    let arg1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let arg2 = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
     let cons_app = graph.add_node(Node::Application {
         function: cons_func,
         args: vec![arg1, arg2],
-    });
+    }).expect("Failed to add node");
     
     let mut contract = create_test_contract("allocating_func");
     contract.node_id = cons_app;
@@ -585,19 +585,19 @@ fn test_analyze_modifications_let() {
     let mut graph = create_test_graph();
     
     // Create AST for: (let ((x 1)) (set! x 2))
-    let set_func = graph.add_node(Node::Variable { name: "set!".to_string() });
-    let var_x = graph.add_node(Node::Variable { name: "x".to_string() });
-    let val1 = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let val2 = graph.add_node(Node::Literal(Literal::Integer(2)));
+    let set_func = graph.add_node(Node::Variable { name: "set!".to_string() }).expect("Failed to add node");
+    let var_x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let val1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let val2 = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
     let set_app = graph.add_node(Node::Application {
         function: set_func,
         args: vec![var_x, val2],
-    });
+    }).expect("Failed to add node");
     
     let let_node = graph.add_node(Node::Let {
         bindings: vec![("x".to_string(), val1)],
         body: set_app,
-    });
+    }).expect("Failed to add node");
     
     let mut contract = create_test_contract("let_func");
     contract.node_id = let_node;
@@ -615,29 +615,29 @@ fn test_analyze_modifications_if() {
     let mut graph = create_test_graph();
     
     // Create AST for: (if cond (set! x 1) (set! y 2))
-    let cond = graph.add_node(Node::Literal(Literal::Boolean(true)));
+    let cond = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
     
-    let set_func1 = graph.add_node(Node::Variable { name: "set!".to_string() });
-    let var_x = graph.add_node(Node::Variable { name: "x".to_string() });
-    let val1 = graph.add_node(Node::Literal(Literal::Integer(1)));
+    let set_func1 = graph.add_node(Node::Variable { name: "set!".to_string() }).expect("Failed to add node");
+    let var_x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let val1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     let then_branch = graph.add_node(Node::Application {
         function: set_func1,
         args: vec![var_x, val1],
-    });
+    }).expect("Failed to add node");
     
-    let set_func2 = graph.add_node(Node::Variable { name: "set!".to_string() });
-    let var_y = graph.add_node(Node::Variable { name: "y".to_string() });
-    let val2 = graph.add_node(Node::Literal(Literal::Integer(2)));
+    let set_func2 = graph.add_node(Node::Variable { name: "set!".to_string() }).expect("Failed to add node");
+    let var_y = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+    let val2 = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
     let else_branch = graph.add_node(Node::Application {
         function: set_func2,
         args: vec![var_y, val2],
-    });
+    }).expect("Failed to add node");
     
     let if_node = graph.add_node(Node::If {
         condition: cond,
         then_branch,
         else_branch,
-    });
+    }).expect("Failed to add node");
     
     let mut contract = create_test_contract("if_func");
     contract.node_id = if_node;

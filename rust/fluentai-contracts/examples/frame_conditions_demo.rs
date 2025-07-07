@@ -35,7 +35,7 @@ fn demo_pure_function() {
     let mut graph = Graph::new();
     
     // Pure function: add(x, y) = x + y
-    let body = graph.add_node(Node::Variable { name: "add-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "add-body".to_string() }).expect("Failed to add node");
     let mut contract = Contract::new("add".to_string(), body);
     contract.pure = true;
     
@@ -53,19 +53,19 @@ fn demo_variable_modification() {
     
     // Function that increments a counter
     // counter := counter + 1
-    let counter = graph.add_node(Node::Variable { name: "counter".to_string() });
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let counter = graph.add_node(Node::Variable { name: "counter".to_string() }).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let new_value = graph.add_node(Node::Application {
         function: plus,
         args: vec![counter, one],
-    });
+    }).expect("Failed to add node");
     
-    let set = graph.add_node(Node::Variable { name: "set!".to_string() });
+    let set = graph.add_node(Node::Variable { name: "set!".to_string() }).expect("Failed to add node");
     let body = graph.add_node(Node::Application {
         function: set,
         args: vec![counter, new_value],
-    });
+    }).expect("Failed to add node");
     
     let mut contract = Contract::new("increment".to_string(), body);
     
@@ -91,11 +91,11 @@ fn demo_field_modification() {
     
     // Function that updates account balance
     // account.balance := account.balance + amount
-    let _account = graph.add_node(Node::Variable { name: "account".to_string() });
-    let _amount = graph.add_node(Node::Variable { name: "amount".to_string() });
+    let _account = graph.add_node(Node::Variable { name: "account".to_string() }).expect("Failed to add node");
+    let _amount = graph.add_node(Node::Variable { name: "amount".to_string() }).expect("Failed to add node");
     
     // Simplified representation of field access/update
-    let body = graph.add_node(Node::Variable { name: "update-balance-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "update-balance-body".to_string() }).expect("Failed to add node");
     
     let mut contract = Contract::new("deposit".to_string(), body);
     
@@ -129,7 +129,7 @@ fn demo_array_modification() {
     
     // Function that updates array element
     // arr[i] := value
-    let body = graph.add_node(Node::Variable { name: "array-set-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "array-set-body".to_string() }).expect("Failed to add node");
     
     let mut contract = Contract::new("array_set".to_string(), body);
     
@@ -160,7 +160,7 @@ fn demo_complex_frame() {
     let mut graph = Graph::new();
     
     // Complex function with multiple modifications
-    let body = graph.add_node(Node::Variable { name: "complex-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "complex-body".to_string() }).expect("Failed to add node");
     let mut contract = Contract::new("process_data".to_string(), body);
     
     // Build complex frame condition
@@ -195,7 +195,7 @@ fn demo_bank_transfer() {
     println!("\n\nExample 6: Bank Transfer with Precise Frame Conditions\n");
     
     let mut graph = Graph::new();
-    let body = graph.add_node(Node::Variable { name: "transfer-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "transfer-body".to_string() }).expect("Failed to add node");
     let mut contract = Contract::new("transfer".to_string(), body);
     
     // Frame condition for transfer

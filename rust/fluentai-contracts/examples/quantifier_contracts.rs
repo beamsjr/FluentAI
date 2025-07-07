@@ -40,28 +40,28 @@ fn demo_all_positive() {
     let mut builder = QuantifierBuilder::new(Graph::new());
     
     // Build the array reference
-    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() });
+    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() }).expect("Failed to add node");
     
     // Build: forall i in [0, length(arr)), arr[i] > 0
     let contract_expr = builder.forall(
         vec![("i", QuantifierDomain::ListIndices(arr))],
         |builder, vars| {
             let i = vars["i"];
-            let zero = builder.graph.add_node(Node::Literal(Literal::Integer(0)));
+            let zero = builder.graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
             
             // arr[i]
-            let nth_op = builder.graph.add_node(Node::Variable { name: "nth".to_string() });
+            let nth_op = builder.graph.add_node(Node::Variable { name: "nth".to_string() }).expect("Failed to add node");
             let arr_i = builder.graph.add_node(Node::Application {
                 function: nth_op,
                 args: vec![arr, i],
-            });
+            }).expect("Failed to add node");
             
             // arr[i] > 0
-            let gt_op = builder.graph.add_node(Node::Variable { name: ">".to_string() });
+            let gt_op = builder.graph.add_node(Node::Variable { name: ">".to_string() }).expect("Failed to add node");
             builder.graph.add_node(Node::Application {
                 function: gt_op,
                 args: vec![arr_i, zero],
-            })
+            }).expect("Failed to add node")
         }
     );
     
@@ -85,62 +85,62 @@ fn demo_all_positive() {
 fn demo_sorted_array() {
     let mut builder = QuantifierBuilder::new(Graph::new());
     
-    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() });
+    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() }).expect("Failed to add node");
     
     // Build the sorted property
     let contract_expr = builder.forall(
         vec![("i", QuantifierDomain::ListIndices(arr))],
         |builder, vars| {
             let i = vars["i"];
-            let one = builder.graph.add_node(Node::Literal(Literal::Integer(1)));
+            let one = builder.graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
             
             // i + 1
-            let plus_op = builder.graph.add_node(Node::Variable { name: "+".to_string() });
+            let plus_op = builder.graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
             let i_plus_1 = builder.graph.add_node(Node::Application {
                 function: plus_op,
                 args: vec![i, one],
-            });
+            }).expect("Failed to add node");
             
             // length(arr)
-            let length_op = builder.graph.add_node(Node::Variable { name: "length".to_string() });
+            let length_op = builder.graph.add_node(Node::Variable { name: "length".to_string() }).expect("Failed to add node");
             let arr_length = builder.graph.add_node(Node::Application {
                 function: length_op,
                 args: vec![arr],
-            });
+            }).expect("Failed to add node");
             
             // i + 1 < length(arr)
-            let lt_op = builder.graph.add_node(Node::Variable { name: "<".to_string() });
+            let lt_op = builder.graph.add_node(Node::Variable { name: "<".to_string() }).expect("Failed to add node");
             let valid_index = builder.graph.add_node(Node::Application {
                 function: lt_op,
                 args: vec![i_plus_1, arr_length],
-            });
+            }).expect("Failed to add node");
             
             // arr[i]
-            let nth_op = builder.graph.add_node(Node::Variable { name: "nth".to_string() });
+            let nth_op = builder.graph.add_node(Node::Variable { name: "nth".to_string() }).expect("Failed to add node");
             let arr_i = builder.graph.add_node(Node::Application {
                 function: nth_op,
                 args: vec![arr, i],
-            });
+            }).expect("Failed to add node");
             
             // arr[i+1]
             let arr_i_plus_1 = builder.graph.add_node(Node::Application {
                 function: nth_op,
                 args: vec![arr, i_plus_1],
-            });
+            }).expect("Failed to add node");
             
             // arr[i] <= arr[i+1]
-            let le_op = builder.graph.add_node(Node::Variable { name: "<=".to_string() });
+            let le_op = builder.graph.add_node(Node::Variable { name: "<=".to_string() }).expect("Failed to add node");
             let sorted_pair = builder.graph.add_node(Node::Application {
                 function: le_op,
                 args: vec![arr_i, arr_i_plus_1],
-            });
+            }).expect("Failed to add node");
             
             // implies(i + 1 < length(arr), arr[i] <= arr[i+1])
-            let implies_op = builder.graph.add_node(Node::Variable { name: "implies".to_string() });
+            let implies_op = builder.graph.add_node(Node::Variable { name: "implies".to_string() }).expect("Failed to add node");
             builder.graph.add_node(Node::Application {
                 function: implies_op,
                 args: vec![valid_index, sorted_pair],
-            })
+            }).expect("Failed to add node")
         }
     );
     
@@ -158,8 +158,8 @@ fn demo_sorted_array() {
 fn demo_exists_element() {
     let mut builder = QuantifierBuilder::new(Graph::new());
     
-    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() });
-    let target = builder.graph.add_node(Node::Variable { name: "target".to_string() });
+    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() }).expect("Failed to add node");
+    let target = builder.graph.add_node(Node::Variable { name: "target".to_string() }).expect("Failed to add node");
     
     // Build: exists i in indices(arr), arr[i] = target
     let contract_expr = builder.exists(
@@ -168,18 +168,18 @@ fn demo_exists_element() {
             let i = vars["i"];
             
             // arr[i]
-            let nth_op = builder.graph.add_node(Node::Variable { name: "nth".to_string() });
+            let nth_op = builder.graph.add_node(Node::Variable { name: "nth".to_string() }).expect("Failed to add node");
             let arr_i = builder.graph.add_node(Node::Application {
                 function: nth_op,
                 args: vec![arr, i],
-            });
+            }).expect("Failed to add node");
             
             // arr[i] = target
-            let eq_op = builder.graph.add_node(Node::Variable { name: "=".to_string() });
+            let eq_op = builder.graph.add_node(Node::Variable { name: "=".to_string() }).expect("Failed to add node");
             builder.graph.add_node(Node::Application {
                 function: eq_op,
                 args: vec![arr_i, target],
-            })
+            }).expect("Failed to add node")
         }
     );
     
@@ -202,9 +202,9 @@ fn demo_exists_element() {
 fn demo_bounded_array() {
     let mut builder = QuantifierBuilder::new(Graph::new());
     
-    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() });
-    let min_val = builder.graph.add_node(Node::Variable { name: "min".to_string() });
-    let max_val = builder.graph.add_node(Node::Variable { name: "max".to_string() });
+    let arr = builder.graph.add_node(Node::Variable { name: "arr".to_string() }).expect("Failed to add node");
+    let min_val = builder.graph.add_node(Node::Variable { name: "min".to_string() }).expect("Failed to add node");
+    let max_val = builder.graph.add_node(Node::Variable { name: "max".to_string() }).expect("Failed to add node");
     
     // Build: forall x in arr, min <= x <= max
     let contract_expr = builder.forall(
@@ -213,25 +213,25 @@ fn demo_bounded_array() {
             let x = vars["x"];
             
             // min <= x
-            let ge_op = builder.graph.add_node(Node::Variable { name: ">=".to_string() });
+            let ge_op = builder.graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
             let x_ge_min = builder.graph.add_node(Node::Application {
                 function: ge_op,
                 args: vec![x, min_val],
-            });
+            }).expect("Failed to add node");
             
             // x <= max
-            let le_op = builder.graph.add_node(Node::Variable { name: "<=".to_string() });
+            let le_op = builder.graph.add_node(Node::Variable { name: "<=".to_string() }).expect("Failed to add node");
             let x_le_max = builder.graph.add_node(Node::Application {
                 function: le_op,
                 args: vec![x, max_val],
-            });
+            }).expect("Failed to add node");
             
             // min <= x and x <= max
-            let and_op = builder.graph.add_node(Node::Variable { name: "and".to_string() });
+            let and_op = builder.graph.add_node(Node::Variable { name: "and".to_string() }).expect("Failed to add node");
             builder.graph.add_node(Node::Application {
                 function: and_op,
                 args: vec![x_ge_min, x_le_max],
-            })
+            }).expect("Failed to add node")
         }
     );
     

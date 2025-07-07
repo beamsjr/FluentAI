@@ -1,10 +1,10 @@
 //! Loop optimization passes
 
-use fluentai_core::ast::{Graph, Node, NodeId, Literal, Pattern};
+use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::{FxHashMap, FxHashSet};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
-use crate::analysis::{ControlFlowGraph, DataFlowAnalysis, calculate_node_size};
+use crate::analysis::{ControlFlowGraph, DataFlowAnalysis};
 
 /// Loop optimization pass
 pub struct LoopOptimizationPass {
@@ -27,7 +27,7 @@ impl LoopOptimizationPass {
     fn detect_loop(&self, graph: &Graph, node: &Node) -> Option<LoopInfo> {
         match node {
             // Detect tail-recursive functions (common loop pattern in functional languages)
-            Node::Letrec { bindings, body } => {
+            Node::Letrec { bindings, body: _ } => {
                 // Look for recursive functions that could be loops
                 for (name, func_id) in bindings {
                     if let Some(Node::Lambda { params, body: lambda_body }) = graph.get_node(*func_id) {
@@ -118,7 +118,7 @@ impl LoopOptimizationPass {
     }
 
     /// Get the loop bound if it's constant
-    fn get_loop_bound(&self, graph: &Graph, loop_info: &LoopInfo) -> Option<usize> {
+    fn get_loop_bound(&self, _graph: &Graph, loop_info: &LoopInfo) -> Option<usize> {
         // Simple heuristic: look for patterns like (loop 0 10 ...)
         // This is a simplified version - real implementation would need more analysis
         match &loop_info.kind {
@@ -144,7 +144,7 @@ impl LoopOptimizationPass {
     }
 
     /// Find loop-invariant code
-    fn find_invariant_code(&self, graph: &Graph, loop_info: &LoopInfo, cfg: &ControlFlowGraph, dfa: &DataFlowAnalysis) -> Vec<NodeId> {
+    fn find_invariant_code(&self, graph: &Graph, loop_info: &LoopInfo, _cfg: &ControlFlowGraph, dfa: &DataFlowAnalysis) -> Vec<NodeId> {
         let mut invariant = Vec::new();
         let loop_vars = self.get_loop_variables(loop_info);
         
@@ -196,7 +196,7 @@ impl LoopOptimizationPass {
     }
 
     /// Check if a node is loop-invariant
-    fn is_invariant(&self, node: &Node, loop_vars: &FxHashSet<String>, dfa: &DataFlowAnalysis) -> bool {
+    fn is_invariant(&self, node: &Node, loop_vars: &FxHashSet<String>, _dfa: &DataFlowAnalysis) -> bool {
         match node {
             Node::Variable { name } => !loop_vars.contains(name),
             Node::Literal(_) => true,
@@ -269,7 +269,7 @@ impl OptimizationPass for LoopOptimizationPass {
             let new_node = optimized_node.unwrap_or_else(|| {
                 map_node_refs(node, &node_mapping)
             });
-            let new_id = optimized.add_node(new_node);
+            let new_id = optimized.add_node(new_node)?;
             node_mapping.insert(*node_id, new_id);
         }
         

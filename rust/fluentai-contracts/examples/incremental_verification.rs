@@ -19,23 +19,23 @@ fn main() {
     
     // Function: add(x, y) = x + y
     let add_params = vec!["x".to_string(), "y".to_string()];
-    let x = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y = graph.add_node(Node::Variable { name: "y".to_string() });
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let add_body = graph.add_node(Node::Application {
         function: plus,
         args: vec![x, y],
-    });
+    }).expect("Failed to add node");
     
     // Function: double(n) = add(n, n)
     let double_params = vec!["n".to_string()];
-    let n1 = graph.add_node(Node::Variable { name: "n".to_string() });
-    let n2 = graph.add_node(Node::Variable { name: "n".to_string() });
-    let add_ref = graph.add_node(Node::Variable { name: "add".to_string() });
+    let n1 = graph.add_node(Node::Variable { name: "n".to_string() }).expect("Failed to add node");
+    let n2 = graph.add_node(Node::Variable { name: "n".to_string() }).expect("Failed to add node");
+    let add_ref = graph.add_node(Node::Variable { name: "add".to_string() }).expect("Failed to add node");
     let double_body = graph.add_node(Node::Application {
         function: add_ref,
         args: vec![n1, n2],
-    });
+    }).expect("Failed to add node");
     
     // Create contracts
     let mut contracts = HashMap::new();
@@ -44,21 +44,21 @@ fn main() {
     let mut add_contract = Contract::new("add".to_string(), add_body);
     // function_name is already set in the constructor
     
-    let result = graph.add_node(Node::Variable { name: "result".to_string() });
-    let ge = graph.add_node(Node::Variable { name: ">=".to_string() });
+    let result = graph.add_node(Node::Variable { name: "result".to_string() }).expect("Failed to add node");
+    let ge = graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
     let result_ge_x = graph.add_node(Node::Application {
         function: ge,
         args: vec![result, x],
-    });
+    }).expect("Failed to add node");
     let result_ge_y = graph.add_node(Node::Application {
         function: ge,
         args: vec![result, y],
-    });
-    let and_op = graph.add_node(Node::Variable { name: "and".to_string() });
+    }).expect("Failed to add node");
+    let and_op = graph.add_node(Node::Variable { name: "and".to_string() }).expect("Failed to add node");
     let postcond = graph.add_node(Node::Application {
         function: and_op,
         args: vec![result_ge_x, result_ge_y],
-    });
+    }).expect("Failed to add node");
     
     add_contract.add_postcondition(
         ContractCondition::new(postcond, ContractKind::Postcondition)
@@ -70,17 +70,17 @@ fn main() {
     let mut double_contract = Contract::new("double".to_string(), double_body);
     // function_name is already set in the constructor
     
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let times = graph.add_node(Node::Variable { name: "*".to_string() });
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let times = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
     let two_n = graph.add_node(Node::Application {
         function: times,
         args: vec![two, n1],
-    });
-    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
+    }).expect("Failed to add node");
+    let eq = graph.add_node(Node::Variable { name: "=".to_string() }).expect("Failed to add node");
     let double_postcond = graph.add_node(Node::Application {
         function: eq,
         args: vec![result, two_n],
-    });
+    }).expect("Failed to add node");
     
     double_contract.add_postcondition(
         ContractCondition::new(double_postcond, ContractKind::Postcondition)

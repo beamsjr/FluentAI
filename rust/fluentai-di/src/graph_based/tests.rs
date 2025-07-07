@@ -18,7 +18,8 @@ mod tests {
             .service("ILogger")
             .implementation("ConsoleLogger")
             .lifetime(ServiceLifetime::Singleton)
-            .register();
+            .register()
+            .expect("Failed to register logger");
         
         let container = builder.build();
         
@@ -35,14 +36,16 @@ mod tests {
             .service("ILogger")
             .implementation("ConsoleLogger")
             .lifetime(ServiceLifetime::Singleton)
-            .register();
+            .register()
+            .expect("Failed to register logger");
         
         let repo_id = builder
             .service("IRepository")
             .implementation("UserRepository")
             .lifetime(ServiceLifetime::Scoped)
             .depends_on("ILogger", DependencyKind::Constructor)
-            .register();
+            .register()
+            .expect("Failed to register repository");
         
         let container = builder.build();
         
@@ -64,7 +67,7 @@ mod tests {
             dependencies: vec![],
             metadata: ServiceMetadata::default(),
         };
-        let b_id = container.register_service(service_b);
+        let b_id = container.register_service(service_b).expect("Failed to register service B");
         
         let service_a = ServiceNode {
             id: node_id(2), // Temporary ID
@@ -79,7 +82,7 @@ mod tests {
             }],
             metadata: ServiceMetadata::default(),
         };
-        let a_id = container.register_service(service_a);
+        let a_id = container.register_service(service_a).expect("Failed to register service A");
         
         let analysis = container.analyze_dependencies(a_id);
         assert!(!analysis.has_cycles);
@@ -99,7 +102,7 @@ mod tests {
             dependencies: vec![],
             metadata: ServiceMetadata::default(),
         };
-        let a_id = container.register_service(service_a);
+        let a_id = container.register_service(service_a).expect("Failed to register service A");
         
         let service_b = ServiceNode {
             id: node_id(2), // Temporary ID
@@ -114,7 +117,7 @@ mod tests {
             }],
             metadata: ServiceMetadata::default(),
         };
-        let b_id = container.register_service(service_b);
+        let b_id = container.register_service(service_b).expect("Failed to register service B");
         
         // Add B dependency to A
         container.services.get_mut(&a_id).unwrap().dependencies.push(DependencyEdge {
@@ -160,9 +163,9 @@ mod tests {
             metadata: ServiceMetadata::default(),
         };
         
-        let a_id = container.register_service(service_a);
-        let b_id = container.register_service(service_b);
-        let c_id = container.register_service(service_c);
+        let a_id = container.register_service(service_a).expect("Failed to register service A");
+        let b_id = container.register_service(service_b).expect("Failed to register service B");
+        let c_id = container.register_service(service_c).expect("Failed to register service C");
         
         // Now add circular dependencies
         container.services.get_mut(&a_id).unwrap().dependencies.push(DependencyEdge {
@@ -204,7 +207,7 @@ mod tests {
             metadata: ServiceMetadata::default(),
         };
         
-        let c_id = container.register_service(service_c);
+        let c_id = container.register_service(service_c).expect("Failed to register service C");
         
         let service_b = ServiceNode {
             id: node_id(2),
@@ -215,7 +218,7 @@ mod tests {
             metadata: ServiceMetadata::default(),
         };
         
-        let b_id = container.register_service(service_b);
+        let b_id = container.register_service(service_b).expect("Failed to register service B");
         
         // Add B's dependency on C
         container.services.get_mut(&b_id).unwrap().dependencies.push(DependencyEdge {
@@ -234,7 +237,7 @@ mod tests {
             metadata: ServiceMetadata::default(),
         };
         
-        let a_id = container.register_service(service_a);
+        let a_id = container.register_service(service_a).expect("Failed to register service A");
         
         // Add A's dependency on B
         container.services.get_mut(&a_id).unwrap().dependencies.push(DependencyEdge {
@@ -272,7 +275,7 @@ mod tests {
             },
         };
         
-        let expensive_id = container.register_service(expensive_service);
+        let expensive_id = container.register_service(expensive_service).expect("Failed to register expensive service");
         
         let cheap_service = ServiceNode {
             id: node_id(2),
@@ -289,7 +292,7 @@ mod tests {
             },
         };
         
-        let cheap_id = container.register_service(cheap_service);
+        let cheap_id = container.register_service(cheap_service).expect("Failed to register cheap service");
         
         // Add dependency
         container.services.get_mut(&cheap_id).unwrap().dependencies.push(DependencyEdge {
@@ -322,7 +325,8 @@ mod tests {
                 },
                 ..Default::default()
             })
-            .register();
+            .register()
+            .expect("Failed to register service");
         
         let container = builder.build();
         let service = &container.services[&service_id];
@@ -341,14 +345,16 @@ mod tests {
             .service("ICache")
             .implementation("LRUCache")
             .lifetime(ServiceLifetime::Singleton)
-            .register();
+            .register()
+            .expect("Failed to register service");
         
         let service_id = builder
             .service("IService")
             .implementation("ServiceImpl")
             .lifetime(ServiceLifetime::Transient)
             .depends_on("ICache", DependencyKind::Property)
-            .register();
+            .register()
+            .expect("Failed to register service");
         
         let container = builder.build();
         let service = &container.services[&service_id];
@@ -367,7 +373,8 @@ mod tests {
             .service("ICustom")
             .implementation("CustomImpl")
             .lifetime(ServiceLifetime::Custom(42))
-            .register();
+            .register()
+            .expect("Failed to register service");
         
         let container = builder.build();
         let service = &container.services[&service_id];
@@ -394,7 +401,7 @@ mod tests {
             dependencies: vec![],
             metadata: ServiceMetadata::default(),
         };
-        let d_id = container.register_service(service_d);
+        let d_id = container.register_service(service_d).expect("Failed to register service D");
         
         // Then register B and C (depend on D)
         let service_b = ServiceNode {
@@ -405,7 +412,7 @@ mod tests {
             dependencies: vec![],
             metadata: ServiceMetadata::default(),
         };
-        let b_id = container.register_service(service_b);
+        let b_id = container.register_service(service_b).expect("Failed to register service B");
         
         let service_c = ServiceNode {
             id: node_id(3), // Temporary ID
@@ -415,7 +422,7 @@ mod tests {
             dependencies: vec![],
             metadata: ServiceMetadata::default(),
         };
-        let c_id = container.register_service(service_c);
+        let c_id = container.register_service(service_c).expect("Failed to register service C");
         
         // Add dependencies for B and C
         container.services.get_mut(&b_id).unwrap().dependencies.push(DependencyEdge {
@@ -454,7 +461,7 @@ mod tests {
             ],
             metadata: ServiceMetadata::default(),
         };
-        let a_id = container.register_service(service_a);
+        let a_id = container.register_service(service_a).expect("Failed to register service A");
         
         let analysis = container.analyze_dependencies(a_id);
         // In a full implementation, parallel_groups would identify that B and C

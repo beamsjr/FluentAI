@@ -1,6 +1,6 @@
 //! State effect handler
 
-use crate::{EffectHandler, EffectResult};
+use crate::{EffectHandler, EffectResult, format_effect_error};
 use async_trait::async_trait;
 use fluentai_core::{ast::EffectType, value::Value, error::Error};
 use dashmap::DashMap;
@@ -32,7 +32,7 @@ impl EffectHandler for StateHandler {
                         .map(|v| v.clone())
                         .unwrap_or(Value::Nil))
                 } else {
-                    Err(Error::Runtime("state:get requires a string key".to_string()))
+                    Err(Error::Runtime(format_effect_error("State", operation, "requires a string key")))
                 }
             }
             "set" => {
@@ -42,10 +42,10 @@ impl EffectHandler for StateHandler {
                         self.state.insert(key.clone(), value.clone());
                         Ok(value)
                     } else {
-                        Err(Error::Runtime("state:set requires a string key".to_string()))
+                        Err(Error::Runtime(format_effect_error("State", operation, "requires a string key")))
                     }
                 } else {
-                    Err(Error::Runtime("state:set requires key and value".to_string()))
+                    Err(Error::Runtime(format_effect_error("State", operation, "requires key and value")))
                 }
             }
             "update" => {
@@ -56,10 +56,10 @@ impl EffectHandler for StateHandler {
                         self.state.insert(key.clone(), func.clone());
                         Ok(func.clone())
                     } else {
-                        Err(Error::Runtime("state:update requires key and function".to_string()))
+                        Err(Error::Runtime(format_effect_error("State", operation, "requires key and function")))
                     }
                 } else {
-                    Err(Error::Runtime("state:update requires 2 arguments".to_string()))
+                    Err(Error::Runtime(format_effect_error("State", operation, "requires 2 arguments")))
                 }
             }
             "delete" => {
@@ -67,14 +67,14 @@ impl EffectHandler for StateHandler {
                     self.state.remove(key);
                     Ok(Value::Nil)
                 } else {
-                    Err(Error::Runtime("state:delete requires a string key".to_string()))
+                    Err(Error::Runtime(format_effect_error("State", operation, "requires a string key")))
                 }
             }
             "clear" => {
                 self.state.clear();
                 Ok(Value::Nil)
             }
-            _ => Err(Error::Runtime(format!("Unknown State operation: {}", operation))),
+            _ => Err(Error::Runtime(format_effect_error("State", operation, "operation not supported"))),
         }
     }
 }

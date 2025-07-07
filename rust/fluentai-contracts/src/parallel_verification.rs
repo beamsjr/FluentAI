@@ -123,7 +123,7 @@ impl<'a> ParallelVerifier<'a> {
     /// Verify a single contract (thread-safe)
     fn verify_single_contract(&self, contract: &Contract) -> VerificationResult {
         // Create thread-local verifier
-        let mut verifier = StaticVerifier::new();
+        let verifier = StaticVerifier::new();
         
         match verifier.verify_contract(contract) {
             Ok(result) => result,

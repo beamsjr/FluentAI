@@ -38,13 +38,13 @@ fn test_ast_layout() {
     let mut graph = Graph::new();
     
     // Create a simple AST: (+ 1 2)
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let app = graph.add_node(Node::Application {
         function: plus,
         args: vec![one, two],
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(app);
     

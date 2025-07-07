@@ -57,3 +57,14 @@ impl ParseError {
         }
     }
 }
+
+impl From<fluentai_core::error::Error> for ParseError {
+    fn from(err: fluentai_core::error::Error) -> Self {
+        match err {
+            fluentai_core::error::Error::GraphNodeIdOverflow => {
+                ParseError::InvalidSyntax("Graph node ID overflow - maximum number of nodes reached".to_string())
+            }
+            _ => ParseError::InvalidSyntax(format!("Core error: {}", err)),
+        }
+    }
+}

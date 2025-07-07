@@ -298,14 +298,14 @@ impl OptimizationPass for CommonSubexpressionEliminationPass {
                     
                     if !found_match {
                         // Add new expression
-                        let new_id = optimized.add_node(mapped_node);
+                        let new_id = optimized.add_node(mapped_node)?;
                         node_mapping.insert(node_id, new_id);
                         expr_cache.entry(hash).or_default().push(new_id);
                     }
                 } else {
                     // Non-pure expressions can't be eliminated
                     let mapped_node = map_node_refs(node, &node_mapping);
-                    let new_id = optimized.add_node(mapped_node);
+                    let new_id = optimized.add_node(mapped_node)?;
                     node_mapping.insert(node_id, new_id);
                 }
             }
@@ -318,7 +318,7 @@ impl OptimizationPass for CommonSubexpressionEliminationPass {
                 for node_id in to_process {
                     let node = graph.get_node(node_id).unwrap();
                     let mapped_node = map_node_refs(node, &node_mapping);
-                    let new_id = optimized.add_node(mapped_node);
+                    let new_id = optimized.add_node(mapped_node)?;
                     node_mapping.insert(node_id, new_id);
                 }
                 break;

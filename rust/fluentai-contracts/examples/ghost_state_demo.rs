@@ -31,13 +31,13 @@ fn demo_old_values() {
     let mut graph = Graph::new();
     
     // Variables
-    let balance = graph.add_node(Node::Variable { name: "balance".to_string() });
-    let amount = graph.add_node(Node::Variable { name: "amount".to_string() });
-    let result = graph.add_node(Node::Variable { name: "result".to_string() });
-    let minus = graph.add_node(Node::Variable { name: "-".to_string() });
+    let balance = graph.add_node(Node::Variable { name: "balance".to_string() }).expect("Failed to add node");
+    let amount = graph.add_node(Node::Variable { name: "amount".to_string() }).expect("Failed to add node");
+    let result = graph.add_node(Node::Variable { name: "result".to_string() }).expect("Failed to add node");
+    let minus = graph.add_node(Node::Variable { name: "-".to_string() }).expect("Failed to add node");
     
-    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
-    let body = graph.add_node(Node::Variable { name: "withdraw-body".to_string() });
+    let eq = graph.add_node(Node::Variable { name: "=".to_string() }).expect("Failed to add node");
+    let body = graph.add_node(Node::Variable { name: "withdraw-body".to_string() }).expect("Failed to add node");
     
     // Contract for withdraw function
     // Postcondition: result = old(balance) - amount
@@ -48,13 +48,13 @@ fn demo_old_values() {
     let expected = graph.add_node(Node::Application {
         function: minus,
         args: vec![old_balance, amount],
-    });
+    }).expect("Failed to add node");
     
     // Create postcondition: result = expected
     let postcond = graph.add_node(Node::Application {
         function: eq,
         args: vec![result, expected],
-    });
+    }).expect("Failed to add node");
     
     let mut contract = Contract::new("withdraw".to_string(), body);
     contract.add_postcondition(
@@ -80,10 +80,10 @@ fn demo_ghost_variables() {
     let mut graph = Graph::new();
     
     // Create nodes first
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
-    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+    let eq = graph.add_node(Node::Variable { name: "=".to_string() }).expect("Failed to add node");
     
     // Use builder for ghost operations
     let mut builder = GhostStateBuilder::new(&mut graph);
@@ -97,14 +97,14 @@ fn demo_ghost_variables() {
     let new_count = graph.add_node(Node::Application {
         function: plus,
         args: vec![old_count, one],
-    });
+    }).expect("Failed to add node");
     
     let postcond = graph.add_node(Node::Application {
         function: eq,
         args: vec![ghost_count, new_count],
-    });
+    }).expect("Failed to add node");
     
-    let body = graph.add_node(Node::Variable { name: "operation-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "operation-body".to_string() }).expect("Failed to add node");
     let mut contract = Contract::new("operation".to_string(), body);
     contract.add_postcondition(
         ContractCondition {
@@ -136,8 +136,8 @@ fn demo_history_variables() {
     let mut graph = Graph::new();
     
     // Add nodes first
-    let temp = graph.add_node(Node::Variable { name: "temperature".to_string() });
-    let body = graph.add_node(Node::Variable { name: "update-temp-body".to_string() });
+    let temp = graph.add_node(Node::Variable { name: "temperature".to_string() }).expect("Failed to add node");
+    let body = graph.add_node(Node::Variable { name: "update-temp-body".to_string() }).expect("Failed to add node");
     
     // Now use builder for ghost state
     let mut builder = GhostStateBuilder::new(&mut graph);
@@ -169,8 +169,8 @@ fn demo_model_fields() {
     let mut graph = Graph::new();
     
     // Add nodes first
-    let list = graph.add_node(Node::Variable { name: "list".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
+    let list = graph.add_node(Node::Variable { name: "list".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
     
     // Now use builder for model fields
     let mut builder = GhostStateBuilder::new(&mut graph);
@@ -184,25 +184,25 @@ fn demo_model_fields() {
     drop(builder); // Release the borrow
     
     // Invariant: 0 <= size <= capacity
-    let le = graph.add_node(Node::Variable { name: "<=".to_string() });
+    let le = graph.add_node(Node::Variable { name: "<=".to_string() }).expect("Failed to add node");
     
     let size_ge_zero = graph.add_node(Node::Application {
         function: le,
         args: vec![zero, size_field],
-    });
+    }).expect("Failed to add node");
     
     let size_le_capacity = graph.add_node(Node::Application {
         function: le,
         args: vec![size_field, capacity_field],
-    });
+    }).expect("Failed to add node");
     
-    let and_op = graph.add_node(Node::Variable { name: "and".to_string() });
+    let and_op = graph.add_node(Node::Variable { name: "and".to_string() }).expect("Failed to add node");
     let invariant = graph.add_node(Node::Application {
         function: and_op,
         args: vec![size_ge_zero, size_le_capacity],
-    });
+    }).expect("Failed to add node");
     
-    let body = graph.add_node(Node::Variable { name: "list-op-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "list-op-body".to_string() }).expect("Failed to add node");
     let mut contract = Contract::new("list_operation".to_string(), body);
     contract.add_invariant(
         ContractCondition {
@@ -228,13 +228,13 @@ fn demo_bank_account() {
     let mut graph = Graph::new();
     
     // First, add all the basic nodes we need
-    let balance = graph.add_node(Node::Variable { name: "balance".to_string() });
-    let amount = graph.add_node(Node::Variable { name: "amount".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let account = graph.add_node(Node::Variable { name: "account".to_string() });
-    let deposit_body = graph.add_node(Node::Variable { name: "deposit-body".to_string() });
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
-    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
+    let balance = graph.add_node(Node::Variable { name: "balance".to_string() }).expect("Failed to add node");
+    let amount = graph.add_node(Node::Variable { name: "amount".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let account = graph.add_node(Node::Variable { name: "account".to_string() }).expect("Failed to add node");
+    let deposit_body = graph.add_node(Node::Variable { name: "deposit-body".to_string() }).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+    let eq = graph.add_node(Node::Variable { name: "=".to_string() }).expect("Failed to add node");
     
     // Now create the builder and use it for ghost state
     let mut builder = GhostStateBuilder::new(&mut graph);
@@ -266,11 +266,11 @@ fn demo_bank_account() {
     let new_balance = graph.add_node(Node::Application {
         function: plus,
         args: vec![old_balance, amount],
-    });
+    }).expect("Failed to add node");
     let balance_postcond = graph.add_node(Node::Application {
         function: eq,
         args: vec![balance, new_balance],
-    });
+    }).expect("Failed to add node");
     
     deposit_contract.add_postcondition(
         ContractCondition::new(balance_postcond, ContractKind::Postcondition)
@@ -281,11 +281,11 @@ fn demo_bank_account() {
     let new_deposits = graph.add_node(Node::Application {
         function: plus,
         args: vec![old_deposits, amount],
-    });
+    }).expect("Failed to add node");
     let deposits_postcond = graph.add_node(Node::Application {
         function: eq,
         args: vec![total_deposits, new_deposits],
-    });
+    }).expect("Failed to add node");
     
     deposit_contract.add_postcondition(
         ContractCondition {
@@ -298,15 +298,15 @@ fn demo_bank_account() {
     );
     
     // Invariant: balance = total_deposits - total_withdrawals
-    let minus = graph.add_node(Node::Variable { name: "-".to_string() });
+    let minus = graph.add_node(Node::Variable { name: "-".to_string() }).expect("Failed to add node");
     let net_flow = graph.add_node(Node::Application {
         function: minus,
         args: vec![total_deposits, total_withdrawals],
-    });
+    }).expect("Failed to add node");
     let invariant = graph.add_node(Node::Application {
         function: eq,
         args: vec![balance, net_flow],
-    });
+    }).expect("Failed to add node");
     
     deposit_contract.add_invariant(
         ContractCondition {

@@ -20,13 +20,13 @@ fn test_contract_with_evaluator() {
     let mut graph = Graph::new();
     
     // Create a simple condition: x > 5
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let five = graph.add_node(Node::Literal(Literal::Integer(5)));
-    let gt = graph.add_node(Node::Variable { name: ">".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let five = graph.add_node(Node::Literal(Literal::Integer(5))).expect("Failed to add node");
+    let gt = graph.add_node(Node::Variable { name: ">".to_string() }).expect("Failed to add node");
     let condition = graph.add_node(Node::Application {
         function: gt,
         args: vec![x_var, five],
-    });
+    }).expect("Failed to add node");
     
     // Create a contract with this precondition
     let mut contract = Contract::new("test_func".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
@@ -99,11 +99,11 @@ fn test_frame_condition_manager_integration() {
     let mut graph = Graph::new();
     
     // Create a simple function node
-    let body_node = graph.add_node(Node::Variable { name: "x".to_string() });
+    let body_node = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     let func_node = graph.add_node(Node::Lambda {
         params: vec!["x".to_string()],
         body: body_node,
-    });
+    }).expect("Failed to add node");
     
     let mut manager = FrameConditionManager::new(&graph);
     let contract = Contract::new("identity".to_string(), func_node);
@@ -120,29 +120,29 @@ fn test_contract_condition_evaluation_integration() {
     let mut graph = Graph::new();
     
     // Create a complex condition: (x > 0) && (x < 100)
-    let x_var1 = graph.add_node(Node::Variable { name: "x".to_string() });
-    let x_var2 = graph.add_node(Node::Variable { name: "x".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let hundred = graph.add_node(Node::Literal(Literal::Integer(100)));
+    let x_var1 = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let x_var2 = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let hundred = graph.add_node(Node::Literal(Literal::Integer(100))).expect("Failed to add node");
     
-    let gt = graph.add_node(Node::Variable { name: ">".to_string() });
-    let lt = graph.add_node(Node::Variable { name: "<".to_string() });
-    let and = graph.add_node(Node::Variable { name: "and".to_string() });
+    let gt = graph.add_node(Node::Variable { name: ">".to_string() }).expect("Failed to add node");
+    let lt = graph.add_node(Node::Variable { name: "<".to_string() }).expect("Failed to add node");
+    let and = graph.add_node(Node::Variable { name: "and".to_string() }).expect("Failed to add node");
     
     let gt_zero = graph.add_node(Node::Application {
         function: gt,
         args: vec![x_var1, zero],
-    });
+    }).expect("Failed to add node");
     
     let lt_hundred = graph.add_node(Node::Application {
         function: lt,
         args: vec![x_var2, hundred],
-    });
+    }).expect("Failed to add node");
     
     let condition = graph.add_node(Node::Application {
         function: and,
         args: vec![gt_zero, lt_hundred],
-    });
+    }).expect("Failed to add node");
     
     // Create contract with range precondition
     let mut contract = Contract::new("bounded_func".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
@@ -284,7 +284,7 @@ fn test_error_propagation() {
     
     // Try to evaluate undefined variable
     let mut graph2 = Graph::new();
-    let var_node = graph2.add_node(Node::Variable { name: "undefined".to_string() });
+    let var_node = graph2.add_node(Node::Variable { name: "undefined".to_string() }).expect("Failed to add node");
     let evaluator2 = ConditionEvaluator::new(&graph2);
     
     let result2 = evaluator2.evaluate(var_node);

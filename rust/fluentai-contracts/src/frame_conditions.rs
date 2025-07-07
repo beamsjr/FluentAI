@@ -3,7 +3,7 @@
 //! Frame conditions specify what a function does NOT modify, enabling
 //! modular verification by limiting the scope of what needs to be checked.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use fluentai_core::ast::{Graph, Node, NodeId};
 use crate::{
     contract::Contract,

@@ -65,24 +65,6 @@ mod tests {
     }
     
     #[test]
-    fn test_add_node_overflow() {
-        let mut graph = Graph::new();
-        
-        // Set next_id to u32::MAX to trigger overflow
-        graph.next_id = u32::MAX;
-        
-        // Try to add a node - should fail
-        let node = Node::Literal(Literal::Integer(42));
-        let result = graph.add_node(node);
-        
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            crate::error::Error::GraphNodeIdOverflow => (),
-            _ => panic!("Expected GraphNodeIdOverflow error"),
-        }
-    }
-    
-    #[test]
     fn test_get_node() {
         let mut graph = Graph::new();
         let node = Node::Literal(Literal::Integer(42));
@@ -165,8 +147,8 @@ mod tests {
         
         // Add multiple nodes
         let id1 = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let id2 = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let id3 = graph.add_node(Node::Literal(Literal::Integer(3))).unwrap();
+        let id2 = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
+        let id3 = graph.add_node(Node::Literal(Literal::Integer(3)).unwrap();
         
         let ids: Vec<NodeId> = graph.node_ids().collect();
         assert_eq!(ids.len(), 3);
@@ -180,9 +162,9 @@ mod tests {
         let mut graph = Graph::new();
         
         // Add various node types
-        let int_id = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
-        let str_id = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).unwrap();
-        let var_id = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+        let int_id = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
+        let str_id = graph.add_node(Node::Literal(Literal::String("hello".to_string())).unwrap();
+        let var_id = graph.add_node(Node::Variable { name: "x".to_string() });
         
         let nodes: Vec<(&NodeId, &Node)> = graph.nodes().collect();
         assert_eq!(nodes.len(), 3);
@@ -199,15 +181,15 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a simple if expression
-        let cond = graph.add_node(Node::Literal(Literal::Boolean(true))).unwrap();
-        let then_branch = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let else_branch = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
+        let cond = graph.add_node(Node::Literal(Literal::Boolean(true)).unwrap();
+        let then_branch = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let else_branch = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
         
         let if_node = graph.add_node(Node::If {
             condition: cond,
             then_branch,
             else_branch,
-        }).unwrap();
+        });
         
         let children = graph.children(if_node);
         assert_eq!(children.len(), 3);
@@ -225,13 +207,13 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a simple expression tree: (+ 1 2)
-        let one = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let two = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).unwrap();
+        let one = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let two = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
         let app = graph.add_node(Node::Application {
             function: plus,
             args: vec![one, two],
-        }).unwrap();
+        });
         
         graph.root_id = Some(app);
         
@@ -253,81 +235,81 @@ mod tests {
         let mut graph = Graph::new();
         
         // Test Lambda traversal
-        let body = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let body = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
         let lambda = graph.add_node(Node::Lambda {
             params: vec!["x".to_string()],
             body,
-        }).unwrap();
+        });
         let mut visited = Vec::new();
         graph.dfs_from(lambda, |id, _| visited.push(id));
         assert_eq!(visited.len(), 2);
         
         // Test Let traversal
-        let value = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).unwrap();
-        let let_body = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+        let value = graph.add_node(Node::Literal(Literal::String("hello".to_string())).unwrap();
+        let let_body = graph.add_node(Node::Variable { name: "x".to_string() });
         let let_node = graph.add_node(Node::Let {
             bindings: vec![("x".to_string(), value)],
             body: let_body,
-        }).unwrap();
+        });
         visited.clear();
         graph.dfs_from(let_node, |id, _| visited.push(id));
         assert_eq!(visited.len(), 3);
         
         // Test Letrec traversal
-        let rec_value = graph.add_node(Node::Literal(Literal::Nil)).unwrap();
-        let rec_body = graph.add_node(Node::Variable { name: "f".to_string() }).unwrap();
+        let rec_value = graph.add_node(Node::Literal(Literal::Nil).unwrap();
+        let rec_body = graph.add_node(Node::Variable { name: "f".to_string() });
         let letrec = graph.add_node(Node::Letrec {
             bindings: vec![("f".to_string(), rec_value)],
             body: rec_body,
-        }).unwrap();
+        });
         visited.clear();
         graph.dfs_from(letrec, |id, _| visited.push(id));
         assert_eq!(visited.len(), 3);
         
         // Test If traversal
-        let cond = graph.add_node(Node::Literal(Literal::Boolean(true))).unwrap();
-        let then_br = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let else_br = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
+        let cond = graph.add_node(Node::Literal(Literal::Boolean(true)).unwrap();
+        let then_br = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let else_br = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
         let if_node = graph.add_node(Node::If {
             condition: cond,
             then_branch: then_br,
             else_branch: else_br,
-        }).unwrap();
+        });
         visited.clear();
         graph.dfs_from(if_node, |id, _| visited.push(id));
         assert_eq!(visited.len(), 4);
         
         // Test Match traversal
-        let match_expr = graph.add_node(Node::Literal(Literal::Integer(5))).unwrap();
-        let branch1 = graph.add_node(Node::Literal(Literal::String("five".to_string()))).unwrap();
-        let branch2 = graph.add_node(Node::Literal(Literal::String("other".to_string()))).unwrap();
+        let match_expr = graph.add_node(Node::Literal(Literal::Integer(5)).unwrap();
+        let branch1 = graph.add_node(Node::Literal(Literal::String("five".to_string())).unwrap();
+        let branch2 = graph.add_node(Node::Literal(Literal::String("other".to_string())).unwrap();
         let match_node = graph.add_node(Node::Match {
             expr: match_expr,
             branches: vec![
                 (Pattern::Literal(Literal::Integer(5)), branch1),
                 (Pattern::Wildcard, branch2),
             ],
-        }).unwrap();
+        });
         visited.clear();
         graph.dfs_from(match_node, |id, _| visited.push(id));
         assert_eq!(visited.len(), 4);
         
         // Test List traversal
-        let item1 = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let item2 = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let list = graph.add_node(Node::List(vec![item1, item2])).unwrap();
+        let item1 = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let item2 = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
+        let list = graph.add_node(Node::List(vec![item1, item2]).unwrap();
         visited.clear();
         graph.dfs_from(list, |id, _| visited.push(id));
         assert_eq!(visited.len(), 3);
         
         // Test Effect traversal
-        let arg1 = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).unwrap();
-        let arg2 = graph.add_node(Node::Literal(Literal::String("world".to_string()))).unwrap();
+        let arg1 = graph.add_node(Node::Literal(Literal::String("hello".to_string())).unwrap();
+        let arg2 = graph.add_node(Node::Literal(Literal::String("world".to_string())).unwrap();
         let effect = graph.add_node(Node::Effect {
             effect_type: EffectType::IO,
             operation: "print".to_string(),
             args: vec![arg1, arg2],
-        }).unwrap();
+        });
         visited.clear();
         graph.dfs_from(effect, |id, _| visited.push(id));
         assert_eq!(visited.len(), 3);
@@ -338,23 +320,23 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create nodes that would form a cycle if we didn't track visited
-        let a = graph.add_node(Node::Variable { name: "a".to_string() }).unwrap();
-        let b = graph.add_node(Node::Variable { name: "b".to_string() }).unwrap();
-        let c = graph.add_node(Node::Variable { name: "c".to_string() }).unwrap();
+        let a = graph.add_node(Node::Variable { name: "a".to_string() });
+        let b = graph.add_node(Node::Variable { name: "b".to_string() });
+        let c = graph.add_node(Node::Variable { name: "c".to_string() });
         
         // Create applications that reference each other
         let app1 = graph.add_node(Node::Application {
             function: a,
             args: vec![b],
-        }).unwrap();
+        });
         let _app2 = graph.add_node(Node::Application {
             function: b,
             args: vec![c],
-        }).unwrap();
+        });
         let app3 = graph.add_node(Node::Application {
             function: c,
             args: vec![app1], // This creates a cycle
-        }).unwrap();
+        });
         
         // Start from app3 and verify we visit each node only once
         let mut visited_count = std::collections::HashMap::new();
@@ -418,11 +400,11 @@ mod tests {
     #[test]
     fn test_lambda_node() {
         let mut graph = Graph::new();
-        let body = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+        let body = graph.add_node(Node::Variable { name: "x".to_string() });
         let lambda = graph.add_node(Node::Lambda {
             params: vec!["x".to_string()],
             body,
-        }).unwrap();
+        });
         
         if let Some(Node::Lambda { params, body: b }) = graph.get_node(lambda) {
             assert_eq!(params.len(), 1);
@@ -436,13 +418,13 @@ mod tests {
     #[test]
     fn test_let_node() {
         let mut graph = Graph::new();
-        let value = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
-        let body = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+        let value = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
+        let body = graph.add_node(Node::Variable { name: "x".to_string() });
         
         let let_node = graph.add_node(Node::Let {
             bindings: vec![("x".to_string(), value)],
             body,
-        }).unwrap();
+        });
         
         if let Some(Node::Let { bindings, body: b }) = graph.get_node(let_node) {
             assert_eq!(bindings.len(), 1);
@@ -457,11 +439,11 @@ mod tests {
     #[test]
     fn test_list_node() {
         let mut graph = Graph::new();
-        let item1 = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let item2 = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let item3 = graph.add_node(Node::Literal(Literal::Integer(3))).unwrap();
+        let item1 = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let item2 = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
+        let item3 = graph.add_node(Node::Literal(Literal::Integer(3)).unwrap();
         
-        let list = graph.add_node(Node::List(vec![item1, item2, item3])).unwrap();
+        let list = graph.add_node(Node::List(vec![item1, item2, item3]).unwrap();
         
         if let Some(Node::List(items)) = graph.get_node(list) {
             assert_eq!(items.len(), 3);
@@ -476,9 +458,9 @@ mod tests {
     #[test]
     fn test_match_node() {
         let mut graph = Graph::new();
-        let expr = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
-        let branch1 = graph.add_node(Node::Literal(Literal::String("forty-two".to_string()))).unwrap();
-        let branch2 = graph.add_node(Node::Literal(Literal::String("other".to_string()))).unwrap();
+        let expr = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
+        let branch1 = graph.add_node(Node::Literal(Literal::String("forty-two".to_string())).unwrap();
+        let branch2 = graph.add_node(Node::Literal(Literal::String("other".to_string())).unwrap();
         
         let match_node = graph.add_node(Node::Match {
             expr,
@@ -486,7 +468,7 @@ mod tests {
                 (Pattern::Literal(Literal::Integer(42)), branch1),
                 (Pattern::Wildcard, branch2),
             ],
-        }).unwrap();
+        });
         
         if let Some(Node::Match { expr: e, branches }) = graph.get_node(match_node) {
             assert_eq!(*e, expr);
@@ -506,13 +488,13 @@ mod tests {
     #[test]
     fn test_effect_node() {
         let mut graph = Graph::new();
-        let arg = graph.add_node(Node::Literal(Literal::String("Hello, World!".to_string()))).unwrap();
+        let arg = graph.add_node(Node::Literal(Literal::String("Hello, World!".to_string())).unwrap();
         
         let effect = graph.add_node(Node::Effect {
             effect_type: EffectType::IO,
             operation: "print".to_string(),
             args: vec![arg],
-        }).unwrap();
+        });
         
         if let Some(Node::Effect { effect_type, operation, args }) = graph.get_node(effect) {
             assert_eq!(*effect_type, EffectType::IO);
@@ -527,13 +509,13 @@ mod tests {
     #[test]
     fn test_module_node() {
         let mut graph = Graph::new();
-        let body = graph.add_node(Node::Literal(Literal::Nil)).unwrap();
+        let body = graph.add_node(Node::Literal(Literal::Nil).unwrap();
         
         let module = graph.add_node(Node::Module {
             name: "MyModule".to_string(),
             exports: vec!["foo".to_string(), "bar".to_string()],
             body,
-        }).unwrap();
+        });
         
         if let Some(Node::Module { name, exports, body: b }) = graph.get_node(module) {
             assert_eq!(name, "MyModule");
@@ -547,62 +529,11 @@ mod tests {
     }
     
     #[test]
-    fn test_iterative_dfs() {
-        let mut graph = Graph::new();
-        
-        // Create a simple tree structure
-        let leaf1 = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let leaf2 = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let leaf3 = graph.add_node(Node::Literal(Literal::Integer(3))).unwrap();
-        
-        let branch1 = graph.add_node(Node::List(vec![leaf1, leaf2])).unwrap();
-        let root = graph.add_node(Node::List(vec![branch1, leaf3])).unwrap();
-        
-        // Collect nodes visited in DFS order
-        let mut visited = Vec::new();
-        graph.dfs_iterative(root, &mut |id, _node| {
-            visited.push(id);
-        });
-        
-        // Should visit root first, then branch1, then leaves in order
-        assert_eq!(visited.len(), 5);
-        assert_eq!(visited[0], root);
-        assert_eq!(visited[1], branch1);
-        assert_eq!(visited[2], leaf1);
-        assert_eq!(visited[3], leaf2);
-        assert_eq!(visited[4], leaf3);
-    }
-    
-    #[test]
-    fn test_deep_graph_iterative_dfs() {
-        let mut graph = Graph::new();
-        
-        // Create a deep nested structure that would overflow with recursive DFS
-        let mut current = graph.add_node(Node::Literal(Literal::Integer(0))).unwrap();
-        
-        // Create 10000 nested nodes
-        for i in 1..10000 {
-            current = graph.add_node(Node::Lambda {
-                params: vec![format!("x{}", i)],
-                body: current,
-            }).unwrap();
-        }
-        
-        // This should not stack overflow with iterative implementation
-        let mut count = 0;
-        graph.dfs_iterative(current, &mut |_id, _node| {
-            count += 1;
-        });
-        
-        assert_eq!(count, 10000);
-    }
-    
-    #[test]
     fn test_async_constructs() {
         let mut graph = Graph::new();
         
         // Test Async node
-        let body = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let body = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
         let async_node = graph.add_node(Node::Async { body }).unwrap();
         
         if let Some(Node::Async { body: b }) = graph.get_node(async_node) {
@@ -616,7 +547,7 @@ mod tests {
         assert!(matches!(graph.get_node(channel), Some(Node::Channel)));
         
         // Test Send node
-        let value = graph.add_node(Node::Literal(Literal::String("message".to_string()))).unwrap();
+        let value = graph.add_node(Node::Literal(Literal::String("message".to_string())).unwrap();
         let send = graph.add_node(Node::Send { channel, value }).unwrap();
         
         if let Some(Node::Send { channel: c, value: v }) = graph.get_node(send) {
@@ -673,27 +604,27 @@ mod tests {
         let mut graph = Graph::new();
         
         // Build: let x = 10 in let y = 20 in x + y
-        let ten = graph.add_node(Node::Literal(Literal::Integer(10))).unwrap();
-        let twenty = graph.add_node(Node::Literal(Literal::Integer(20))).unwrap();
+        let ten = graph.add_node(Node::Literal(Literal::Integer(10)).unwrap();
+        let twenty = graph.add_node(Node::Literal(Literal::Integer(20)).unwrap();
         
-        let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
-        let y_var = graph.add_node(Node::Variable { name: "y".to_string() }).unwrap();
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).unwrap();
+        let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
+        let y_var = graph.add_node(Node::Variable { name: "y".to_string() });
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
         
         let add_expr = graph.add_node(Node::Application {
             function: plus,
             args: vec![x_var, y_var],
-        }).unwrap();
+        });
         
         let inner_let = graph.add_node(Node::Let {
             bindings: vec![("y".to_string(), twenty)],
             body: add_expr,
-        }).unwrap();
+        });
         
         let outer_let = graph.add_node(Node::Let {
             bindings: vec![("x".to_string(), ten)],
             body: inner_let,
-        }).unwrap();
+        });
         
         graph.root_id = Some(outer_let);
         
@@ -709,7 +640,7 @@ mod tests {
     #[test]
     fn test_context_memory() {
         let mut graph = Graph::new();
-        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let node = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
         
         // Create context memory
         let context = ContextMemory {
@@ -760,7 +691,7 @@ mod tests {
                 ImportItem { name: "cos".to_string(), alias: Some("cosine".to_string()) },
             ],
             import_all: false,
-        }).unwrap();
+        });
         
         if let Some(Node::Import { module_path, import_list, import_all }) = graph.get_node(import) {
             assert_eq!(module_path, "std/math");
@@ -780,7 +711,7 @@ mod tests {
                 ExportItem { name: "foo".to_string(), alias: None },
                 ExportItem { name: "bar".to_string(), alias: Some("baz".to_string()) },
             ],
-        }).unwrap();
+        });
         
         if let Some(Node::Export { export_list }) = graph.get_node(export) {
             assert_eq!(export_list.len(), 2);
@@ -800,7 +731,7 @@ mod tests {
         let qual_var = graph.add_node(Node::QualifiedVariable {
             module_name: "math".to_string(),
             variable_name: "pi".to_string(),
-        }).unwrap();
+        });
         
         if let Some(Node::QualifiedVariable { module_name, variable_name }) = graph.get_node(qual_var) {
             assert_eq!(module_name, "math");
@@ -814,7 +745,7 @@ mod tests {
     fn test_await_node() {
         let mut graph = Graph::new();
         
-        let body = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let body = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
         let async_expr = graph.add_node(Node::Async { body }).unwrap();
         
         let await_node = graph.add_node(Node::Await { expr: async_expr }).unwrap();
@@ -830,7 +761,7 @@ mod tests {
     fn test_spawn_node() {
         let mut graph = Graph::new();
         
-        let computation = graph.add_node(Node::Literal(Literal::String("compute".to_string()))).unwrap();
+        let computation = graph.add_node(Node::Literal(Literal::String("compute".to_string())).unwrap();
         let spawn = graph.add_node(Node::Spawn { expr: computation }).unwrap();
         
         if let Some(Node::Spawn { expr }) = graph.get_node(spawn) {
@@ -859,19 +790,19 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create letrec for factorial function
-        let _n_var = graph.add_node(Node::Variable { name: "n".to_string() }).unwrap();
-        let fact_var = graph.add_node(Node::Variable { name: "fact".to_string() }).unwrap();
+        let _n_var = graph.add_node(Node::Variable { name: "n".to_string() });
+        let fact_var = graph.add_node(Node::Variable { name: "fact".to_string() });
         
-        let fact_body = graph.add_node(Node::Literal(Literal::Nil)).unwrap(); // Simplified
+        let fact_body = graph.add_node(Node::Literal(Literal::Nil)); // Simplified
         let fact_lambda = graph.add_node(Node::Lambda {
             params: vec!["n".to_string()],
             body: fact_body,
-        }).unwrap();
+        });
         
         let letrec = graph.add_node(Node::Letrec {
             bindings: vec![("fact".to_string(), fact_lambda)],
             body: fact_var,
-        }).unwrap();
+        });
         
         if let Some(Node::Letrec { bindings, body }) = graph.get_node(letrec) {
             assert_eq!(bindings.len(), 1);
@@ -887,9 +818,9 @@ mod tests {
     fn test_contract_node() {
         let mut graph = Graph::new();
         
-        let precond = graph.add_node(Node::Literal(Literal::Boolean(true))).unwrap();
-        let postcond = graph.add_node(Node::Literal(Literal::Boolean(true))).unwrap();
-        let invariant = graph.add_node(Node::Literal(Literal::Boolean(true))).unwrap();
+        let precond = graph.add_node(Node::Literal(Literal::Boolean(true)).unwrap();
+        let postcond = graph.add_node(Node::Literal(Literal::Boolean(true)).unwrap();
+        let invariant = graph.add_node(Node::Literal(Literal::Boolean(true)).unwrap();
         
         let contract = graph.add_node(Node::Contract {
             function_name: "factorial".to_string(),
@@ -898,7 +829,7 @@ mod tests {
             invariants: vec![invariant],
             complexity: Some("O(n)".to_string()),
             pure: true,
-        }).unwrap();
+        });
         
         if let Some(Node::Contract { 
             function_name, 
@@ -991,9 +922,9 @@ mod tests {
     fn test_graph_node_removal() {
         let mut graph = Graph::new();
         
-        let node1 = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let node2 = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let node3 = graph.add_node(Node::Literal(Literal::Integer(3))).unwrap();
+        let node1 = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let node2 = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
+        let node3 = graph.add_node(Node::Literal(Literal::Integer(3)).unwrap();
         
         assert_eq!(graph.nodes.len(), 3);
         
@@ -1010,7 +941,7 @@ mod tests {
     fn test_graph_metadata_persistence() {
         let mut graph = Graph::new();
         
-        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let node = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
         
         // Set multiple metadata fields
         let meta = graph.metadata_mut(node);
@@ -1035,9 +966,9 @@ mod tests {
         let mut graph = Graph::new();
         
         // Test children of Match node
-        let expr = graph.add_node(Node::Literal(Literal::Integer(5))).unwrap();
-        let branch1 = graph.add_node(Node::Literal(Literal::String("five".to_string()))).unwrap();
-        let branch2 = graph.add_node(Node::Literal(Literal::String("other".to_string()))).unwrap();
+        let expr = graph.add_node(Node::Literal(Literal::Integer(5)).unwrap();
+        let branch1 = graph.add_node(Node::Literal(Literal::String("five".to_string())).unwrap();
+        let branch2 = graph.add_node(Node::Literal(Literal::String("other".to_string())).unwrap();
         
         let match_node = graph.add_node(Node::Match {
             expr,
@@ -1045,7 +976,7 @@ mod tests {
                 (Pattern::Literal(Literal::Integer(5)), branch1),
                 (Pattern::Wildcard, branch2),
             ],
-        }).unwrap();
+        });
         
         let children = graph.children(match_node);
         assert_eq!(children.len(), 3);
@@ -1054,14 +985,14 @@ mod tests {
         assert!(children.contains(&branch2));
         
         // Test children of Effect node
-        let arg1 = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).unwrap();
-        let arg2 = graph.add_node(Node::Literal(Literal::String("world".to_string()))).unwrap();
+        let arg1 = graph.add_node(Node::Literal(Literal::String("hello".to_string())).unwrap();
+        let arg2 = graph.add_node(Node::Literal(Literal::String("world".to_string())).unwrap();
         
         let effect = graph.add_node(Node::Effect {
             effect_type: EffectType::IO,
             operation: "print2".to_string(),
             args: vec![arg1, arg2],
-        }).unwrap();
+        });
         
         let effect_children = graph.children(effect);
         assert_eq!(effect_children.len(), 2);
@@ -1078,7 +1009,7 @@ mod tests {
         };
         
         let _hint2 = PerformanceHint {
-            hint_type: PerformanceHintType::CanVectorize { simd_width: None },
+            hint_type: PerformanceHintType::CanVectorize,
             confidence: 0.7,
             context: None,
         };
@@ -1234,186 +1165,6 @@ mod tests {
         assert!(list_docs.see_also.contains(&"cons".to_string()));
     }
     
-    // ===== Graph Validation Tests =====
-    
-    #[test]
-    fn test_validate_empty_graph() {
-        let graph = Graph::new();
-        assert!(graph.validate().is_ok());
-    }
-    
-    #[test]
-    fn test_validate_simple_graph() {
-        let mut graph = Graph::new();
-        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
-        graph.root_id = Some(node);
-        
-        assert!(graph.validate().is_ok());
-    }
-    
-    #[test]
-    fn test_validate_invalid_root() {
-        let mut graph = Graph::new();
-        graph.root_id = Some(NodeId::new(999).unwrap());
-        
-        let result = graph.validate();
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Root node"));
-    }
-    
-    #[test]
-    fn test_validate_dangling_reference() {
-        let mut graph = Graph::new();
-        let func = graph.add_node(Node::Variable { name: "f".to_string() }).unwrap();
-        
-        // Create application with invalid arg reference
-        let app = graph.add_node(Node::Application {
-            function: func,
-            args: vec![NodeId::new(999).unwrap()], // Non-existent node
-        }).unwrap();
-        
-        graph.root_id = Some(app);
-        
-        let result = graph.validate();
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("non-existent"));
-    }
-    
-    #[test]
-    fn test_validate_metadata_for_nonexistent_node() {
-        let mut graph = Graph::new();
-        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
-        graph.root_id = Some(node);
-        
-        // Add metadata for non-existent node
-        let fake_id = NodeId::new(999).unwrap();
-        graph.metadata.insert(fake_id, NodeMetadata::default());
-        
-        let result = graph.validate();
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Metadata exists for non-existent"));
-    }
-    
-    #[test]
-    fn test_validate_cycle_detection() {
-        let mut graph = Graph::new();
-        
-        // Create a cycle: A -> B -> A
-        let node_a = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let node_b_placeholder = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        
-        // Update node_a to reference node_b
-        graph.nodes.insert(node_a, Node::List(vec![node_b_placeholder]));
-        
-        // Update node_b to reference node_a (creating cycle)
-        graph.nodes.insert(node_b_placeholder, Node::List(vec![node_a]));
-        
-        graph.root_id = Some(node_a);
-        
-        let result = graph.validate();
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("cycle"));
-    }
-    
-    #[test]
-    fn test_validate_complex_valid_graph() {
-        let mut graph = Graph::new();
-        
-        // Create a complex but valid graph
-        let x = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
-        let y = graph.add_node(Node::Variable { name: "y".to_string() }).unwrap();
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).unwrap();
-        
-        let app = graph.add_node(Node::Application {
-            function: plus,
-            args: vec![x, y],
-        }).unwrap();
-        
-        let lambda = graph.add_node(Node::Lambda {
-            params: vec!["x".to_string(), "y".to_string()],
-            body: app,
-        }).unwrap();
-        
-        graph.root_id = Some(lambda);
-        
-        // Add some metadata
-        graph.metadata_mut(lambda).type_info = Some("(Int, Int) -> Int".to_string());
-        
-        assert!(graph.validate().is_ok());
-    }
-    
-    // ===== Performance Hint Tests =====
-    
-    #[test]
-    fn test_structured_performance_hints() {
-        let mut graph = Graph::new();
-        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
-        
-        // Create context memory with various performance hints
-        let context = ContextMemory {
-            embedding_id: None,
-            usage_stats: UsageStatistics::default(),
-            rationale: Some("Performance critical loop".to_string()),
-            performance_hints: vec![
-                PerformanceHint {
-                    hint_type: PerformanceHintType::ShouldUnroll { factor: Some(4) },
-                    confidence: 0.9,
-                    context: Some("Small fixed iteration count".to_string()),
-                },
-                PerformanceHint {
-                    hint_type: PerformanceHintType::CanVectorize { simd_width: Some(256) },
-                    confidence: 0.8,
-                    context: Some("AVX2 available".to_string()),
-                },
-                PerformanceHint {
-                    hint_type: PerformanceHintType::MemoryAccessPattern(MemoryPattern::Sequential),
-                    confidence: 0.95,
-                    context: None,
-                },
-                PerformanceHint {
-                    hint_type: PerformanceHintType::CanParallelize {
-                        strategy: ParallelismStrategy::DataParallel
-                    },
-                    confidence: 0.7,
-                    context: Some("Independent iterations".to_string()),
-                },
-            ],
-            semantic_tags: vec!["hot-path".to_string(), "performance-critical".to_string()],
-            last_modified: Some(1234567890),
-        };
-        
-        graph.set_context_memory(node, context);
-        
-        // Verify the hints were stored correctly
-        let retrieved = graph.get_context_memory(node).unwrap();
-        assert_eq!(retrieved.performance_hints.len(), 4);
-        
-        // Check specific hint details
-        match &retrieved.performance_hints[0].hint_type {
-            PerformanceHintType::ShouldUnroll { factor } => {
-                assert_eq!(*factor, Some(4));
-            }
-            _ => panic!("Expected ShouldUnroll hint"),
-        }
-        
-        match &retrieved.performance_hints[1].hint_type {
-            PerformanceHintType::CanVectorize { simd_width } => {
-                assert_eq!(*simd_width, Some(256));
-            }
-            _ => panic!("Expected CanVectorize hint"),
-        }
-        
-        match &retrieved.performance_hints[2].hint_type {
-            PerformanceHintType::MemoryAccessPattern(pattern) => {
-                match pattern {
-                    MemoryPattern::Sequential => (),
-                    _ => panic!("Expected Sequential memory pattern"),
-                }
-            }
-            _ => panic!("Expected MemoryAccessPattern hint"),
-        }
-    }
-    
     #[test]
     fn test_module_system_docs() {
         let module_node = Node::Module {
@@ -1519,7 +1270,7 @@ mod tests {
     #[test]
     fn test_update_usage_stats_creates_context() {
         let mut graph = Graph::new();
-        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let node = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
         
         // Initially no context memory
         assert!(graph.get_context_memory(node).is_none());
@@ -1540,7 +1291,7 @@ mod tests {
     #[test]
     fn test_update_usage_stats_existing_context() {
         let mut graph = Graph::new();
-        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let node = graph.add_node(Node::Literal(Literal::Integer(42)).unwrap();
         
         // Create initial context
         let initial_context = ContextMemory {
@@ -1580,11 +1331,11 @@ mod tests {
     fn test_all_performance_hint_types() {
         let hints = vec![
             PerformanceHintType::ShouldInline,
-            PerformanceHintType::ShouldUnroll { factor: None },
-            PerformanceHintType::CanVectorize { simd_width: None },
-            PerformanceHintType::CanParallelize { strategy: ParallelismStrategy::DataParallel },
-            PerformanceHintType::ShouldMemoize { max_cache_size: None },
-            PerformanceHintType::MemoryAccessPattern(MemoryPattern::Sequential),
+            PerformanceHintType::ShouldUnroll,
+            PerformanceHintType::CanVectorize,
+            PerformanceHintType::CanParallelize,
+            PerformanceHintType::ShouldMemoize,
+            PerformanceHintType::MemoryAccessPattern("Sequential".to_string()),
             PerformanceHintType::Custom("Custom hint".to_string()),
         ];
         
@@ -1675,7 +1426,7 @@ mod tests {
         // Default next_id should be 1
         // We can't directly test next_id, but we can add a node and check its ID
         let mut graph = Graph::default();
-        let id = graph.add_node(Node::Literal(Literal::Nil)).unwrap();
+        let id = graph.add_node(Node::Literal(Literal::Nil).unwrap();
         assert_eq!(id.get(), 1);
     }
     
@@ -1691,8 +1442,8 @@ mod tests {
         
         // Add some nodes
         let id1 = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let id2 = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let id3 = graph.add_node(Node::Literal(Literal::Integer(3))).unwrap();
+        let id2 = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
+        let id3 = graph.add_node(Node::Literal(Literal::Integer(3)).unwrap();
         
         // Collect all IDs
         let mut ids: Vec<NodeId> = graph.node_ids().collect();
@@ -1714,8 +1465,8 @@ mod tests {
         
         // Add some nodes
         let id1 = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let id2 = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
-        let id3 = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).unwrap();
+        let id2 = graph.add_node(Node::Variable { name: "x".to_string() });
+        let id3 = graph.add_node(Node::Literal(Literal::String("hello".to_string())).unwrap();
         
         // Iterate over nodes
         let mut found = std::collections::HashMap::new();
@@ -1736,19 +1487,19 @@ mod tests {
         let mut graph = Graph::new();
         
         // Build: (lambda (x) (+ x 1))
-        let one = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).unwrap();
+        let one = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
         
         let app = graph.add_node(Node::Application {
             function: plus,
             args: vec![x_var, one],
-        }).unwrap();
+        });
         
         let lambda = graph.add_node(Node::Lambda {
             params: vec!["x".to_string()],
             body: app,
-        }).unwrap();
+        });
         
         // Traverse and collect visited nodes
         let mut visited = Vec::new();
@@ -1767,23 +1518,23 @@ mod tests {
         let mut graph = Graph::new();
         
         // Build: (if (> x 0) "positive" "non-positive")
-        let x = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
-        let zero = graph.add_node(Node::Literal(Literal::Integer(0))).unwrap();
-        let gt = graph.add_node(Node::Variable { name: ">".to_string() }).unwrap();
+        let x = graph.add_node(Node::Variable { name: "x".to_string() });
+        let zero = graph.add_node(Node::Literal(Literal::Integer(0)).unwrap();
+        let gt = graph.add_node(Node::Variable { name: ">".to_string() });
         
         let condition = graph.add_node(Node::Application {
             function: gt,
             args: vec![x, zero],
-        }).unwrap();
+        });
         
-        let then_branch = graph.add_node(Node::Literal(Literal::String("positive".to_string()))).unwrap();
-        let else_branch = graph.add_node(Node::Literal(Literal::String("non-positive".to_string()))).unwrap();
+        let then_branch = graph.add_node(Node::Literal(Literal::String("positive".to_string())).unwrap();
+        let else_branch = graph.add_node(Node::Literal(Literal::String("non-positive".to_string())).unwrap();
         
         let if_node = graph.add_node(Node::If {
             condition,
             then_branch,
             else_branch,
-        }).unwrap();
+        });
         
         // Traverse and verify all nodes are visited
         let mut count = 0;
@@ -1796,10 +1547,10 @@ mod tests {
         let mut graph = Graph::new();
         
         // Build: (match x (0 "zero") (1 "one") (_ "other"))
-        let x = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
-        let zero_branch = graph.add_node(Node::Literal(Literal::String("zero".to_string()))).unwrap();
-        let one_branch = graph.add_node(Node::Literal(Literal::String("one".to_string()))).unwrap();
-        let other_branch = graph.add_node(Node::Literal(Literal::String("other".to_string()))).unwrap();
+        let x = graph.add_node(Node::Variable { name: "x".to_string() });
+        let zero_branch = graph.add_node(Node::Literal(Literal::String("zero".to_string())).unwrap();
+        let one_branch = graph.add_node(Node::Literal(Literal::String("one".to_string())).unwrap();
+        let other_branch = graph.add_node(Node::Literal(Literal::String("other".to_string())).unwrap();
         
         let match_node = graph.add_node(Node::Match {
             expr: x,
@@ -1808,7 +1559,7 @@ mod tests {
                 (Pattern::Literal(Literal::Integer(1)), one_branch),
                 (Pattern::Wildcard, other_branch),
             ],
-        }).unwrap();
+        });
         
         // Traverse and collect nodes
         let mut visited = std::collections::HashSet::new();
@@ -1829,13 +1580,13 @@ mod tests {
         let mut graph = Graph::new();
         
         // Build: [1, 2, [3, 4]]
-        let one = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
-        let two = graph.add_node(Node::Literal(Literal::Integer(2))).unwrap();
-        let three = graph.add_node(Node::Literal(Literal::Integer(3))).unwrap();
-        let four = graph.add_node(Node::Literal(Literal::Integer(4))).unwrap();
+        let one = graph.add_node(Node::Literal(Literal::Integer(1)).unwrap();
+        let two = graph.add_node(Node::Literal(Literal::Integer(2)).unwrap();
+        let three = graph.add_node(Node::Literal(Literal::Integer(3)).unwrap();
+        let four = graph.add_node(Node::Literal(Literal::Integer(4)).unwrap();
         
-        let inner_list = graph.add_node(Node::List(vec![three, four])).unwrap();
-        let outer_list = graph.add_node(Node::List(vec![one, two, inner_list])).unwrap();
+        let inner_list = graph.add_node(Node::List(vec![three, four]).unwrap();
+        let outer_list = graph.add_node(Node::List(vec![one, two, inner_list]).unwrap();
         
         // Traverse and count nodes
         let mut count = 0;
@@ -1848,14 +1599,14 @@ mod tests {
         let mut graph = Graph::new();
         
         // Build: (effect IO print "Hello" "World")
-        let hello = graph.add_node(Node::Literal(Literal::String("Hello".to_string()))).unwrap();
-        let world = graph.add_node(Node::Literal(Literal::String("World".to_string()))).unwrap();
+        let hello = graph.add_node(Node::Literal(Literal::String("Hello".to_string())).unwrap();
+        let world = graph.add_node(Node::Literal(Literal::String("World".to_string())).unwrap();
         
         let effect = graph.add_node(Node::Effect {
             effect_type: EffectType::IO,
             operation: "print".to_string(),
             args: vec![hello, world],
-        }).unwrap();
+        });
         
         // Traverse and verify
         let mut visited = Vec::new();
@@ -1879,10 +1630,10 @@ mod tests {
         let mut graph = Graph::new();
         
         // Build a diamond-shaped graph: A -> B, A -> C, B -> D, C -> D
-        let d = graph.add_node(Node::Literal(Literal::Integer(4))).unwrap();
-        let b = graph.add_node(Node::List(vec![d])).unwrap();
-        let c = graph.add_node(Node::List(vec![d])).unwrap();
-        let a = graph.add_node(Node::List(vec![b, c])).unwrap();
+        let d = graph.add_node(Node::Literal(Literal::Integer(4)).unwrap();
+        let b = graph.add_node(Node::List(vec![d]).unwrap();
+        let c = graph.add_node(Node::List(vec![d]).unwrap();
+        let a = graph.add_node(Node::List(vec![b, c]).unwrap();
         
         // Traverse from A - D should only be visited once
         let mut visit_count = std::collections::HashMap::new();
@@ -1902,18 +1653,18 @@ mod tests {
         let mut graph = Graph::new();
         
         // Empty let
-        let nil_body = graph.add_node(Node::Literal(Literal::Nil)).unwrap();
+        let nil_body = graph.add_node(Node::Literal(Literal::Nil).unwrap();
         let empty_let = graph.add_node(Node::Let {
             bindings: vec![],
             body: nil_body,
-        }).unwrap();
+        });
         
         let mut count = 0;
         graph.dfs_from(empty_let, |_, _| count += 1);
         assert_eq!(count, 2); // Let node + Nil
         
         // Empty list
-        let empty_list = graph.add_node(Node::List(vec![])).unwrap();
+        let empty_list = graph.add_node(Node::List(vec![]).unwrap();
         count = 0;
         graph.dfs_from(empty_list, |_, _| count += 1);
         assert_eq!(count, 1); // Just the list node
@@ -1923,7 +1674,7 @@ mod tests {
             effect_type: EffectType::Pure,
             operation: "noop".to_string(),
             args: vec![],
-        }).unwrap();
+        });
         count = 0;
         graph.dfs_from(no_arg_effect, |_, _| count += 1);
         assert_eq!(count, 1); // Just the effect node

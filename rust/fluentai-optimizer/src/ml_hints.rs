@@ -184,7 +184,7 @@ impl MLOptimizationHints {
     }
 
     /// Analyze a single node
-    fn analyze_node(&self, graph: &Graph, node_id: NodeId, node: &Node, features: &mut ProgramFeatures) {
+    fn analyze_node(&self, graph: &Graph, _node_id: NodeId, node: &Node, features: &mut ProgramFeatures) {
         match node {
             Node::Application { function, args } => {
                 features.function_calls += 1;
@@ -343,7 +343,7 @@ impl MLOptimizationHints {
     }
 
     /// Estimate data flow complexity
-    fn estimate_data_flow(&self, features: &mut ProgramFeatures, graph: &Graph) {
+    fn estimate_data_flow(&self, features: &mut ProgramFeatures, _graph: &Graph) {
         // Simple estimation based on node connectivity
         let avg_connections = features.data_dependencies as f32 / features.node_count.max(1) as f32;
         features.register_pressure = avg_connections * features.branching_factor;
@@ -618,13 +618,13 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a simple expression: (+ 1 2)
-        let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-        let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+        let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+        let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
         let app = graph.add_node(Node::Application {
             function: plus,
             args: vec![one, two],
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(app);
         
         let features = extractor.extract_features(&graph);
@@ -641,14 +641,14 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (if #t 1 2)
-        let cond = graph.add_node(Node::Literal(Literal::Boolean(true)));
-        let then_val = graph.add_node(Node::Literal(Literal::Integer(1)));
-        let else_val = graph.add_node(Node::Literal(Literal::Integer(2)));
+        let cond = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
+        let then_val = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+        let else_val = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
         let if_node = graph.add_node(Node::If {
             condition: cond,
             then_branch: then_val,
             else_branch: else_val,
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(if_node);
         
         let features = extractor.extract_features(&graph);
@@ -728,26 +728,26 @@ mod tests {
         }
         
         // Create lambda body with multiple operations
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
         let mut sum = nodes[0];
         for i in 1..5 {
             sum = graph.add_node(Node::Application {
                 function: plus,
                 args: vec![sum, nodes[i]],
-            });
+            }).expect("Failed to add node");
         }
         
         let lambda = graph.add_node(Node::Lambda {
             params: vec!["x".to_string()],
             body: sum,
-        });
+        }).expect("Failed to add node");
         
         // Apply the lambda
-        let x = graph.add_node(Node::Literal(Literal::Integer(10)));
+        let x = graph.add_node(Node::Literal(Literal::Integer(10))).expect("Failed to add node");
         let app = graph.add_node(Node::Application {
             function: lambda,
             args: vec![x],
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(app);
         
         // Generate hints
@@ -795,23 +795,23 @@ mod tests {
         // Create a complex expression to get various hints
         let mut values = vec![];
         for i in 0..10 {
-            values.push(graph.add_node(Node::Literal(Literal::Integer(i))));
+            values.push(graph.add_node(Node::Literal(Literal::Integer(i))).expect("Failed to add node"));
         }
         
         // Create arithmetic operations
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
-        let mult = graph.add_node(Node::Variable { name: "*".to_string() });
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+        let mult = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
         
         let mut result = values[0];
         for i in 1..10 {
             let prod = graph.add_node(Node::Application {
                 function: mult,
                 args: vec![values[i], values[i]],
-            });
+            }).expect("Failed to add node");
             result = graph.add_node(Node::Application {
                 function: plus,
                 args: vec![result, prod],
-            });
+            }).expect("Failed to add node");
         }
         
         graph.root_id = Some(result);

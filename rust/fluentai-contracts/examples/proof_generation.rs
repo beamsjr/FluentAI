@@ -20,16 +20,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut graph = parse(program)?;
         
         // Create a contract: result >= 0
-        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
-        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
+        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
+        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() }).expect("Failed to add node");
         let zero = graph.add_node(fluentai_core::ast::Node::Literal(
             fluentai_core::ast::Literal::Integer(0)
-        ));
+        )).expect("Failed to add node");
         
         let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
             function: ge_fn,
             args: vec![result_var, zero],
-        });
+        }).expect("Failed to add node");
         
         let contract = Contract {
             function_name: "abs".to_string(),
@@ -69,28 +69,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut graph = parse(program)?;
         
         // Contract: factorial(n) >= 1 for all n >= 0
-        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
-        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
+        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
+        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() }).expect("Failed to add node");
         let one = graph.add_node(fluentai_core::ast::Node::Literal(
             fluentai_core::ast::Literal::Integer(1)
-        ));
+        )).expect("Failed to add node");
         
         let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
             function: ge_fn,
             args: vec![result_var, one],
-        });
+        }).expect("Failed to add node");
         
         // Precondition: n >= 0
-        let n_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "n".to_string() });
+        let n_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "n".to_string() }).expect("Failed to add node");
         let zero = graph.add_node(fluentai_core::ast::Node::Literal(
             fluentai_core::ast::Literal::Integer(0)
-        ));
-        let ge_fn2 = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
+        )).expect("Failed to add node");
+        let ge_fn2 = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
         
         let precond_expr = graph.add_node(fluentai_core::ast::Node::Application {
             function: ge_fn2,
             args: vec![n_var, zero],
-        });
+        }).expect("Failed to add node");
         
         let contract = Contract {
             function_name: "factorial".to_string(),
@@ -143,16 +143,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         // Contract: sum-to-n(n) = n*(n+1)/2
         // For simplicity, we'll check sum-to-n(n) >= 0
-        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
-        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
+        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
+        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() }).expect("Failed to add node");
         let zero = graph.add_node(fluentai_core::ast::Node::Literal(
             fluentai_core::ast::Literal::Integer(0)
-        ));
+        )).expect("Failed to add node");
         
         let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
             function: ge_fn,
             args: vec![result_var, zero],
-        });
+        }).expect("Failed to add node");
         
         let contract = Contract {
             function_name: "sum-to-n".to_string(),
@@ -238,28 +238,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut graph = parse(program)?;
         
         // Contract: result >= a AND result >= b
-        let ge_fn1 = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
-        let ge_fn2 = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
-        let and_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "and".to_string() });
-        let result_var1 = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
-        let result_var2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
-        let a_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "a".to_string() });
-        let b_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "b".to_string() });
+        let ge_fn1 = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
+        let ge_fn2 = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
+        let and_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "and".to_string() }).expect("Failed to add node");
+        let result_var1 = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() }).expect("Failed to add node");
+        let result_var2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() }).expect("Failed to add node");
+        let a_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "a".to_string() }).expect("Failed to add node");
+        let b_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "b".to_string() }).expect("Failed to add node");
         
         let cond1 = graph.add_node(fluentai_core::ast::Node::Application {
             function: ge_fn1,
             args: vec![result_var1, a_var],
-        });
+        }).expect("Failed to add node");
         
         let cond2 = graph.add_node(fluentai_core::ast::Node::Application {
             function: ge_fn2,
             args: vec![result_var2, b_var],
-        });
+        }).expect("Failed to add node");
         
         let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
             function: and_fn,
             args: vec![cond1, cond2],
-        });
+        }).expect("Failed to add node");
         
         let contract = Contract {
             function_name: "max".to_string(),

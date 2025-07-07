@@ -523,7 +523,7 @@ impl EffectAnalysis {
         effects
     }
 
-    fn is_const_evaluable(&self, graph: &Graph, node_id: NodeId, node: &Node) -> bool {
+    fn is_const_evaluable(&self, graph: &Graph, _node_id: NodeId, node: &Node) -> bool {
         match node {
             Node::Literal(_) => true,
             Node::Application { function, args } => {
@@ -915,7 +915,7 @@ impl TypeAnalysis {
                 }
 
                 match node {
-                    Node::Application { function, args } => {
+                    Node::Application { function, args: _ } => {
                         // Try to infer result type from function type
                         if let Some(TypeInfo::Concrete(ConcreteType::Function(_, result))) = 
                             self.node_types.get(function) {

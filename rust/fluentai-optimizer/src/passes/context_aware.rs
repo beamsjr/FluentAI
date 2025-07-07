@@ -34,7 +34,7 @@ impl ContextAwarePass {
             if stats.is_hot_path && stats.execution_count > 1000 {
                 // Estimate function size (would need better heuristics)
                 if let Some(node) = graph.get_node(node_id) {
-                    if let Node::Lambda { body, .. } = node {
+                    if let Node::Lambda {  .. } = node {
                         // Count the entire lambda node, not just the body
                         let size = self.estimate_node_size(graph, node_id);
                         // Use a more conservative threshold
@@ -60,7 +60,7 @@ impl ContextAwarePass {
         if let Some(context) = graph.get_context_memory(node_id) {
             // Check performance hints
             for hint in &context.performance_hints {
-                if matches!(hint.hint_type, fluentai_core::ast::PerformanceHintType::ShouldUnroll) {
+                if matches!(hint.hint_type, fluentai_core::ast::PerformanceHintType::ShouldUnroll { .. }) {
                     return hint.confidence > 0.7;
                 }
             }
@@ -83,7 +83,7 @@ impl ContextAwarePass {
         if let Some(context) = graph.get_context_memory(node_id) {
             // Check performance hints
             for hint in &context.performance_hints {
-                if matches!(hint.hint_type, fluentai_core::ast::PerformanceHintType::CanVectorize) {
+                if matches!(hint.hint_type, fluentai_core::ast::PerformanceHintType::CanVectorize { .. }) {
                     return hint.confidence > 0.8;
                 }
             }
@@ -187,7 +187,7 @@ impl ContextAwarePass {
                             
                             // Add the hint
                             context.performance_hints.push(PerformanceHint {
-                                hint_type: PerformanceHintType::CanVectorize,
+                                hint_type: PerformanceHintType::CanVectorize { simd_width: None },
                                 confidence: 0.85,
                                 context: Some("Array operation can be vectorized".to_string()),
                             });
@@ -262,7 +262,7 @@ impl OptimizationPass for ContextAwarePass {
         // First pass: Copy all nodes
         for (node_id, node) in &graph.nodes {
             let new_node = node.clone();
-            let new_id = optimized.add_node(new_node);
+            let new_id = optimized.add_node(new_node)?;
             node_mapping.insert(*node_id, new_id);
             
             // Copy metadata
@@ -299,7 +299,7 @@ impl OptimizationPass for ContextAwarePass {
         // Third pass: Update semantic tags based on optimizations applied
         for (node_id, _) in optimized.nodes.clone() {
             if let Some(context_memory) = optimized.get_context_memory(node_id) {
-                if context_memory.performance_hints.iter().any(|h| matches!(h.hint_type, PerformanceHintType::CanVectorize)) {
+                if context_memory.performance_hints.iter().any(|h| matches!(h.hint_type, PerformanceHintType::CanVectorize { .. })) {
                     // Update context memory to reflect vectorization
                     if let Some(mut context) = optimized.get_context_memory(node_id).cloned() {
                         if !context.semantic_tags.contains(&"vectorized".to_string()) {

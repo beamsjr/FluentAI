@@ -101,7 +101,7 @@ impl AdvancedOptimizer {
         if self.processing_nodes.contains(&node_id) {
             // Create a placeholder for the circular reference
             let placeholder = Node::Variable { name: format!("__cycle_{}__", node_id.0) };
-            let new_id = self.optimized.add_node(placeholder);
+            let new_id = self.optimized.add_node(placeholder)?;
             self.node_mapping.insert(node_id, new_id);
             return Ok(Some(new_id));
         }
@@ -123,7 +123,7 @@ impl AdvancedOptimizer {
         self.recursion_depth += 1;
 
         // Create a placeholder to establish mapping early
-        let placeholder_id = self.optimized.add_node(Node::Literal(Literal::Nil));
+        let placeholder_id = self.optimized.add_node(Node::Literal(Literal::Nil))?;
         self.node_mapping.insert(node_id, placeholder_id);
 
         let result = {
@@ -182,7 +182,7 @@ impl AdvancedOptimizer {
                     // Check for cycles
                     if self.processing_nodes.contains(&node_id) {
                         let placeholder = Node::Variable { name: format!("__cycle_{}__", node_id.0) };
-                        let new_id = self.optimized.add_node(placeholder);
+                        let new_id = self.optimized.add_node(placeholder)?;
                         self.node_mapping.insert(node_id, new_id);
                         results.insert(node_id, Some(new_id));
                         continue;
@@ -190,7 +190,7 @@ impl AdvancedOptimizer {
                     
                     // Try to evaluate node completely first
                     if let Some(value) = self.try_evaluate(node_id)? {
-                        let placeholder_id = self.optimized.add_node(Node::Literal(value.clone()));
+                        let placeholder_id = self.optimized.add_node(Node::Literal(value.clone()))?;
                         self.node_mapping.insert(node_id, placeholder_id);
                         self.value_cache.insert(node_id, value);
                         self.stats.pure_expressions_evaluated += 1;
@@ -211,7 +211,7 @@ impl AdvancedOptimizer {
                     self.processing_nodes.insert(node_id);
                     
                     // Create placeholder
-                    let placeholder_id = self.optimized.add_node(Node::Literal(Literal::Nil));
+                    let placeholder_id = self.optimized.add_node(Node::Literal(Literal::Nil))?;
                     self.node_mapping.insert(node_id, placeholder_id);
                     
                     // Push completion handler
@@ -545,7 +545,7 @@ impl AdvancedOptimizer {
     fn copy_node_optimized(&mut self, node_id: NodeId) -> Result<Option<NodeId>> {
         match self.copy_node_optimized_internal(node_id) {
             Ok(Some(node)) => {
-                let new_id = self.optimized.add_node(node);
+                let new_id = self.optimized.add_node(node)?;
                 self.node_mapping.insert(node_id, new_id);
                 Ok(Some(new_id))
             }
@@ -917,7 +917,7 @@ impl AdvancedOptimizer {
                     } else {
                         // Create a new variable node
                         let new_node = Node::Variable { name: name.clone() };
-                        Some(self.optimized.add_node(new_node))
+                        Some(self.optimized.add_node(new_node).ok()?)
                     }
                 }
                 Node::Application { function, args } => {
@@ -932,7 +932,7 @@ impl AdvancedOptimizer {
                         function: new_func,
                         args: new_args,
                     };
-                    Some(self.optimized.add_node(new_node))
+                    Some(self.optimized.add_node(new_node).ok()?)
                 }
                 Node::Let { bindings, body } => {
                     let mut new_bindings = Vec::new();
@@ -951,7 +951,7 @@ impl AdvancedOptimizer {
                         bindings: new_bindings,
                         body: new_body,
                     };
-                    Some(self.optimized.add_node(new_node))
+                    Some(self.optimized.add_node(new_node).ok()?)
                 }
                 Node::Lambda { params, body } => {
                     // For lambdas, we need to avoid substituting bound parameters
@@ -965,7 +965,7 @@ impl AdvancedOptimizer {
                         params: params.clone(),
                         body: new_body,
                     };
-                    Some(self.optimized.add_node(new_node))
+                    Some(self.optimized.add_node(new_node).ok()?)
                 }
                 Node::If { condition, then_branch, else_branch } => {
                     let new_condition = self.deep_copy_with_substitution(condition, substitutions)?;
@@ -976,7 +976,7 @@ impl AdvancedOptimizer {
                         then_branch: new_then,
                         else_branch: new_else,
                     };
-                    Some(self.optimized.add_node(new_node))
+                    Some(self.optimized.add_node(new_node).ok()?)
                 }
                 Node::List(items) => {
                     let mut new_items = Vec::new();
@@ -986,7 +986,7 @@ impl AdvancedOptimizer {
                         }
                     }
                     let new_node = Node::List(new_items);
-                    Some(self.optimized.add_node(new_node))
+                    Some(self.optimized.add_node(new_node).ok()?)
                 }
                 Node::Letrec { bindings, body } => {
                     // For letrec, all bindings are in scope for all values
@@ -1007,11 +1007,11 @@ impl AdvancedOptimizer {
                         bindings: new_bindings,
                         body: new_body,
                     };
-                    Some(self.optimized.add_node(new_node))
+                    Some(self.optimized.add_node(new_node).ok()?)
                 }
                 _ => {
                     // For other node types (Literal, Effect, etc.), create a simple copy
-                    Some(self.optimized.add_node(node))
+                    Some(self.optimized.add_node(node).ok()?)
                 }
             }
         } else {

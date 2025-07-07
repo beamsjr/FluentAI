@@ -44,16 +44,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         // Create a contract: result should always be non-negative
         // Build nodes separately to avoid borrow checker issues
-        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() });
-        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
+        let ge_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
+        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() }).expect("Failed to add node");
         let zero_lit = graph.add_node(fluentai_core::ast::Node::Literal(
             fluentai_core::ast::Literal::Integer(0)
-        ));
+        )).expect("Failed to add node");
         
         let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
             function: ge_fn,
             args: vec![result_var, zero_lit],
-        });
+        }).expect("Failed to add node");
         
         let contract = Contract {
             function_name: "abs".to_string(),
@@ -178,41 +178,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         // Contract: if y != 0, result should be x/y
         // Build nodes separately to avoid borrow checker issues
-        let or_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "or".to_string() });
-        let eq_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() });
-        let eq_fn2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() });
-        let div_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "/".to_string() });
-        let y_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() });
-        let y_var2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() });
-        let x_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "x".to_string() });
-        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() });
+        let or_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "or".to_string() }).expect("Failed to add node");
+        let eq_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() }).expect("Failed to add node");
+        let eq_fn2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "=".to_string() }).expect("Failed to add node");
+        let div_fn = graph.add_node(fluentai_core::ast::Node::Variable { name: "/".to_string() }).expect("Failed to add node");
+        let y_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+        let y_var2 = graph.add_node(fluentai_core::ast::Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+        let x_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+        let result_var = graph.add_node(fluentai_core::ast::Node::Variable { name: "result".to_string() }).expect("Failed to add node");
         let zero_lit = graph.add_node(fluentai_core::ast::Node::Literal(
             fluentai_core::ast::Literal::Integer(0)
-        ));
+        )).expect("Failed to add node");
         
         // Build y == 0 check
         let y_eq_zero = graph.add_node(fluentai_core::ast::Node::Application {
             function: eq_fn,
             args: vec![y_var, zero_lit],
-        });
+        }).expect("Failed to add node");
         
         // Build x/y expression
         let x_div_y = graph.add_node(fluentai_core::ast::Node::Application {
             function: div_fn,
             args: vec![x_var, y_var2],
-        });
+        }).expect("Failed to add node");
         
         // Build result == x/y
         let result_eq_div = graph.add_node(fluentai_core::ast::Node::Application {
             function: eq_fn2,
             args: vec![result_var, x_div_y],
-        });
+        }).expect("Failed to add node");
         
         // Build final OR expression
         let postcond_expr = graph.add_node(fluentai_core::ast::Node::Application {
             function: or_fn,
             args: vec![y_eq_zero, result_eq_div],
-        });
+        }).expect("Failed to add node");
         
         let contract = Contract {
             function_name: "safe-divide".to_string(),

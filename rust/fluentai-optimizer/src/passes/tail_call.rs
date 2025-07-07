@@ -1,6 +1,6 @@
 //! Tail call optimization pass
 
-use fluentai_core::ast::{Graph, Node, NodeId, Literal, Pattern};
+use fluentai_core::ast::{Graph, Node, NodeId};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -142,7 +142,7 @@ impl OptimizationPass for TailCallOptimizationPass {
         let mut functions_to_optimize = Vec::new();
         
         for (node_id, node) in &graph.nodes {
-            if let Node::Letrec { bindings, body } = node {
+            if let Node::Letrec { bindings, body: _ } = node {
                 for (i, (func_name, func_id)) in bindings.iter().enumerate() {
                     if let Some(Node::Lambda { params, body: lambda_body }) = graph.get_node(*func_id) {
                         if let Some(tail_calls) = self.analyze_tail_recursion(graph, func_name, *lambda_body) {
@@ -154,7 +154,7 @@ impl OptimizationPass for TailCallOptimizationPass {
         }
         
         // Apply optimizations (for now, just mark with metadata)
-        for (letrec_id, binding_idx, func_name, lambda_id, params, body, tail_calls) in functions_to_optimize {
+        for (letrec_id, binding_idx, func_name, _lambda_id, params, body, tail_calls) in functions_to_optimize {
             // Mark the lambda body as optimized
             let marked_body = self.mark_as_optimized(&mut optimized, &func_name, body, tail_calls);
             
@@ -162,7 +162,7 @@ impl OptimizationPass for TailCallOptimizationPass {
             let new_lambda = optimized.add_node(Node::Lambda {
                 params: params.clone(),
                 body: marked_body,
-            });
+            })?;
             
             // Update the letrec binding
             if let Some(Node::Letrec { bindings, body }) = optimized.get_node(letrec_id).cloned() {

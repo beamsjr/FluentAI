@@ -3,12 +3,12 @@
 //! This module provides functionality to prove that recursive functions terminate,
 //! which is essential for sound contract verification.
 
-use std::collections::{HashMap, HashSet};
-use fluentai_core::ast::{Graph, Node, NodeId, Literal, Pattern};
+use std::collections::HashSet;
 use std::num::NonZeroU32;
+use fluentai_core::ast::{Graph, Node, NodeId, Pattern};
 use crate::{
     contract::Contract,
-    errors::{ContractError, ContractResult},
+    errors::ContractResult,
 };
 use rustc_hash::FxHashMap;
 
@@ -166,7 +166,7 @@ impl<'a> TerminationChecker<'a> {
     }
     
     /// Extract termination measure from contract if specified
-    fn extract_termination_measure(&self, contract: &Contract) -> ContractResult<Option<TerminationMeasure>> {
+    fn extract_termination_measure(&self, _contract: &Contract) -> ContractResult<Option<TerminationMeasure>> {
         // Look for :terminates-by clause in contract
         // This would be a future enhancement to the contract syntax
         Ok(None)
@@ -175,9 +175,9 @@ impl<'a> TerminationChecker<'a> {
     /// Verify that a termination measure actually decreases
     fn verify_termination_measure(
         &self,
-        func_name: &str,
-        measure: &TerminationMeasure,
-        contract: &Contract,
+        _func_name: &str,
+        _measure: &TerminationMeasure,
+        _contract: &Contract,
     ) -> ContractResult<TerminationResult> {
         // Verify that:
         // 1. Measure is well-founded (e.g., natural number)
@@ -190,7 +190,7 @@ impl<'a> TerminationChecker<'a> {
     }
     
     /// Try to infer termination from structural recursion
-    fn infer_structural_termination(&self, func_name: &str, body: NodeId) -> ContractResult<Option<TerminationResult>> {
+    fn infer_structural_termination(&self, _func_name: &str, body: NodeId) -> ContractResult<Option<TerminationResult>> {
         // Look for patterns like:
         // - List recursion with cdr
         // - Number recursion with (- n 1)
@@ -210,7 +210,7 @@ impl<'a> TerminationChecker<'a> {
     /// Detect structural recursion patterns
     fn detect_structural_pattern(&self, node: &Node) -> ContractResult<Option<String>> {
         match node {
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If { condition, then_branch: _, else_branch } => {
                 // Check for base case pattern
                 if self.is_base_case(*condition)? {
                     // Check if recursive call is on smaller structure
@@ -236,7 +236,7 @@ impl<'a> TerminationChecker<'a> {
     fn is_base_case(&self, condition: NodeId) -> ContractResult<bool> {
         if let Some(node) = self.graph.get_node(condition) {
             match node {
-                Node::Application { function, args } => {
+                Node::Application { function, args: _ } => {
                     if let Some(Node::Variable { name }) = self.graph.get_node(*function) {
                         // Common base case predicates
                         if matches!(name.as_str(), "null?" | "empty?" | "zero?" | "=" | "<=") {
@@ -251,14 +251,14 @@ impl<'a> TerminationChecker<'a> {
     }
     
     /// Check for structural recursive call
-    fn has_structural_recursive_call(&self, node_id: NodeId) -> ContractResult<bool> {
+    fn has_structural_recursive_call(&self, _node_id: NodeId) -> ContractResult<bool> {
         // This would analyze the recursive call to ensure it's on a smaller structure
         // For now, simplified implementation
         Ok(false)
     }
     
     /// Check if a pattern is structural
-    fn is_structural_pattern(&self, pattern: NodeId) -> ContractResult<bool> {
+    fn is_structural_pattern(&self, _pattern: NodeId) -> ContractResult<bool> {
         // Check for cons patterns, number patterns, etc.
         Ok(false)
     }
@@ -290,13 +290,13 @@ impl<'a> TerminationChecker<'a> {
     }
     
     /// Extract function parameters
-    fn extract_parameters(&self, func_name: &str) -> ContractResult<Vec<String>> {
+    fn extract_parameters(&self, _func_name: &str) -> ContractResult<Vec<String>> {
         // This would extract from the function definition
         Ok(vec![])
     }
     
     /// Check if a parameter decreases in recursive calls
-    fn parameter_decreases(&self, param: &str, body: NodeId) -> ContractResult<bool> {
+    fn parameter_decreases(&self, _param: &str, _body: NodeId) -> ContractResult<bool> {
         // Analyze recursive calls to see if param is smaller
         Ok(false)
     }
@@ -320,7 +320,8 @@ impl<'a> TerminationMeasureBuilder<'a> {
     
     /// Build a simple numeric measure
     pub fn numeric_measure(&mut self, param: &str) -> TerminationMeasure {
-        let var = self.graph.add_node(Node::Variable { name: param.to_string() });
+        let var = self.graph.add_node(Node::Variable { name: param.to_string() })
+            .expect("Failed to add variable node");
         TerminationMeasure {
             measure_expr: var,
             depends_on: vec![param.to_string()],
@@ -330,12 +331,14 @@ impl<'a> TerminationMeasureBuilder<'a> {
     
     /// Build a list length measure
     pub fn list_length_measure(&mut self, param: &str) -> TerminationMeasure {
-        let var = self.graph.add_node(Node::Variable { name: param.to_string() });
-        let length_fn = self.graph.add_node(Node::Variable { name: "length".to_string() });
+        let var = self.graph.add_node(Node::Variable { name: param.to_string() })
+            .expect("Failed to add variable node");
+        let length_fn = self.graph.add_node(Node::Variable { name: "length".to_string() })
+            .expect("Failed to add length function node");
         let measure = self.graph.add_node(Node::Application {
             function: length_fn,
             args: vec![var],
-        });
+        }).expect("Failed to add application node");
         
         TerminationMeasure {
             measure_expr: measure,
@@ -347,7 +350,8 @@ impl<'a> TerminationMeasureBuilder<'a> {
     /// Build a lexicographic measure for multiple parameters
     pub fn lexicographic_measure(&mut self, params: Vec<(&str, NodeId)>) -> TerminationMeasure {
         let list_items: Vec<NodeId> = params.iter().map(|(_, expr)| *expr).collect();
-        let measure = self.graph.add_node(Node::List(list_items));
+        let measure = self.graph.add_node(Node::List(list_items))
+            .expect("Failed to add list node");
         
         TerminationMeasure {
             measure_expr: measure,
@@ -360,8 +364,7 @@ impl<'a> TerminationMeasureBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::num::NonZeroU32;
-    
+        
     #[test]
     fn test_non_recursive_termination() {
         let graph = Graph::new();

@@ -32,7 +32,7 @@ fn test_evaluator_with_bindings() {
     // We can't directly verify bindings, but we can test evaluation
     // by adding a variable node and evaluating it
     let mut graph2 = Graph::new();
-    let var_node = graph2.add_node(Node::Variable { name: "x".to_string() });
+    let var_node = graph2.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     let evaluator2 = ConditionEvaluator::new(&graph2).with_bindings(bindings);
     
     // This will succeed if the binding was properly set
@@ -50,8 +50,8 @@ fn test_evaluator_bind() {
     evaluator.bind("count".to_string(), Value::Integer(10));
     
     // Test by evaluating variables
-    let name_var = graph.add_node(Node::Variable { name: "name".to_string() });
-    let count_var = graph.add_node(Node::Variable { name: "count".to_string() });
+    let name_var = graph.add_node(Node::Variable { name: "name".to_string() }).expect("Failed to add node");
+    let count_var = graph.add_node(Node::Variable { name: "count".to_string() }).expect("Failed to add node");
     
     let mut evaluator2 = ConditionEvaluator::new(&graph);
     evaluator2.bind("name".to_string(), Value::String("test".to_string()));
@@ -66,8 +66,8 @@ fn test_evaluate_literal_condition() {
     let mut graph = Graph::new();
     
     // Add a boolean literal that represents a condition
-    let true_node = graph.add_node(Node::Literal(Literal::Boolean(true)));
-    let false_node = graph.add_node(Node::Literal(Literal::Boolean(false)));
+    let true_node = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
+    let false_node = graph.add_node(Node::Literal(Literal::Boolean(false))).expect("Failed to add node");
     
     let evaluator = ConditionEvaluator::new(&graph);
     
@@ -87,7 +87,7 @@ fn test_evaluate_non_boolean_condition() {
     let mut graph = Graph::new();
     
     // Add a non-boolean literal
-    let int_node = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let int_node = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     
     let evaluator = ConditionEvaluator::new(&graph);
     
@@ -108,7 +108,7 @@ fn test_evaluate_variable_condition() {
     let mut graph = Graph::new();
     
     // Add a variable node
-    let var_node = graph.add_node(Node::Variable { name: "is_valid".to_string() });
+    let var_node = graph.add_node(Node::Variable { name: "is_valid".to_string() }).expect("Failed to add node");
     
     let mut bindings = HashMap::new();
     bindings.insert("is_valid".to_string(), Value::Boolean(true));
@@ -126,7 +126,7 @@ fn test_evaluate_undefined_variable() {
     let mut graph = Graph::new();
     
     // Add a variable node with no binding
-    let var_node = graph.add_node(Node::Variable { name: "undefined".to_string() });
+    let var_node = graph.add_node(Node::Variable { name: "undefined".to_string() }).expect("Failed to add node");
     
     let evaluator = ConditionEvaluator::new(&graph);
     
@@ -140,13 +140,13 @@ fn test_evaluate_simple_comparison() {
     let mut graph = Graph::new();
     
     // Create: 5 > 3
-    let five = graph.add_node(Node::Literal(Literal::Integer(5)));
-    let three = graph.add_node(Node::Literal(Literal::Integer(3)));
-    let gt = graph.add_node(Node::Variable { name: ">".to_string() });
+    let five = graph.add_node(Node::Literal(Literal::Integer(5))).expect("Failed to add node");
+    let three = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
+    let gt = graph.add_node(Node::Variable { name: ">".to_string() }).expect("Failed to add node");
     let comparison = graph.add_node(Node::Application {
         function: gt,
         args: vec![five, three],
-    });
+    }).expect("Failed to add node");
     
     let evaluator = ConditionEvaluator::new(&graph);
     
@@ -160,8 +160,8 @@ fn test_evaluate_with_multiple_bindings() {
     let mut graph = Graph::new();
     
     // Create variables
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y_var = graph.add_node(Node::Variable { name: "y".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y_var = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
     
     let mut evaluator = ConditionEvaluator::new(&graph);
     evaluator.bind("x".to_string(), Value::Integer(10));
@@ -181,7 +181,7 @@ fn test_evaluate_nil_literal() {
     let mut graph = Graph::new();
     
     // Add nil literal
-    let nil_node = graph.add_node(Node::Literal(Literal::Nil));
+    let nil_node = graph.add_node(Node::Literal(Literal::Nil)).expect("Failed to add node");
     
     let evaluator = ConditionEvaluator::new(&graph);
     
@@ -195,7 +195,7 @@ fn test_evaluate_string_literal() {
     let mut graph = Graph::new();
     
     // Add string literal
-    let string_node = graph.add_node(Node::Literal(Literal::String("test".to_string())));
+    let string_node = graph.add_node(Node::Literal(Literal::String("test".to_string()))).expect("Failed to add node");
     
     let evaluator = ConditionEvaluator::new(&graph);
     
@@ -207,7 +207,7 @@ fn test_evaluate_string_literal() {
 #[test]
 fn test_evaluator_bindings_isolation() {
     let mut graph = Graph::new();
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     
     // Create first evaluator with bindings
     let mut bindings1 = HashMap::new();

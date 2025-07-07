@@ -5,11 +5,10 @@
 
 use crate::symbolic_execution::{SymbolicExecutor, SymbolicState, SymbolicValue};
 use crate::contract::{Contract, ContractCondition, ContractKind};
-use crate::errors::{ContractError, ContractResult, ContractViolation};
+use crate::errors::{ContractError, ContractResult};
 use crate::test_generation::{TestGenerator, TestCase};
 use crate::visualization::{ExecutionTree, TreeBuilder};
 use fluentai_core::ast::{Graph, NodeId};
-use std::collections::HashMap;
 use std::num::NonZeroU32;
 
 #[cfg(feature = "static")]
@@ -255,9 +254,9 @@ impl SymbolicContractVerifier {
     /// Check if preconditions are satisfied
     fn check_preconditions(
         &self,
-        state: &SymbolicState,
+        _state: &SymbolicState,
         preconditions: &[ContractCondition],
-        graph: &Graph,
+        _graph: &Graph,
         #[cfg(feature = "static")]
         solver: Option<&mut IncrementalSolver>,
     ) -> ContractResult<bool> {
@@ -281,9 +280,9 @@ impl SymbolicContractVerifier {
     /// Check postconditions
     fn check_postconditions(
         &self,
-        state: &SymbolicState,
+        _state: &SymbolicState,
         postconditions: &[ContractCondition],
-        graph: &Graph,
+        _graph: &Graph,
         #[cfg(feature = "static")]
         solver: Option<&mut IncrementalSolver>,
     ) -> ContractResult<Vec<(ContractCondition, bool)>> {
@@ -305,9 +304,9 @@ impl SymbolicContractVerifier {
     /// Check invariants
     fn check_invariants(
         &self,
-        state: &SymbolicState,
+        _state: &SymbolicState,
         invariants: &[ContractCondition],
-        graph: &Graph,
+        _graph: &Graph,
         #[cfg(feature = "static")]
         solver: Option<&mut IncrementalSolver>,
     ) -> ContractResult<Vec<(ContractCondition, bool)>> {

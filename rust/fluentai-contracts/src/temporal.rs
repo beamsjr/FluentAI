@@ -4,11 +4,9 @@
 //! allowing you to express properties like "eventually", "always", "until", etc.
 //! Based on Linear Temporal Logic (LTL) and Computation Tree Logic (CTL).
 
-use std::collections::{HashMap, VecDeque};
-use fluentai_core::ast::{Graph, NodeId};
-use std::num::NonZeroU32;
+use std::collections::HashMap;
 use crate::{
-    contract::{Contract, ContractCondition, ContractKind},
+    contract::ContractCondition,
     errors::{ContractError, ContractResult},
 };
 
@@ -352,8 +350,8 @@ impl TemporalVerifier {
     /// Evaluate an atomic condition in a state
     fn evaluate_condition(
         &self,
-        condition: &ContractCondition,
-        state: &TemporalState,
+        _condition: &ContractCondition,
+        _state: &TemporalState,
     ) -> ContractResult<bool> {
         // This would integrate with the existing contract evaluation
         // For now, return a placeholder
@@ -392,8 +390,8 @@ impl TemporalVerifier {
     /// Generate a counterexample for a failed verification
     fn generate_counterexample(
         &self,
-        contract: &TemporalContract,
-        trace: &ExecutionTrace,
+        _contract: &TemporalContract,
+        _trace: &ExecutionTrace,
     ) -> TemporalCounterexample {
         TemporalCounterexample {
             failing_states: vec![], // Would identify specific failing states
@@ -556,6 +554,9 @@ pub mod temporal_dsl {
 mod tests {
     use super::*;
     use super::temporal_dsl::*;
+    use crate::ContractKind;
+    use fluentai_core::ast::NodeId;
+    use std::num::NonZeroU32;
     
     #[test]
     fn test_temporal_formula_creation() {

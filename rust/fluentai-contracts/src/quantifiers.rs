@@ -284,19 +284,19 @@ impl QuantifierBuilder {
         for (var_name, domain) in vars {
             let var_node = self.graph.add_node(Node::Variable { 
                 name: var_name.to_string() 
-            });
+            }).expect("Failed to create variable node");
             var_map.insert(var_name.to_string(), var_node);
             
             // Create domain node
             let domain_node = self.create_domain_node(domain);
             
             // Create binding pair
-            let binding = self.graph.add_node(Node::List(vec![var_node, domain_node]));
+            let binding = self.graph.add_node(Node::List(vec![var_node, domain_node])).expect("Failed to create binding node");
             binding_nodes.push(binding);
         }
         
         // Create bindings list
-        let bindings = self.graph.add_node(Node::List(binding_nodes));
+        let bindings = self.graph.add_node(Node::List(binding_nodes)).expect("Failed to create bindings list");
         
         // Create body with variable bindings
         let body_node = body(self, &var_map);
@@ -308,38 +308,38 @@ impl QuantifierBuilder {
         };
         let quant_func = self.graph.add_node(Node::Variable { 
             name: quant_name.to_string() 
-        });
+        }).expect("Failed to create quantifier function");
         
         // Create quantified expression
         self.graph.add_node(Node::Application {
             function: quant_func,
             args: vec![bindings, body_node],
-        })
+        }).expect("Failed to create quantified expression")
     }
     
     /// Create a domain specification node
     fn create_domain_node(&mut self, domain: QuantifierDomain) -> NodeId {
         match domain {
             QuantifierDomain::Unspecified => {
-                self.graph.add_node(Node::Variable { name: "Int".to_string() })
+                self.graph.add_node(Node::Variable { name: "Int".to_string() }).expect("Failed to create Int type node")
             }
             QuantifierDomain::Boolean => {
-                self.graph.add_node(Node::Variable { name: "Bool".to_string() })
+                self.graph.add_node(Node::Variable { name: "Bool".to_string() }).expect("Failed to create Bool type node")
             }
             QuantifierDomain::IntRange(min, max) => {
                 let range_func = self.graph.add_node(Node::Variable { 
                     name: "range".to_string() 
-                });
+                }).expect("Failed to create range function");
                 let min_node = self.graph.add_node(Node::Literal(
                     fluentai_core::ast::Literal::Integer(min)
-                ));
+                )).expect("Failed to create min node");
                 let max_node = self.graph.add_node(Node::Literal(
                     fluentai_core::ast::Literal::Integer(max)
-                ));
+                )).expect("Failed to create max node");
                 self.graph.add_node(Node::Application {
                     function: range_func,
                     args: vec![min_node, max_node],
-                })
+                }).expect("Failed to create range application")
             }
             QuantifierDomain::Natural(n) => {
                 // Represent as range [0, n]
@@ -348,20 +348,20 @@ impl QuantifierBuilder {
             QuantifierDomain::ListElements(list_id) => {
                 let in_func = self.graph.add_node(Node::Variable { 
                     name: "in".to_string() 
-                });
+                }).expect("Failed to create in function");
                 self.graph.add_node(Node::Application {
                     function: in_func,
                     args: vec![list_id],
-                })
+                }).expect("Failed to create in application")
             }
             QuantifierDomain::ListIndices(list_id) => {
                 let indices_func = self.graph.add_node(Node::Variable { 
                     name: "indices".to_string() 
-                });
+                }).expect("Failed to create indices function");
                 self.graph.add_node(Node::Application {
                     function: indices_func,
                     args: vec![list_id],
-                })
+                }).expect("Failed to create indices application")
             }
         }
     }
@@ -382,14 +382,14 @@ mod tests {
                 let x = vars["x"];
                 let zero = builder.graph.add_node(Node::Literal(
                     fluentai_core::ast::Literal::Integer(0)
-                ));
+                )).expect("Failed to create zero literal");
                 let ge = builder.graph.add_node(Node::Variable {
                     name: ">=".to_string()
-                });
+                }).expect("Failed to create >= operator");
                 builder.graph.add_node(Node::Application {
                     function: ge,
                     args: vec![x, zero],
-                })
+                }).expect("Failed to create >= application")
             }
         );
         

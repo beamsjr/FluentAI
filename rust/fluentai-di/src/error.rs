@@ -57,3 +57,14 @@ pub enum DiError {
     #[error("DI error: {0}")]
     Other(String),
 }
+
+impl From<fluentai_core::error::Error> for DiError {
+    fn from(err: fluentai_core::error::Error) -> Self {
+        match err {
+            fluentai_core::error::Error::GraphNodeIdOverflow => {
+                DiError::Other("Graph node ID overflow - maximum number of nodes reached".to_string())
+            }
+            _ => DiError::Other(format!("Core error: {}", err)),
+        }
+    }
+}

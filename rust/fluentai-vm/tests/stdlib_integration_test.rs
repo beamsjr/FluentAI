@@ -149,9 +149,8 @@ fn test_direct_stdlib_call() -> Result<()> {
     let bytecode = compiler.compile(&graph)?;
     
     let mut vm = VM::new(bytecode);
-    vm.run()?;
+    let result = vm.run()?;
     
-    let result = vm.pop()?;
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 3);

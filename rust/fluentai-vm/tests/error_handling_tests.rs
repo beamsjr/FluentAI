@@ -41,7 +41,7 @@ fn compile_graph(graph: &Graph) -> Result<Bytecode> {
 /// Helper to create a simple AST node graph
 fn create_simple_graph(node: Node) -> Graph {
     let mut graph = Graph::new();
-    let node_id = graph.add_node(node);
+    let node_id = graph.add_node(node).expect("Failed to add node");
     graph.root_id = Some(node_id);
     graph
 }
@@ -108,38 +108,38 @@ fn test_call_stack_overflow() {
     // (letrec ((f (lambda (n) (+ 1 (f n))))) (f 0))
     let mut graph = Graph::new();
     
-    let n_var = graph.add_node(Node::Variable { name: "n".to_string() });
-    let f_var = graph.add_node(Node::Variable { name: "f".to_string() });
+    let n_var = graph.add_node(Node::Variable { name: "n".to_string() }).expect("Failed to add node");
+    let f_var = graph.add_node(Node::Variable { name: "f".to_string() }).expect("Failed to add node");
     let recursive_call = graph.add_node(Node::Application {
         function: f_var,
         args: vec![n_var],
-    });
+    }).expect("Failed to add node");
     
     // Add 1 to the result, preventing tail call optimization
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let add_expr = graph.add_node(Node::Application {
         function: plus,
         args: vec![one, recursive_call],
-    });
+    }).expect("Failed to add node");
     
     let f_lambda = graph.add_node(Node::Lambda {
         params: vec!["n".to_string()],
         body: add_expr,
-    });
+    }).expect("Failed to add node");
     
     // Call f with 0
-    let f_var2 = graph.add_node(Node::Variable { name: "f".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
+    let f_var2 = graph.add_node(Node::Variable { name: "f".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
     let initial_call = graph.add_node(Node::Application {
         function: f_var2,
         args: vec![zero],
-    });
+    }).expect("Failed to add node");
     
     let letrec_node = graph.add_node(Node::Letrec {
         bindings: vec![("f".to_string(), f_lambda)],
         body: initial_call,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(letrec_node);
     
     let bytecode = compile_graph(&graph).unwrap();
@@ -431,24 +431,24 @@ fn test_stack_trace_in_function() {
     let mut graph = Graph::new();
     
     // Create function that errors: (lambda (x) (/ x 0))
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let div_var = graph.add_node(Node::Variable { name: "/".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let div_var = graph.add_node(Node::Variable { name: "/".to_string() }).expect("Failed to add node");
     let div_app = graph.add_node(Node::Application {
         function: div_var,
         args: vec![x_var, zero],
-    });
+    }).expect("Failed to add node");
     let lambda = graph.add_node(Node::Lambda {
         params: vec!["x".to_string()],
         body: div_app,
-    });
+    }).expect("Failed to add node");
     
     // Apply it: ((lambda (x) (/ x 0)) 42)
-    let arg = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let arg = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     let app = graph.add_node(Node::Application {
         function: lambda,
         args: vec![arg],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(app);
     
     let bytecode = compile_graph(&graph).unwrap();
@@ -472,28 +472,28 @@ fn test_error_propagation_through_calls() {
     let mut graph = Graph::new();
     
     // Create: (let ((f (lambda () (/ 1 0)))) (f))
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let div_var = graph.add_node(Node::Variable { name: "/".to_string() });
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let div_var = graph.add_node(Node::Variable { name: "/".to_string() }).expect("Failed to add node");
     let div_app = graph.add_node(Node::Application {
         function: div_var,
         args: vec![one, zero],
-    });
+    }).expect("Failed to add node");
     let f_lambda = graph.add_node(Node::Lambda {
         params: vec![],
         body: div_app,
-    });
+    }).expect("Failed to add node");
     
-    let f_var = graph.add_node(Node::Variable { name: "f".to_string() });
+    let f_var = graph.add_node(Node::Variable { name: "f".to_string() }).expect("Failed to add node");
     let f_app = graph.add_node(Node::Application {
         function: f_var,
         args: vec![],
-    });
+    }).expect("Failed to add node");
     
     let let_node = graph.add_node(Node::Let {
         bindings: vec![("f".to_string(), f_lambda)],
         body: f_app,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(let_node);
     
     let bytecode = compile_graph(&graph).unwrap();
@@ -549,21 +549,21 @@ fn test_error_in_nested_context() {
     let mut graph = Graph::new();
     
     // Create nested error: (if true (/ 1 0) 42)
-    let cond = graph.add_node(Node::Literal(Literal::Boolean(true)));
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let div_var = graph.add_node(Node::Variable { name: "/".to_string() });
+    let cond = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let div_var = graph.add_node(Node::Variable { name: "/".to_string() }).expect("Failed to add node");
     let div_app = graph.add_node(Node::Application {
         function: div_var,
         args: vec![one, zero],
-    });
-    let else_val = graph.add_node(Node::Literal(Literal::Integer(42)));
+    }).expect("Failed to add node");
+    let else_val = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     
     let if_node = graph.add_node(Node::If {
         condition: cond,
         then_branch: div_app,
         else_branch: else_val,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(if_node);
     
     let bytecode = compile_graph(&graph).unwrap();

@@ -1,6 +1,6 @@
 //! Error effect handler
 
-use crate::{EffectHandler, EffectResult};
+use crate::{EffectHandler, EffectResult, format_effect_error};
 use async_trait::async_trait;
 use fluentai_core::{ast::EffectType, value::Value, error::Error};
 
@@ -42,7 +42,7 @@ impl EffectHandler for ErrorHandler {
                 // Would execute cleanup code
                 Ok(Value::Nil)
             }
-            _ => Err(Error::Runtime(format!("Unknown Error operation: {}", operation))),
+            _ => Err(Error::Runtime(format_effect_error("Error", operation, "operation not supported"))),
         }
     }
 }

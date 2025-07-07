@@ -6,7 +6,6 @@
 use crate::symbolic_execution::{SymbolicState, SymbolicValue, ExecutionResult};
 use crate::errors::{ContractError, ContractResult};
 use fluentai_core::ast::{Graph, NodeId};
-use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::collections::VecDeque;
@@ -149,9 +148,9 @@ impl ParallelSymbolicExecutor {
         }
         
         // Collect statistics
-        let mut total_explored = 0;
+        let mut _total_explored = 0;
         for stats in stats_rx {
-            total_explored += stats;
+            _total_explored += stats;
         }
         
         // Wait for all workers to finish
@@ -177,7 +176,7 @@ impl ParallelSymbolicExecutor {
 
 /// Worker thread function
 fn worker_thread(
-    worker_id: usize,
+    _worker_id: usize,
     work_queue: WorkQueue,
     graph: Arc<Graph>,
     config: ParallelConfig,
@@ -319,7 +318,7 @@ fn execute_node(
     state: &SymbolicState,
     node_id: NodeId,
 ) -> ContractResult<ExecutionResult> {
-    use fluentai_core::ast::{Node, Literal};
+    use fluentai_core::ast::Node;
     
     let node = graph.get_node(node_id)
         .ok_or_else(|| ContractError::Other(format!("Node {} not found", node_id)))?;
@@ -339,7 +338,7 @@ fn execute_node(
             Ok(ExecutionResult::Value(state.clone(), value))
         }
         
-        Node::If { condition, then_branch, else_branch } => {
+        Node::If { condition: _, then_branch, else_branch } => {
             // For parallel execution, we create branch work items
             Ok(ExecutionResult::Branch {
                 condition: SymbolicValue::Symbolic { name: "condition".to_string(), ty: None },
@@ -405,26 +404,26 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a simple conditional: if x > 0 then 'positive else 'negative
-        let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-        let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-        let gt_op = graph.add_node(Node::Variable { name: ">".to_string() });
+        let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add x variable");
+        let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add zero literal");
+        let gt_op = graph.add_node(Node::Variable { name: ">".to_string() }).expect("Failed to add > operator");
         
         // Create the condition (> x 0)
         let condition = graph.add_node(Node::Application {
             function: gt_op,
             args: vec![x_var, zero],
-        });
+        }).expect("Failed to add condition");
         
         // Create the branches
-        let positive = graph.add_node(Node::Literal(Literal::String("positive".to_string())));
-        let negative = graph.add_node(Node::Literal(Literal::String("negative".to_string())));
+        let positive = graph.add_node(Node::Literal(Literal::String("positive".to_string()))).expect("Failed to add positive literal");
+        let negative = graph.add_node(Node::Literal(Literal::String("negative".to_string()))).expect("Failed to add negative literal");
         
         // Create the if expression
         let if_expr = graph.add_node(Node::If {
             condition,
             then_branch: positive,
             else_branch: negative,
-        });
+        }).expect("Failed to add if expression");
         
         // Make it the root
         graph.root_id = Some(if_expr);

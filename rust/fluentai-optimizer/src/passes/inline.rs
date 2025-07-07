@@ -53,7 +53,7 @@ impl InlinePass {
                    params: &[String], 
                    args: &[NodeId],
                    node_mapping: &mut FxHashMap<NodeId, NodeId>,
-                   optimized: &mut Graph) -> NodeId {
+                   optimized: &mut Graph) -> Result<NodeId> {
         // Create substitution map
         let mut substitutions = FxHashMap::default();
         for (param, arg) in params.iter().zip(args.iter()) {
@@ -70,15 +70,15 @@ impl InlinePass {
                               node_id: NodeId,
                               substitutions: &FxHashMap<String, NodeId>,
                               node_mapping: &mut FxHashMap<NodeId, NodeId>,
-                              optimized: &mut Graph) -> NodeId {
+                              optimized: &mut Graph) -> Result<NodeId> {
         // Check if already mapped
         if let Some(&mapped_id) = node_mapping.get(&node_id) {
-            return mapped_id;
+            return Ok(mapped_id);
         }
 
         let node = match graph.get_node(node_id) {
             Some(n) => n,
-            None => return node_id,
+            None => return Ok(node_id),
         };
 
         let new_node = match node {
@@ -86,7 +86,7 @@ impl InlinePass {
                 // Check if this variable should be substituted
                 if let Some(&arg_id) = substitutions.get(name) {
                     // Return the argument node id (already mapped)
-                    return node_mapping.get(&arg_id).copied().unwrap_or(arg_id);
+                    return Ok(node_mapping.get(&arg_id).copied().unwrap_or(arg_id));
                 }
                 Node::Variable { name: name.clone() }
             }
@@ -97,17 +97,17 @@ impl InlinePass {
                     new_subs.remove(param);
                 }
                 
-                let new_body = self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized);
+                let new_body = self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized)?;
                 Node::Lambda {
                     params: params.clone(),
                     body: new_body,
                 }
             }
             Node::Application { function, args } => {
-                let new_func = self.copy_with_substitution(graph, *function, substitutions, node_mapping, optimized);
+                let new_func = self.copy_with_substitution(graph, *function, substitutions, node_mapping, optimized)?;
                 let new_args: Vec<_> = args.iter()
                     .map(|&arg| self.copy_with_substitution(graph, arg, substitutions, node_mapping, optimized))
-                    .collect();
+                    .collect::<Result<Vec<_>, _>>()?;
                 Node::Application {
                     function: new_func,
                     args: new_args,
@@ -119,22 +119,22 @@ impl InlinePass {
                 let mut new_bindings = Vec::new();
                 
                 for (name, value) in bindings {
-                    let new_value = self.copy_with_substitution(graph, *value, &new_subs, node_mapping, optimized);
+                    let new_value = self.copy_with_substitution(graph, *value, &new_subs, node_mapping, optimized)?;
                     new_bindings.push((name.clone(), new_value));
                     // Shadow the binding
                     new_subs.remove(name);
                 }
                 
-                let new_body = self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized);
+                let new_body = self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized)?;
                 Node::Let {
                     bindings: new_bindings,
                     body: new_body,
                 }
             }
             Node::If { condition, then_branch, else_branch } => {
-                let new_cond = self.copy_with_substitution(graph, *condition, substitutions, node_mapping, optimized);
-                let new_then = self.copy_with_substitution(graph, *then_branch, substitutions, node_mapping, optimized);
-                let new_else = self.copy_with_substitution(graph, *else_branch, substitutions, node_mapping, optimized);
+                let new_cond = self.copy_with_substitution(graph, *condition, substitutions, node_mapping, optimized)?;
+                let new_then = self.copy_with_substitution(graph, *then_branch, substitutions, node_mapping, optimized)?;
+                let new_else = self.copy_with_substitution(graph, *else_branch, substitutions, node_mapping, optimized)?;
                 Node::If {
                     condition: new_cond,
                     then_branch: new_then,
@@ -144,9 +144,9 @@ impl InlinePass {
             _ => node.clone(),
         };
 
-        let new_id = optimized.add_node(new_node);
+        let new_id = optimized.add_node(new_node)?;
         node_mapping.insert(node_id, new_id);
-        new_id
+        Ok(new_id)
     }
 }
 
@@ -177,16 +177,16 @@ impl OptimizationPass for InlinePass {
                         // Inline the function
                         if let Some(Node::Lambda { body, params, .. }) = graph.get_node(*function) {
                             // Map arguments first
-                            let mapped_args: Vec<_> = args.iter()
-                                .map(|&arg| {
-                                    if let Some(&mapped) = node_mapping.get(&arg) {
-                                        mapped
-                                    } else {
-                                        // Map the argument node
-                                        self.copy_node(graph, arg, &node_mapping, &mut optimized)
-                                    }
-                                })
-                                .collect();
+                            let mut mapped_args = Vec::new();
+                            for &arg in args {
+                                let mapped = if let Some(&mapped) = node_mapping.get(&arg) {
+                                    mapped
+                                } else {
+                                    // Map the argument node
+                                    self.copy_node(graph, arg, &node_mapping, &mut optimized)?
+                                };
+                                mapped_args.push(mapped);
+                            }
                             
                             // Perform beta reduction
                             let inlined = self.beta_reduce(
@@ -196,7 +196,7 @@ impl OptimizationPass for InlinePass {
                                 &mapped_args,
                                 &mut node_mapping,
                                 &mut optimized
-                            );
+                            )?;
                             
                             node_mapping.insert(*node_id, inlined);
                             self.inlined_count += 1;
@@ -205,7 +205,7 @@ impl OptimizationPass for InlinePass {
                     }
                     
                     // Regular application - copy with mapping
-                    let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized);
+                    let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized)?;
                     node_mapping.insert(*node_id, mapped_node);
                 }
                 _ => {
@@ -214,7 +214,7 @@ impl OptimizationPass for InlinePass {
                         // Don't add this node to the optimized graph
                     } else {
                         // Copy other nodes normally
-                        let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized);
+                        let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized)?;
                         node_mapping.insert(*node_id, mapped_node);
                     }
                 }
@@ -240,14 +240,14 @@ impl InlinePass {
                  graph: &Graph, 
                  node_id: NodeId, 
                  mapping: &FxHashMap<NodeId, NodeId>,
-                 optimized: &mut Graph) -> NodeId {
+                 optimized: &mut Graph) -> Result<NodeId> {
         if let Some(&mapped) = mapping.get(&node_id) {
-            return mapped;
+            return Ok(mapped);
         }
 
         let node = match graph.get_node(node_id) {
             Some(n) => n,
-            None => return node_id,
+            None => return Ok(node_id),
         };
 
         let mapped_node = match node {
@@ -294,6 +294,6 @@ impl InlinePass {
             _ => node.clone(),
         };
 
-        optimized.add_node(mapped_node)
+        Ok(optimized.add_node(mapped_node)?)
     }
 }

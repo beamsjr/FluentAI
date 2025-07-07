@@ -5,7 +5,6 @@ use crate::visitor::Visitor;
 use crate::rules::{Rule, RuleCategory, DiagnosticCollector};
 use crate::impl_rule;
 use fluentai_core::ast::{Graph, Node, NodeId};
-use rustc_hash::FxHashSet;
 
 /// Check for inefficient recursion patterns
 #[derive(Default)]
@@ -15,14 +14,14 @@ impl InefficientRecursion {
     fn visitor(&self) -> InefficientRecursionVisitor {
         InefficientRecursionVisitor {
             collector: DiagnosticCollector::new("inefficient-recursion"),
-            in_recursive_context: false,
+            _in_recursive_context: false,
         }
     }
 }
 
 struct InefficientRecursionVisitor {
     collector: DiagnosticCollector,
-    in_recursive_context: bool,
+    _in_recursive_context: bool,
 }
 
 impl Visitor for InefficientRecursionVisitor {

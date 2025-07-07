@@ -6,10 +6,10 @@
 
 use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU32;
-use fluentai_core::ast::{Graph, NodeId};
+use fluentai_core::ast::NodeId;
 use crate::{
-    contract::{Contract, ContractCondition, ContractKind},
-    temporal::{TemporalFormula, TemporalOperator},
+    contract::{ContractCondition, ContractKind},
+    temporal::TemporalFormula,
     temporal_dsl::*,
     errors::{ContractError, ContractResult},
 };
@@ -440,8 +440,8 @@ impl StateMachineVerifier {
     /// Check safety property
     fn check_safety(
         &self,
-        machine: &StateMachine,
-        safety: &SafetyProperty,
+        _machine: &StateMachine,
+        _safety: &SafetyProperty,
     ) -> ContractResult<Option<StateMachineViolation>> {
         // Check if forbidden states are reachable
         // This would use model checking or graph analysis
@@ -453,8 +453,8 @@ impl StateMachineVerifier {
     /// Check liveness property
     fn check_liveness(
         &self,
-        machine: &StateMachine,
-        liveness: &LivenessProperty,
+        _machine: &StateMachine,
+        _liveness: &LivenessProperty,
     ) -> ContractResult<Option<StateMachineViolation>> {
         // Check if required states are eventually reached
         // This would use temporal model checking
@@ -466,8 +466,8 @@ impl StateMachineVerifier {
     /// Check reachability property
     fn check_reachability(
         &self,
-        machine: &StateMachine,
-        reach: &ReachabilityProperty,
+        _machine: &StateMachine,
+        _reach: &ReachabilityProperty,
     ) -> ContractResult<Option<StateMachineViolation>> {
         // Use BFS/DFS to check reachability
         

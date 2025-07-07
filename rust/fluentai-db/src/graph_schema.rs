@@ -385,7 +385,7 @@ impl SchemaGraphBuilder {
             exports: Vec::new(),
             body: NodeId(NonZeroU32::new(1).unwrap()), // placeholder
         };
-        let id = self.graph.add_node(node);
+        let id = self.graph.add_node(node).expect("Failed to add schema node");
         self.schemas.insert(name.to_string(), id);
         
         SchemaBuilder {
@@ -441,7 +441,7 @@ impl<'a> SchemaBuilder<'a> {
             exports: Vec::new(),
             body: NodeId(NonZeroU32::new(1).unwrap()), // placeholder
         };
-        let id = self.builder.graph.add_node(node);
+        let id = self.builder.graph.add_node(node).expect("Failed to add table node");
         // Note: add_edge doesn't exist in the current Graph API
         // We'll need to track relationships differently
         
@@ -477,13 +477,13 @@ impl<'a> TableBuilder<'a> {
         let col_node = Node::Variable {
             name: format!("Column:{}", name),
         };
-        let col_id = self.builder.graph.add_node(col_node);
+        let col_id = self.builder.graph.add_node(col_node).expect("Failed to add column node");
         
         // Create type node
         let type_node = Node::Variable {
             name: format!("DataType:{}", data_type),
         };
-        let type_id = self.builder.graph.add_node(type_node);
+        let type_id = self.builder.graph.add_node(type_node).expect("Failed to add data type node");
         
         self.columns.push(ColumnNode {
             id: col_id,
@@ -544,12 +544,12 @@ impl<'a> RelationshipBuilder<'a> {
         let left_node = Node::Variable {
             name: format!("JoinColumn:{}", left_col),
         };
-        let left_id = self.builder.graph.add_node(left_node);
+        let left_id = self.builder.graph.add_node(left_node).expect("Failed to add left join column node");
         
         let right_node = Node::Variable {
             name: format!("JoinColumn:{}", right_col),
         };
-        let right_id = self.builder.graph.add_node(right_node);
+        let right_id = self.builder.graph.add_node(right_node).expect("Failed to add right join column node");
         
         self.join_conditions.push(JoinCondition {
             left_column: left_id,

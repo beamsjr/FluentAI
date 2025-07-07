@@ -62,7 +62,7 @@ impl ClaudeScope {
         // Create AST nodes representing the contract logic
         // This is simplified - real implementation would build proper AST
         
-        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true)));
+        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
         
         let mut contract = Contract::new("guest-vlan-isolation".to_string(), true_node);
         
@@ -87,7 +87,7 @@ impl ClaudeScope {
 
     /// Create a DNS whitelist contract
     fn create_dns_whitelist_contract(&self, graph: &mut Graph, _description: &str) -> Contract {
-        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true)));
+        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
         
         let mut contract = Contract::new("dns-server-whitelist".to_string(), true_node);
         
@@ -112,7 +112,7 @@ impl ClaudeScope {
 
     /// Create a port scan detection contract
     fn create_port_scan_contract(&self, graph: &mut Graph, _description: &str) -> Contract {
-        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true)));
+        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
         
         let mut contract = Contract::new("port-scan-detection".to_string(), true_node);
         
@@ -137,7 +137,7 @@ impl ClaudeScope {
 
     /// Create a generic security contract
     fn create_generic_contract(&self, graph: &mut Graph, _description: &str) -> Contract {
-        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true)));
+        let true_node = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
         
         let mut contract = Contract::new("generic-security".to_string(), true_node);
         

@@ -16,12 +16,12 @@ fn main() {
         vec![("x", QuantifierDomain::IntRange(0, 10))],
         |builder, vars| {
             let x = vars["x"];
-            let zero = builder.graph.add_node(Node::Literal(Literal::Integer(0)));
-            let ge = builder.graph.add_node(Node::Variable { name: ">=".to_string() });
+            let zero = builder.graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+            let ge = builder.graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
             builder.graph.add_node(Node::Application {
                 function: ge,
                 args: vec![x, zero],
-            })
+            }).expect("Failed to add node")
         }
     );
     
@@ -45,18 +45,18 @@ fn main() {
     
     // Test 3: Build an exists expression
     println!("\nTest 3: Building exists y in list, y = target");
-    let list = builder.graph.add_node(Node::Variable { name: "list".to_string() });
-    let target = builder.graph.add_node(Node::Variable { name: "target".to_string() });
+    let list = builder.graph.add_node(Node::Variable { name: "list".to_string() }).expect("Failed to add node");
+    let target = builder.graph.add_node(Node::Variable { name: "target".to_string() }).expect("Failed to add node");
     
     let exists_expr = builder.exists(
         vec![("y", QuantifierDomain::ListElements(list))],
         |builder, vars| {
             let y = vars["y"];
-            let eq = builder.graph.add_node(Node::Variable { name: "=".to_string() });
+            let eq = builder.graph.add_node(Node::Variable { name: "=".to_string() }).expect("Failed to add node");
             builder.graph.add_node(Node::Application {
                 function: eq,
                 args: vec![y, target],
-            })
+            }).expect("Failed to add node")
         }
     );
     

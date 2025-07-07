@@ -31,13 +31,13 @@ fn demo_non_recursive() {
     let mut graph = Graph::new();
     
     // Simple add function: (+ x y)
-    let x = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y = graph.add_node(Node::Variable { name: "y".to_string() });
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let body = graph.add_node(Node::Application {
         function: plus,
         args: vec![x, y],
-    });
+    }).expect("Failed to add node");
     
     let mut contract = Contract::new("add".to_string(), body);
     // function_name is already set in Contract::new
@@ -54,51 +54,51 @@ fn demo_factorial() {
     
     // Factorial function with recursive structure
     // (if (= n 0) 1 (* n (factorial (- n 1))))
-    let n = graph.add_node(Node::Variable { name: "n".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
+    let n = graph.add_node(Node::Variable { name: "n".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     
     // Base case: (= n 0)
-    let eq = graph.add_node(Node::Variable { name: "=".to_string() });
+    let eq = graph.add_node(Node::Variable { name: "=".to_string() }).expect("Failed to add node");
     let base_cond = graph.add_node(Node::Application {
         function: eq,
         args: vec![n, zero],
-    });
+    }).expect("Failed to add node");
     
     // Recursive case: (* n (factorial (- n 1)))
-    let minus = graph.add_node(Node::Variable { name: "-".to_string() });
+    let minus = graph.add_node(Node::Variable { name: "-".to_string() }).expect("Failed to add node");
     let n_minus_1 = graph.add_node(Node::Application {
         function: minus,
         args: vec![n, one],
-    });
+    }).expect("Failed to add node");
     
-    let factorial_ref = graph.add_node(Node::Variable { name: "factorial".to_string() });
+    let factorial_ref = graph.add_node(Node::Variable { name: "factorial".to_string() }).expect("Failed to add node");
     let recursive_call = graph.add_node(Node::Application {
         function: factorial_ref,
         args: vec![n_minus_1],
-    });
+    }).expect("Failed to add node");
     
-    let times = graph.add_node(Node::Variable { name: "*".to_string() });
+    let times = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
     let recursive_case = graph.add_node(Node::Application {
         function: times,
         args: vec![n, recursive_call],
-    });
+    }).expect("Failed to add node");
     
     let body = graph.add_node(Node::If {
         condition: base_cond,
         then_branch: one,
         else_branch: recursive_case,
-    });
+    }).expect("Failed to add node");
     
     let mut contract = Contract::new("factorial".to_string(), body);
     // function_name is already set in Contract::new
     
     // Add precondition: n >= 0
-    let ge = graph.add_node(Node::Variable { name: ">=".to_string() });
+    let ge = graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
     let precond = graph.add_node(Node::Application {
         function: ge,
         args: vec![n, zero],
-    });
+    }).expect("Failed to add node");
     contract.add_precondition(
         ContractCondition::new(precond, ContractKind::Precondition)
             .with_blame("n must be non-negative".to_string())
@@ -125,41 +125,41 @@ fn demo_list_length() {
     
     // List length with structural recursion
     // (if (null? lst) 0 (+ 1 (length (cdr lst))))
-    let lst = graph.add_node(Node::Variable { name: "lst".to_string() });
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
+    let lst = graph.add_node(Node::Variable { name: "lst".to_string() }).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     
     // Base case: (null? lst)
-    let null_pred = graph.add_node(Node::Variable { name: "null?".to_string() });
+    let null_pred = graph.add_node(Node::Variable { name: "null?".to_string() }).expect("Failed to add node");
     let base_cond = graph.add_node(Node::Application {
         function: null_pred,
         args: vec![lst],
-    });
+    }).expect("Failed to add node");
     
     // Recursive case: (+ 1 (length (cdr lst)))
-    let cdr_fn = graph.add_node(Node::Variable { name: "cdr".to_string() });
+    let cdr_fn = graph.add_node(Node::Variable { name: "cdr".to_string() }).expect("Failed to add node");
     let cdr_lst = graph.add_node(Node::Application {
         function: cdr_fn,
         args: vec![lst],
-    });
+    }).expect("Failed to add node");
     
-    let length_ref = graph.add_node(Node::Variable { name: "length".to_string() });
+    let length_ref = graph.add_node(Node::Variable { name: "length".to_string() }).expect("Failed to add node");
     let recursive_call = graph.add_node(Node::Application {
         function: length_ref,
         args: vec![cdr_lst],
-    });
+    }).expect("Failed to add node");
     
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let recursive_case = graph.add_node(Node::Application {
         function: plus,
         args: vec![one, recursive_call],
-    });
+    }).expect("Failed to add node");
     
     let body = graph.add_node(Node::If {
         condition: base_cond,
         then_branch: zero,
         else_branch: recursive_case,
-    });
+    }).expect("Failed to add node");
     
     let mut contract = Contract::new("length".to_string(), body);
     // function_name is already set in Contract::new
@@ -183,11 +183,11 @@ fn demo_ackermann() {
     
     // Ackermann function - complex recursion requiring lexicographic ordering
     // This is a simplified representation
-    let m = graph.add_node(Node::Variable { name: "m".to_string() });
-    let n = graph.add_node(Node::Variable { name: "n".to_string() });
+    let m = graph.add_node(Node::Variable { name: "m".to_string() }).expect("Failed to add node");
+    let n = graph.add_node(Node::Variable { name: "n".to_string() }).expect("Failed to add node");
     
     // For demonstration, create a simple body
-    let body = graph.add_node(Node::Variable { name: "ackermann-body".to_string() });
+    let body = graph.add_node(Node::Variable { name: "ackermann-body".to_string() }).expect("Failed to add node");
     
     let mut contract = Contract::new("ackermann".to_string(), body);
     // function_name is already set in Contract::new

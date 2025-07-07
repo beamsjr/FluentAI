@@ -1,11 +1,10 @@
 //! Correctness-related lint rules
 
-use crate::diagnostic::{LintDiagnostic, Suggestion, Replacement, Location};
+use crate::diagnostic::{LintDiagnostic, Suggestion};
 use crate::visitor::Visitor;
 use crate::rules::{Rule, RuleCategory, DiagnosticCollector};
 use crate::impl_rule;
 use fluentai_core::ast::{Graph, Node, NodeId};
-use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Check for unused variables
 #[derive(Default)]

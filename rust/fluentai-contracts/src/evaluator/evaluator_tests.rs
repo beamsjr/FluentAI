@@ -21,24 +21,24 @@ impl TestGraphBuilder {
     }
     
     fn add_literal(&mut self, lit: Literal) -> NodeId {
-        self.graph.add_node(Node::Literal(lit))
+        self.graph.add_node(Node::Literal(lit)).expect("Failed to add literal node")
     }
     
     fn add_variable(&mut self, name: &str) -> NodeId {
-        self.graph.add_node(Node::Variable { name: name.to_string() })
+        self.graph.add_node(Node::Variable { name: name.to_string() }).expect("Failed to add variable node")
     }
     
     fn add_application(&mut self, func_name: &str, args: Vec<NodeId>) -> NodeId {
         let func_id = self.add_variable(func_name);
-        self.graph.add_node(Node::Application { function: func_id, args })
+        self.graph.add_node(Node::Application { function: func_id, args }).expect("Failed to add application node")
     }
     
     fn add_if(&mut self, condition: NodeId, then_branch: NodeId, else_branch: NodeId) -> NodeId {
-        self.graph.add_node(Node::If { condition, then_branch, else_branch })
+        self.graph.add_node(Node::If { condition, then_branch, else_branch }).expect("Failed to add if node")
     }
     
     fn add_list(&mut self, elements: Vec<NodeId>) -> NodeId {
-        self.graph.add_node(Node::List(elements))
+        self.graph.add_node(Node::List(elements)).expect("Failed to add list node")
     }
     
     fn build(self) -> Graph {
@@ -877,7 +877,7 @@ fn test_unsupported_node_type() {
     let node = graph.add_node(Node::Lambda {
         params: vec!["x".to_string()],
         body: NodeId::new(1).unwrap(),
-    });
+    }).expect("Failed to add lambda node");
     
     let evaluator = ConditionEvaluator::new(&graph);
     let result = evaluator.evaluate(node);

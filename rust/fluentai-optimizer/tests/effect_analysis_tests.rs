@@ -165,7 +165,7 @@ fn test_effect_node_creation() {
         args: vec![],
     };
     
-    let effect_id = graph.add_node(effect_node);
+    let effect_id = graph.add_node(effect_node).expect("Failed to add node");
     graph.root_id = Some(effect_id);
     
     let analysis = EffectAnalysis::analyze(&graph);
@@ -185,16 +185,16 @@ fn test_multiple_effect_types() {
         effect_type: EffectType::IO,
         operation: "print".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add node");
     
     let state_effect = graph.add_node(Node::Effect {
         effect_type: EffectType::State,
         operation: "set".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add node");
     
     // Combine them in a list
-    let list_node = graph.add_node(Node::List(vec![io_effect, state_effect]));
+    let list_node = graph.add_node(Node::List(vec![io_effect, state_effect])).expect("Failed to add node");
     graph.root_id = Some(list_node);
     
     let analysis = EffectAnalysis::analyze(&graph);
@@ -320,10 +320,10 @@ fn test_async_effect_detection() {
     // Test async effect detection
     let mut graph = Graph::new();
     
-    let body_node = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let body_node = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     let async_node = graph.add_node(Node::Async {
         body: body_node,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(async_node);
     
@@ -340,8 +340,8 @@ fn test_concurrent_effect_detection() {
     // Test concurrent effect detection
     let mut graph = Graph::new();
     
-    let value = graph.add_node(Node::Literal(Literal::Integer(42)));
-    let spawn_node = graph.add_node(Node::Spawn { expr: value });
+    let value = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
+    let spawn_node = graph.add_node(Node::Spawn { expr: value }).expect("Failed to add node");
     
     graph.root_id = Some(spawn_node);
     

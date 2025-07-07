@@ -1,6 +1,6 @@
 //! Configuration for the linter
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use anyhow::Result;

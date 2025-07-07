@@ -16,7 +16,7 @@ pub struct Watcher {
     watch_fn: WatchCallback,
     dependencies: Arc<Mutex<Vec<String>>>,
     immediate: bool,
-    deep: bool,
+    _deep: bool,
 }
 
 impl Watcher {
@@ -30,7 +30,7 @@ impl Watcher {
             watch_fn: Arc::new(watch_fn),
             dependencies: Arc::new(Mutex::new(Vec::new())),
             immediate,
-            deep,
+            _deep: deep,
         }
     }
     

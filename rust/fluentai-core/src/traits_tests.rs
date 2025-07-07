@@ -252,7 +252,7 @@ mod tests {
         
         // Add a module
         let mut graph = Graph::new();
-        graph.add_node(Node::Literal(Literal::Integer(42)));
+        graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
         loader.add_module("test", graph);
         
         // Test module exists
@@ -381,7 +381,7 @@ mod tests {
     fn test_type_checker() {
         let checker = TestTypeChecker;
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
         
         // Type checking should succeed
         assert!(checker.check(&graph).is_ok());

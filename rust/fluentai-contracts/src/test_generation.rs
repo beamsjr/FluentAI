@@ -3,8 +3,8 @@
 //! This module generates concrete test cases from symbolic execution paths
 //! that can be used for property-based testing and coverage analysis.
 
-use crate::symbolic_execution::{SymbolicValue, SymbolicState, PathConstraint, SymbolicType};
-use crate::errors::{ContractError, ContractResult};
+use crate::symbolic_execution::{SymbolicValue, SymbolicState, PathConstraint};
+use crate::errors::ContractResult;
 use fluentai_core::ast::Literal;
 use std::collections::HashMap;
 
@@ -217,7 +217,7 @@ impl TestGenerator {
     fn analyze_constraints(
         &self,
         state: &SymbolicState,
-        param_names: &[String],
+        _param_names: &[String],
     ) -> ContractResult<HashMap<String, ParameterInfo>> {
         let mut param_info = HashMap::new();
         
@@ -341,7 +341,7 @@ fn format_fluentai_tests(test_cases: &[TestCase], function_name: &str) -> String
         
         // Format the function call
         output.push_str(&format!("({}", function_name));
-        for (param, value) in &test.inputs {
+        for (_param, value) in &test.inputs {
             output.push_str(&format!(" {}", format_literal(value)));
         }
         output.push_str(")\n");

@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_match_any_pattern() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let result = matcher.match_pattern(&Pattern::Any, node_id);
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn test_match_literal_pattern_success() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let pattern = Pattern::Literal(Literal::Integer(42));
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_match_literal_pattern_failure() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let pattern = Pattern::Literal(Literal::Integer(99));
@@ -213,7 +213,7 @@ mod tests {
     #[test]
     fn test_match_bind_pattern() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::String("hello".to_string())));
+        let node_id = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let pattern = Pattern::Bind("x".to_string());
@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn test_match_variable_node_pattern() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Variable { name: "foo".to_string() });
+        let node_id = graph.add_node(Node::Variable { name: "foo".to_string() }).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let pattern = Pattern::NodeType(NodePattern::Variable { 
@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn test_match_or_pattern() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(2)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let pattern = Pattern::Or(vec![
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn test_match_and_pattern() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let pattern = Pattern::And(vec![
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn test_match_not_pattern() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         let pattern = Pattern::Not(Box::new(Pattern::Literal(Literal::Integer(99))));
@@ -319,7 +319,7 @@ mod tests {
     #[test]
     fn test_match_ref_pattern() {
         let mut graph = Graph::new();
-        let node_id = graph.add_node(Node::Literal(Literal::Integer(42)));
+        let node_id = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         
@@ -336,8 +336,8 @@ mod tests {
     #[test]
     fn test_match_ref_pattern_failure() {
         let mut graph = Graph::new();
-        let node_id1 = graph.add_node(Node::Literal(Literal::Integer(42)));
-        let node_id2 = graph.add_node(Node::Literal(Literal::Integer(99)));
+        let node_id1 = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
+        let node_id2 = graph.add_node(Node::Literal(Literal::Integer(99))).expect("Failed to add node");
         
         let mut matcher = PatternMatcher::new(&graph);
         

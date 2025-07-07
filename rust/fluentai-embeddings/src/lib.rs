@@ -225,7 +225,7 @@ mod tests {
         // Create a simple graph
         let mut graph = Graph::new();
         let node = Node::Literal(fluentai_core::ast::Literal::Integer(42));
-        let node_id = graph.add_node(node);
+        let node_id = graph.add_node(node).expect("Failed to add node");
         
         // Generate embedding
         let embedding_id = service.generate_embedding(&graph, node_id).await.unwrap();

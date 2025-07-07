@@ -13,13 +13,13 @@ fn test_hoist_pure_computations() {
     //       (z (* 3 4)))     ; pure
     //   (+ x y z))
     
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let three = graph.add_node(Node::Literal(Literal::Integer(3)));
-    let four = graph.add_node(Node::Literal(Literal::Integer(4)));
+    let one = graph.add_node(Node::Literal(Literal::Integer(1)))?;
+    let two = graph.add_node(Node::Literal(Literal::Integer(2)))?;
+    let three = graph.add_node(Node::Literal(Literal::Integer(3)))?;
+    let four = graph.add_node(Node::Literal(Literal::Integer(4)))?;
     
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
-    let times = graph.add_node(Node::Variable { name: "*".to_string() });
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() })?;
+    let times = graph.add_node(Node::Variable { name: "*".to_string() })?;
     
     // Pure computation: (+ 1 2)
     let x_value = graph.add_node(Node::Application {

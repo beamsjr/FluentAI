@@ -25,6 +25,9 @@ pub enum Error {
     #[error("Contract violation: {0}")]
     ContractViolation(String),
 
+    #[error("Graph node ID overflow: maximum number of nodes reached")]
+    GraphNodeIdOverflow,
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

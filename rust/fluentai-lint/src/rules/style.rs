@@ -1,6 +1,6 @@
 //! Style-related lint rules
 
-use crate::diagnostic::{LintDiagnostic, Location};
+use crate::diagnostic::LintDiagnostic;
 use crate::visitor::Visitor;
 use crate::rules::{Rule, RuleCategory, DiagnosticCollector};
 use crate::impl_rule;
@@ -32,7 +32,7 @@ impl NamingConventions {
 }
 
 impl Visitor for NamingVisitor {
-    fn visit_node(&mut self, graph: &Graph, node_id: NodeId, node: &Node) {
+    fn visit_node(&mut self, graph: &Graph, _node_id: NodeId, node: &Node) {
         match node {
             Node::Variable { name } => {
                 if !is_valid_name(name, self.allow_snake_case, self.allow_kebab_case) {
@@ -133,14 +133,14 @@ impl LineLength {
     fn visitor(&self) -> LineLengthVisitor {
         LineLengthVisitor {
             collector: DiagnosticCollector::new("line-length"),
-            max_length: if self.max_length == 0 { 100 } else { self.max_length },
+            _max_length: if self.max_length == 0 { 100 } else { self.max_length },
         }
     }
 }
 
 struct LineLengthVisitor {
     collector: DiagnosticCollector,
-    max_length: usize,
+    _max_length: usize,
 }
 
 impl Visitor for LineLengthVisitor {

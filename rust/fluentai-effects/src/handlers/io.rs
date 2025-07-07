@@ -1,6 +1,6 @@
 //! IO effect handler
 
-use crate::{EffectHandler, EffectResult};
+use crate::{EffectHandler, EffectResult, format_effect_error};
 use async_trait::async_trait;
 use fluentai_core::{ast::EffectType, value::Value, error::Error};
 use std::io::{self, Write};
@@ -46,7 +46,7 @@ impl EffectHandler for IOHandler {
                         .map(Value::String)
                         .map_err(|e| Error::Runtime(format!("Failed to read file: {}", e)))
                 } else {
-                    Err(Error::Runtime("read_file requires a string path".to_string()))
+                    Err(Error::Runtime(format_effect_error("IO", operation, "requires a string path")))
                 }
             }
             "write_file" => {
@@ -60,13 +60,13 @@ impl EffectHandler for IOHandler {
                             .map(|_| Value::Nil)
                             .map_err(|e| Error::Runtime(format!("Failed to write file: {}", e)))
                     } else {
-                        Err(Error::Runtime("write_file requires path and content".to_string()))
+                        Err(Error::Runtime(format_effect_error("IO", operation, "requires path and content")))
                     }
                 } else {
-                    Err(Error::Runtime("write_file requires 2 arguments".to_string()))
+                    Err(Error::Runtime(format_effect_error("IO", operation, "requires 2 arguments")))
                 }
             }
-            _ => Err(Error::Runtime(format!("Unknown IO operation: {}", operation))),
+            _ => Err(Error::Runtime(format_effect_error("IO", operation, "operation not supported"))),
         }
     }
 }

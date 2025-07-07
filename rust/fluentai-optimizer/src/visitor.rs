@@ -1,7 +1,6 @@
 //! Visitor pattern infrastructure for AST traversal
 
 use fluentai_core::ast::{Graph, Node, NodeId, Literal, Pattern, EffectType};
-use anyhow::Result;
 
 /// Trait for visiting AST nodes
 pub trait NodeVisitor {
@@ -326,13 +325,13 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a simple AST: (+ 1 2)
-        let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-        let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+        let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+        let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
         let app = graph.add_node(Node::Application {
             function: plus,
             args: vec![one, two],
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(app);
 
         let mut counter = NodeCounter::new();
@@ -348,11 +347,11 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (lambda (x) x)
-        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() });
+        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
         let lambda = graph.add_node(Node::Lambda {
             params: vec!["x".to_string()],
             body: x_ref,
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(lambda);
 
         let mut counter = NodeCounter::new();
@@ -367,12 +366,12 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (let ((x 5)) x)
-        let five = graph.add_node(Node::Literal(Literal::Integer(5)));
-        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() });
+        let five = graph.add_node(Node::Literal(Literal::Integer(5))).expect("Failed to add node");
+        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
         let let_node = graph.add_node(Node::Let {
             bindings: vec![("x".to_string(), five)],
             body: x_ref,
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(let_node);
 
         let mut counter = NodeCounter::new();
@@ -388,14 +387,14 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (if #t 1 2)
-        let cond = graph.add_node(Node::Literal(Literal::Boolean(true)));
-        let then_val = graph.add_node(Node::Literal(Literal::Integer(1)));
-        let else_val = graph.add_node(Node::Literal(Literal::Integer(2)));
+        let cond = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
+        let then_val = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+        let else_val = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
         let if_node = graph.add_node(Node::If {
             condition: cond,
             then_branch: then_val,
             else_branch: else_val,
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(if_node);
 
         let mut counter = NodeCounter::new();
@@ -410,10 +409,10 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (list 1 2 3)
-        let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-        let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-        let three = graph.add_node(Node::Literal(Literal::Integer(3)));
-        let list = graph.add_node(Node::List(vec![one, two, three]));
+        let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+        let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+        let three = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
+        let list = graph.add_node(Node::List(vec![one, two, three])).expect("Failed to add node");
         graph.root_id = Some(list);
 
         let mut counter = NodeCounter::new();
@@ -443,7 +442,7 @@ mod tests {
             effect_type: EffectType::IO,
             operation: "print".to_string(),
             args: vec![],
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(effect);
 
         let mut counter = NodeCounter::new();
@@ -457,13 +456,13 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a deep structure to test the guarded visitor
-        let mut current = graph.add_node(Node::Literal(Literal::Integer(0)));
+        let mut current = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
         for i in 1..10 {
-            let body = graph.add_node(Node::Literal(Literal::Integer(i)));
+            let body = graph.add_node(Node::Literal(Literal::Integer(i))).expect("Failed to add node");
             current = graph.add_node(Node::Let {
                 bindings: vec![("x".to_string(), current)],
                 body,
-            });
+            }).expect("Failed to add node");
         }
         
         let guarded = GuardedVisitor::new(NodeCounter::new(), 5);
@@ -498,12 +497,12 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a simple structure
-        let x = graph.add_node(Node::Variable { name: "x".to_string() });
-        let y = graph.add_node(Node::Variable { name: "y".to_string() });
+        let x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+        let y = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
         let app = graph.add_node(Node::Application {
             function: x,
             args: vec![y],
-        });
+        }).expect("Failed to add node");
         
         let mut collector = CollectingVisitor::new();
         collector.visit_node(&graph, app);
@@ -520,9 +519,9 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (match x ((0) 'zero) ((1) 'one))
-        let x = graph.add_node(Node::Variable { name: "x".to_string() });
-        let zero_lit = graph.add_node(Node::Literal(Literal::String("zero".to_string())));
-        let one_lit = graph.add_node(Node::Literal(Literal::String("one".to_string())));
+        let x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+        let zero_lit = graph.add_node(Node::Literal(Literal::String("zero".to_string()))).expect("Failed to add node");
+        let one_lit = graph.add_node(Node::Literal(Literal::String("one".to_string()))).expect("Failed to add node");
         
         let match_node = graph.add_node(Node::Match {
             expr: x,
@@ -530,7 +529,7 @@ mod tests {
                 (Pattern::Literal(Literal::Integer(0)), zero_lit),
                 (Pattern::Literal(Literal::Integer(1)), one_lit),
             ],
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(match_node);
 
         let mut counter = NodeCounter::new();
@@ -546,21 +545,21 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (letrec ((fact (lambda (n) n))) (fact 5))
-        let n = graph.add_node(Node::Variable { name: "n".to_string() });
+        let n = graph.add_node(Node::Variable { name: "n".to_string() }).expect("Failed to add node");
         let lambda = graph.add_node(Node::Lambda {
             params: vec!["n".to_string()],
             body: n,
-        });
-        let five = graph.add_node(Node::Literal(Literal::Integer(5)));
-        let fact_ref = graph.add_node(Node::Variable { name: "fact".to_string() });
+        }).expect("Failed to add node");
+        let five = graph.add_node(Node::Literal(Literal::Integer(5))).expect("Failed to add node");
+        let fact_ref = graph.add_node(Node::Variable { name: "fact".to_string() }).expect("Failed to add node");
         let app = graph.add_node(Node::Application {
             function: fact_ref,
             args: vec![five],
-        });
+        }).expect("Failed to add node");
         let letrec = graph.add_node(Node::Letrec {
             bindings: vec![("fact".to_string(), lambda)],
             body: app,
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(letrec);
 
         let mut counter = NodeCounter::new();
@@ -578,7 +577,7 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create a node type that doesn't have a specific visitor method
-        let channel = graph.add_node(Node::Channel);
+        let channel = graph.add_node(Node::Channel).expect("Failed to add node");
         graph.root_id = Some(channel);
 
         let mut counter = NodeCounter::new();

@@ -67,7 +67,7 @@ pub trait IOHandler: Send + Sync {
     fn print_line(&self, content: &str) -> Result<()>;
 }
 
-/// Thread-local I/O effect context
+// Thread-local I/O effect context
 thread_local! {
     static IO_CONTEXT: RefCell<IOEffectContext> = RefCell::new(IOEffectContext::default());
 }

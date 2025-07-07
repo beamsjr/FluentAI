@@ -3,7 +3,6 @@
 //! Ghost state allows contracts to refer to specification-only variables and
 //! expressions that don't affect the runtime behavior but are useful for verification.
 
-use std::collections::HashMap;
 use fluentai_core::ast::{Graph, Node, NodeId};
 use crate::{
     contract::{Contract, ContractCondition},
@@ -279,21 +278,21 @@ impl<'a> GhostStateBuilder<'a> {
     pub fn old(&mut self, expr: NodeId) -> NodeId {
         let old_fn = self.graph.add_node(Node::Variable { 
             name: "old".to_string() 
-        });
+        }).expect("Failed to create old function node");
         self.graph.add_node(Node::Application {
             function: old_fn,
             args: vec![expr],
-        })
+        }).expect("Failed to create old application node")
     }
     
     /// Build a ghost variable declaration
     pub fn ghost_var(&mut self, name: &str, init: Option<NodeId>) -> NodeId {
         let ghost_fn = self.graph.add_node(Node::Variable { 
             name: "ghost".to_string() 
-        });
+        }).expect("Failed to create ghost function node");
         let var_node = self.graph.add_node(Node::Variable { 
             name: name.to_string() 
-        });
+        }).expect("Failed to create ghost variable node");
         
         let mut args = vec![var_node];
         if let Some(init_expr) = init {
@@ -303,37 +302,37 @@ impl<'a> GhostStateBuilder<'a> {
         self.graph.add_node(Node::Application {
             function: ghost_fn,
             args,
-        })
+        }).expect("Failed to create ghost application node")
     }
     
     /// Build a history tracking expression
     pub fn history(&mut self, tracked_expr: NodeId, var_name: &str) -> NodeId {
         let history_fn = self.graph.add_node(Node::Variable { 
             name: "history".to_string() 
-        });
+        }).expect("Failed to create history function node");
         let var_node = self.graph.add_node(Node::Variable { 
             name: var_name.to_string() 
-        });
+        }).expect("Failed to create history variable node");
         
         self.graph.add_node(Node::Application {
             function: history_fn,
             args: vec![tracked_expr, var_node],
-        })
+        }).expect("Failed to create history application node")
     }
     
     /// Build a model field access
     pub fn model_field(&mut self, object: NodeId, field: &str) -> NodeId {
         let field_node = self.graph.add_node(Node::Variable { 
             name: format!("model_{}", field) 
-        });
+        }).expect("Failed to create model field node");
         let dot = self.graph.add_node(Node::Variable { 
             name: ".".to_string() 
-        });
+        }).expect("Failed to create dot operator node");
         
         self.graph.add_node(Node::Application {
             function: dot,
             args: vec![object, field_node],
-        })
+        }).expect("Failed to create model field application")
     }
 }
 
@@ -393,7 +392,7 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create x node first
-        let x = graph.add_node(Node::Variable { name: "x".to_string() });
+        let x = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
         
         // Then create builder and build old(x)
         let mut builder = GhostStateBuilder::new(&mut graph);

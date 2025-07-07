@@ -28,7 +28,7 @@ enum ParseState {
 struct ParseFrame {
     state: ParseState,
     /// Position in source where this frame started
-    start_pos: usize,
+    _start_pos: usize,
 }
 
 /// Iterative parser that uses an explicit stack
@@ -83,7 +83,7 @@ impl<'a> IterativeParser<'a> {
         self.stack.clear();
         self.stack.push(ParseFrame {
             state: ParseState::Expression,
-            start_pos: self.lexer.span().start,
+            _start_pos: self.lexer.span().start,
         });
         
         // Process until we have a complete result
@@ -133,10 +133,10 @@ impl<'a> IterativeParser<'a> {
                 if matches!(self.lexer.peek_token(), Some(Token::RParen)) {
                     self.lexer.next_token();
                     let node = Node::List(vec![]);
-                    let node_id = self.graph.add_node(node);
+                    let node_id = self.graph.add_node(node)?;
                     self.stack.push(ParseFrame {
                         state: ParseState::Complete(node_id),
-                        start_pos: 0,
+                        _start_pos: 0,
                     });
                     return Ok(());
                 }
@@ -150,7 +150,7 @@ impl<'a> IterativeParser<'a> {
                             // Regular list/application
                             self.stack.push(ParseFrame {
                                 state: ParseState::List { elements: Vec::new() },
-                                start_pos: self.lexer.span().start,
+                                _start_pos: self.lexer.span().start,
                             });
                         }
                     }
@@ -158,7 +158,7 @@ impl<'a> IterativeParser<'a> {
                     // Regular list
                     self.stack.push(ParseFrame {
                         state: ParseState::List { elements: Vec::new() },
-                        start_pos: self.lexer.span().start,
+                        _start_pos: self.lexer.span().start,
                     });
                 }
             }
@@ -166,53 +166,53 @@ impl<'a> IterativeParser<'a> {
                 self.lexer.next_token(); // consume [
                 self.stack.push(ParseFrame {
                     state: ParseState::ListLiteral { elements: Vec::new() },
-                    start_pos: self.lexer.span().start,
+                    _start_pos: self.lexer.span().start,
                 });
             }
             Some(Token::Integer(n)) => {
                 self.lexer.next_token();
                 let node = Node::Literal(Literal::Integer(n));
-                let node_id = self.graph.add_node(node);
+                let node_id = self.graph.add_node(node)?;
                 self.stack.push(ParseFrame {
                     state: ParseState::Complete(node_id),
-                    start_pos: 0,
+                    _start_pos: 0,
                 });
             }
             Some(Token::Float(f)) => {
                 self.lexer.next_token();
                 let node = Node::Literal(Literal::Float(f));
-                let node_id = self.graph.add_node(node);
+                let node_id = self.graph.add_node(node)?;
                 self.stack.push(ParseFrame {
                     state: ParseState::Complete(node_id),
-                    start_pos: 0,
+                    _start_pos: 0,
                 });
             }
             Some(Token::String(s)) => {
                 self.lexer.next_token();
                 let node = Node::Literal(Literal::String(s));
-                let node_id = self.graph.add_node(node);
+                let node_id = self.graph.add_node(node)?;
                 self.stack.push(ParseFrame {
                     state: ParseState::Complete(node_id),
-                    start_pos: 0,
+                    _start_pos: 0,
                 });
             }
             Some(Token::Boolean(b)) => {
                 self.lexer.next_token();
                 let node = Node::Literal(Literal::Boolean(b));
-                let node_id = self.graph.add_node(node);
+                let node_id = self.graph.add_node(node)?;
                 self.stack.push(ParseFrame {
                     state: ParseState::Complete(node_id),
-                    start_pos: 0,
+                    _start_pos: 0,
                 });
             }
             Some(Token::Symbol(name)) => {
                 let name = name.to_string();
                 self.lexer.next_token();
                 let node = Node::Variable { name };
-                let node_id = self.graph.add_node(node);
+                let node_id = self.graph.add_node(node)?;
                 self.stack.push(ParseFrame {
                     state: ParseState::Complete(node_id),
-                    start_pos: 0,
+                    _start_pos: 0,
                 });
             }
             Some(Token::QualifiedSymbol(qualified)) => {
@@ -223,10 +223,10 @@ impl<'a> IterativeParser<'a> {
                         module_name: parts[0].to_string(),
                         variable_name: parts[1].to_string(),
                     };
-                    let node_id = self.graph.add_node(node);
+                    let node_id = self.graph.add_node(node)?;
                     self.stack.push(ParseFrame {
                         state: ParseState::Complete(node_id),
-                        start_pos: 0,
+                        _start_pos: 0,
                     });
                 } else {
                     return Err(ParseError::InvalidSyntax("Invalid qualified symbol".to_string()));
@@ -247,31 +247,31 @@ impl<'a> IterativeParser<'a> {
             if elements.is_empty() {
                 // Empty list
                 let node = Node::List(vec![]);
-                let node_id = self.graph.add_node(node);
+                let node_id = self.graph.add_node(node)?;
                 self.stack.push(ParseFrame {
                     state: ParseState::Complete(node_id),
-                    start_pos: 0,
+                    _start_pos: 0,
                 });
             } else {
                 // Convert to application
                 let function = elements[0];
                 let args = elements[1..].to_vec();
                 let node = Node::Application { function, args };
-                let node_id = self.graph.add_node(node);
+                let node_id = self.graph.add_node(node)?;
                 self.stack.push(ParseFrame {
                     state: ParseState::Complete(node_id),
-                    start_pos: 0,
+                    _start_pos: 0,
                 });
             }
         } else {
             // Need to parse next element
             self.stack.push(ParseFrame {
                 state: ParseState::List { elements: elements.clone() },
-                start_pos: self.lexer.span().start,
+                _start_pos: self.lexer.span().start,
             });
             self.stack.push(ParseFrame {
                 state: ParseState::Expression,
-                start_pos: self.lexer.span().start,
+                _start_pos: self.lexer.span().start,
             });
         }
         Ok(())
@@ -287,10 +287,10 @@ impl<'a> IterativeParser<'a> {
                 function, 
                 args: args.clone() 
             };
-            let node_id = self.graph.add_node(node);
+            let node_id = self.graph.add_node(node)?;
             self.stack.push(ParseFrame {
                 state: ParseState::Complete(node_id),
-                start_pos: 0,
+                _start_pos: 0,
             });
         } else {
             // Need to parse next argument
@@ -299,11 +299,11 @@ impl<'a> IterativeParser<'a> {
                     function, 
                     args: args.clone() 
                 },
-                start_pos: self.lexer.span().start,
+                _start_pos: self.lexer.span().start,
             });
             self.stack.push(ParseFrame {
                 state: ParseState::Expression,
-                start_pos: self.lexer.span().start,
+                _start_pos: self.lexer.span().start,
             });
         }
         Ok(())
@@ -317,33 +317,33 @@ impl<'a> IterativeParser<'a> {
             
             // Build list using cons operations
             let nil = Node::List(vec![]);
-            let mut result = self.graph.add_node(nil);
+            let mut result = self.graph.add_node(nil)?;
             
             for &elem in elements.iter().rev() {
                 // Create cons application
                 let cons_node = Node::Variable { name: "cons".to_string() };
-                let cons_id = self.graph.add_node(cons_node);
+                let cons_id = self.graph.add_node(cons_node)?;
                 
                 let app = Node::Application {
                     function: cons_id,
                     args: vec![elem, result],
                 };
-                result = self.graph.add_node(app);
+                result = self.graph.add_node(app)?;
             }
             
             self.stack.push(ParseFrame {
                 state: ParseState::Complete(result),
-                start_pos: 0,
+                _start_pos: 0,
             });
         } else {
             // Need to parse next element
             self.stack.push(ParseFrame {
                 state: ParseState::ListLiteral { elements: elements.clone() },
-                start_pos: self.lexer.span().start,
+                _start_pos: self.lexer.span().start,
             });
             self.stack.push(ParseFrame {
                 state: ParseState::Expression,
-                start_pos: self.lexer.span().start,
+                _start_pos: self.lexer.span().start,
             });
         }
         Ok(())

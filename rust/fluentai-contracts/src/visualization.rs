@@ -5,7 +5,7 @@
 
 use crate::symbolic_execution::{SymbolicValue, SymbolicState, PathConstraint};
 use crate::errors::{ContractError, ContractResult};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Write;
 
 /// A node in the symbolic execution tree

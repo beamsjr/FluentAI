@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet;
 /// Trait for visiting AST nodes
 pub trait Visitor {
     /// Visit a node
-    fn visit_node(&mut self, graph: &Graph, node_id: NodeId, node: &Node) {
+    fn visit_node(&mut self, graph: &Graph, _node_id: NodeId, node: &Node) {
         // Default implementation visits children
         match node {
             Node::Lambda { body, .. } => {

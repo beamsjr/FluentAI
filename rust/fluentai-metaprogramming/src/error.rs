@@ -38,6 +38,9 @@ pub enum MetaprogrammingError {
     #[error("Parse error: {0}")]
     ParseError(String),
     
+    #[error("Core error: {0}")]
+    CoreError(#[from] fluentai_core::Error),
+    
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
