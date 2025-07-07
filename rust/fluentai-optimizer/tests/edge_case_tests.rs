@@ -237,13 +237,13 @@ fn test_optimization_with_invalid_node_ids() {
     let mut graph = Graph::new();
     
     // Add nodes with gaps
-    let n1 = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let n2 = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let add = graph.add_node(Node::Variable { name: "+".to_string() });
+    let n1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let n2 = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let add = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let app = graph.add_node(Node::Application {
         function: add,
         args: vec![n1, n2],
-    });
+    }).expect("Failed to add node");
     
     // Remove a node to create a gap
     graph.nodes.remove(&n1);
@@ -252,7 +252,7 @@ fn test_optimization_with_invalid_node_ids() {
     let invalid_app = graph.add_node(Node::Application {
         function: add,
         args: vec![n1, n2], // n1 no longer exists!
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(invalid_app);
     

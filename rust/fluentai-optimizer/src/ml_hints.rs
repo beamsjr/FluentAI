@@ -663,11 +663,11 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (lambda (x) x)
-        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() });
+        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
         let lambda = graph.add_node(Node::Lambda {
             params: vec!["x".to_string()],
             body: x_ref,
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(lambda);
         
         let features = extractor.extract_features(&graph);
@@ -681,13 +681,13 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (cons 1 '())
-        let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-        let nil = graph.add_node(Node::List(vec![]));
-        let cons = graph.add_node(Node::Variable { name: "cons".to_string() });
+        let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+        let nil = graph.add_node(Node::List(vec![])).expect("Failed to add node");
+        let cons = graph.add_node(Node::Variable { name: "cons".to_string() }).expect("Failed to add node");
         let app = graph.add_node(Node::Application {
             function: cons,
             args: vec![one, nil],
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(app);
         
         let features = extractor.extract_features(&graph);
@@ -702,13 +702,13 @@ mod tests {
         let mut graph = Graph::new();
         
         // Create: (map f list)
-        let f = graph.add_node(Node::Variable { name: "f".to_string() });
-        let list = graph.add_node(Node::Variable { name: "list".to_string() });
-        let map_fn = graph.add_node(Node::Variable { name: "map".to_string() });
+        let f = graph.add_node(Node::Variable { name: "f".to_string() }).expect("Failed to add node");
+        let list = graph.add_node(Node::Variable { name: "list".to_string() }).expect("Failed to add node");
+        let map_fn = graph.add_node(Node::Variable { name: "map".to_string() }).expect("Failed to add node");
         let app = graph.add_node(Node::Application {
             function: map_fn,
             args: vec![f, list],
-        });
+        }).expect("Failed to add node");
         graph.root_id = Some(app);
         
         let features = extractor.extract_features(&graph);
@@ -724,7 +724,7 @@ mod tests {
         // Create a function with enough operations to trigger inlining hint
         let mut nodes = vec![];
         for i in 0..5 {
-            nodes.push(graph.add_node(Node::Literal(Literal::Integer(i))));
+            nodes.push(graph.add_node(Node::Literal(Literal::Integer(i))).expect("Failed to add node"));
         }
         
         // Create lambda body with multiple operations

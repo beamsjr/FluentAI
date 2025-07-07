@@ -18,15 +18,15 @@ fn main() {
     // We'll insert them in a specific order to ensure predictable IDs
     
     // Node 1: Integer literal 42
-    let lit_42 = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let lit_42 = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     println!("  - Created literal 42 with ID: {}", lit_42.0.get());
     
     // Node 2: Variable "x" 
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     println!("  - Created variable 'x' with ID: {}", x_var.0.get());
     
     // Node 3: Integer literal 1
-    let lit_1 = graph.add_node(Node::Literal(Literal::Integer(1)));
+    let lit_1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     println!("  - Created literal 1 with ID: {}", lit_1.0.get());
     
     // Node 4: Match expression that references x_var in its branch
@@ -36,7 +36,7 @@ fn main() {
             (Pattern::Literal(Literal::Integer(42)), x_var),  // Branch references x_var
             (Pattern::Wildcard, lit_1),
         ],
-    });
+    }).expect("Failed to add node");
     println!("  - Created match node with ID: {}", match_node.0.get());
     
     // Step 2: Set only the match node as root (x_var is not directly reachable)

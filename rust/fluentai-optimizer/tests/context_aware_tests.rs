@@ -155,7 +155,7 @@ fn test_should_unroll_with_hint() {
     // Add unroll hint to loop
     if let Some(root) = graph.root_id {
         let hints = vec![PerformanceHint {
-            hint_type: PerformanceHintType::ShouldUnroll,
+            hint_type: PerformanceHintType::ShouldUnroll { factor: None },
             confidence: 0.75,
             context: Some("Fixed iteration count".to_string()),
         }];
@@ -178,7 +178,7 @@ fn test_can_vectorize_map_operation() {
             if let Some(Node::Variable { name }) = graph.get_node(*function) {
                 if name == "map" {
                     let hints = vec![PerformanceHint {
-                        hint_type: PerformanceHintType::CanVectorize,
+                        hint_type: PerformanceHintType::CanVectorize { simd_width: None },
                         confidence: 0.9,
                         context: Some("SIMD-compatible operation".to_string()),
                     }];
@@ -238,7 +238,7 @@ fn test_filter_vectorization() {
         if let Some(context) = optimized.get_context_memory(*id) {
             // Check for vectorize hint
             if context.performance_hints.iter()
-                .any(|h| matches!(h.hint_type, PerformanceHintType::CanVectorize)) {
+                .any(|h| matches!(h.hint_type, PerformanceHintType::CanVectorize { .. })) {
                 found_vectorization = true;
                 break;
             }
@@ -375,12 +375,12 @@ fn test_multiple_hints_same_node() {
                 if name == "map" {
                     let hints = vec![
                         PerformanceHint {
-                            hint_type: PerformanceHintType::CanVectorize,
+                            hint_type: PerformanceHintType::CanVectorize { simd_width: None },
                             confidence: 0.9,
                             context: Some("SIMD operation".to_string()),
                         },
                         PerformanceHint {
-                            hint_type: PerformanceHintType::ShouldUnroll,
+                            hint_type: PerformanceHintType::ShouldUnroll { factor: None },
                             confidence: 0.7,
                             context: Some("Known bounds".to_string()),
                         },

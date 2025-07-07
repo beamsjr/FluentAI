@@ -13,47 +13,47 @@ fn test_hoist_pure_computations() {
     //       (z (* 3 4)))     ; pure
     //   (+ x y z))
     
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)))?;
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)))?;
-    let three = graph.add_node(Node::Literal(Literal::Integer(3)))?;
-    let four = graph.add_node(Node::Literal(Literal::Integer(4)))?;
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let three = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
+    let four = graph.add_node(Node::Literal(Literal::Integer(4))).expect("Failed to add node");
     
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() })?;
-    let times = graph.add_node(Node::Variable { name: "*".to_string() })?;
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+    let times = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
     
     // Pure computation: (+ 1 2)
     let x_value = graph.add_node(Node::Application {
         function: plus,
         args: vec![one, two],
-    });
+    }).expect("Failed to add node");
     
     // Effectful computation: (io-read)
     let y_value = graph.add_node(Node::Effect {
         effect_type: EffectType::IO,
         operation: "read".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add node");
     
     // Pure computation: (* 3 4)
     let z_value = graph.add_node(Node::Application {
         function: times,
         args: vec![three, four],
-    });
+    }).expect("Failed to add node");
     
     // Variables
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y_var = graph.add_node(Node::Variable { name: "y".to_string() });
-    let z_var = graph.add_node(Node::Variable { name: "z".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y_var = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+    let z_var = graph.add_node(Node::Variable { name: "z".to_string() }).expect("Failed to add node");
     
     // Body: (+ x y z)
     let body1 = graph.add_node(Node::Application {
         function: plus,
         args: vec![x_var, y_var],
-    });
+    }).expect("Failed to add node");
     let body = graph.add_node(Node::Application {
         function: plus,
         args: vec![body1, z_var],
-    });
+    }).expect("Failed to add node");
     
     // Let expression
     let let_node = graph.add_node(Node::Let {
@@ -63,7 +63,7 @@ fn test_hoist_pure_computations() {
             ("z".to_string(), z_value),
         ],
         body,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(let_node);
     
@@ -86,33 +86,33 @@ fn test_remove_duplicate_pure_expressions() {
     //       (c (+ a b)))
     //   c)
     
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let three = graph.add_node(Node::Literal(Literal::Integer(3)));
-    let times = graph.add_node(Node::Variable { name: "*".to_string() });
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let three = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
+    let times = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     
     // First (* 2 3)
     let a_value = graph.add_node(Node::Application {
         function: times,
         args: vec![two, three],
-    });
+    }).expect("Failed to add node");
     
     // Duplicate (* 2 3)
     let b_value = graph.add_node(Node::Application {
         function: times,
         args: vec![two, three],
-    });
+    }).expect("Failed to add node");
     
-    let a_var = graph.add_node(Node::Variable { name: "a".to_string() });
-    let b_var = graph.add_node(Node::Variable { name: "b".to_string() });
+    let a_var = graph.add_node(Node::Variable { name: "a".to_string() }).expect("Failed to add node");
+    let b_var = graph.add_node(Node::Variable { name: "b".to_string() }).expect("Failed to add node");
     
     // (+ a b)
     let c_value = graph.add_node(Node::Application {
         function: plus,
         args: vec![a_var, b_var],
-    });
+    }).expect("Failed to add node");
     
-    let c_var = graph.add_node(Node::Variable { name: "c".to_string() });
+    let c_var = graph.add_node(Node::Variable { name: "c".to_string() }).expect("Failed to add node");
     
     let let_node = graph.add_node(Node::Let {
         bindings: vec![
@@ -121,7 +121,7 @@ fn test_remove_duplicate_pure_expressions() {
             ("c".to_string(), c_value),
         ],
         body: c_var,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(let_node);
     
@@ -143,22 +143,22 @@ fn test_preserve_effect_ordering() {
     //       (b (io-write "second")))
     //   42)
     
-    let first = graph.add_node(Node::Literal(Literal::String("first".to_string())));
-    let second = graph.add_node(Node::Literal(Literal::String("second".to_string())));
+    let first = graph.add_node(Node::Literal(Literal::String("first".to_string()))).expect("Failed to add node");
+    let second = graph.add_node(Node::Literal(Literal::String("second".to_string()))).expect("Failed to add node");
     
     let a_value = graph.add_node(Node::Effect {
         effect_type: EffectType::IO,
         operation: "write".to_string(),
         args: vec![first],
-    });
+    }).expect("Failed to add node");
     
     let b_value = graph.add_node(Node::Effect {
         effect_type: EffectType::IO,
         operation: "write".to_string(),
         args: vec![second],
-    });
+    }).expect("Failed to add node");
     
-    let result = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let result = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     
     let let_node = graph.add_node(Node::Let {
         bindings: vec![
@@ -166,7 +166,7 @@ fn test_preserve_effect_ordering() {
             ("b".to_string(), b_value),
         ],
         body: result,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(let_node);
     
@@ -197,46 +197,46 @@ fn test_mixed_pure_and_effectful() {
     //   (+ pure1 effect1 pure2 effect2 pure3))
     
     let nums: Vec<_> = (1..=6).map(|i| 
-        graph.add_node(Node::Literal(Literal::Integer(i as i64)))
+        graph.add_node(Node::Literal(Literal::Integer(i as i64))).expect("Failed to add node")
     ).collect();
     
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
-    let times = graph.add_node(Node::Variable { name: "*".to_string() });
-    let minus = graph.add_node(Node::Variable { name: "-".to_string() });
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+    let times = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
+    let minus = graph.add_node(Node::Variable { name: "-".to_string() }).expect("Failed to add node");
     
     // Pure computations
     let pure1_value = graph.add_node(Node::Application {
         function: plus,
         args: vec![nums[0], nums[1]],
-    });
+    }).expect("Failed to add node");
     
     let pure2_value = graph.add_node(Node::Application {
         function: times,
         args: vec![nums[2], nums[3]],
-    });
+    }).expect("Failed to add node");
     
     let pure3_value = graph.add_node(Node::Application {
         function: minus,
         args: vec![nums[4], nums[5]],
-    });
+    }).expect("Failed to add node");
     
     // Effectful computations
     let effect1_value = graph.add_node(Node::Effect {
         effect_type: EffectType::IO,
         operation: "read".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add node");
     
     let effect2_value = graph.add_node(Node::Effect {
         effect_type: EffectType::State,
         operation: "get".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add node");
     
     // Variables
     let vars: Vec<_> = ["pure1", "effect1", "pure2", "effect2", "pure3"]
         .iter()
-        .map(|name| graph.add_node(Node::Variable { name: name.to_string() }))
+        .map(|name| graph.add_node(Node::Variable { name: name.to_string() }).expect("Failed to add node"))
         .collect();
     
     // Body: add all values
@@ -245,7 +245,7 @@ fn test_mixed_pure_and_effectful() {
         body = graph.add_node(Node::Application {
             function: plus,
             args: vec![body, vars[i]],
-        });
+        }).expect("Failed to add node");
     }
     
     let let_node = graph.add_node(Node::Let {
@@ -257,7 +257,7 @@ fn test_mixed_pure_and_effectful() {
             ("pure3".to_string(), pure3_value),
         ],
         body,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(let_node);
     

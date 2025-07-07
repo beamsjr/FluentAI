@@ -32,47 +32,47 @@ fn test_compile_module_declaration() -> Result<()> {
     //          (define sub (lambda (x y) (- x y))))
     
     // Define add function
-    let x_var1 = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y_var1 = graph.add_node(Node::Variable { name: "y".to_string() });
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let x_var1 = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y_var1 = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let add_body = graph.add_node(Node::Application {
         function: plus,
         args: vec![x_var1, y_var1],
-    });
+    }).expect("Failed to add node");
     let add_lambda = graph.add_node(Node::Lambda {
         params: vec!["x".to_string(), "y".to_string()],
         body: add_body,
-    });
+    }).expect("Failed to add node");
     
     // Define sub function
-    let x_var2 = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y_var2 = graph.add_node(Node::Variable { name: "y".to_string() });
-    let minus = graph.add_node(Node::Variable { name: "-".to_string() });
+    let x_var2 = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y_var2 = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+    let minus = graph.add_node(Node::Variable { name: "-".to_string() }).expect("Failed to add node");
     let sub_body = graph.add_node(Node::Application {
         function: minus,
         args: vec![x_var2, y_var2],
-    });
+    }).expect("Failed to add node");
     let sub_lambda = graph.add_node(Node::Lambda {
         params: vec!["x".to_string(), "y".to_string()],
         body: sub_body,
-    });
+    }).expect("Failed to add node");
     
     // Create let bindings for functions
-    let bindings_body = graph.add_node(Node::Literal(Literal::Nil));
+    let bindings_body = graph.add_node(Node::Literal(Literal::Nil)).expect("Failed to add node");
     let let_node = graph.add_node(Node::Let {
         bindings: vec![
             ("add".to_string(), add_lambda),
             ("sub".to_string(), sub_lambda),
         ],
         body: bindings_body,
-    });
+    }).expect("Failed to add node");
     
     // Create module
     let module_node = graph.add_node(Node::Module {
         name: "math".to_string(),
         exports: vec!["add".to_string(), "sub".to_string()],
         body: let_node,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(module_node);
     
     compile_and_check(&graph)?;
@@ -88,7 +88,7 @@ fn test_compile_import_single() -> Result<()> {
         module_path: "math".to_string(),
         import_list: vec![ImportItem { name: "add".to_string(), alias: None }],
         import_all: false,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(import_node);
     
     let options = CompilerOptions {
@@ -113,7 +113,7 @@ fn test_compile_import_all() -> Result<()> {
         module_path: "math".to_string(),
         import_list: vec![],
         import_all: true,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(import_node);
     
     // This should fail with "Import * not yet implemented"
@@ -139,7 +139,7 @@ fn test_compile_export() -> Result<()> {
             ExportItem { name: "foo".to_string(), alias: None },
             ExportItem { name: "bar".to_string(), alias: None },
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(export_node);
     
     let options = CompilerOptions {
@@ -163,7 +163,7 @@ fn test_compile_qualified_variable() -> Result<()> {
     let qualified_var = graph.add_node(Node::QualifiedVariable {
         module_name: "math".to_string(),
         variable_name: "add".to_string(),
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(qualified_var);
     
     let options = CompilerOptions {
@@ -189,24 +189,24 @@ fn test_compile_module_with_nested_imports() -> Result<()> {
         module_path: "utils".to_string(),
         import_list: vec![ImportItem { name: "helper".to_string(), alias: None }],
         import_all: false,
-    });
+    }).expect("Failed to add node");
     
     // Use the imported function
-    let helper_var = graph.add_node(Node::Variable { name: "helper".to_string() });
-    let ten = graph.add_node(Node::Literal(Literal::Integer(10)));
+    let helper_var = graph.add_node(Node::Variable { name: "helper".to_string() }).expect("Failed to add node");
+    let ten = graph.add_node(Node::Literal(Literal::Integer(10))).expect("Failed to add node");
     let app = graph.add_node(Node::Application {
         function: helper_var,
         args: vec![ten],
-    });
+    }).expect("Failed to add node");
     
     // Create a sequence
-    let seq_body = graph.add_node(Node::List(vec![import_node, app]));
+    let seq_body = graph.add_node(Node::List(vec![import_node, app])).expect("Failed to add node");
     
     let module_node = graph.add_node(Node::Module {
         name: "my-module".to_string(),
         exports: vec![],
         body: seq_body,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(module_node);
     
     compile_and_check(&graph)?;
@@ -218,11 +218,11 @@ fn test_compile_multiple_exports() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create module with multiple exports
-    let a_val = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let b_val = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let c_val = graph.add_node(Node::Literal(Literal::Integer(3)));
+    let a_val = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let b_val = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let c_val = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
     
-    let bindings_body = graph.add_node(Node::Literal(Literal::Nil));
+    let bindings_body = graph.add_node(Node::Literal(Literal::Nil)).expect("Failed to add node");
     let let_node = graph.add_node(Node::Let {
         bindings: vec![
             ("a".to_string(), a_val),
@@ -230,13 +230,13 @@ fn test_compile_multiple_exports() -> Result<()> {
             ("c".to_string(), c_val),
         ],
         body: bindings_body,
-    });
+    }).expect("Failed to add node");
     
     let module_node = graph.add_node(Node::Module {
         name: "constants".to_string(),
         exports: vec!["a".to_string(), "b".to_string(), "c".to_string()],
         body: let_node,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(module_node);
     
     compile_and_check(&graph)?;
@@ -252,24 +252,24 @@ fn test_compile_import_multiple_modules() -> Result<()> {
         module_path: "math".to_string(),
         import_list: vec![ImportItem { name: "add".to_string(), alias: None }],
         import_all: false,
-    });
+    }).expect("Failed to add node");
     
     let import2 = graph.add_node(Node::Import {
         module_path: "string".to_string(),
         import_list: vec![ImportItem { name: "concat".to_string(), alias: None }],
         import_all: false,
-    });
+    }).expect("Failed to add node");
     
     // Use both imports
-    let add_var = graph.add_node(Node::Variable { name: "add".to_string() });
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
+    let add_var = graph.add_node(Node::Variable { name: "add".to_string() }).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
     let add_app = graph.add_node(Node::Application {
         function: add_var,
         args: vec![one, two],
-    });
+    }).expect("Failed to add node");
     
-    let seq = graph.add_node(Node::List(vec![import1, import2, add_app]));
+    let seq = graph.add_node(Node::List(vec![import1, import2, add_app])).expect("Failed to add node");
     graph.root_id = Some(seq);
     
     compile_and_check(&graph)?;
@@ -281,12 +281,12 @@ fn test_compile_empty_module() -> Result<()> {
     let mut graph = Graph::new();
     
     // Empty module
-    let body = graph.add_node(Node::Literal(Literal::Nil));
+    let body = graph.add_node(Node::Literal(Literal::Nil)).expect("Failed to add node");
     let module_node = graph.add_node(Node::Module {
         name: "empty".to_string(),
         exports: vec![],
         body,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(module_node);
     
     compile_and_check(&graph)?;
@@ -301,15 +301,15 @@ fn test_compile_qualified_function_call() -> Result<()> {
     let qualified_add = graph.add_node(Node::QualifiedVariable {
         module_name: "math".to_string(),
         variable_name: "add".to_string(),
-    });
+    }).expect("Failed to add node");
     
-    let five = graph.add_node(Node::Literal(Literal::Integer(5)));
-    let three = graph.add_node(Node::Literal(Literal::Integer(3)));
+    let five = graph.add_node(Node::Literal(Literal::Integer(5))).expect("Failed to add node");
+    let three = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
     
     let app = graph.add_node(Node::Application {
         function: qualified_add,
         args: vec![five, three],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(app);
     
     compile_and_check(&graph)?;

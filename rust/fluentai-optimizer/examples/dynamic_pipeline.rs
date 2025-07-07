@@ -273,11 +273,11 @@ fn create_test_graph() -> Graph {
     let mut graph = Graph::new();
     
     // Add some nodes
-    let n1 = graph.add_node(Node::Literal(Literal::Integer(10)));
-    let n2 = graph.add_node(Node::Literal(Literal::Integer(20)));
+    let n1 = graph.add_node(Node::Literal(Literal::Integer(10))).expect("Failed to add node");
+    let n2 = graph.add_node(Node::Literal(Literal::Integer(20))).expect("Failed to add node");
     let n3 = graph.add_node(Node::Variable {
         name: "result".to_string(),
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(n3);
     
     graph

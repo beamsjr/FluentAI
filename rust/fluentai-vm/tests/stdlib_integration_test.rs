@@ -11,32 +11,32 @@ fn test_stdlib_map_function() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create lambda: fn x -> x * 2
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let mul_fn = graph.add_node(Node::Variable { name: "*".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let mul_fn = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
     let mul_app = graph.add_node(Node::Application {
         function: mul_fn,
         args: vec![x_var, two],
-    });
+    }).expect("Failed to add node");
     let lambda = graph.add_node(Node::Lambda {
         params: vec!["x".to_string()],
         body: mul_app,
-    });
+    }).expect("Failed to add node");
     
     // Create list [1, 2, 3]
     let list_items = vec![
-        graph.add_node(Node::Literal(Literal::Integer(1))),
-        graph.add_node(Node::Literal(Literal::Integer(2))),
-        graph.add_node(Node::Literal(Literal::Integer(3))),
+        graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node"),
+        graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node"),
+        graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node"),
     ];
-    let list = graph.add_node(Node::List(list_items));
+    let list = graph.add_node(Node::List(list_items)).expect("Failed to add node");
     
     // Create map application
-    let map_var = graph.add_node(Node::Variable { name: "map".to_string() });
+    let map_var = graph.add_node(Node::Variable { name: "map".to_string() }).expect("Failed to add node");
     let map_app = graph.add_node(Node::Application {
         function: map_var,
         args: vec![lambda, list],
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(map_app);
     
@@ -118,30 +118,30 @@ fn test_direct_stdlib_call() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create a simple function: fn x -> x * 2
-    let x_param = graph.add_node(Node::Variable { name: "x".to_string() });
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let mul_fn = graph.add_node(Node::Variable { name: "*".to_string() });
+    let x_param = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let mul_fn = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
     let mul = graph.add_node(Node::Application {
         function: mul_fn,
         args: vec![x_param, two],
-    });
+    }).expect("Failed to add node");
     let double_fn = graph.add_node(Node::Lambda {
         params: vec!["x".to_string()],
         body: mul,
-    });
+    }).expect("Failed to add node");
     
     // Create a list [1, 2, 3]
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let three = graph.add_node(Node::Literal(Literal::Integer(3)));
-    let list = graph.add_node(Node::List(vec![one, two, three]));
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let three = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
+    let list = graph.add_node(Node::List(vec![one, two, three])).expect("Failed to add node");
     
     // Call map(double_fn, list)
-    let map_var = graph.add_node(Node::Variable { name: "map".to_string() });
+    let map_var = graph.add_node(Node::Variable { name: "map".to_string() }).expect("Failed to add node");
     let map_call = graph.add_node(Node::Application {
         function: map_var,
         args: vec![double_fn, list],
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(map_call);
     

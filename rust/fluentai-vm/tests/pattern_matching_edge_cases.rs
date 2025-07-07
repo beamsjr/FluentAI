@@ -25,17 +25,17 @@ fn test_match_deeply_nested_lists() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create [[1, 2], [3, 4]]
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let three = graph.add_node(Node::Literal(Literal::Integer(3)));
-    let four = graph.add_node(Node::Literal(Literal::Integer(4)));
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let three = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
+    let four = graph.add_node(Node::Literal(Literal::Integer(4))).expect("Failed to add node");
     
-    let inner1 = graph.add_node(Node::List(vec![one, two]));
-    let inner2 = graph.add_node(Node::List(vec![three, four]));
-    let outer = graph.add_node(Node::List(vec![inner1, inner2]));
+    let inner1 = graph.add_node(Node::List(vec![one, two])).expect("Failed to add node");
+    let inner2 = graph.add_node(Node::List(vec![three, four])).expect("Failed to add node");
+    let outer = graph.add_node(Node::List(vec![inner1, inner2])).expect("Failed to add node");
     
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let default = graph.add_node(Node::Literal(Literal::Integer(0)));
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let default = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
     
     let match_node = graph.add_node(Node::Match {
         expr: outer,
@@ -49,7 +49,7 @@ fn test_match_deeply_nested_lists() -> Result<()> {
             }, x_var),
             (Pattern::Wildcard, default),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
@@ -63,12 +63,12 @@ fn test_match_list_of_different_types() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create [1, "hello", true]
-    let int_val = graph.add_node(Node::Literal(Literal::Integer(42)));
-    let str_val = graph.add_node(Node::Literal(Literal::String("hello".to_string())));
-    let bool_val = graph.add_node(Node::Literal(Literal::Boolean(true)));
-    let mixed_list = graph.add_node(Node::List(vec![int_val, str_val, bool_val]));
+    let int_val = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
+    let str_val = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).expect("Failed to add node");
+    let bool_val = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
+    let mixed_list = graph.add_node(Node::List(vec![int_val, str_val, bool_val])).expect("Failed to add node");
     
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     
     let match_node = graph.add_node(Node::Match {
         expr: mixed_list,
@@ -81,7 +81,7 @@ fn test_match_list_of_different_types() -> Result<()> {
                 ],
             }, x_var),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
@@ -96,11 +96,11 @@ fn test_match_very_long_list() -> Result<()> {
     // Create a list with 100 elements
     let mut elements = Vec::new();
     for i in 0..100 {
-        elements.push(graph.add_node(Node::Literal(Literal::Integer(i))));
+        elements.push(graph.add_node(Node::Literal(Literal::Integer(i))).expect("Failed to add node"));
     }
-    let long_list = graph.add_node(Node::List(elements));
+    let long_list = graph.add_node(Node::List(elements)).expect("Failed to add node");
     
-    let xs_var = graph.add_node(Node::Variable { name: "xs".to_string() });
+    let xs_var = graph.add_node(Node::Variable { name: "xs".to_string() }).expect("Failed to add node");
     
     let match_node = graph.add_node(Node::Match {
         expr: long_list,
@@ -113,7 +113,7 @@ fn test_match_very_long_list() -> Result<()> {
                 ],
             }, xs_var), // Return tail
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
@@ -133,15 +133,15 @@ fn test_match_with_shadowed_variables() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create outer let with x = 100
-    let outer_x_val = graph.add_node(Node::Literal(Literal::Integer(100)));
+    let outer_x_val = graph.add_node(Node::Literal(Literal::Integer(100))).expect("Failed to add node");
     
     // Create list for matching
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let list = graph.add_node(Node::List(vec![one, two]));
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let list = graph.add_node(Node::List(vec![one, two])).expect("Failed to add node");
     
     // Match will bind new x
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     let match_node = graph.add_node(Node::Match {
         expr: list,
         branches: vec![
@@ -153,12 +153,12 @@ fn test_match_with_shadowed_variables() -> Result<()> {
                 ],
             }, x_var),
         ],
-    });
+    }).expect("Failed to add node");
     
     let let_node = graph.add_node(Node::Let {
         bindings: vec![("x".to_string(), outer_x_val)],
         body: match_node,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(let_node);
     
     let result = compile_and_run(&graph)?;
@@ -174,9 +174,9 @@ fn test_match_nil_before_cons() -> Result<()> {
     // Test both empty and non-empty lists with nil pattern first
     
     // Test 1: Empty list
-    let empty = graph.add_node(Node::List(vec![]));
-    let nil_result = graph.add_node(Node::Literal(Literal::String("is nil".to_string())));
-    let cons_result = graph.add_node(Node::Literal(Literal::String("is cons".to_string())));
+    let empty = graph.add_node(Node::List(vec![])).expect("Failed to add node");
+    let nil_result = graph.add_node(Node::Literal(Literal::String("is nil".to_string()))).expect("Failed to add node");
+    let cons_result = graph.add_node(Node::Literal(Literal::String("is cons".to_string()))).expect("Failed to add node");
     
     let match_empty = graph.add_node(Node::Match {
         expr: empty,
@@ -190,7 +190,7 @@ fn test_match_nil_before_cons() -> Result<()> {
                 ],
             }, cons_result),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_empty);
     
     let result = compile_and_run(&graph)?;
@@ -198,10 +198,10 @@ fn test_match_nil_before_cons() -> Result<()> {
     
     // Test 2: Non-empty list
     let mut graph = Graph::new();
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let non_empty = graph.add_node(Node::List(vec![one]));
-    let nil_result = graph.add_node(Node::Literal(Literal::String("is nil".to_string())));
-    let cons_result = graph.add_node(Node::Literal(Literal::String("is cons".to_string())));
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let non_empty = graph.add_node(Node::List(vec![one])).expect("Failed to add node");
+    let nil_result = graph.add_node(Node::Literal(Literal::String("is nil".to_string()))).expect("Failed to add node");
+    let cons_result = graph.add_node(Node::Literal(Literal::String("is cons".to_string()))).expect("Failed to add node");
     
     let match_non_empty = graph.add_node(Node::Match {
         expr: non_empty,
@@ -215,7 +215,7 @@ fn test_match_nil_before_cons() -> Result<()> {
                 ],
             }, cons_result),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_non_empty);
     
     let result = compile_and_run(&graph)?;
@@ -229,28 +229,28 @@ fn test_match_multiple_variable_bindings() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create list [10, 20, 30]
-    let ten = graph.add_node(Node::Literal(Literal::Integer(10)));
-    let twenty = graph.add_node(Node::Literal(Literal::Integer(20)));
-    let thirty = graph.add_node(Node::Literal(Literal::Integer(30)));
-    let list = graph.add_node(Node::List(vec![ten, twenty, thirty]));
+    let ten = graph.add_node(Node::Literal(Literal::Integer(10))).expect("Failed to add node");
+    let twenty = graph.add_node(Node::Literal(Literal::Integer(20))).expect("Failed to add node");
+    let thirty = graph.add_node(Node::Literal(Literal::Integer(30))).expect("Failed to add node");
+    let list = graph.add_node(Node::List(vec![ten, twenty, thirty])).expect("Failed to add node");
     
     // Create expression that uses both x and xs
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let xs_var = graph.add_node(Node::Variable { name: "xs".to_string() });
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let xs_var = graph.add_node(Node::Variable { name: "xs".to_string() }).expect("Failed to add node");
     
     // Get length of xs
-    let list_len = graph.add_node(Node::Variable { name: "list-len".to_string() });
+    let list_len = graph.add_node(Node::Variable { name: "list-len".to_string() }).expect("Failed to add node");
     let xs_len = graph.add_node(Node::Application {
         function: list_len,
         args: vec![xs_var],
-    });
+    }).expect("Failed to add node");
     
     // Add x + length(xs)
     let sum = graph.add_node(Node::Application {
         function: plus,
         args: vec![x_var, xs_len],
-    });
+    }).expect("Failed to add node");
     
     let match_node = graph.add_node(Node::Match {
         expr: list,
@@ -263,12 +263,12 @@ fn test_match_multiple_variable_bindings() -> Result<()> {
                 ],
             }, sum),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_node);
     
     // Note: This test would need list-len to be defined in stdlib
     // For now, just test that both variables are bound
-    let x_only = graph.add_node(Node::Variable { name: "x".to_string() });
+    let x_only = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     let match_simple = graph.add_node(Node::Match {
         expr: list,
         branches: vec![
@@ -280,7 +280,7 @@ fn test_match_multiple_variable_bindings() -> Result<()> {
                 ],
             }, x_only),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_simple);
     
     let result = compile_and_run(&graph)?;
@@ -293,9 +293,9 @@ fn test_match_with_nil_fallthrough() -> Result<()> {
     let mut graph = Graph::new();
     
     // Match empty list with only cons pattern (no nil pattern)
-    let empty = graph.add_node(Node::List(vec![]));
-    let cons_result = graph.add_node(Node::Literal(Literal::String("matched cons".to_string())));
-    let default_result = graph.add_node(Node::Literal(Literal::String("no match".to_string())));
+    let empty = graph.add_node(Node::List(vec![])).expect("Failed to add node");
+    let cons_result = graph.add_node(Node::Literal(Literal::String("matched cons".to_string()))).expect("Failed to add node");
+    let default_result = graph.add_node(Node::Literal(Literal::String("no match".to_string()))).expect("Failed to add node");
     
     let match_node = graph.add_node(Node::Match {
         expr: empty,
@@ -309,7 +309,7 @@ fn test_match_with_nil_fallthrough() -> Result<()> {
             }, cons_result),
             (Pattern::Wildcard, default_result),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;

@@ -10,18 +10,18 @@ fn test_dead_code_elimination_invalid_node_reference() {
     let mut graph = Graph::new();
     
     // Create nodes that won't be reachable
-    let unused_var1 = graph.add_node(Node::Variable { name: "unused1".to_string() });
-    let unused_var2 = graph.add_node(Node::Variable { name: "unused2".to_string() });
-    let unused_var3 = graph.add_node(Node::Variable { name: "unused3".to_string() });
+    let unused_var1 = graph.add_node(Node::Variable { name: "unused1".to_string() }).expect("Failed to add node");
+    let unused_var2 = graph.add_node(Node::Variable { name: "unused2".to_string() }).expect("Failed to add node");
+    let unused_var3 = graph.add_node(Node::Variable { name: "unused3".to_string() }).expect("Failed to add node");
     
     // Create an application node that won't be reachable
     let unreachable_app = graph.add_node(Node::Application {
         function: unused_var1,
         args: vec![unused_var2, unused_var3],
-    });
+    }).expect("Failed to add node");
     
     // Create a literal that will be used as the binding value
-    let lit_42 = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let lit_42 = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     
     // Create a Let node where:
     // - The binding "x" is not used in the body
@@ -29,7 +29,7 @@ fn test_dead_code_elimination_invalid_node_reference() {
     let let_node = graph.add_node(Node::Let {
         bindings: vec![("x".to_string(), lit_42)], // "x" is not used
         body: unreachable_app, // This references nodes that won't be reachable!
-    });
+    }).expect("Failed to add node");
     
     // Set root to let_node
     // This makes let_node reachable, but since "x" is not used in the body,
@@ -100,24 +100,24 @@ fn test_dead_code_elimination_with_used_binding() {
     let mut graph = Graph::new();
     
     // Create nodes
-    let add_var = graph.add_node(Node::Variable { name: "add".to_string() });
-    let x_lit = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let y_lit = graph.add_node(Node::Literal(Literal::Integer(2)));
+    let add_var = graph.add_node(Node::Variable { name: "add".to_string() }).expect("Failed to add node");
+    let x_lit = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let y_lit = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
     
     // Create an application that uses the "add" variable
     let app = graph.add_node(Node::Application {
         function: add_var,
         args: vec![x_lit, y_lit],
-    });
+    }).expect("Failed to add node");
     
     // Create a function node for the binding
-    let add_fn = graph.add_node(Node::Variable { name: "+".to_string() });
+    let add_fn = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     
     // Create a Let node where the binding IS used in the body
     let let_node = graph.add_node(Node::Let {
         bindings: vec![("add".to_string(), add_fn)],
         body: app, // This uses "add" so everything should be reachable
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(let_node);
     

@@ -10,12 +10,12 @@ fn test_debug_compilation_issue() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create the exact same graph as the failing test
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let list_val = graph.add_node(Node::List(vec![one, two]));
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let list_val = graph.add_node(Node::List(vec![one, two])).expect("Failed to add node");
     
-    let result_val = graph.add_node(Node::Literal(Literal::Integer(99)));
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
+    let result_val = graph.add_node(Node::Literal(Literal::Integer(99))).expect("Failed to add node");
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
     
     let match_node = graph.add_node(Node::Match {
         expr: list_val,
@@ -29,7 +29,7 @@ fn test_debug_compilation_issue() -> Result<()> {
             }, result_val),
             (Pattern::Wildcard, zero),
         ],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(match_node);
     
     println!("Original graph:");

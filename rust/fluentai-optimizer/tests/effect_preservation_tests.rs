@@ -2,9 +2,7 @@
 
 use fluentai_optimizer::*;
 use fluentai_parser::parse;
-use fluentai_core::ast::{Graph, Node, NodeId, EffectType};
-use fluentai_vm::{VM, Compiler, CompilerOptions};
-use std::sync::{Arc, Mutex};
+use fluentai_core::ast::{Graph, Node, EffectType};
 use std::cell::RefCell;
 
 thread_local! {
@@ -194,22 +192,23 @@ fn test_effect_types_preserved() {
         effect_type: EffectType::IO,
         operation: "print".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add IO effect node");
     
     let state_effect = graph.add_node(Node::Effect {
         effect_type: EffectType::State,
         operation: "set".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add State effect node");
     
     let time_effect = graph.add_node(Node::Effect {
         effect_type: EffectType::Time,
         operation: "now".to_string(),
         args: vec![],
-    });
+    }).expect("Failed to add Time effect node");
     
     // Create a sequence
-    let list = graph.add_node(Node::List(vec![io_effect, state_effect, time_effect]));
+    let list = graph.add_node(Node::List(vec![io_effect, state_effect, time_effect]))
+        .expect("Failed to add list node");
     graph.root_id = Some(list);
     
     let mut optimizer = AdvancedOptimizer::new();

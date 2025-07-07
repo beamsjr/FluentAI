@@ -7,15 +7,15 @@ fn main() {
     let mut graph = Graph::new();
     
     // Create (let ((x 1) (y 2) (z 3)) (list x y z))
-    let x_val = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let y_val = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let z_val = graph.add_node(Node::Literal(Literal::Integer(3)));
+    let x_val = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let y_val = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let z_val = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
     
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y_var = graph.add_node(Node::Variable { name: "y".to_string() });
-    let z_var = graph.add_node(Node::Variable { name: "z".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y_var = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
+    let z_var = graph.add_node(Node::Variable { name: "z".to_string() }).expect("Failed to add node");
     
-    let list_node = graph.add_node(Node::List(vec![x_var, y_var, z_var]));
+    let list_node = graph.add_node(Node::List(vec![x_var, y_var, z_var])).expect("Failed to add node");
     
     let let_node = graph.add_node(Node::Let {
         bindings: vec![
@@ -24,7 +24,7 @@ fn main() {
             ("z".to_string(), z_val),
         ],
         body: list_node,
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(let_node);
     
     println!("Original graph has {} nodes", graph.nodes.len());

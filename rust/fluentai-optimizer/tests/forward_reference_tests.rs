@@ -12,15 +12,15 @@ fn test_optimizer_handles_forward_references_in_match() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create a variable node that will be referenced later
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     
     // Create a list for matching
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let two = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let list_val = graph.add_node(Node::List(vec![one, two]));
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let list_val = graph.add_node(Node::List(vec![one, two])).expect("Failed to add node");
     
     // Create a match that references x_var in its branch
-    let zero = graph.add_node(Node::Literal(Literal::Integer(0)));
+    let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
     let match_node = graph.add_node(Node::Match {
         expr: list_val,
         branches: vec![
@@ -33,7 +33,7 @@ fn test_optimizer_handles_forward_references_in_match() -> Result<()> {
             }, x_var), // Forward reference to x_var
             (Pattern::Wildcard, zero),
         ],
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(match_node);
     
@@ -56,20 +56,20 @@ fn test_optimizer_handles_complex_forward_references() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create multiple variables that will be referenced
-    let a_var = graph.add_node(Node::Variable { name: "a".to_string() });
-    let b_var = graph.add_node(Node::Variable { name: "b".to_string() });
-    let c_var = graph.add_node(Node::Variable { name: "c".to_string() });
+    let a_var = graph.add_node(Node::Variable { name: "a".to_string() }).expect("Failed to add node");
+    let b_var = graph.add_node(Node::Variable { name: "b".to_string() }).expect("Failed to add node");
+    let c_var = graph.add_node(Node::Variable { name: "c".to_string() }).expect("Failed to add node");
     
     // Create nested structure
-    let inner_list = graph.add_node(Node::List(vec![a_var, b_var]));
-    let outer_list = graph.add_node(Node::List(vec![inner_list, c_var]));
+    let inner_list = graph.add_node(Node::List(vec![a_var, b_var])).expect("Failed to add node");
+    let outer_list = graph.add_node(Node::List(vec![inner_list, c_var])).expect("Failed to add node");
     
     // Create application that uses the variables
-    let plus = graph.add_node(Node::Variable { name: "+".to_string() });
+    let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
     let app = graph.add_node(Node::Application {
         function: plus,
         args: vec![a_var, b_var],
-    });
+    }).expect("Failed to add node");
     
     // Create match that references the application
     let match_node = graph.add_node(Node::Match {
@@ -77,7 +77,7 @@ fn test_optimizer_handles_complex_forward_references() -> Result<()> {
         branches: vec![
             (Pattern::Variable("lst".to_string()), app),
         ],
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(match_node);
     
@@ -97,23 +97,23 @@ fn test_optimizer_preserves_variable_references_in_let() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create variables that will be referenced in different scopes
-    let x_var1 = graph.add_node(Node::Variable { name: "x".to_string() });
-    let x_var2 = graph.add_node(Node::Variable { name: "x".to_string() });
+    let x_var1 = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let x_var2 = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     
     // Create a value
-    let value = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let value = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     
     // Create inner let that references x from outer scope
     let inner_let = graph.add_node(Node::Let {
         bindings: vec![("y".to_string(), x_var1)],
         body: x_var2,
-    });
+    }).expect("Failed to add node");
     
     // Create outer let
     let outer_let = graph.add_node(Node::Let {
         bindings: vec![("x".to_string(), value)],
         body: inner_let,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(outer_let);
     
@@ -131,31 +131,31 @@ fn test_optimizer_handles_forward_references_in_lambda() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create a variable that will be captured
-    let free_var = graph.add_node(Node::Variable { name: "free".to_string() });
+    let free_var = graph.add_node(Node::Variable { name: "free".to_string() }).expect("Failed to add node");
     
     // Create lambda body that references the variable
-    let plus_var = graph.add_node(Node::Variable { name: "+".to_string() });
-    let one_val = graph.add_node(Node::Literal(Literal::Integer(1)));
+    let plus_var = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+    let one_val = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     let body = graph.add_node(Node::Application {
         function: plus_var,
         args: vec![
             free_var,
             one_val,
         ],
-    });
+    }).expect("Failed to add node");
     
     // Create lambda
     let lambda = graph.add_node(Node::Lambda {
         params: vec!["x".to_string()],
         body,
-    });
+    }).expect("Failed to add node");
     
     // Create let binding that provides the free variable
-    let free_val = graph.add_node(Node::Literal(Literal::Integer(10)));
+    let free_val = graph.add_node(Node::Literal(Literal::Integer(10))).expect("Failed to add node");
     let let_node = graph.add_node(Node::Let {
         bindings: vec![("free".to_string(), free_val)],
         body: lambda,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(let_node);
     
@@ -173,30 +173,30 @@ fn test_optimizer_handles_circular_references() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create a letrec with mutual recursion
-    let f_var = graph.add_node(Node::Variable { name: "f".to_string() });
-    let g_var = graph.add_node(Node::Variable { name: "g".to_string() });
+    let f_var = graph.add_node(Node::Variable { name: "f".to_string() }).expect("Failed to add node");
+    let g_var = graph.add_node(Node::Variable { name: "g".to_string() }).expect("Failed to add node");
     
     // f calls g
-    let arg1 = graph.add_node(Node::Literal(Literal::Integer(1)));
+    let arg1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     let f_body = graph.add_node(Node::Application {
         function: g_var,
         args: vec![arg1],
-    });
+    }).expect("Failed to add node");
     let f_lambda = graph.add_node(Node::Lambda {
         params: vec!["n".to_string()],
         body: f_body,
-    });
+    }).expect("Failed to add node");
     
     // g calls f
-    let arg2 = graph.add_node(Node::Literal(Literal::Integer(2)));
+    let arg2 = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
     let g_body = graph.add_node(Node::Application {
         function: f_var,
         args: vec![arg2],
-    });
+    }).expect("Failed to add node");
     let g_lambda = graph.add_node(Node::Lambda {
         params: vec!["n".to_string()],
         body: g_body,
-    });
+    }).expect("Failed to add node");
     
     let letrec = graph.add_node(Node::Letrec {
         bindings: vec![
@@ -204,7 +204,7 @@ fn test_optimizer_handles_circular_references() -> Result<()> {
             ("g".to_string(), g_lambda),
         ],
         body: f_var,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(letrec);
     
@@ -223,9 +223,9 @@ fn test_all_optimization_passes_handle_forward_references() -> Result<()> {
     let mut graph = Graph::new();
     
     // Create a pattern that uses forward references
-    let var_ref = graph.add_node(Node::Variable { name: "x".to_string() });
-    let one = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let list = graph.add_node(Node::List(vec![one]));
+    let var_ref = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let list = graph.add_node(Node::List(vec![one])).expect("Failed to add node");
     
     let match_node = graph.add_node(Node::Match {
         expr: list,
@@ -238,7 +238,7 @@ fn test_all_optimization_passes_handle_forward_references() -> Result<()> {
                 ],
             }, var_ref),
         ],
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(match_node);
     

@@ -60,7 +60,7 @@ impl OptimizationPass for MockPass {
                 Node::Literal(Literal::Integer(n)) => Node::Literal(Literal::Integer(n + 1)),
                 _ => node.clone(),
             };
-            let new_id = result.add_node(new_node);
+            let new_id = result.add_node(new_node).expect("Failed to add node");
             node_mapping.insert(*id, new_id);
         }
         
@@ -89,7 +89,7 @@ fn test_trait_basic_functionality() {
     assert_eq!(pass.run_count(), 0);
     
     let mut graph = Graph::new();
-    let node = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let node = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     graph.root_id = Some(node);
     
     let result = pass.run(&graph).unwrap();
@@ -117,7 +117,7 @@ fn test_is_applicable_default() {
     
     // Non-empty graph
     let mut graph = Graph::new();
-    graph.add_node(Node::Literal(Literal::Integer(1)));
+    graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     assert!(pass.is_applicable(&graph));
 }
 
@@ -126,7 +126,7 @@ fn test_is_applicable_custom() {
     let pass = MockPass::new("test").with_applicability(false);
     
     let mut graph = Graph::new();
-    graph.add_node(Node::Literal(Literal::Integer(1)));
+    graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     
     assert!(!pass.is_applicable(&graph));
 }
@@ -180,7 +180,7 @@ fn test_multiple_passes_sequential() {
     ];
     
     let mut graph = Graph::new();
-    let node = graph.add_node(Node::Literal(Literal::Integer(0)));
+    let node = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
     graph.root_id = Some(node);
     
     // Run passes sequentially
@@ -202,13 +202,13 @@ fn test_graph_preservation() {
     let mut pass = MockPass::new("preserving");
     
     let mut graph = Graph::new();
-    let lit1 = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let lit2 = graph.add_node(Node::Literal(Literal::String("hello".to_string())));
-    let var = graph.add_node(Node::Variable { name: "x".to_string() });
+    let lit1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let lit2 = graph.add_node(Node::Literal(Literal::String("hello".to_string()))).expect("Failed to add node");
+    let var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
     let app = graph.add_node(Node::Application {
         function: var,
         args: vec![lit1, lit2],
-    });
+    }).expect("Failed to add node");
     graph.root_id = Some(app);
     
     let result = pass.run(&graph).unwrap();
@@ -257,7 +257,7 @@ fn test_noop_pass() {
     let mut pass = NoOpPass;
     
     let mut graph = Graph::new();
-    let node = graph.add_node(Node::Literal(Literal::Integer(42)));
+    let node = graph.add_node(Node::Literal(Literal::Integer(42))).expect("Failed to add node");
     graph.root_id = Some(node);
     
     let result = pass.run(&graph).unwrap();
@@ -285,7 +285,7 @@ impl OptimizationPass for RemovalPass {
         // Only keep the root node
         if let Some(root) = graph.root_id {
             if let Some(node) = graph.get_node(root) {
-                let new_root = result.add_node(node.clone());
+                let new_root = result.add_node(node.clone()).expect("Failed to add node");
                 result.root_id = Some(new_root);
             }
         }
@@ -299,9 +299,9 @@ fn test_removal_pass() {
     let mut pass = RemovalPass;
     
     let mut graph = Graph::new();
-    let _unused1 = graph.add_node(Node::Literal(Literal::Integer(1)));
-    let _unused2 = graph.add_node(Node::Literal(Literal::Integer(2)));
-    let root = graph.add_node(Node::Literal(Literal::Integer(3)));
+    let _unused1 = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
+    let _unused2 = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
+    let root = graph.add_node(Node::Literal(Literal::Integer(3))).expect("Failed to add node");
     graph.root_id = Some(root);
     
     let result = pass.run(&graph).unwrap();

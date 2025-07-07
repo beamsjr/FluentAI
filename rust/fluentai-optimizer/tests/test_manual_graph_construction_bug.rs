@@ -56,22 +56,22 @@ fn test_reachability_analysis_bug() {
     let mut graph = Graph::new();
     
     // Create a lambda that captures a variable
-    let x_var = graph.add_node(Node::Variable { name: "x".to_string() });
-    let y_var = graph.add_node(Node::Variable { name: "y".to_string() });
+    let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
+    let y_var = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
     
     // Create a lambda body that uses y but not x
-    let plus_var = graph.add_node(Node::Variable { name: "+".to_string() });
-    let one_lit = graph.add_node(Node::Literal(Literal::Integer(1)));
+    let plus_var = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+    let one_lit = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
     let lambda_body = graph.add_node(Node::Application {
         function: plus_var,
         args: vec![y_var, one_lit],
-    });
+    }).expect("Failed to add node");
     
     // Create lambda
     let lambda = graph.add_node(Node::Lambda {
         params: vec!["z".to_string()],
         body: lambda_body,
-    });
+    }).expect("Failed to add node");
     
     // Create let that binds x (unused) and has lambda as body
     let let_node = graph.add_node(Node::Let {
@@ -80,7 +80,7 @@ fn test_reachability_analysis_bug() {
             ("y".to_string(), y_var),
         ],
         body: lambda,
-    });
+    }).expect("Failed to add node");
     
     graph.root_id = Some(let_node);
     
