@@ -3,7 +3,7 @@
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-FluentAi is an experimental programming language that explores what happens when we design a language specifically for AI systems rather than humans. It features a graph-based AST, explicit semantics, and advanced AI-driven optimization capabilities. **Fully implemented in Rust** for production-grade performance and reliability.
+FluentAi is an experimental programming language designed for AI systems rather than humans. It features a graph-based AST, effect-aware execution, and explicit, verifiable semantics tailored for static analysis and transformation. Powered by advanced optimization and reasoning passes—including data flow, control flow, type, and effect analysis—FluentAi enables AI agents to understand, manipulate, and optimize code safely. Fully implemented in Rust, it offers production-grade performance, safety, and runtime extensibility.
 
 ## Table of Contents
 
