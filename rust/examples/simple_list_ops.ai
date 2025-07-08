@@ -1,0 +1,8 @@
+; Simple list operations in FluentAI
+
+; Create and manipulate a list
+(let ((my-list (list 1 2 3 4 5)))
+  (let ((first-elem (head my-list)))
+    (let ((rest-list (tail my-list)))
+      (let ((new-list (cons 0 my-list)))
+        new-list))))

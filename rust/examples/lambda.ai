@@ -1,0 +1,4 @@
+; Lambda functions in FluentAI
+
+(let ((square (lambda (x) (* x x))))
+  (square 7))

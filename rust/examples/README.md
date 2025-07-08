@@ -4,119 +4,119 @@ This directory contains example programs written in FluentAI (`.ai` files) that 
 
 ## Getting Started
 
-To run these examples, you need to have the FluentAI runtime installed. You can run an example using:
+To run these examples, navigate to the `rust` directory and use the FluentAI CLI:
 
 ```bash
+cd rust
 cargo run -p fluentai-cli -- run examples/hello.ai
 ```
 
-Or if you have the REPL installed:
+## Current Implementation Status
 
-```bash
-fluentai-repl examples/hello.ai
-```
+**Working Features:**
+- Basic arithmetic (`+`, `-`, `*`, `/`, `%`)
+- Let bindings (`let`)
+- Lambda functions (`lambda`)
+- Recursive functions (`letrec`)
+- Lists (`list`, `cons`, `head`, `tail`)
+- Pattern matching (`match`)
+- Conditionals (`if`)
+- Comparisons (`=`, `<`, `>`, `<=`, `>=`)
+- Print function for output
 
-## Basic Examples
+**Not Yet Implemented:**
+- Module system (`module`, `import`, `export`)
+- Effect handlers (`handler`, `effect`)
+- Async/await operations
+- Channel operations (`channel`, `send`, `receive`)
+- Define syntax (`define`)
+- Begin blocks (`begin`)
+- Many advanced features shown in the main README
+
+## Working Examples
 
 ### hello.ai
-The classic "Hello, World!" program - performs basic arithmetic.
+Simple arithmetic expression.
 ```bash
-cargo run -p fluentai-cli -- run hello.ai
+cargo run -p fluentai-cli -- run examples/hello.ai
 # Output: 42
 ```
 
-### factorial.ai / factorial_simple.ai
-Different implementations of the factorial function, demonstrating basic recursion and function definitions.
+### arithmetic.ai  
+Basic arithmetic operations.
 ```bash
-cargo run -p fluentai-cli -- run factorial.ai
-# Output: 120
+cargo run -p fluentai-cli -- run examples/arithmetic.ai
+# Output: 30
 ```
 
+### let_binding.ai
+Demonstrates let bindings with multiple variables.
+```bash
+cargo run -p fluentai-cli -- run examples/let_binding.ai
+# Output: 30
+```
+
+### lambda.ai
+Lambda function definition and application.
+```bash
+cargo run -p fluentai-cli -- run examples/lambda.ai
+# Output: 49
+```
+
+### lists.ai
+Basic list creation and manipulation.
+```bash
+cargo run -p fluentai-cli -- run examples/lists.ai  
+# Output: [0, 1, 2, 3, 4, 5]
+```
+
+### match_example.ai
+Pattern matching on literal values.
+```bash
+cargo run -p fluentai-cli -- run examples/match_example.ai
+# Output: "the answer"
+```
+
+### recursion.ai
+Recursive function using letrec (note: factorial has a bug returning 1).
+```bash
+cargo run -p fluentai-cli -- run examples/recursion.ai
+# Output: 1 (should be 720)
+```
+
+### higher_order.ai
+Functions that return functions.
+```bash
+cargo run -p fluentai-cli -- run examples/higher_order.ai
+# Output: 15
+```
+
+### pattern_match.ai
+Pattern matching with a function.
+```bash
+cargo run -p fluentai-cli -- run examples/pattern_match.ai
+# Output: "zero" "one" "other" "done"
+```
+
+### simple_list_ops.ai
+Nested let expressions for list operations.
+```bash
+cargo run -p fluentai-cli -- run examples/simple_list_ops.ai
+# Output: [0, 1, 2, 3, 4, 5]
+```
+
+## Examples from Original Files
+
+The following files demonstrate syntax that is used in the codebase but may have limitations:
+
+### factorial.ai / factorial_simple.ai
+Factorial implementations using letrec - currently has a bug where it returns 1 instead of the correct result.
+
 ### effects_simple.ai
-Simple demonstration of the effect system with basic IO operations.
+Contains examples using features not yet implemented (define, begin, etc.)
 
-## Core Language Features
-
-### let_letrec.ai
-Demonstrates different binding forms:
-- Basic `let` bindings
-- Nested scopes and shadowing
-- `letrec` for recursive definitions
-- Mutually recursive functions
-- Closure capture
-
-### pattern_matching.ai / pattern_matching_simple.ai
-Pattern matching examples:
-- Literal patterns
-- Variable binding
-- Wildcard patterns
-- Constructor patterns (ADTs)
-- List patterns (Cons/Nil)
-- As-patterns
-- Guard patterns
-- Nested patterns
-
-### list_operations.ai
-Working with lists:
-- List construction with `cons`
-- Pattern matching on lists
-- Recursive list processing
-- Common operations: map, filter, fold, reverse
-- List traversal patterns
-
-### recursion_tail_calls.ai
-Recursion patterns and optimization:
-- Simple vs tail recursion
-- Accumulator patterns
-- Mutual recursion
-- Tree traversal
-- Tail call optimization benefits
-
-## Advanced Features
-
-### higher_order_functions.ai
-Functions as first-class values:
-- Functions returning functions
-- Function composition
-- Currying and partial application
-- Map, filter, fold implementations
-- Memoization
-
-### async_await.ai
-Concurrent programming:
-- Async functions and promises
-- Using `await`
-- Channels for communication
-- `spawn` for concurrent tasks
-- Producer-consumer patterns
-
-### effects_demo.ai
-Comprehensive effect system usage:
-- IO effects (print, read)
-- File operations
-- State management
-- Error handling
-- Time effects
-- Network effects (simulated)
-- Custom effect handlers
-- Effect composition
-
-### error_handling.ai
-Error handling patterns:
-- Result types (Ok/Error)
-- Pattern matching on results
-- Effect handlers for recovery
-- Error propagation
-- Multiple error types
-- Resource cleanup patterns
-
-### modules_imports.ai
-Module system demonstration:
-- Defining modules with exports
-- Importing specific functions
-- Import all (`*`)
-- Using imported functions
-- Exporting from current module
+### pattern_matching_simple.ai  
+Uses conditional-based pattern matching rather than the match expression.
 
 ## Performance Benchmarks
 

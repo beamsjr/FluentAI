@@ -1,0 +1,7 @@
+; Basic arithmetic operations in FluentAI
+
+; Addition
+(+ 10 20)
+
+; Nested arithmetic
+; (* (+ 2 3) (- 10 5))

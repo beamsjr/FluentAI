@@ -1,0 +1,8 @@
+; Higher-order functions in FluentAI
+
+; Function that returns a function
+(let ((make-adder 
+       (lambda (n)
+         (lambda (x) (+ x n)))))
+  (let ((add5 (make-adder 5)))
+    (add5 10)))

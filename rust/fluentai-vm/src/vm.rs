@@ -2249,7 +2249,7 @@ impl VM {
             MakeHandler => {
                 // Create handler table from stack values
                 let handler_count = instruction.arg as usize;
-                let mut handler_map = FxHashMap::default();
+                let mut handler_data = FxHashMap::default();
                 
                 for _ in 0..handler_count {
                     // Pop handler function
@@ -2280,18 +2280,19 @@ impl VM {
                         }),
                     };
                     
-                    // Store in handler map
-                    handler_map.insert((effect_type, op_filter), handler_fn);
+                    // Create key in the format that InstallHandler expects
+                    let key = if let Some(ref op) = op_filter {
+                        format!("handler:{}:{}", effect_type, op)
+                    } else {
+                        format!("handler:{}:nil", effect_type)
+                    };
+                    handler_data.insert(key, handler_fn);
                 }
                 
-                // For now, create a map to represent the handler
-                // In a complete implementation, we'd have a way to store the handler_map
-                let mut handler_data = FxHashMap::default();
+                // Add metadata
                 handler_data.insert("_type".to_string(), Value::String("handler".to_string()));
                 handler_data.insert("_count".to_string(), Value::Int(handler_count as i64));
                 
-                // TODO: Store handler_map in a way the InstallHandler opcode can access it
-                // For now, just push the placeholder
                 self.push(Value::Map(handler_data))?;
             }
             InstallHandler => {

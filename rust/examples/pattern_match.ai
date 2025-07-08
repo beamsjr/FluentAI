@@ -1,0 +1,14 @@
+; Pattern matching in FluentAI
+
+; Match on numbers
+(let ((check-number 
+       (lambda (n)
+         (match n
+           (0 "zero")
+           (1 "one") 
+           (2 "two")
+           (_ "other")))))
+  (print (check-number 0))
+  (print (check-number 1))
+  (print (check-number 5))
+  "done")

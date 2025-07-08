@@ -1,0 +1,4 @@
+; List operations in FluentAI
+
+(let ((my-list (list 1 2 3 4 5)))
+  (cons 0 my-list))
