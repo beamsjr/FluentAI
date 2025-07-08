@@ -17,16 +17,22 @@ cargo run -p fluentai-cli -- run examples/hello.ai
 - Basic arithmetic (`+`, `-`, `*`, `/`, `%`)
 - Let bindings (`let`)
 - Lambda functions (`lambda`)
-- Recursive functions (`letrec`)
+- Recursive functions (`letrec`) - has bugs with recursion
 - Lists (`list`, `cons`, `head`, `tail`)
 - Pattern matching (`match`)
 - Conditionals (`if`)
 - Comparisons (`=`, `<`, `>`, `<=`, `>=`)
 - Print function for output
+- Effects (`effect`) - All default effect handlers work!
+  - IO: `print`
+  - Error: `raise`
+  - State: `get`, `set`
+  - Time: `now`
+  - Random: `float`, `int`
 
 **Not Yet Implemented:**
 - Module system (`module`, `import`, `export`)
-- Effect handlers (`handler`, `effect`)
+- Custom effect handlers (`handler` form has runtime bug)
 - Async/await operations
 - Channel operations (`channel`, `send`, `receive`)
 - Define syntax (`define`)
@@ -96,6 +102,13 @@ Pattern matching with a function.
 ```bash
 cargo run -p fluentai-cli -- run examples/pattern_match.ai
 # Output: "zero" "one" "other" "done"
+```
+
+### effects.ai
+Demonstrates working effect system with default handlers.
+```bash
+cargo run -p fluentai-cli -- run examples/effects.ai
+# Output: Prints "Hello, World!" and demonstrates various effects
 ```
 
 ### simple_list_ops.ai

@@ -1,0 +1,7 @@
+; Test effect handler syntax
+(handler
+  ((io (lambda (op . args)
+         (match op
+           ("print-line" (print (car args)))
+           (_ nil)))))
+  (effect io print-line "Hello from handler!"))

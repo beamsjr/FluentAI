@@ -1,0 +1,36 @@
+; Effect examples - effects ARE working!
+; Custom handlers have a runtime bug, but default effect handlers work perfectly
+
+; IO effects - print to stdout
+(effect io:print "Hello, World!")
+; Prints: Hello, World!
+
+; Error effects - raise runtime errors (be careful!)
+; (effect error:raise "Something went wrong")
+; Would raise an error
+
+; State effects - store and retrieve values
+(effect state:set "counter" 42)
+(effect state:get "counter")
+; Result: 42
+
+; Time effects - get current timestamp
+(effect time:now)
+; Result: current timestamp in nanoseconds
+
+; Random effects - generate random numbers
+(effect random:float)
+; Result: random float between 0 and 1
+
+(effect random:int 1 100)
+; Result: random integer between 1 and 100
+
+; Combining effects
+(let ((key "user-id")
+      (value 12345))
+  (effect state:set key value)
+  (effect io:print (effect state:get key)))
+; Prints: 12345
+
+; Note: Custom handlers using the (handler ...) form compile but have a runtime bug
+; that causes stack underflow. Use the default effect handlers instead.

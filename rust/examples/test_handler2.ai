@@ -1,0 +1,7 @@
+; Test simpler handler
+(handler
+  ((io (lambda (op arg)
+         (match op
+           ("print-line" (print arg))
+           (_ nil)))))
+  (effect io print-line "Hello from handler!"))

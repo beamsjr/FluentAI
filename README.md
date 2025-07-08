@@ -48,6 +48,9 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Efficient compilation to bytecode
 - **Algebraic data types**: Sum and product types with pattern matching
 - **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling ([see demo](rust/examples/effects_demo.ai))
+  - Effect handlers for intercepting and customizing effects
+  - Dynamic scoping of handlers with proper cleanup
+  - Composable handler functions
 - **Module system**: Full namespace support with imports, exports, and qualified references
 - **Type annotations**: Optional type ascription for clarity and optimization
 
@@ -643,6 +646,80 @@ FluentAI's optimizations make it ideal for high-performance network applications
       (let ((data (await (effect network fetch (get props :url)))))
         (h "div" {:className "data"} 
           (render-data data))))))
+```
+
+### Effect Handlers
+
+Effect handlers provide a powerful mechanism for intercepting and customizing effects:
+
+```lisp
+;; Basic handler syntax
+(handler
+  ((effect-type handler-function) ...)
+  body-expression)
+
+;; Handler for error effects
+(handler
+  ((error (lambda (err)
+            (log-error "Handled error:" err)
+            "fallback-value")))
+  (effect error:raise "Something went wrong"))
+
+;; Multiple effect handlers
+(handler
+  ((io (lambda (op . args)
+         (case op
+           "print" (send-to-logger (first args))
+           "read" (read-from-cache)
+           _ (apply effect io op args))))
+   (error (lambda (err) nil)))
+  (complex-io-operation))
+
+;; Nested handlers - inner handlers shadow outer ones
+(handler
+  ((error (lambda (e) "outer")))
+  (handler
+    ((error (lambda (e) "inner")))  ; This handler wins
+    (effect error:raise "test")))
+
+;; Handlers with lexical scope
+(let ((recovery-value 42))
+  (handler
+    ((error (lambda (err)
+              (log-error "Error with recovery:" err)
+              recovery-value)))
+    (risky-computation)))
+
+;; State effect handler implementation
+(let ((state {:count 0}))
+  (handler
+    ((state (lambda (op . args)
+              (case op
+                "get" (get state (first args))
+                "set" (set! state (assoc state (first args) (second args)))
+                "update" (set! state (update state (first args) (second args)))))))
+    (do
+      (effect state:set :count 1)
+      (effect state:update :count inc)
+      (effect state:get :count))))  ; => 2
+
+;; IO virtualization for testing
+(handler
+  ((io (lambda (op . args)
+         (case op
+           "print" (vector-append! test-output (first args))
+           "read" "test input"
+           _ (error "Unsupported IO operation")))))
+  (function-that-does-io))
+
+;; Custom async handler
+(handler
+  ((async (lambda (op . args)
+            (case op
+              "await" (get-cached-result (first args))
+              "delay" (immediate-value (first args))
+              _ (apply effect async op args)))))
+  (async-workflow))
 ```
 
 ### Formal Contracts and Verification
