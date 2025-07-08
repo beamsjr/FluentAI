@@ -5,7 +5,7 @@ use crate::debug::{VMDebugEvent, DebugConfig, StepMode};
 use crate::safety::{IdGenerator, PromiseId, ChannelId, ResourceLimits, checked_ops};
 use crate::security::{SecurityManager, SecurityPolicy};
 use crate::error::{VMError, VMResult, StackTrace, StackFrame, value_type_name};
-use crate::gc::{GarbageCollector, GcHandle, GcScope, GcConfig};
+use crate::gc::{GarbageCollector, GcScope, GcConfig};
 use rustc_hash::FxHashMap;
 use fluentai_effects::{EffectContext, runtime::EffectRuntime};
 use fluentai_stdlib::{StdlibRegistry, init_stdlib};
@@ -163,6 +163,35 @@ impl VM {
         self.trace = true;
     }
     
+    /// Reset VM state for reuse while keeping expensive initializations
+    pub fn reset(&mut self) {
+        // Clear runtime state
+        self.stack.clear();
+        self.call_stack.clear();
+        self.globals.clear();
+        self.promises.clear();
+        self.channels.clear();
+        self.cells.clear();
+        self.instruction_count = 0;
+        
+        // Keep these expensive initializations:
+        // - self.stdlib (258 functions)
+        // - self.module_loader
+        // - self.module_resolver
+        // - self.effect_context
+        // - self.effect_runtime
+        // - self.id_generator
+        // - self.resource_limits
+        // - self.security_manager
+        // - self.gc
+        // - self.usage_tracker
+        
+        // Clear module state but keep the loader
+        self.loaded_modules.clear();
+        self.current_module = None;
+        self.module_stack.clear();
+    }
+    
     /// Enable usage tracking
     pub fn enable_usage_tracking(&mut self) {
         self.usage_tracker = Some(Arc::new(RwLock::new(UsageTracker::new())));
@@ -195,9 +224,6 @@ impl VM {
     }
     
     pub fn set_module_loader(&mut self, loader: ModuleLoader) {
-        // Create a new resolver with a fresh loader instance
-        let config = fluentai_modules::ModuleConfig::default();
-        self.module_resolver = ModuleResolver::new(ModuleLoader::new(config));
         self.module_loader = loader;
     }
     
@@ -1064,16 +1090,22 @@ impl VM {
                     }),
                 };
                 
-                // Check if it's a built-in function name
-                let value = if let Some(_) = self.builtin_to_opcode(name) {
+                // Check stdlib first to allow operators to be used as first-class functions
+                let value = if self.stdlib.contains(name) {
+                    // Standard library function
+                    Value::String(format!("__stdlib__{}", name))
+                } else if let Some(_) = self.builtin_to_opcode(name) {
                     // For built-ins, we'll store them as a special string value
+                    // This is only used as a fallback for operators not in stdlib
                     Value::String(format!("__builtin__{}", name))
                 } else if name == "cons" {
                     // Special built-in for list construction
-                    Value::String("__builtin__cons".to_string())
-                } else if self.stdlib.contains(name) {
-                    // Standard library function
-                    Value::String(format!("__stdlib__{}", name))
+                    // Check if it's in stdlib first
+                    if self.stdlib.contains("cons") {
+                        Value::String("__stdlib__cons".to_string())
+                    } else {
+                        Value::String("__builtin__cons".to_string())
+                    }
                 } else {
                     // Look up in globals
                     self.globals.get(name)
@@ -1565,8 +1597,9 @@ impl VM {
             // Functions
             MakeFunc => {
                 let chunk_id = instruction.arg as usize;
-                // Capture current environment (for closures)
-                let env = Vec::new(); // TODO: Capture free variables
+                // MakeFunc is used for functions with no free variables
+                // Functions with free variables use MakeClosure instead
+                let env = Vec::new();
                 let func = Value::Function { chunk_id, env };
                 self.push(func)?;
             }
@@ -1938,6 +1971,24 @@ impl VM {
                 }
             }
             
+            ImportAll => {
+                let module_name = self.get_constant_string(instruction.arg)?;
+                
+                if let Some(Value::Module { exports, .. }) = self.loaded_modules.get(&module_name) {
+                    // Import all exports into the current scope
+                    for (export_name, value) in exports {
+                        // Store each export as a global variable
+                        self.globals.insert(export_name.clone(), value.clone());
+                    }
+                } else {
+                    return Err(VMError::ModuleError {
+                        module_name: module_name.clone(),
+                        message: "Module not found".to_string(),
+                        stack_trace: None,
+                    });
+                }
+            }
+            
             LoadQualified => {
                 // arg encodes module_idx (high 16 bits) and var_idx (low 16 bits)
                 let module_idx = (instruction.arg >> 16) as usize;
@@ -2050,16 +2101,18 @@ impl VM {
             
             // Tail call optimization
             TailCall => {
+                
                 // Pop arguments for the tail call
                 let arg_count = instruction.arg as usize;
+                
+                // Get the function to call (it's on top)
+                let func = self.pop()?;
+                
                 let mut args = Vec::with_capacity(arg_count);
                 for _ in 0..arg_count {
                     args.push(self.pop()?);
                 }
                 args.reverse();
-                
-                // Get the function to call
-                let func = self.pop()?;
                 
                 // Reuse current call frame instead of creating new one
                 if let Some(frame) = self.call_stack.last_mut() {
@@ -2648,27 +2701,72 @@ impl VM {
         }
         
         // Load the module file
-        let _module_info = self.module_loader.load_module(module_name)
+        let module_info = self.module_loader.load_module(module_name)
             .map_err(|e| VMError::ModuleError {
                 module_name: module_name.to_string(),
                 message: e.to_string(),
                 stack_trace: None,
             })?;
         
-        // Create a module value with empty exports initially
+        // Compile the module
+        let options = crate::compiler::CompilerOptions {
+            optimization_level: fluentai_optimizer::OptimizationLevel::None,
+            debug_info: false,
+        };
+        let compiler = crate::compiler::Compiler::with_options(options);
+        let module_bytecode = compiler.compile(&module_info.graph)
+            .map_err(|e| VMError::ModuleError {
+                module_name: module_name.to_string(),
+                message: format!("Failed to compile module: {}", e),
+                stack_trace: None,
+            })?;
+        
+        // Save current VM state
+        let saved_module = self.current_module.clone();
+        let saved_stack_len = self.stack.len();
+        let saved_globals = self.globals.clone();
+        
+        // Set current module context
+        self.current_module = Some(module_name.to_string());
+        
+        // Create a new VM instance for module execution
+        let mut module_vm = VM::new(module_bytecode);
+        module_vm.stdlib = self.stdlib.clone();
+        module_vm.globals = self.globals.clone();
+        module_vm.current_module = Some(module_name.to_string());
+        
+        // Execute the module
+        let result = module_vm.run();
+        
+        // Restore VM state
+        self.current_module = saved_module;
+        self.stack.truncate(saved_stack_len);
+        
+        // Handle execution result
+        if let Err(e) = result {
+            self.globals = saved_globals;
+            return Err(VMError::ModuleError {
+                module_name: module_name.to_string(),
+                message: format!("Module execution failed: {:?}", e),
+                stack_trace: None,
+            });
+        }
+        
+        // Collect exports from module globals
+        let mut exports = FxHashMap::default();
+        for export_name in &module_info.exports {
+            if let Some(value) = module_vm.globals.get(export_name) {
+                exports.insert(export_name.clone(), value.clone());
+            }
+        }
+        
+        // Create module value with actual exports
         let module_value = Value::Module {
             name: module_name.to_string(),
-            exports: FxHashMap::default(),
+            exports,
         };
         
         self.loaded_modules.insert(module_name.to_string(), module_value);
-        
-        // TODO: Actually compile and execute the module to populate exports
-        // This would involve:
-        // 1. Parsing the module file
-        // 2. Compiling it to bytecode
-        // 3. Executing it in a module context
-        // 4. Collecting the exports
         
         Ok(())
     }

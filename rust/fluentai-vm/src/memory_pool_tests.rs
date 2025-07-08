@@ -134,13 +134,11 @@ mod tests {
         
         // Should fail to allocate more
         let obj3 = pool.allocate();
-        // TODO: Pool doesn't enforce max_slabs limit correctly
-        // assert!(obj3.is_err());
+        assert!(obj3.is_err());
         
         // Check stats
         let stats = pool.stats();
-        // TODO: Check failed_allocations when max_slabs is enforced
-        // assert_eq!(stats.failed_allocations, 1);
+        assert_eq!(stats.failed_allocations, 1);
         
         // Return one object and try again
         pool.deallocate(obj1);

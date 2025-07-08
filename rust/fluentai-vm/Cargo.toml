@@ -26,6 +26,7 @@ crossbeam-queue = "0.3"
 [dev-dependencies]
 criterion.workspace = true
 fluentai-parser = { path = "../fluentai-parser" }
+tempfile = "3.8"
 
 [[example]]
 name = "test_vm"
@@ -202,3 +203,7 @@ path = "../examples/test_module_basic.rs"
 [[example]]
 name = "test_module_import"
 path = "../examples/test_module_import.rs"
+
+[[example]]
+name = "vm_overhead_test"
+path = "../examples/vm_overhead_test.rs"

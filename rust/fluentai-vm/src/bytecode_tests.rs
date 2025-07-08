@@ -346,6 +346,32 @@ mod tests {
         }
         
         #[test]
+        #[should_panic(expected = "Invalid jump offset")]
+        fn test_patch_jump_invalid_offset() {
+            let mut chunk = BytecodeChunk::new(None);
+            
+            // Add some instructions
+            chunk.add_instruction(Instruction::new(Opcode::Push));
+            chunk.add_instruction(Instruction::new(Opcode::Add));
+            
+            // Try to patch a jump at an invalid offset
+            chunk.patch_jump(5, 1); // offset 5 doesn't exist
+        }
+        
+        #[test]
+        #[should_panic(expected = "Jump target overflow")]
+        fn test_patch_jump_target_overflow() {
+            let mut chunk = BytecodeChunk::new(None);
+            
+            // Add an instruction
+            chunk.add_instruction(Instruction::with_arg(Opcode::Jump, 0));
+            
+            // Try to patch with a target that would overflow u32
+            let overflow_target = (u32::MAX as usize) + 1;
+            chunk.patch_jump(0, overflow_target);
+        }
+        
+        #[test]
         fn test_chunk_with_complex_program() {
             let mut chunk = BytecodeChunk::new(Some("factorial".to_string()));
             

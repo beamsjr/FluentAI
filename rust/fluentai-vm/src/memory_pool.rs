@@ -83,15 +83,17 @@ pub struct ObjectPool<T> {
     free_list: Vec<Box<T>>,
     config: PoolConfig,
     stats: RefCell<PoolStats>,
+    total_allocated: RefCell<usize>,
 }
 
 impl<T: Default> ObjectPool<T> {
     /// Create a new object pool
     pub fn new(config: PoolConfig) -> Self {
         let mut free_list = Vec::with_capacity(config.initial_slabs);
+        let initial_slabs = config.initial_slabs;
         
         // Pre-allocate objects
-        for _ in 0..config.initial_slabs {
+        for _ in 0..initial_slabs {
             free_list.push(Box::new(T::default()));
         }
         
@@ -99,6 +101,7 @@ impl<T: Default> ObjectPool<T> {
             free_list,
             config,
             stats: RefCell::new(PoolStats::default()),
+            total_allocated: RefCell::new(initial_slabs),
         }
     }
     
@@ -114,8 +117,9 @@ impl<T: Default> ObjectPool<T> {
                 }
             }
             Ok(obj)
-        } else if self.free_list.capacity() < self.config.max_slabs {
+        } else if *self.total_allocated.borrow() < self.config.max_slabs {
             // Allocate new object
+            *self.total_allocated.borrow_mut() += 1;
             if self.config.track_stats {
                 let mut stats = self.stats.borrow_mut();
                 stats.allocations += 1;

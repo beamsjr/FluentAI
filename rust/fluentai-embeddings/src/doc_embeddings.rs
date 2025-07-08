@@ -239,6 +239,7 @@ impl DocumentationEmbeddingService {
     }
     
     /// Add category-based features
+    #[allow(dead_code)]
     fn add_category_features(&self, features: &mut HashMap<String, f32>, category: &str) {
         let categories = [
             "core", "control-flow", "data-structures", "functions",

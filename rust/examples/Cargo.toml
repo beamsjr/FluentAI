@@ -1,0 +1,84 @@
+[package]
+name = "fluentai-examples"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+fluentai-vm = { path = "../fluentai-vm" }
+fluentai-effects = { path = "../fluentai-effects" }
+fluentai-stdlib = { path = "../fluentai-stdlib" }
+fluentai-modules = { path = "../fluentai-modules" }
+fluentai-types = { path = "../fluentai-types" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
+fluentai-di = { path = "../fluentai-di" }
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
+criterion = "0.5"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[[bin]]
+name = "test_vm"
+path = "test_vm.rs"
+
+[[bin]]
+name = "test_parser"
+path = "test_parser.rs"
+
+[[bin]]
+name = "test_effects_demo"
+path = "test_effects_demo.rs"
+
+[[bin]]
+name = "test_simple_effect"
+path = "test_simple_effect.rs"
+
+[[bin]]
+name = "test_module_basic"
+path = "test_module_basic.rs"
+
+[[bin]]
+name = "test_pattern_matching"
+path = "test_pattern_matching.rs"
+
+[[bin]]
+name = "test_optimization"
+path = "test_optimization.rs"
+
+[[bin]]
+name = "test_letrec"
+path = "test_letrec.rs"
+
+[[bin]]
+name = "test_closure_basic"
+path = "test_closure_basic.rs"
+
+[[bin]]
+name = "test_fast_locals"
+path = "test_fast_locals.rs"
+
+[[bin]]
+name = "throughput_benchmark"
+path = "throughput_benchmark.rs"
+
+[[bin]]
+name = "parser_benchmark"
+path = "parser_benchmark.rs"
+
+[[bin]]
+name = "simd_benchmark"
+path = "simd_benchmark.rs"
+
+[[bin]]
+name = "realistic_throughput_bench"
+path = "realistic_throughput_bench.rs"
+
+[[bin]]
+name = "vm_performance"
+path = "vm_performance.rs"
+
+[[bin]]
+name = "concurrent_gc_demo"
+path = "concurrent_gc_demo.rs"

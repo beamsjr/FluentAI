@@ -46,6 +46,11 @@ pub enum Token<'a> {
     #[regex(r":[a-zA-Z_][a-zA-Z0-9_-]*", priority = 2, callback = |lex| lex.slice())]
     Keyword(&'a str),
     
+    // Range operators (higher priority than general symbols)
+    #[token("..", |lex| lex.slice())]
+    #[token("..=", |lex| lex.slice())]
+    RangeOp(&'a str),
+    
     // Symbols (lower priority to avoid conflicts with numbers and qualified symbols)
     // Updated to include colon in symbol names for spec:contract
     #[regex(r"[a-zA-Z_+\-*/=<>!?][a-zA-Z0-9_+\-*/=<>!?:]*", priority = 1, callback = |lex| lex.slice())]

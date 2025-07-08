@@ -162,15 +162,19 @@ fn test_module_isolation() -> Result<()> {
 }
 
 #[test]
-#[should_panic(expected = "Import * not yet implemented")]
 fn test_import_all_not_implemented() {
     let source = r#"(import "math" *)"#;
     
     let graph = parse(source).unwrap();
     let compiler = Compiler::new();
     
-    // This should panic with "Import * not yet implemented"
-    let _ = compiler.compile(&graph).unwrap();
+    // Import-all is now implemented, so this should compile successfully
+    let bytecode = compiler.compile(&graph).unwrap();
+    
+    // Verify that ImportAll opcode is used
+    let has_import_all = bytecode.chunks[0].instructions.iter()
+        .any(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::ImportAll));
+    assert!(has_import_all, "Expected ImportAll opcode in bytecode");
 }
 
 #[test]

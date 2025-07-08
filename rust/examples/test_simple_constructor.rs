@@ -8,7 +8,7 @@ fn main() -> Result<()> {
     println!("Testing: {}", code);
     
     let graph = parse(code)?;
-    let mut compiler = Compiler::new();
+    let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph)?;
     
     let mut vm = VM::new(bytecode);
@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     println!("\nTesting: {}", code2);
     
     let graph2 = parse(code2)?;
-    let mut compiler2 = Compiler::new();
+    let compiler2 = Compiler::new();
     let bytecode2 = compiler2.compile(&graph2)?;
     
     println!("\nDisassembly:");

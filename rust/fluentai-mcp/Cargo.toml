@@ -15,6 +15,24 @@ async-trait = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+# Web framework
+axum = { version = "0.7", features = ["ws"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# SSE and streaming
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures = "0.3"
+async-stream = "0.3"
+
+# Session and state management
+uuid = { version = "1.6", features = ["v4", "serde"] }
+dashmap = "5.5"
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
 # Logging
 tracing = "0.1"
 tracing-subscriber = "0.3"
@@ -23,6 +41,13 @@ tracing-subscriber = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
 
+[lib]
+name = "fluentai_mcp"
+path = "src/lib.rs"
+
 [[bin]]
 name = "fluentai-mcp"
 path = "src/main.rs"
+
+[dev-dependencies]
+reqwest = { version = "0.11", features = ["json"] }

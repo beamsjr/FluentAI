@@ -6,15 +6,14 @@
 use crate::bytecode::Value;
 use crate::gc::{GcHandle, ConcurrentGcNode};
 use anyhow::{anyhow, Result};
-use crossbeam_epoch::{self as epoch, Atomic, Owned, Shared, Guard};
+use crossbeam_epoch::{self as epoch, Atomic, Guard};
 use crossbeam_queue::SegQueue;
-use parking_lot::{RwLock, Mutex};
+use parking_lot::RwLock;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
-use std::mem;
 
 /// Concurrent garbage collector with generational support
 pub struct ConcurrentGc {
@@ -504,7 +503,7 @@ impl ConcurrentGc {
         });
         
         // Promote survivors to old generation
-        for (id, mut node) in promoted {
+        for (id, node) in promoted {
             node.generation.store(1, Ordering::SeqCst);
             old.objects.insert(id + 1_000_000, node);
         }

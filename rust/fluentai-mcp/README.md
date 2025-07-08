@@ -64,13 +64,87 @@ Clear the interpreter state.
 
 **Parameters:** None
 
+## Configuration
+
+The server supports various environment variables for configuration. See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for details on security limits and timeout settings.
+
 ## Running the Server
+
+### Stdio Transport (Default)
 
 ```bash
 cargo run --bin fluentai-mcp
 ```
 
 The server listens on stdin/stdout following the MCP protocol.
+
+### HTTP Transport with SSE
+
+```bash
+cargo run --bin fluentai-mcp -- --transport http --port 3000
+```
+
+The server listens on HTTP port 3000 and supports:
+- POST `/sessions` - Create a new session
+- POST `/sessions/{session_id}/messages` - Send JSON-RPC messages
+- GET `/sessions/{session_id}/sse` - Server-Sent Events for notifications
+
+See `examples/http_client.rs` for a complete HTTP client example:
+
+```bash
+# Start the server in HTTP mode
+cargo run --bin fluentai-mcp -- --transport http
+
+# In another terminal, run the example client
+cargo run --example http_client
+```
+
+### HTTP API Reference
+
+#### Create Session
+```http
+POST /sessions
+Content-Type: application/json
+
+{
+  "client_info": {
+    "name": "your-client-name",
+    "version": "1.0.0"
+  }
+}
+```
+
+Response:
+```json
+{
+  "session_id": "uuid-string",
+  "sse_endpoint": "/sessions/{session_id}/sse"
+}
+```
+
+#### Send Message
+```http
+POST /sessions/{session_id}/messages
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "eval",
+    "arguments": {
+      "code": "(+ 1 2)"
+    }
+  },
+  "id": "unique-request-id"
+}
+```
+
+#### Subscribe to SSE
+```http
+GET /sessions/{session_id}/sse
+Accept: text/event-stream
+```
 
 ## Using with Claude Desktop
 

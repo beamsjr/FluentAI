@@ -16,8 +16,8 @@ fn main() {
     let mut compiler = Compiler::new();
     let chunk = compiler.compile(&graph).expect("Failed to compile");
     
-    let mut vm = VM::new();
-    match vm.run(&chunk) {
+    let mut vm = VM::new(chunk);
+    match vm.run() {
         Ok(result) => println!("Result: {:?} (expected 15)\n", result),
         Err(e) => println!("Error: {}\n", e),
     }
@@ -33,9 +33,11 @@ fn main() {
     println!("Code: {}", code2);
     
     let graph2 = parse(code2).expect("Failed to parse");
-    let chunk2 = compiler.compile(&graph2).expect("Failed to compile");
+    let mut compiler2 = Compiler::new();
+    let chunk2 = compiler2.compile(&graph2).expect("Failed to compile");
     
-    match vm.run(&chunk2) {
+    let mut vm2 = VM::new(chunk2);
+    match vm2.run() {
         Ok(result) => println!("Result: {:?} (expected 35)\n", result),
         Err(e) => println!("Error: {}\n", e),
     }
@@ -53,9 +55,11 @@ fn main() {
     println!("Code: {}", code3);
     
     let graph3 = parse(code3).expect("Failed to parse");
-    let chunk3 = compiler.compile(&graph3).expect("Failed to compile");
+    let mut compiler3 = Compiler::new();
+    let chunk3 = compiler3.compile(&graph3).expect("Failed to compile");
     
-    match vm.run(&chunk3) {
+    let mut vm3 = VM::new(chunk3);
+    match vm3.run() {
         Ok(result) => println!("Result: {:?} (expected 18)", result),
         Err(e) => println!("Error: {}", e),
     }

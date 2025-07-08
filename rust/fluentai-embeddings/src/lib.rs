@@ -9,7 +9,6 @@ use fluentai_optimizer::ml_hints::{ProgramFeatures, MLOptimizationHints};
 use rustc_hash::FxHashMap;
 use serde::{Serialize, Deserialize};
 use std::sync::{Arc, RwLock};
-use std::path::Path;
 
 pub mod generator;
 pub mod storage;

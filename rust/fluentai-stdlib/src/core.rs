@@ -61,9 +61,11 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("number?", is_number, 1, Some(1), "Check if value is a number"),
         
         // Comparison operations (beyond what VM provides)
+        StdlibFunction::pure("<", less_than, 2, Some(2), "Less than comparison"),
         StdlibFunction::pure(">", greater_than, 2, Some(2), "Greater than comparison"),
         StdlibFunction::pure("<=", less_equal, 2, Some(2), "Less than or equal comparison"),
         StdlibFunction::pure(">=", greater_equal, 2, Some(2), "Greater than or equal comparison"),
+        StdlibFunction::pure("=", equal, 2, Some(2), "Equal comparison"),
         StdlibFunction::pure("!=", not_equal, 2, Some(2), "Not equal comparison"),
     ]);
 }
@@ -363,6 +365,16 @@ fn is_number(args: &[Value]) -> Result<Value> {
 
 // Comparison operations
 
+fn less_than(args: &[Value]) -> Result<Value> {
+    match (&args[0], &args[1]) {
+        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a < b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a < b)),
+        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool((*a as f64) < *b)),
+        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a < (*b as f64))),
+        _ => Err(anyhow!("<: expected numbers")),
+    }
+}
+
 fn greater_than(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
         (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a > b)),
@@ -390,6 +402,19 @@ fn greater_equal(args: &[Value]) -> Result<Value> {
         (Value::Int(a), Value::Float(b)) => Ok(Value::Bool(*a as f64 >= *b)),
         (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a >= *b as f64)),
         _ => Err(anyhow!(">=: expected numbers")),
+    }
+}
+
+fn equal(args: &[Value]) -> Result<Value> {
+    match (&args[0], &args[1]) {
+        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a == b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a == b)),
+        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool(*a as f64 == *b)),
+        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a == *b as f64)),
+        (Value::String(a), Value::String(b)) => Ok(Value::Bool(a == b)),
+        (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a == b)),
+        (Value::Nil, Value::Nil) => Ok(Value::Bool(true)),
+        _ => Ok(Value::Bool(false)), // Different types are not equal
     }
 }
 

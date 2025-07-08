@@ -5,7 +5,6 @@
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
-use std::mem;
 use crate::bytecode::Value;
 use anyhow::{anyhow, Result};
 

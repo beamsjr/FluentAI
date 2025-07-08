@@ -8,7 +8,7 @@ use fluentai_stdlib::StdlibRegistry;
 use fluentai_modules::{ModuleLoader, ModuleResolver, ModuleConfig};
 use anyhow::Result;
 
-use crate::{VMBuilder, VMConfig};
+use crate::builder::{VMBuilder, VMConfig};
 
 /// VM services registration extension trait
 pub trait VMContainerBuilderExt {

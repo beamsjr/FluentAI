@@ -65,7 +65,19 @@ fn test_import_all_not_implemented() -> Result<()> {
     }).expect("Failed to add node");
     graph.root_id = Some(import_node);
     
-    compile_and_expect_error(&graph, "Import * not yet implemented")?;
+    // Import-all is now implemented, so compilation should succeed
+    let options = CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+        debug_info: false,
+    };
+    let compiler = Compiler::with_options(options);
+    let bytecode = compiler.compile(&graph)?;
+    
+    // Verify that ImportAll opcode is used
+    let has_import_all = bytecode.chunks[0].instructions.iter()
+        .any(|i| i.opcode == Opcode::ImportAll);
+    assert!(has_import_all, "Expected ImportAll opcode in bytecode");
+    
     Ok(())
 }
 

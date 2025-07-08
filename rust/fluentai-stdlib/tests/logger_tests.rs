@@ -139,6 +139,9 @@ fn test_log_level_management() {
 
 #[test]
 fn test_log_filtering() {
+    // Save initial log level
+    let initial_level = get_log_level(&[]).unwrap();
+    
     // Set log level to WARN
     set_log_level(&[Value::Int(2)]).unwrap();
     
@@ -156,8 +159,8 @@ fn test_log_filtering() {
     let result = error(&[Value::String("This should also be logged".to_string())]);
     assert!(result.is_ok());
     
-    // Reset to INFO
-    set_log_level(&[Value::Int(1)]).unwrap();
+    // Restore initial level
+    set_log_level(&[initial_level]).unwrap();
 }
 
 #[test]

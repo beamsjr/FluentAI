@@ -63,7 +63,7 @@ impl BuiltinRegistry {
                 module: "core"
             ),
             
-            // Arithmetic operations
+            // Basic arithmetic operations
             define_builtin!(
                 name: "+",
                 signature: "(+ <num1> <num2> ...)",
@@ -93,23 +93,6 @@ impl BuiltinRegistry {
                 signature: "(/ <num1> <num2> ...)",
                 description: "Divides numbers. Integer division returns a float.",
                 examples: ["(/ 10 2)", "(/ 20 4 2)", "(/ 5 2)"],
-                module: "core"
-            ),
-            
-            // Comparison operations
-            define_builtin!(
-                name: "=",
-                signature: "(= <value1> <value2>)",
-                description: "Tests if two values are equal.",
-                examples: ["(= 5 5)", "(= \"hello\" \"hello\")", "(= x y)"],
-                module: "core"
-            ),
-            
-            define_builtin!(
-                name: "<",
-                signature: "(< <value1> <value2>)",
-                description: "Tests if the first value is less than the second.",
-                examples: ["(< 3 5)", "(< x 10)", "(< \"a\" \"b\")"],
                 module: "core"
             ),
             
@@ -156,63 +139,9 @@ impl BuiltinRegistry {
                 module: "core"
             ),
             
-            // Additional comparison
-            define_builtin!(
-                name: "!=",
-                signature: "(!= <value1> <value2>)",
-                description: "Tests if two values are not equal.",
-                examples: ["(!= 5 3)", "(!= \"hello\" \"world\")", "(!= x y)"],
-                module: "core"
-            ),
+            // Additional comparison operators are defined in register_operators() to avoid duplicates
             
-            define_builtin!(
-                name: "<=",
-                signature: "(<= <value1> <value2>)",
-                description: "Tests if the first value is less than or equal to the second.",
-                examples: ["(<= 3 5)", "(<= 5 5)", "(<= x limit)"],
-                module: "core"
-            ),
-            
-            define_builtin!(
-                name: ">",
-                signature: "(> <value1> <value2>)",
-                description: "Tests if the first value is greater than the second.",
-                examples: ["(> 5 3)", "(> x 0)", "(> \"z\" \"a\")"],
-                module: "core"
-            ),
-            
-            define_builtin!(
-                name: ">=",
-                signature: "(>= <value1> <value2>)",
-                description: "Tests if the first value is greater than or equal to the second.",
-                examples: ["(>= 5 3)", "(>= 5 5)", "(>= score threshold)"],
-                module: "core"
-            ),
-            
-            // Boolean operations
-            define_builtin!(
-                name: "and",
-                signature: "(and <bool1> <bool2> ...)",
-                description: "Returns true if all arguments are true, false otherwise.",
-                examples: ["(and true true)", "(and (> x 0) (< x 10))", "(and a b c)"],
-                module: "core"
-            ),
-            
-            define_builtin!(
-                name: "or",
-                signature: "(or <bool1> <bool2> ...)",
-                description: "Returns true if any argument is true, false otherwise.",
-                examples: ["(or true false)", "(or (< x 0) (> x 10))", "(or a b c)"],
-                module: "core"
-            ),
-            
-            define_builtin!(
-                name: "not",
-                signature: "(not <bool>)",
-                description: "Returns the logical negation of its argument.",
-                examples: ["(not true)", "(not false)", "(not (= x 0))"],
-                module: "core"
-            ),
+            // Boolean operations are defined in register_operators() to avoid duplicates
             
             // List operations
             define_builtin!(

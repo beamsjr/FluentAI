@@ -262,12 +262,27 @@ impl Compiler {
                 if let Some(opcode) = self.builtin_to_opcode(name) {
                     // For built-in arithmetic/comparison ops, compile args and emit opcode
                     match opcode {
-                        // Binary operators
-                        Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod |
+                        // Variadic operators (can take 2 or more arguments)
+                        Opcode::Add | Opcode::Mul | Opcode::And | Opcode::Or => {
+                            if args.len() < 2 {
+                                return Err(anyhow!("{} requires at least 2 arguments", name));
+                            }
+                            // Compile first argument
+                            self.compile_node(graph, args[0])?;
+                            
+                            // Chain operations for remaining arguments
+                            for &arg in &args[1..] {
+                                self.compile_node(graph, arg)?;
+                                self.emit(Instruction::new(opcode));
+                            }
+                            return Ok(());
+                        }
+                        // Binary operators (exactly 2 arguments)
+                        Opcode::Sub | Opcode::Div | Opcode::Mod |
                         Opcode::AddInt | Opcode::SubInt | Opcode::MulInt | Opcode::DivInt |
                         Opcode::AddFloat | Opcode::SubFloat | Opcode::MulFloat | Opcode::DivFloat |
                         Opcode::Eq | Opcode::Ne | Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge |
-                        Opcode::And | Opcode::Or | Opcode::StrConcat | Opcode::ListCons => {
+                        Opcode::StrConcat | Opcode::ListCons => {
                             if args.len() != 2 {
                                 return Err(anyhow!("{} requires exactly 2 arguments", name));
                             }
@@ -1036,7 +1051,7 @@ impl Compiler {
             // Compile pattern test
             // This will leave a boolean on the stack for conditional patterns
             // For always-matching patterns (variable/wildcard), no test is generated
-            let (bindings, always_matches) = self.compile_pattern_test(pattern)?;
+            let (bindings, always_matches) = self.compile_pattern_test(graph, pattern)?;
             
             // Handle the test result
             let jump_to_next = if always_matches {
@@ -1114,15 +1129,31 @@ impl Compiler {
                     }
                 } else {
                     // Regular pattern binding
+                    // After the pattern test and potential JumpIfNot, the matched value is on top of stack
+                    // The bindings contain absolute stack positions, but we need to adjust them
+                    // to be relative to our scope base
+                    
+                    // The matched value is at stack_depth - 1
+                    let value_pos = self.stack_depth - 1;
+                    
                     self.locals.push(HashMap::new());
                     self.captured.push(HashMap::new());
-                    self.scope_bases.push(self.stack_depth);
+                    self.scope_bases.push(value_pos);
                     self.cell_vars.push(HashSet::new());
                     let scope_idx = self.locals.len() - 1;
                     
                     // Add pattern bindings
-                    for (name, pos) in &bindings {
-                        self.locals[scope_idx].insert(name.clone(), *pos);
+                    // For simple patterns like (as x 42), the binding position should be 0
+                    // relative to the scope base (which is the value position)
+                    for (name, abs_pos) in &bindings {
+                        // Convert absolute position to relative position
+                        let rel_pos = if *abs_pos >= value_pos {
+                            *abs_pos - value_pos
+                        } else {
+                            // This shouldn't happen, but handle it gracefully
+                            0
+                        };
+                        self.locals[scope_idx].insert(name.clone(), rel_pos);
                     }
                 }
             } else {
@@ -1146,7 +1177,9 @@ impl Compiler {
             }
             
             // Jump to end (skip other branches and fallback)
-            if !is_last || jump_to_next.is_some() {
+            // We need to jump unless this is the last branch AND it always matches
+            // (in which case there's no fallback code to skip)
+            if !is_last || !always_matches {
                 jump_to_ends.push(self.emit(Instruction::with_arg(Opcode::Jump, 0)));
             }
             
@@ -1163,7 +1196,14 @@ impl Compiler {
         // If we get here and no pattern matched, we need to handle the error case
         // Check if the last pattern was always-matching
         let last_always_matches = if let Some((pattern, _)) = branches.last() {
-            matches!(pattern, Pattern::Wildcard | Pattern::Variable(_))
+            match pattern {
+                Pattern::Wildcard | Pattern::Variable(_) => true,
+                Pattern::As { pattern, .. } => {
+                    // Check if the inner pattern always matches
+                    matches!(pattern.as_ref(), Pattern::Wildcard | Pattern::Variable(_))
+                }
+                _ => false,
+            }
         } else {
             false
         };
@@ -1184,7 +1224,7 @@ impl Compiler {
         Ok(())
     }
     
-    fn compile_pattern_test(&mut self, pattern: &Pattern) -> Result<(Vec<(String, usize)>, bool)> {
+    fn compile_pattern_test(&mut self, graph: &ASTGraph, pattern: &Pattern) -> Result<(Vec<(String, usize)>, bool)> {
         
         let mut bindings = Vec::new();
         
@@ -1265,7 +1305,7 @@ impl Compiler {
                         // Get the field
                         self.emit(Instruction::with_arg(Opcode::GetTaggedField, i as u32));
                         // Test the sub-pattern
-                        let (sub_bindings, _) = self.compile_pattern_test(sub_pattern)?;
+                        let (sub_bindings, _) = self.compile_pattern_test(graph, sub_pattern)?;
                         bindings.extend(sub_bindings);
                         
                         // If sub-pattern failed, clean up stack and fail
@@ -1303,6 +1343,245 @@ impl Compiler {
                     Ok((bindings, false))
                 }
             }
+            Pattern::Guard { pattern, condition } => {
+                // First compile the inner pattern test
+                let (inner_bindings, always_matches) = self.compile_pattern_test(graph, pattern)?;
+                
+                if !always_matches {
+                    // If the pattern doesn't always match, we already have a test result on stack
+                    // Need to check it before evaluating the guard
+                    let pattern_fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
+                    
+                    // Pattern matched, now evaluate guard condition
+                    // Create temporary scope with pattern bindings for guard compilation
+                    self.locals.push(HashMap::new());
+                    self.captured.push(HashMap::new());
+                    self.scope_bases.push(self.stack_depth - 1); // Value is on stack
+                    self.cell_vars.push(HashSet::new());
+                    let scope_idx = self.locals.len() - 1;
+                    
+                    // Add pattern bindings to scope
+                    for (name, pos) in &inner_bindings {
+                        self.locals[scope_idx].insert(name.clone(), *pos);
+                    }
+                    
+                    // Compile guard condition with bindings in scope
+                    self.compile_node(graph, *condition)?;
+                    
+                    // Remove temporary scope
+                    self.locals.pop();
+                    self.captured.pop();
+                    self.scope_bases.pop();
+                    self.cell_vars.pop();
+                    
+                    // Jump to end
+                    let end_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.emit(Instruction::with_arg(Opcode::Jump, 0)); // Will patch later
+                    
+                    // Pattern failed, push false
+                    let pattern_fail_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.bytecode.chunks[self.current_chunk].patch_jump(pattern_fail_jump, pattern_fail_target);
+                    self.emit(Instruction::new(Opcode::PushFalse));
+                    
+                    // Patch end jump
+                    let end_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                    self.bytecode.chunks[self.current_chunk].patch_jump(end_jump, end_target);
+                } else {
+                    // Pattern always matches, just evaluate the guard
+                    // Create temporary scope with pattern bindings for guard compilation
+                    self.locals.push(HashMap::new());
+                    self.captured.push(HashMap::new());
+                    self.scope_bases.push(self.stack_depth - 1); // Value is on stack
+                    self.cell_vars.push(HashSet::new());
+                    let scope_idx = self.locals.len() - 1;
+                    
+                    // Add pattern bindings to scope
+                    for (name, pos) in &inner_bindings {
+                        self.locals[scope_idx].insert(name.clone(), *pos);
+                    }
+                    
+                    // Compile guard condition with bindings in scope
+                    self.compile_node(graph, *condition)?;
+                    
+                    // Remove temporary scope
+                    self.locals.pop();
+                    self.captured.pop();
+                    self.scope_bases.pop();
+                    self.cell_vars.pop();
+                }
+                
+                let bindings_mut = inner_bindings;
+                Ok((bindings_mut, false))
+            }
+            Pattern::As { binding, pattern } => {
+                // As-pattern: bind the value, then test the inner pattern
+                // The value is on top of stack
+                let value_pos = self.stack_depth - 1;
+                
+                // Add the as-binding first
+                bindings.push((binding.clone(), value_pos));
+                
+                // Compile the inner pattern
+                let (inner_bindings, always_matches) = self.compile_pattern_test(graph, pattern)?;
+                
+                // Add any inner bindings
+                bindings.extend(inner_bindings);
+                
+                Ok((bindings, always_matches))
+            }
+            Pattern::Or(patterns) => {
+                // Or-pattern: try each pattern in sequence until one matches
+                if patterns.is_empty() {
+                    // Empty or-pattern never matches
+                    self.emit(Instruction::new(Opcode::PushFalse));
+                    return Ok((bindings, false));
+                }
+                
+                let mut jumps_to_success = Vec::new();
+                
+                for (i, pat) in patterns.iter().enumerate() {
+                    // The stack should have [value] at this point
+                    // compile_pattern_test expects the value on top of stack
+                    
+                    let (pat_bindings, always_matches) = self.compile_pattern_test(graph, pat)?;
+                    
+                    if always_matches {
+                        // This pattern always matches, no need to check others
+                        bindings.extend(pat_bindings);
+                        // Push true for the or-pattern result
+                        self.emit(Instruction::new(Opcode::PushTrue));
+                        return Ok((bindings, false));
+                    }
+                    
+                    // Pattern test left stack as: [value, bool]
+                    // We need to check the bool and potentially continue
+                    
+                    if i < patterns.len() - 1 {
+                        // Not the last pattern - need to preserve value for next iteration
+                        // Stack: [value, bool]
+                        // Duplicate the bool for the jump test
+                        self.emit(Instruction::new(Opcode::Dup)); // [value, bool, bool]
+                        
+                        // If true, jump to success
+                        let jump_to_success = self.bytecode.chunks[self.current_chunk].instructions.len();
+                        self.emit(Instruction::with_arg(Opcode::JumpIf, 0)); // Will patch later
+                        jumps_to_success.push(jump_to_success);
+                        // JumpIf consumed one bool, stack: [value, bool]
+                        
+                        // Test failed, pop the false result
+                        self.emit(Instruction::new(Opcode::Pop)); // [value]
+                        // Ready for next iteration
+                    } else {
+                        // Last pattern - the bool result stays on stack
+                        // If true, jump to success
+                        let jump_to_success = self.bytecode.chunks[self.current_chunk].instructions.len();
+                        self.emit(Instruction::with_arg(Opcode::JumpIf, 0)); // Will patch later
+                        jumps_to_success.push(jump_to_success);
+                        // Stack after jump: [value] (JumpIf consumed the bool)
+                    }
+                    
+                    // Note: We can't use bindings from or-patterns as they may not all bind the same variables
+                }
+                
+                // After all patterns tried and failed
+                // For the last pattern:
+                // - If it matched, we jumped to success
+                // - If it didn't match, the stack is [value] (JumpIf consumed the false)
+                // We need to push false as the or-pattern result
+                self.emit(Instruction::new(Opcode::PushFalse)); // [value, false]
+                
+                // Jump to end to skip success case
+                let jump_to_end = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.emit(Instruction::with_arg(Opcode::Jump, 0)); // Will patch later
+                
+                // Success target: when we jump here, stack is [value]
+                let success_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                for jump in jumps_to_success {
+                    self.bytecode.chunks[self.current_chunk].patch_jump(jump, success_target);
+                }
+                // Push true as the or-pattern result
+                self.emit(Instruction::new(Opcode::PushTrue)); // [value, true]
+                
+                // Patch jump to end
+                let end_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.bytecode.chunks[self.current_chunk].patch_jump(jump_to_end, end_target);
+                
+                // Stack now has: [value, bool] where bool is the or-pattern result
+                Ok((bindings, false))
+            }
+            Pattern::Range(range) => {
+                // Range pattern: check if value is within range
+                
+                
+                // Duplicate value for comparison
+                self.emit(Instruction::new(Opcode::Dup));
+                
+                // Check lower bound
+                self.compile_literal(&range.start)?;
+                self.emit(Instruction::new(Opcode::Ge)); // value >= start
+                
+                // Short-circuit if lower bound fails
+                let lower_fail_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)); // Will patch later
+                
+                // Check upper bound
+                self.emit(Instruction::new(Opcode::Dup)); // Duplicate value again
+                self.compile_literal(&range.end)?;
+                if range.inclusive {
+                    self.emit(Instruction::new(Opcode::Le)); // value <= end
+                } else {
+                    self.emit(Instruction::new(Opcode::Lt)); // value < end
+                }
+                
+                // Jump to end
+                let end_jump = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.emit(Instruction::with_arg(Opcode::Jump, 0)); // Will patch later
+                
+                // Lower bound failed, push false
+                let lower_fail_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.bytecode.chunks[self.current_chunk].patch_jump(lower_fail_jump, lower_fail_target);
+                self.emit(Instruction::new(Opcode::PushFalse));
+                
+                // Patch end jump
+                let end_target = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.bytecode.chunks[self.current_chunk].patch_jump(end_jump, end_target);
+                
+                Ok((bindings, false))
+            }
+            Pattern::View { function, pattern } => {
+                // View pattern: apply function then match
+                // Stack: [..., value]
+                
+                // Duplicate the value for function application
+                self.emit(Instruction::new(Opcode::Dup)); // [..., value, value]
+                
+                // Compile the function
+                self.compile_node(graph, *function)?; // [..., value, value, func]
+                
+                // Call expects: function on top, then arguments below
+                // Current stack: [..., original_value, dup_value, func]
+                // The Call instruction will:
+                // 1. Pop func
+                // 2. Pop dup_value as the argument
+                // 3. Push the result
+                // This leaves [..., original_value, result] which is what we want!
+                self.emit(Instruction::with_arg(Opcode::Call, 1)); // [..., value, result]
+                
+                // Now match the result against the inner pattern
+                let (inner_bindings, always_matches) = self.compile_pattern_test(graph, pattern)?;
+                
+                // If pattern test left a boolean on stack, we need to handle it
+                if !always_matches {
+                    // Stack: [..., value, bool]
+                    // Swap so value stays on top for potential binding
+                    self.emit(Instruction::new(Opcode::Swap)); // [..., bool, value]
+                    self.emit(Instruction::new(Opcode::Swap)); // [..., value, bool]
+                }
+                
+                bindings.extend(inner_bindings);
+                Ok((bindings, always_matches))
+            }
         }
     }
     
@@ -1336,9 +1615,9 @@ impl Compiler {
         self.emit(Instruction::with_arg(Opcode::LoadModule, module_idx));
         
         if import_all {
-            // TODO: Implement import * functionality
-            // This would require runtime support to enumerate all exports
-            return Err(anyhow!("Import * not yet implemented"));
+            // Import all exports from the module
+            // The runtime will handle enumerating and binding all exports
+            self.emit(Instruction::with_arg(Opcode::ImportAll, module_idx));
         } else {
             // Import specific bindings
             for item in import_list {
@@ -1353,6 +1632,9 @@ impl Compiler {
                 self.emit(Instruction::with_arg(Opcode::Store, local_idx as u32));
             }
         }
+        
+        // Import statements evaluate to nil
+        self.emit(Instruction::new(Opcode::PushNil));
         
         Ok(())
     }

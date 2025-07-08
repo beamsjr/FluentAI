@@ -5,8 +5,9 @@ use serde_json::{json, Value as JsonValue};
 use tracing::debug;
 
 use fluentai_parser::Parser;
-use fluentai_vm::{VM, Compiler, Bytecode};
+use fluentai_vm::{VM, Compiler, Bytecode, VMBuilder};
 use fluentai_vm::bytecode::Value;
+use fluentai_vm::security::SecurityPolicy;
 
 use crate::server::ServerState;
 
@@ -18,38 +19,72 @@ pub async fn handle_eval(_state: &mut ServerState, args: Option<&JsonValue>) -> 
     
     debug!("Evaluating code: {}", code);
     
-    // Parse the code
-    let mut parser = Parser::new(code);
-    let ast = parser.parse()
-        .map_err(|e| anyhow::anyhow!("Parse error: {:?}", e))?;
-    
-    // Compile the AST to bytecode
-    let compiler = Compiler::new();
-    let bytecode = compiler.compile(&ast)
-        .map_err(|e| anyhow::anyhow!("Compile error: {:?}", e))?;
-    
-    // Create a new VM with the compiled bytecode and run it
-    let mut vm = VM::new(bytecode);
-    match vm.run() {
-        Ok(result) => {
-            let result_str = format_value(&result);
-            Ok(json!({
-                "content": [{
-                    "type": "text",
-                    "text": result_str
-                }]
-            }))
-        }
-        Err(e) => {
-            Ok(json!({
-                "content": [{
-                    "type": "text",
-                    "text": format!("Error: {:?}", e)
-                }],
-                "isError": true
-            }))
-        }
+    // Validate code length to prevent DoS
+    if code.len() > 100_000 {
+        return Err(anyhow::anyhow!("Code exceeds maximum length of 100KB"));
     }
+    
+    let code = code.to_string();
+    
+    // Run VM operations in a blocking task with timeout
+    let timeout_secs = std::env::var("FLUENTAI_EXECUTION_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(30); // Default: 30 seconds
+    
+    let result = tokio::time::timeout(
+        tokio::time::Duration::from_secs(timeout_secs),
+        tokio::task::spawn_blocking(move || {
+        // Parse the code
+        let mut parser = Parser::new(&code);
+        let ast = parser.parse()
+            .map_err(|e| anyhow::anyhow!("Parse error: {:?}", e))?;
+        
+        // Compile the AST to bytecode
+        let compiler = Compiler::new();
+        let bytecode = compiler.compile(&ast)
+            .map_err(|e| anyhow::anyhow!("Compile error: {:?}", e))?;
+        
+        // Create a sandboxed VM with strict security policy
+        let mut security_policy = SecurityPolicy::sandbox();
+        // Allow a reasonable amount of memory and instructions for demos
+        // These can be configured via environment variables
+        security_policy.max_memory = std::env::var("FLUENTAI_MAX_MEMORY_MB")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .map(|mb| mb * 1024 * 1024)
+            .unwrap_or(50 * 1024 * 1024); // Default: 50MB
+        
+        security_policy.max_instructions = std::env::var("FLUENTAI_MAX_INSTRUCTIONS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(10_000_000); // Default: 10M instructions
+        
+        security_policy.max_allocations = std::env::var("FLUENTAI_MAX_ALLOCATIONS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(50_000); // Default: 50K allocations
+        
+        let mut vm = VMBuilder::new()
+            .with_bytecode(bytecode)
+            .with_security_policy(security_policy)
+            .with_sandbox_mode()
+            .build()?;
+            
+        // Run with timeout (handled by spawn_blocking timeout)
+        vm.run().map_err(|e| anyhow::anyhow!("Runtime error: {:?}", e))
+    }))
+    .await
+    .map_err(|_| anyhow::anyhow!("Code execution timed out after 30 seconds"))?
+    .map_err(|e| anyhow::anyhow!("Task join error: {}", e))??;
+    
+    let result_str = format_value(&result);
+    Ok(json!({
+        "content": [{
+            "type": "text",
+            "text": result_str
+        }]
+    }))
 }
 
 /// Handle search_docs tool - search documentation
@@ -63,33 +98,29 @@ pub async fn handle_search_docs(state: &ServerState, args: Option<&JsonValue>) -
     // Only show user-facing documentation to the LLM
     let results = state.docs.search_user_facing(query);
     
-    let mut content = String::new();
-    content.push_str(&format!("Found {} results for '{}'\n\n", results.len(), query));
-    
-    for doc in results.iter().take(10) {
-        content.push_str(&format!("## {}\n", doc.name));
-        content.push_str(&format!("**Syntax:** `{}`\n", doc.syntax));
-        content.push_str(&format!("**Category:** {:?}\n", doc.category));
-        content.push_str(&format!("{}\n", doc.description));
-        
-        if !doc.examples.is_empty() {
-            content.push_str("\n**Examples:**\n");
-            for example in &doc.examples {
-                content.push_str(&format!("```claudelang\n{}\n```\n", example));
-            }
-        }
-        
-        if !doc.see_also.is_empty() {
-            content.push_str(&format!("\n**See also:** {}\n", doc.see_also.join(", ")));
-        }
-        
-        content.push_str("\n---\n\n");
-    }
+    // Convert results to JSON objects
+    let json_results: Vec<JsonValue> = results.iter()
+        .take(10)
+        .map(|doc| {
+            json!({
+                "name": doc.name,
+                "syntax": doc.syntax,
+                "category": format!("{:?}", doc.category),
+                "description": doc.description,
+                "examples": doc.examples,
+                "see_also": doc.see_also
+            })
+        })
+        .collect();
     
     Ok(json!({
         "content": [{
-            "type": "text",
-            "text": content
+            "type": "data",
+            "data": {
+                "query": query,
+                "total_results": results.len(),
+                "results": json_results
+            }
         }]
     }))
 }
@@ -103,34 +134,26 @@ pub async fn handle_get_syntax(state: &ServerState, args: Option<&JsonValue>) ->
     debug!("Getting syntax for: {}", name);
     
     if let Some(doc) = state.docs.get(name) {
-        let mut content = String::new();
-        content.push_str(&format!("# {}\n\n", doc.name));
-        content.push_str(&format!("**Syntax:** `{}`\n\n", doc.syntax));
-        content.push_str(&format!("**Category:** {:?}\n\n", doc.category));
-        content.push_str(&format!("{}\n\n", doc.description));
-        
-        if !doc.examples.is_empty() {
-            content.push_str("## Examples\n\n");
-            for example in &doc.examples {
-                content.push_str(&format!("```claudelang\n{}\n```\n\n", example));
-            }
-        }
-        
-        if !doc.see_also.is_empty() {
-            content.push_str(&format!("## See Also\n\n{}\n", doc.see_also.join(", ")));
-        }
-        
         Ok(json!({
             "content": [{
-                "type": "text",
-                "text": content
+                "type": "data",
+                "data": {
+                    "name": doc.name,
+                    "syntax": doc.syntax,
+                    "category": format!("{:?}", doc.category),
+                    "description": doc.description,
+                    "examples": doc.examples,
+                    "see_also": doc.see_also
+                }
             }]
         }))
     } else {
         Ok(json!({
             "content": [{
-                "type": "text",
-                "text": format!("No documentation found for '{}'", name)
+                "type": "data",
+                "data": {
+                    "error": format!("No documentation found for '{}'", name)
+                }
             }],
             "isError": true
         }))
@@ -144,38 +167,37 @@ pub async fn handle_list_features(state: &ServerState, _args: Option<&JsonValue>
     // Only show user-facing documentation to the LLM
     let all_docs = state.docs.list_user_facing();
     
-    let mut content = String::new();
-    content.push_str(&format!("# FluentAi Features ({} total)\n\n", all_docs.len()));
-    
     // Group by category
     let mut by_category: std::collections::HashMap<_, Vec<_>> = std::collections::HashMap::new();
     for doc in all_docs {
         by_category.entry(doc.category).or_default().push(doc);
     }
     
-    // Sort categories
-    let mut categories: Vec<_> = by_category.keys().copied().collect();
-    categories.sort_by_key(|c| format!("{:?}", c));
+    // Convert to structured JSON
+    let mut categories_json = json!({});
     
-    for category in categories {
-        content.push_str(&format!("## {:?}\n\n", category));
-        
-        let mut docs = by_category[&category].clone();
+    for (category, mut docs) in by_category {
         docs.sort_by_key(|d| d.name.clone());
         
-        for doc in docs {
-            content.push_str(&format!("- **{}** - `{}` - {}\n", 
-                doc.name, doc.syntax, 
-                doc.description.split('.').next().unwrap_or(&doc.description)
-            ));
-        }
-        content.push_str("\n");
+        let category_name = format!("{:?}", category);
+        let features: Vec<JsonValue> = docs.into_iter()
+            .map(|doc| json!({
+                "name": doc.name,
+                "syntax": doc.syntax,
+                "description": doc.description
+            }))
+            .collect();
+        
+        categories_json[category_name] = json!(features);
     }
     
     Ok(json!({
         "content": [{
-            "type": "text",
-            "text": content
+            "type": "data",
+            "data": {
+                "total_features": state.docs.list_user_facing().len(),
+                "categories": categories_json
+            }
         }]
     }))
 }

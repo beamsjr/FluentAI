@@ -2,7 +2,7 @@
 
 use crate::error::ParseError;
 use crate::lexer::{Lexer, Token};
-use fluentai_core::ast::{EffectType, Graph, Literal, Node, NodeId, Pattern, ImportItem, ExportItem};
+use fluentai_core::ast::{EffectType, Graph, Literal, Node, NodeId, Pattern, RangePattern, ImportItem, ExportItem};
 use bumpalo::Bump;
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -418,6 +418,62 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_pattern_inner(&mut self) -> ParseResult<Pattern> {
+        // First, check for complex pattern forms that start with parentheses
+        if matches!(self.lexer.peek_token(), Some(Token::LParen)) {
+            self.lexer.next_token(); // consume LParen
+            
+            // Check for special pattern forms
+            match self.lexer.peek_token() {
+                Some(Token::Symbol(keyword)) => {
+                    match keyword.as_ref() {
+                        "or" => return self.parse_or_pattern(),
+                        "as" => return self.parse_as_pattern(),
+                        "when" => return self.parse_guard_pattern(),
+                        "view" => return self.parse_view_pattern(),
+                        _ => {
+                            // Put back the LParen for constructor patterns
+                            // Since we can't put tokens back, parse as constructor starting here
+                            let pattern = self.parse_pattern()?;
+                            self.expect_token(Token::RParen)?;
+                            return Ok(pattern);
+                        }
+                    }
+                }
+                Some(Token::RangeOp(op)) => {
+                    // Parse range pattern with parentheses syntax
+                    let range_op = op.to_string();
+                    self.lexer.next_token(); // consume operator
+                    
+                    let start = if let Some(Token::Integer(n)) = self.lexer.next_token() {
+                        Literal::Integer(n)
+                    } else {
+                        return Err(ParseError::InvalidSyntax("Expected integer for range start".to_string()));
+                    };
+                    
+                    let end = if let Some(Token::Integer(n)) = self.lexer.next_token() {
+                        Literal::Integer(n)
+                    } else {
+                        return Err(ParseError::InvalidSyntax("Expected integer for range end".to_string()));
+                    };
+                    
+                    self.expect_token(Token::RParen)?;
+                    
+                    return Ok(Pattern::Range(RangePattern {
+                        start,
+                        end,
+                        inclusive: range_op == "..=",
+                    }));
+                }
+                _ => {
+                    // Put back the LParen for constructor patterns
+                    // Since we can't put tokens back, parse as constructor starting here
+                    let pattern = self.parse_pattern()?;
+                    self.expect_token(Token::RParen)?;
+                    return Ok(pattern);
+                }
+            }
+        }
+        
         match self.lexer.peek_token().cloned() {
             Some(Token::Symbol(name)) if name == "_" => {
                 self.lexer.next_token();
@@ -425,7 +481,17 @@ impl<'a> Parser<'a> {
             }
             Some(Token::Symbol(name)) if !name.is_empty() && name.chars().next().unwrap().is_lowercase() => {
                 self.lexer.next_token();
-                Ok(Pattern::Variable(name.to_string()))
+                // Check if this is followed by @ for as-pattern
+                if matches!(self.lexer.peek_token(), Some(Token::Symbol(s)) if s == &"@") {
+                    self.lexer.next_token(); // consume @
+                    let inner_pattern = self.parse_pattern()?;
+                    Ok(Pattern::As {
+                        binding: name.to_string(),
+                        pattern: Box::new(inner_pattern),
+                    })
+                } else {
+                    Ok(Pattern::Variable(name.to_string()))
+                }
             }
             Some(Token::Symbol(name)) if !name.is_empty() && name.chars().next().unwrap().is_uppercase() => {
                 self.lexer.next_token();
@@ -444,6 +510,22 @@ impl<'a> Parser<'a> {
             }
             Some(Token::Integer(n)) => {
                 self.lexer.next_token();
+                // Check for range patterns
+                if let Some(Token::Symbol(s)) = self.lexer.peek_token() {
+                    if s == &".." || s == &"..=" {
+                        let inclusive = s == &"..=";
+                        self.lexer.next_token(); // consume range operator
+                        if let Some(Token::Integer(end)) = self.lexer.next_token() {
+                            return Ok(Pattern::Range(RangePattern {
+                                start: Literal::Integer(n),
+                                end: Literal::Integer(end),
+                                inclusive,
+                            }));
+                        } else {
+                            return Err(ParseError::InvalidSyntax("Expected integer after range operator".to_string()));
+                        }
+                    }
+                }
                 Ok(Pattern::Literal(Literal::Integer(n)))
             }
             Some(Token::String(_)) => {
@@ -457,6 +539,68 @@ impl<'a> Parser<'a> {
             _ => Err(ParseError::InvalidSyntax("Invalid pattern".to_string())),
         }
     }
+    
+    fn parse_or_pattern(&mut self) -> ParseResult<Pattern> {
+        self.expect_symbol("or")?;
+        let mut patterns = Vec::new();
+        
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            patterns.push(self.parse_pattern()?);
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        if patterns.is_empty() {
+            Err(ParseError::InvalidSyntax("Or pattern must have at least one alternative".to_string()))
+        } else {
+            Ok(Pattern::Or(patterns))
+        }
+    }
+    
+    fn parse_as_pattern(&mut self) -> ParseResult<Pattern> {
+        self.expect_symbol("as")?;
+        
+        let binding = if let Some(Token::Symbol(name)) = self.lexer.next_token() {
+            name.to_string()
+        } else {
+            return Err(ParseError::InvalidSyntax("Expected variable name in as-pattern".to_string()));
+        };
+        
+        let pattern = self.parse_pattern()?;
+        self.expect_token(Token::RParen)?;
+        
+        Ok(Pattern::As {
+            binding,
+            pattern: Box::new(pattern),
+        })
+    }
+    
+    fn parse_guard_pattern(&mut self) -> ParseResult<Pattern> {
+        self.expect_symbol("when")?;
+        
+        let pattern = self.parse_pattern()?;
+        let condition = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        Ok(Pattern::Guard {
+            pattern: Box::new(pattern),
+            condition,
+        })
+    }
+    
+    fn parse_view_pattern(&mut self) -> ParseResult<Pattern> {
+        self.expect_symbol("view")?;
+        
+        let function = self.parse_expr()?;
+        let pattern = self.parse_pattern()?;
+        self.expect_token(Token::RParen)?;
+        
+        Ok(Pattern::View {
+            function,
+            pattern: Box::new(pattern),
+        })
+    }
+    
     
     fn parse_list_literal(&mut self) -> ParseResult<NodeId> {
         self.enter_recursion()?;

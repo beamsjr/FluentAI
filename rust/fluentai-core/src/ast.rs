@@ -593,6 +593,42 @@ impl Graph {
         stack.remove(&node_id);
         false
     }
+    
+    /// Creates a new match builder for constructing pattern matching expressions
+    pub fn build_match(&mut self) -> MatchBuilder {
+        MatchBuilder::new(self)
+    }
+    
+    /// Helper for list pattern matching
+    pub fn match_list<F>(&mut self, list: NodeId, on_empty: NodeId, on_cons: F) -> crate::error::Result<NodeId>
+    where
+        F: FnOnce(&mut Self, NodeId, NodeId) -> crate::error::Result<NodeId>,
+    {
+        let head_var = self.add_node(Node::Variable { name: "head".to_string() })?;
+        let tail_var = self.add_node(Node::Variable { name: "tail".to_string() })?;
+        let cons_result = on_cons(self, head_var, tail_var)?;
+        
+        self.add_node(Node::Match {
+            expr: list,
+            branches: vec![
+                (Pattern::nil(), on_empty),
+                (Pattern::cons(Pattern::var("head"), Pattern::var("tail")), cons_result),
+            ],
+        })
+    }
+    
+    /// Helper for simple value matching with literal patterns
+    pub fn match_value(&mut self, value: NodeId, cases: Vec<(Literal, NodeId)>, default: NodeId) -> crate::error::Result<NodeId> {
+        let mut branches: Vec<(Pattern, NodeId)> = cases.into_iter()
+            .map(|(lit, result)| (Pattern::lit(lit), result))
+            .collect();
+        branches.push((Pattern::wildcard(), default));
+        
+        self.add_node(Node::Match {
+            expr: value,
+            branches,
+        })
+    }
 }
 
 /// AST node types
@@ -716,6 +752,13 @@ impl fmt::Display for Literal {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RangePattern {
+    pub start: Literal,
+    pub end: Literal,
+    pub inclusive: bool, // true for ..=, false for ..
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pattern {
     Variable(String),
     Literal(Literal),
@@ -724,6 +767,151 @@ pub enum Pattern {
         patterns: Vec<Pattern>,
     },
     Wildcard,
+    
+    // Complex pattern extensions
+    /// Pattern with a guard condition: pattern when condition
+    Guard {
+        pattern: Box<Pattern>,
+        condition: NodeId,
+    },
+    /// As-pattern: binds the whole match while also destructuring
+    As {
+        binding: String,
+        pattern: Box<Pattern>,
+    },
+    /// Or-pattern: multiple patterns that lead to the same branch
+    Or(Vec<Pattern>),
+    /// Range pattern: matches values within a range
+    Range(RangePattern),
+    /// View pattern: applies a function before matching
+    View {
+        function: NodeId,
+        pattern: Box<Pattern>,
+    },
+}
+
+impl Pattern {
+    /// Creates a variable pattern that binds the matched value to a name
+    pub fn var(name: &str) -> Self {
+        Pattern::Variable(name.to_string())
+    }
+    
+    /// Creates a literal pattern that matches an exact value
+    pub fn lit(literal: Literal) -> Self {
+        Pattern::Literal(literal)
+    }
+    
+    /// Creates an integer literal pattern
+    pub fn int(value: i64) -> Self {
+        Pattern::Literal(Literal::Integer(value))
+    }
+    
+    /// Creates a string literal pattern
+    pub fn string(value: &str) -> Self {
+        Pattern::Literal(Literal::String(value.to_string()))
+    }
+    
+    /// Creates a boolean literal pattern
+    pub fn bool(value: bool) -> Self {
+        Pattern::Literal(Literal::Boolean(value))
+    }
+    
+    /// Creates a nil literal pattern
+    pub fn nil_lit() -> Self {
+        Pattern::Literal(Literal::Nil)
+    }
+    
+    /// Creates a cons pattern for matching non-empty lists
+    pub fn cons(head: Pattern, tail: Pattern) -> Self {
+        Pattern::Constructor {
+            name: "cons".to_string(),
+            patterns: vec![head, tail],
+        }
+    }
+    
+    /// Creates a nil pattern for matching empty lists
+    pub fn nil() -> Self {
+        Pattern::Constructor {
+            name: "nil".to_string(),
+            patterns: vec![],
+        }
+    }
+    
+    /// Creates a custom constructor pattern
+    pub fn constructor(name: &str, patterns: Vec<Pattern>) -> Self {
+        Pattern::Constructor {
+            name: name.to_string(),
+            patterns,
+        }
+    }
+    
+    /// Creates a wildcard pattern that matches anything
+    pub fn wildcard() -> Self {
+        Pattern::Wildcard
+    }
+    
+    /// Alias for wildcard pattern using underscore convention
+    pub fn underscore() -> Self {
+        Pattern::Wildcard
+    }
+    
+    // Complex pattern builders
+    
+    /// Creates a guard pattern: pattern when condition
+    pub fn guard(pattern: Pattern, condition: NodeId) -> Self {
+        Pattern::Guard {
+            pattern: Box::new(pattern),
+            condition,
+        }
+    }
+    
+    /// Creates an as-pattern: binding @ pattern
+    pub fn as_pattern(binding: &str, pattern: Pattern) -> Self {
+        Pattern::As {
+            binding: binding.to_string(),
+            pattern: Box::new(pattern),
+        }
+    }
+    
+    /// Creates an or-pattern from multiple patterns
+    pub fn or(patterns: Vec<Pattern>) -> Self {
+        Pattern::Or(patterns)
+    }
+    
+    /// Creates an inclusive range pattern (start..=end)
+    pub fn range_inclusive(start: Literal, end: Literal) -> Self {
+        Pattern::Range(RangePattern {
+            start,
+            end,
+            inclusive: true,
+        })
+    }
+    
+    /// Creates an exclusive range pattern (start..end)
+    pub fn range_exclusive(start: Literal, end: Literal) -> Self {
+        Pattern::Range(RangePattern {
+            start,
+            end,
+            inclusive: false,
+        })
+    }
+    
+    /// Creates an integer range pattern (inclusive)
+    pub fn int_range(start: i64, end: i64) -> Self {
+        Pattern::Range(RangePattern {
+            start: Literal::Integer(start),
+            end: Literal::Integer(end),
+            inclusive: true,
+        })
+    }
+    
+    /// Creates a view pattern: applies function before matching
+    pub fn view(function: NodeId, pattern: Pattern) -> Self {
+        Pattern::View {
+            function,
+            pattern: Box::new(pattern),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -791,6 +979,29 @@ pub struct ExportItem {
     pub alias: Option<String>,
 }
 
+/// Documentation System for AST Nodes
+/// 
+/// FluentAI uses a compile-time enforced documentation system to ensure all language
+/// constructs are properly documented. The system works as follows:
+/// 
+/// 1. The `DocumentedNode` trait defines the interface for documentation
+/// 2. The `Node` enum implements this trait generically
+/// 3. The `get_node_docs()` method provides specific documentation for each variant
+/// 4. The match statement in `get_node_docs()` is exhaustive and enforced by the compiler
+/// 
+/// When adding a new Node variant:
+/// - You MUST update the match statement in `get_node_docs()` 
+/// - If you forget, the code will fail to compile with a non-exhaustive pattern error
+/// - This ensures documentation is never out of sync with the AST
+/// 
+/// The documentation includes:
+/// - name: The construct's name
+/// - syntax: How to write it in FluentAI code
+/// - description: What it does
+/// - examples: Usage examples
+/// - category: What kind of construct it is
+/// - see_also: Related constructs
+/// - visibility: Whether it's public API or internal
 impl DocumentedNode for Node {
     fn name() -> &'static str {
         "AST Node"
@@ -833,6 +1044,10 @@ impl DocumentedNode for Node {
 
 impl Node {
     /// Get documentation specific to this node variant
+    /// 
+    /// This method uses an exhaustive match to ensure all Node variants have documentation.
+    /// If a new Node variant is added without updating this method, the code will fail to compile.
+    /// Rust's compiler enforces exhaustive pattern matching by default.
     pub fn get_node_docs(&self) -> Documentation {
         match self {
             Node::Literal(lit) => match lit {
@@ -1068,6 +1283,85 @@ impl Node {
         }
     }
 }
+
+/// Builder for constructing pattern matching expressions
+pub struct MatchBuilder<'a> {
+    graph: &'a mut Graph,
+    expr: Option<NodeId>,
+    branches: Vec<(Pattern, NodeId)>,
+}
+
+impl<'a> MatchBuilder<'a> {
+    /// Creates a new match builder
+    pub fn new(graph: &'a mut Graph) -> Self {
+        MatchBuilder {
+            graph,
+            expr: None,
+            branches: Vec::new(),
+        }
+    }
+    
+    /// Sets the expression to match against
+    pub fn expr(mut self, node_id: NodeId) -> Self {
+        self.expr = Some(node_id);
+        self
+    }
+    
+    /// Adds a branch with a pattern and result expression
+    pub fn branch(mut self, pattern: Pattern, result: NodeId) -> Self {
+        self.branches.push((pattern, result));
+        self
+    }
+    
+    /// Adds a branch with an integer literal pattern
+    pub fn int_case(mut self, value: i64, result: NodeId) -> Self {
+        self.branches.push((Pattern::int(value), result));
+        self
+    }
+    
+    /// Adds a branch with a string literal pattern
+    pub fn string_case(mut self, value: &str, result: NodeId) -> Self {
+        self.branches.push((Pattern::string(value), result));
+        self
+    }
+    
+    /// Adds a branch with a boolean literal pattern
+    pub fn bool_case(mut self, value: bool, result: NodeId) -> Self {
+        self.branches.push((Pattern::bool(value), result));
+        self
+    }
+    
+    /// Adds a branch with a variable pattern
+    pub fn var_case(mut self, name: &str, result: NodeId) -> Self {
+        self.branches.push((Pattern::var(name), result));
+        self
+    }
+    
+    /// Adds a wildcard/default branch
+    pub fn default(mut self, result: NodeId) -> Self {
+        self.branches.push((Pattern::wildcard(), result));
+        self
+    }
+    
+    /// Builds the match expression and returns its NodeId
+    pub fn build(self) -> crate::error::Result<NodeId> {
+        let expr = self.expr.ok_or_else(|| crate::error::Error::Other(
+            anyhow::anyhow!("Match expression required")
+        ))?;
+        
+        if self.branches.is_empty() {
+            return Err(crate::error::Error::Other(
+                anyhow::anyhow!("Match expression must have at least one branch")
+            ));
+        }
+        
+        self.graph.add_node(Node::Match {
+            expr,
+            branches: self.branches,
+        })
+    }
+}
+
 #[cfg(test)]
 #[path = "ast_tests.rs"]
 mod tests;

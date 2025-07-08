@@ -470,6 +470,51 @@ impl TypeInferencer {
                 Err(anyhow!("Constructor patterns not yet implemented"))
             }
             Pattern::Wildcard => Ok(()),
+            Pattern::Guard { pattern, condition: _ } => {
+                // For guard patterns, check the inner pattern
+                // The condition will be checked separately during evaluation
+                self.check_pattern(pattern, expected_type)
+            }
+            Pattern::As { binding, pattern } => {
+                // For as-patterns, bind the name and check the inner pattern
+                self.env.bind(binding, expected_type.clone());
+                self.check_pattern(pattern, expected_type)
+            }
+            Pattern::Or(patterns) => {
+                // For or-patterns, check that all alternatives have the same type
+                for p in patterns {
+                    self.check_pattern(p, expected_type)?;
+                }
+                Ok(())
+            }
+            Pattern::Range(_) => {
+                // Range patterns only work with numeric types
+                match &expected_type.inner {
+                    TypedValueInner::Primitive(prim) => {
+                        match prim.name.as_str() {
+                            "Int" | "Float" => Ok(()),
+                            _ => {
+                                self.errors.push(TypeError::PatternMatchFailure(
+                                    format!("Range patterns can only match numeric types, not {}", expected_type)
+                                ));
+                                Err(anyhow!("Range pattern type mismatch"))
+                            }
+                        }
+                    }
+                    _ => {
+                        self.errors.push(TypeError::PatternMatchFailure(
+                            format!("Range patterns can only match numeric types, not {}", expected_type)
+                        ));
+                        Err(anyhow!("Range pattern type mismatch"))
+                    }
+                }
+            }
+            Pattern::View { function: _, pattern } => {
+                // For view patterns, we would need to infer the function type
+                // and check that the pattern matches the function's return type
+                // For now, just check the inner pattern
+                self.check_pattern(pattern, expected_type)
+            }
         }
     }
 

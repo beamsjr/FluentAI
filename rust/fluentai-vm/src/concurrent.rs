@@ -1,4 +1,10 @@
 //! Lock-free concurrent data structures for high-performance packet processing
+//!
+//! # Safety
+//!
+//! This module contains several unsafe blocks that are necessary for implementing
+//! lock-free data structures. Each unsafe block is carefully documented with its
+//! safety invariants.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::ptr;
@@ -60,6 +66,8 @@ impl<T> LockFreeStack<T> {
         loop {
             let head = self.head.load(Ordering::Acquire, guard);
             
+            // SAFETY: The epoch guard ensures the pointer remains valid during this operation.
+            // We only dereference the pointer within the guard's scope.
             match unsafe { head.as_ref() } {
                 None => return None,
                 Some(node) => {
@@ -72,7 +80,10 @@ impl<T> LockFreeStack<T> {
                         Ordering::Acquire,
                         guard,
                     ).is_ok() {
-                        // Safety: we have exclusive access to this node
+                        // SAFETY: After a successful CAS, we have exclusive ownership of the old head node.
+                        // No other thread can access it because we've atomically removed it from the stack.
+                        // We use defer_destroy to ensure the node is not freed until all threads have
+                        // finished their current epoch operations.
                         unsafe {
                             guard.defer_destroy(head);
                             return Some(ptr::read(&node.data));
@@ -103,6 +114,8 @@ pub struct LockFreeQueue<T> {
 impl<T> LockFreeQueue<T> {
     /// Create a new empty queue
     pub fn new() -> Self {
+        // SAFETY: The sentinel node's data field is never accessed, so it's safe to leave it
+        // uninitialized. The sentinel is just a placeholder to simplify the queue logic.
         let sentinel = Owned::new(Node {
             data: unsafe { MaybeUninit::uninit().assume_init() },
             next: Atomic::null(),
@@ -128,6 +141,8 @@ impl<T> LockFreeQueue<T> {
         
         loop {
             let tail = self.tail.load(Ordering::Acquire, guard);
+            // SAFETY: The tail pointer is protected by the epoch guard and cannot be freed
+            // while we hold the guard.
             let tail_node = unsafe { tail.deref() };
             let next = tail_node.next.load(Ordering::Acquire, guard);
             
@@ -189,7 +204,8 @@ impl<T> LockFreeQueue<T> {
                         guard,
                     );
                 } else {
-                    // Read value before CAS
+                    // SAFETY: The next pointer is valid and protected by the epoch guard.
+                    // We read the value before the CAS to avoid accessing freed memory.
                     let next_node = unsafe { next.deref() };
                     let value = unsafe { ptr::read(&next_node.data) };
                     
@@ -200,6 +216,8 @@ impl<T> LockFreeQueue<T> {
                         Ordering::Acquire,
                         guard,
                     ).is_ok() {
+                        // SAFETY: After successful CAS, we own the old head (sentinel) node
+                        // and can safely schedule it for destruction.
                         unsafe { guard.defer_destroy(head); }
                         return Some(value);
                     }
@@ -236,6 +254,8 @@ impl<T> BoundedQueue<T> {
         assert!(capacity.is_power_of_two(), "Capacity must be a power of 2");
         
         let layout = Layout::array::<MaybeUninit<T>>(capacity).unwrap();
+        // SAFETY: We're allocating memory for an array of MaybeUninit<T>, which doesn't
+        // require initialization. The allocated memory is properly aligned for T.
         let buffer = unsafe { alloc(layout) as *mut MaybeUninit<T> };
         
         Self {
@@ -266,6 +286,9 @@ impl<T> BoundedQueue<T> {
                 Ordering::Relaxed,
             ) {
                 Ok(_) => {
+                    // SAFETY: After successful CAS, we have exclusive access to the slot at
+                    // index (tail & mask). The mask ensures the index is within bounds.
+                    // No other thread can write to this slot until the head advances past it.
                     unsafe {
                         let slot = self.buffer.add(tail & self.mask);
                         (*slot).write(value);
@@ -295,6 +318,9 @@ impl<T> BoundedQueue<T> {
                 Ordering::Relaxed,
             ) {
                 Ok(_) => {
+                    // SAFETY: After successful CAS, we have exclusive access to read from
+                    // the slot at index (head & mask). The value was previously written
+                    // by try_push, so it's initialized. The mask ensures bounds safety.
                     unsafe {
                         let slot = self.buffer.add(head & self.mask);
                         return Some((*slot).assume_init_read());
@@ -330,6 +356,8 @@ impl<T> Drop for BoundedQueue<T> {
         
         // Deallocate buffer
         let layout = Layout::array::<MaybeUninit<T>>(self.capacity).unwrap();
+        // SAFETY: The buffer was allocated with the same layout, and we've ensured
+        // all items have been consumed by calling try_pop in a loop.
         unsafe {
             dealloc(self.buffer as *mut u8, layout);
         }
@@ -355,6 +383,8 @@ impl<T> WorkStealingDeque<T> {
         assert!(capacity.is_power_of_two(), "Capacity must be a power of 2");
         
         let layout = Layout::array::<MaybeUninit<T>>(capacity).unwrap();
+        // SAFETY: We're allocating memory for an array of MaybeUninit<T>, which doesn't
+        // require initialization. The allocated memory is properly aligned for T.
         let buffer = unsafe { alloc(layout) as *mut MaybeUninit<T> };
         
         Self {
@@ -368,20 +398,25 @@ impl<T> WorkStealingDeque<T> {
     }
     
     /// Push work to the bottom (owner only)
-    pub fn push(&self, value: T) {
+    /// Returns false if the deque is full
+    pub fn push(&self, value: T) -> bool {
         let bottom = self.bottom.load(Ordering::Relaxed);
         let top = self.top.load(Ordering::Acquire);
         
         if bottom.wrapping_sub(top) >= self.capacity {
-            panic!("Deque is full");
+            return false; // Deque is full
         }
         
+        // SAFETY: We checked that the deque has space, and only the owner thread
+        // can push to the bottom, so we have exclusive access to this slot.
+        // The mask ensures the index is within bounds.
         unsafe {
             let slot = self.buffer.add(bottom & self.mask);
             (*slot).write(value);
         }
         
         self.bottom.store(bottom.wrapping_add(1), Ordering::Release);
+        true
     }
     
     /// Pop work from the bottom (owner only)
@@ -401,6 +436,9 @@ impl<T> WorkStealingDeque<T> {
             return None;
         }
         
+        // SAFETY: Only the owner can pop from bottom, and we've verified the deque
+        // isn't empty. The slot contains initialized data from a previous push.
+        // The mask ensures bounds safety.
         unsafe {
             let slot = self.buffer.add(new_bottom & self.mask);
             let value = (*slot).assume_init_read();
@@ -433,6 +471,9 @@ impl<T> WorkStealingDeque<T> {
             return None;
         }
         
+        // SAFETY: We've verified the deque isn't empty. Multiple threads may steal
+        // concurrently, but the CAS below ensures only one succeeds. The slot contains
+        // initialized data from a previous push. The mask ensures bounds safety.
         unsafe {
             let slot = self.buffer.add(top & self.mask);
             let value = (*slot).assume_init_read();
@@ -465,6 +506,9 @@ impl<T> Drop for WorkStealingDeque<T> {
         
         // Deallocate buffer
         let layout = Layout::array::<MaybeUninit<T>>(self.capacity).unwrap();
+        // SAFETY: The buffer was allocated with the same layout in new(), and we've
+        // ensured all items have been consumed by calling pop in a loop. We have
+        // exclusive access to the deque in drop.
         unsafe {
             dealloc(self.buffer as *mut u8, layout);
         }
@@ -528,6 +572,24 @@ mod tests {
         for (i, &v) in values.iter().enumerate() {
             assert_eq!(v, i as i32);
         }
+    }
+    
+    #[test]
+    fn test_work_stealing_deque() {
+        let deque = WorkStealingDeque::new(16);
+        
+        // Test that push returns false when full
+        for i in 0..16 {
+            assert!(deque.push(i), "Failed to push item {}", i);
+        }
+        assert!(!deque.push(100), "Push should fail when deque is full");
+        
+        // Pop all items
+        for i in (0..16).rev() {
+            assert_eq!(deque.pop(), Some(i));
+        }
+        
+        assert!(deque.is_empty());
     }
     
     #[test]

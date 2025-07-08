@@ -7,7 +7,6 @@ use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tokio::io::AsyncReadExt;
 
 /// Trait for embedding storage backends
 #[async_trait]

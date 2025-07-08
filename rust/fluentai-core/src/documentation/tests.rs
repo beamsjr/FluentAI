@@ -148,7 +148,7 @@ mod tests {
         assert!(names.contains(&"-"));
         assert!(names.contains(&"*"));
         assert!(names.contains(&"/"));
-        assert!(names.contains(&"="));
+        // Note: = is an operator, not a built-in function
         assert!(names.contains(&"print"));
         assert!(names.contains(&"string-length"));
         

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FluentAI MCP HTTP Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .response {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            font-family: monospace;
+            min-height: 100px;
+        }
+        .sse-messages {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .sse-message {
+            margin-bottom: 5px;
+            padding: 5px;
+            background-color: white;
+            border-radius: 3px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #28a745;
+            color: white;
+        }
+        .status.disconnected {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>FluentAI MCP HTTP Test Client</h1>
+    
+    <div class="container">
+        <h2>Server Status</h2>
+        <p>Server URL: <strong>http://localhost:3000</strong></p>
+        <p>Session ID: <strong id="sessionId">Not connected</strong></p>
+        <p>SSE Status: <span id="sseStatus" class="status disconnected">Disconnected</span></p>
+    </div>
+
+    <div class="container section">
+        <h2>1. Create Session</h2>
+        <button onclick="createSession()">Create New Session</button>
+        <div id="createSessionResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>2. Initialize MCP Connection</h2>
+        <button onclick="initialize()" id="initBtn" disabled>Initialize</button>
+        <div id="initResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>3. List Available Tools</h2>
+        <button onclick="listTools()" id="toolsBtn" disabled>List Tools</button>
+        <div id="toolsResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>4. Tool: eval - Execute FluentAI Code</h2>
+        <p><em>Execute FluentAI code and return the result</em></p>
+        <textarea id="codeInput" placeholder="Enter FluentAI code here, e.g., (+ 1 2 3)">(+ 1 2 3)</textarea>
+        <button onclick="evalCode()" id="evalBtn" disabled>Execute</button>
+        <div id="evalResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>5. Tool: search_docs - Search Documentation</h2>
+        <p><em>Search documentation for a query</em></p>
+        <input type="text" id="searchQuery" placeholder="Enter search query, e.g., lambda" value="lambda">
+        <button onclick="searchDocs()" id="searchBtn" disabled>Search</button>
+        <div id="searchResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>6. Tool: get_syntax - Get Syntax Documentation</h2>
+        <p><em>Get documentation for a specific language construct</em></p>
+        <input type="text" id="syntaxName" placeholder="Enter construct name, e.g., if" value="if">
+        <button onclick="getSyntax()" id="syntaxBtn" disabled>Get Syntax</button>
+        <div id="syntaxResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>7. Tool: list_features - List All Language Features</h2>
+        <p><em>List all language features organized by category</em></p>
+        <button onclick="listFeatures()" id="featuresBtn" disabled>List Features</button>
+        <div id="featuresResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>8. Tool: reset_interpreter - Reset Interpreter State</h2>
+        <p><em>Clear the interpreter state and start fresh</em></p>
+        <button onclick="resetInterpreter()" id="resetBtn" disabled>Reset Interpreter</button>
+        <div id="resetResponse" class="response"></div>
+    </div>
+
+    <div class="container section">
+        <h2>9. Server-Sent Events (SSE)</h2>
+        <button onclick="connectSSE()" id="sseBtn" disabled>Connect to SSE</button>
+        <button onclick="disconnectSSE()" id="sseDisconnectBtn" disabled>Disconnect SSE</button>
+        <div class="sse-messages" id="sseMessages">
+            <div style="color: #666;">SSE messages will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = null;
+        let sseEventSource = null;
+        let requestId = 1;
+
+        async function createSession() {
+            try {
+                const response = await fetch('http://localhost:3000/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        client_info: {
+                            name: 'web-test-client',
+                            version: '1.0.0'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                sessionId = data.session_id;
+                
+                document.getElementById('sessionId').textContent = sessionId;
+                document.getElementById('createSessionResponse').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('createSessionResponse').className = 'response success';
+                
+                // Enable other buttons
+                document.getElementById('initBtn').disabled = false;
+                document.getElementById('toolsBtn').disabled = false;
+                document.getElementById('evalBtn').disabled = false;
+                document.getElementById('searchBtn').disabled = false;
+                document.getElementById('syntaxBtn').disabled = false;
+                document.getElementById('featuresBtn').disabled = false;
+                document.getElementById('resetBtn').disabled = false;
+                document.getElementById('sseBtn').disabled = false;
+                
+            } catch (error) {
+                document.getElementById('createSessionResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('createSessionResponse').className = 'response error';
+            }
+        }
+
+        async function sendMessage(method, params = null) {
+            const body = {
+                jsonrpc: '2.0',
+                method: method,
+                id: `req-${requestId++}`
+            };
+            
+            if (params) {
+                body.params = params;
+            }
+
+            const response = await fetch(`http://localhost:3000/sessions/${sessionId}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body)
+            });
+
+            return await response.json();
+        }
+
+        async function initialize() {
+            try {
+                const data = await sendMessage('initialize', {
+                    protocolVersion: '1.0',
+                    clientInfo: {
+                        name: 'web-test-client',
+                        version: '1.0.0'
+                    }
+                });
+                
+                document.getElementById('initResponse').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('initResponse').className = 'response success';
+            } catch (error) {
+                document.getElementById('initResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('initResponse').className = 'response error';
+            }
+        }
+
+        async function listTools() {
+            try {
+                const data = await sendMessage('tools/list');
+                document.getElementById('toolsResponse').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('toolsResponse').className = 'response success';
+            } catch (error) {
+                document.getElementById('toolsResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('toolsResponse').className = 'response error';
+            }
+        }
+
+        async function evalCode() {
+            try {
+                const code = document.getElementById('codeInput').value;
+                const data = await sendMessage('tools/call', {
+                    name: 'eval',
+                    arguments: {
+                        code: code
+                    }
+                });
+                
+                document.getElementById('evalResponse').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('evalResponse').className = 'response success';
+            } catch (error) {
+                document.getElementById('evalResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('evalResponse').className = 'response error';
+            }
+        }
+
+        async function searchDocs() {
+            try {
+                const query = document.getElementById('searchQuery').value;
+                const data = await sendMessage('tools/call', {
+                    name: 'search_docs',
+                    arguments: {
+                        query: query
+                    }
+                });
+                
+                // Check if we have structured data response
+                if (data.result && data.result.content && data.result.content[0].type === 'data') {
+                    const searchData = data.result.content[0].data;
+                    let formattedResponse = `Query: "${searchData.query}"\n`;
+                    formattedResponse += `Total Results: ${searchData.total_results}\n\n`;
+                    formattedResponse += `Results (showing ${searchData.results.length}):\n`;
+                    formattedResponse += JSON.stringify(searchData.results, null, 2);
+                    
+                    document.getElementById('searchResponse').textContent = formattedResponse;
+                } else {
+                    document.getElementById('searchResponse').textContent = JSON.stringify(data, null, 2);
+                }
+                document.getElementById('searchResponse').className = 'response success';
+            } catch (error) {
+                document.getElementById('searchResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('searchResponse').className = 'response error';
+            }
+        }
+
+        async function getSyntax() {
+            try {
+                const name = document.getElementById('syntaxName').value;
+                const data = await sendMessage('tools/call', {
+                    name: 'get_syntax',
+                    arguments: {
+                        name: name
+                    }
+                });
+                
+                // Format the response
+                if (data.result && data.result.content && data.result.content[0].type === 'data') {
+                    const syntaxData = data.result.content[0].data;
+                    if (syntaxData.error) {
+                        document.getElementById('syntaxResponse').textContent = syntaxData.error;
+                        document.getElementById('syntaxResponse').className = 'response error';
+                    } else {
+                        document.getElementById('syntaxResponse').textContent = JSON.stringify(syntaxData, null, 2);
+                        document.getElementById('syntaxResponse').className = 'response success';
+                    }
+                } else {
+                    document.getElementById('syntaxResponse').textContent = JSON.stringify(data, null, 2);
+                    document.getElementById('syntaxResponse').className = 'response success';
+                }
+            } catch (error) {
+                document.getElementById('syntaxResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('syntaxResponse').className = 'response error';
+            }
+        }
+
+        async function listFeatures() {
+            try {
+                const data = await sendMessage('tools/call', {
+                    name: 'list_features',
+                    arguments: {}
+                });
+                
+                // Format the response
+                if (data.result && data.result.content && data.result.content[0].type === 'data') {
+                    const featuresData = data.result.content[0].data;
+                    let formattedResponse = `Total Features: ${featuresData.total_features}\n\n`;
+                    formattedResponse += `Categories:\n${JSON.stringify(featuresData.categories, null, 2)}`;
+                    document.getElementById('featuresResponse').textContent = formattedResponse;
+                } else {
+                    document.getElementById('featuresResponse').textContent = JSON.stringify(data, null, 2);
+                }
+                document.getElementById('featuresResponse').className = 'response success';
+            } catch (error) {
+                document.getElementById('featuresResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('featuresResponse').className = 'response error';
+            }
+        }
+
+        async function resetInterpreter() {
+            try {
+                const data = await sendMessage('tools/call', {
+                    name: 'reset_interpreter',
+                    arguments: {}
+                });
+                
+                document.getElementById('resetResponse').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('resetResponse').className = 'response success';
+            } catch (error) {
+                document.getElementById('resetResponse').textContent = 'Error: ' + error.message;
+                document.getElementById('resetResponse').className = 'response error';
+            }
+        }
+
+        function connectSSE() {
+            if (!sessionId) {
+                alert('Please create a session first');
+                return;
+            }
+
+            const messagesDiv = document.getElementById('sseMessages');
+            messagesDiv.innerHTML = '';
+
+            sseEventSource = new EventSource(`http://localhost:3000/sessions/${sessionId}/sse`);
+            
+            sseEventSource.onopen = function() {
+                document.getElementById('sseStatus').textContent = 'Connected';
+                document.getElementById('sseStatus').className = 'status connected';
+                document.getElementById('sseBtn').disabled = true;
+                document.getElementById('sseDisconnectBtn').disabled = false;
+                
+                const msg = document.createElement('div');
+                msg.className = 'sse-message';
+                msg.textContent = '✓ Connected to SSE endpoint';
+                msg.style.color = 'green';
+                messagesDiv.appendChild(msg);
+            };
+
+            sseEventSource.onmessage = function(event) {
+                const msg = document.createElement('div');
+                msg.className = 'sse-message';
+                msg.textContent = new Date().toLocaleTimeString() + ' - ' + event.data;
+                messagesDiv.appendChild(msg);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            };
+
+            sseEventSource.onerror = function(error) {
+                document.getElementById('sseStatus').textContent = 'Disconnected';
+                document.getElementById('sseStatus').className = 'status disconnected';
+                document.getElementById('sseBtn').disabled = false;
+                document.getElementById('sseDisconnectBtn').disabled = true;
+                
+                const msg = document.createElement('div');
+                msg.className = 'sse-message';
+                msg.textContent = '✗ SSE connection error';
+                msg.style.color = 'red';
+                messagesDiv.appendChild(msg);
+            };
+        }
+
+        function disconnectSSE() {
+            if (sseEventSource) {
+                sseEventSource.close();
+                sseEventSource = null;
+                
+                document.getElementById('sseStatus').textContent = 'Disconnected';
+                document.getElementById('sseStatus').className = 'status disconnected';
+                document.getElementById('sseBtn').disabled = false;
+                document.getElementById('sseDisconnectBtn').disabled = true;
+                
+                const messagesDiv = document.getElementById('sseMessages');
+                const msg = document.createElement('div');
+                msg.className = 'sse-message';
+                msg.textContent = '✓ Disconnected from SSE';
+                msg.style.color = 'orange';
+                messagesDiv.appendChild(msg);
+            }
+        }
+    </script>
+</body>
+</html>

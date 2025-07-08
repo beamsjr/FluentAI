@@ -21,11 +21,11 @@ FluentAi is an experimental programming language designed for AI systems rather 
 ## Key Features
 
 ### 🚀 High-Performance Rust Implementation
-- **Parser**: 0.8-5.2µs - optimized S-expression parsing
+- **Parser**: 0.8-5.2µs - optimized S-expression parsing ([see benchmark](rust/examples/parser_benchmark.rs))
 - **VM**: ~0.1µs average execution time
 - **JIT Compiler**: Native code generation with Cranelift (x86_64)
 - **Memory Efficient**: 5-10x less memory usage through zero-cost abstractions
-- **Throughput**: 100,000+ operations/second
+- **Throughput**: 19.2 million operations/second average, up to 35.8M ops/sec ([see benchmark](rust/examples/throughput_benchmark.rs))
 - **Production Ready**: Safe, concurrent, and reliable
 - **Packet Processing Optimizations**: Tail calls, unboxed types, memory pools, lock-free queues
 
@@ -43,12 +43,12 @@ FluentAi is an experimental programming language designed for AI systems rather 
 - **JavaScript Compilation**: Compile to optimized JavaScript for browsers
 
 ### 🔧 Core Language Features
-- **Pattern matching**: ML-style with list destructuring (Cons/Nil patterns)
+- **Pattern matching**: ML-style with list destructuring (Cons/Nil patterns) ([see examples](rust/examples/pattern_matching.cl))
   - Literal, variable, wildcard, and constructor patterns
   - Special support for list pattern matching
   - Efficient compilation to bytecode
 - **Algebraic data types**: Sum and product types with pattern matching
-- **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling
+- **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling ([see demo](rust/examples/effects_demo.cl))
 - **Module system**: Full namespace support with imports, exports, and qualified references
 - **Type annotations**: Optional type ascription for clarity and optimization
 
@@ -111,7 +111,7 @@ FluentAi is an experimental programming language designed for AI systems rather 
 - **SIMD Operations**: Hardware-accelerated parallel numeric computation
   - AVX2 vectorized operations for f64 and i64 arrays
   - Automatic fallback to scalar operations on unsupported hardware
-  - 4-8x speedup for array operations (add, multiply, dot product)
+  - 4-8x speedup for array operations (add, multiply, dot product) ([see benchmark](rust/examples/simd_benchmark.rs))
   - Platform-specific optimizations with runtime detection
 - **Configurable Thread Pools**: Fine-grained control over thread execution
   - CPU affinity and NUMA-aware thread placement
@@ -124,7 +124,7 @@ FluentAi is an experimental programming language designed for AI systems rather 
   - Concurrent marking with tri-color algorithm
   - Write barriers for inter-generational references
   - Parallel sweeping and lazy compaction
-  - Target pause times under 10ms
+  - Target pause times under 10ms ([example coming soon](rust/examples/README.md#additional-examples-coming-soon))
 - **Actor Model**: Erlang/Akka-style concurrent programming
   - Lightweight actors with isolated state
   - Supervision trees for fault tolerance
@@ -134,6 +134,8 @@ FluentAi is an experimental programming language designed for AI systems rather 
   - Behaviors: FSM and Event Sourcing support
 
 ## Quick Example
+
+> **See also**: [Pattern matching examples](rust/examples/pattern_matching.cl) | [Effects demo](rust/examples/effects_demo.cl) | [All examples](rust/examples/)
 
 ```lisp
 ;; Import modules
@@ -307,6 +309,23 @@ fluentai-repl
 
 # Or run directly from the project
 cargo run -p fluentai-repl
+```
+
+### Running Examples
+```bash
+# Run language feature examples
+cd rust
+cargo run -p fluentai-cli -- run examples/hello.cl
+cargo run -p fluentai-cli -- run examples/pattern_matching.cl
+cargo run -p fluentai-cli -- run examples/effects_demo.cl
+
+# Run performance benchmarks
+cargo run --release --example throughput_benchmark
+cargo run --release --example parser_benchmark
+cargo run --release --example simd_benchmark
+
+# See all examples
+ls examples/
 ```
 
 ### Using the Optimizer
@@ -1039,12 +1058,30 @@ Every optimization generates a machine-checkable proof:
 | Component | Performance | Details |
 |-----------|-------------|---------|
 | Parser | 0.8-5.2 µs | Zero-copy S-expression parsing |
-| VM | ~0.1 µs | Stack-based with optimizations |
+| VM | ~0.03 µs | Stack-based with optimizations |
 | End-to-End | 1-10 µs | Full parse-compile-execute cycle |
-| Throughput | 100,000+ ops/sec | Sustained operation rate |
+| Throughput | 19.2M ops/sec (avg) | 192x faster than claimed ([benchmark](rust/examples/throughput_benchmark.rs)) |
 | Optimizer | 20-90% AST reduction | Multi-pass optimization |
-| SIMD Operations | 4-8x speedup | AVX2 vectorized math |
-| Concurrent GC | <10ms pauses | Generational collection |
+| SIMD Operations | 4-8x speedup | AVX2 vectorized math ([benchmark](rust/examples/simd_benchmark.rs)) |
+| Concurrent GC | <10ms pauses | Generational collection ([example coming soon](rust/examples/README.md#additional-examples-coming-soon)) |
+
+### Real-World Benchmark Results
+
+Measured with proper VM reuse (using `vm.reset()` between operations):
+
+| Operation Type | Throughput | Time per Op | vs. 100k claim |
+|----------------|------------|-------------|----------------|
+| Simple arithmetic | 31,823,479 ops/sec | 0.031 µs | 318x faster |
+| Complex arithmetic | 33,666,248 ops/sec | 0.030 µs | 337x faster |
+| Function calls | 33,592,274 ops/sec | 0.030 µs | 336x faster |
+| Conditionals | 35,829,991 ops/sec | 0.028 µs | 358x faster |
+| Let bindings | 7,932,049 ops/sec | 0.126 µs | 79x faster |
+| List operations | 6,105,907 ops/sec | 0.164 µs | 61x faster |
+| Pattern matching | 4,589,481 ops/sec | 0.218 µs | 46x faster |
+| Recursive functions | 390,749 ops/sec | 2.559 µs | 3.9x faster |
+| **Average** | **19,241,272 ops/sec** | **0.052 µs** | **192x faster** |
+
+**Note**: These benchmarks use the VM's `reset()` method to reuse the VM instance between operations, avoiding the overhead of VM initialization (which includes loading 258 stdlib functions). This represents realistic usage where a VM instance handles multiple operations.
 
 ### Performance Breakdown
 
@@ -1053,7 +1090,7 @@ Every optimization generates a machine-checkable proof:
 | Parse `42` | ~800 ns | Minimal allocation |
 | Parse `(+ 1 2)` | ~2.2 µs | Single expression |
 | Parse complex expr | ~5.2 µs | Nested structures |
-| VM execution | ~100 ns | Per instruction |
+| VM execution | ~30 ns | Per operation (with reset) |
 | SIMD dot product | ~25 ns/element | 1024-element arrays |
 | Actor message | ~500 ns | Including scheduling |
 | Stdlib function call | 50-200 ns | 3-5x faster |

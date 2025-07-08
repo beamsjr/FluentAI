@@ -5,6 +5,7 @@
 pub mod bytecode;
 pub mod compiler;
 pub mod vm;
+pub mod vm_builder;
 pub mod stdlib_bridge;
 pub mod builder;
 pub mod di;
@@ -24,9 +25,11 @@ pub mod concurrent_gc;
 pub mod usage_tracker;
 
 pub use vm::VM;
-pub use bytecode::{Bytecode, Opcode};
+pub use vm_builder::VMBuilder;
+pub use bytecode::{Bytecode, Opcode, Value};
 pub use compiler::{Compiler, CompilerOptions};
-pub use builder::{VMBuilder, VMConfig};
+pub use fluentai_optimizer::OptimizationLevel;
+pub use builder::{VMBuilder as VMBuilderLegacy, VMConfig};
 pub use di::{VMContainerBuilderExt, VMServiceProvider, ContainerVMProvider, VMFactory};
 pub use debug::{VMDebugEvent, DebugConfig, StepMode};
 pub use security::{SecurityManager, SecurityPolicy, Capability, TaintLevel};
@@ -40,6 +43,7 @@ pub use optimization::{InstructionFusion, InlineCache, ProfileInfo, FusedOpcode,
 pub use simd::{SimdOps, SimdOp, PortableSimd};
 pub use concurrent_gc::{ConcurrentGc, ConcurrentGcConfig};
 pub use usage_tracker::{UsageTracker, UsageStats};
+pub use error::VMError;
 
 // Test modules
 #[cfg(test)]

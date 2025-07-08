@@ -1,31 +1,77 @@
-//! Async runtime management for FluentAi
+//! Effect runtime for FluentAi
+//! 
+//! Provides async runtime support for effects
+//! 
+//! # Safety Note
+//! 
+//! The `handle()` and `block_on()` methods will panic if the runtime is not properly initialized.
+//! Use `try_handle()` and `try_block_on()` for non-panicking alternatives.
 
-use tokio::runtime::{Runtime, Handle};
 use std::sync::Arc;
-use anyhow::Result;
+use tokio::runtime::{Runtime, Handle};
 
 pub struct EffectRuntime {
-    runtime: Arc<Runtime>,
+    runtime: Option<Arc<Runtime>>,
+    handle: Option<Handle>,
 }
 
 impl EffectRuntime {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, std::io::Error> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(4)
             .enable_all()
             .build()?;
         
         Ok(Self {
-            runtime: Arc::new(runtime),
+            runtime: Some(Arc::new(runtime)),
+            handle: None,
         })
     }
     
+    /// Create an EffectRuntime that uses the current tokio runtime handle
+    /// This is safe to use in async contexts
+    pub fn from_current() -> Self {
+        Self {
+            runtime: None,
+            handle: Some(Handle::current()),
+        }
+    }
+    
     pub fn handle(&self) -> Handle {
-        self.runtime.handle().clone()
+        if let Some(handle) = &self.handle {
+            handle.clone()
+        } else if let Some(runtime) = &self.runtime {
+            runtime.handle().clone()
+        } else {
+            panic!("EffectRuntime has no handle")
+        }
+    }
+    
+    /// Try to get handle without panicking
+    pub fn try_handle(&self) -> Option<Handle> {
+        if let Some(handle) = &self.handle {
+            Some(handle.clone())
+        } else if let Some(runtime) = &self.runtime {
+            Some(runtime.handle().clone())
+        } else {
+            None
+        }
     }
     
     pub fn block_on<F: std::future::Future>(&self, future: F) -> F::Output {
-        self.runtime.block_on(future)
+        if let Some(runtime) = &self.runtime {
+            runtime.block_on(future)
+        } else {
+            panic!("Cannot block_on without owned runtime")
+        }
+    }
+    
+    /// Try to block on a future without panicking
+    pub fn try_block_on<F: std::future::Future>(&self, future: F) -> Option<F::Output> {
+        if let Some(runtime) = &self.runtime {
+            Some(runtime.block_on(future))
+        } else {
+            None
+        }
     }
     
     pub fn spawn<F>(&self, future: F) -> tokio::task::JoinHandle<F::Output>
@@ -33,13 +79,22 @@ impl EffectRuntime {
         F: std::future::Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        self.runtime.spawn(future)
+        self.handle().spawn(future)
     }
 }
 
 impl Default for EffectRuntime {
     fn default() -> Self {
-        Self::new().expect("Failed to create runtime")
+        // Try to use current runtime if we're in async context
+        if let Ok(handle) = Handle::try_current() {
+            Self {
+                runtime: None,
+                handle: Some(handle),
+            }
+        } else {
+            // Create new runtime if not in async context
+            Self::new().expect("Failed to create runtime")
+        }
     }
 }
 
@@ -53,6 +108,11 @@ impl RuntimeHandle {
         Self {
             handle: runtime.handle(),
         }
+    }
+    
+    /// Try to create a RuntimeHandle without panicking
+    pub fn try_new(runtime: &EffectRuntime) -> Option<Self> {
+        runtime.try_handle().map(|handle| Self { handle })
     }
     
     pub fn spawn<F>(&self, future: F) -> tokio::task::JoinHandle<F::Output>

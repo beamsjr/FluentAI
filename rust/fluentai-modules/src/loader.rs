@@ -5,9 +5,9 @@ use fluentai_core::ast::{Graph, Node, Literal};
 use fluentai_parser::parse;
 use rustc_hash::FxHashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, Component};
 use std::sync::Arc;
-use tracing::{info, trace};
+use tracing::{info, trace, warn};
 
 /// Module loader responsible for finding and loading modules
 pub struct ModuleLoader {
@@ -29,6 +29,9 @@ impl ModuleLoader {
     
     /// Load a module by path or name
     pub fn load_module(&mut self, module_ref: &str) -> Result<Arc<ModuleInfo>> {
+        // Validate module reference
+        self.validate_module_ref(module_ref)?;
+        
         // Resolve module path
         let path = self.resolve_module_path(module_ref)?;
         let module_id = self.module_id_from_path(&path);
@@ -77,13 +80,55 @@ impl ModuleLoader {
         }
     }
     
+    /// Validate a module reference to prevent directory traversal attacks
+    fn validate_module_ref(&self, module_ref: &str) -> Result<()> {
+        // Check for empty reference
+        if module_ref.is_empty() {
+            return Err(ModuleError::InvalidPath {
+                path: PathBuf::from("<empty>"),
+            });
+        }
+        
+        // Check for dangerous patterns
+        if module_ref.contains("..") || module_ref.contains("./") || module_ref.contains("/.") {
+            warn!("Rejected module reference with directory traversal: {}", module_ref);
+            return Err(ModuleError::InvalidPath {
+                path: PathBuf::from(module_ref),
+            });
+        }
+        
+        // Check for absolute paths (security risk)
+        let path = Path::new(module_ref);
+        if path.is_absolute() {
+            warn!("Rejected absolute path module reference: {}", module_ref);
+            return Err(ModuleError::InvalidPath {
+                path: path.to_path_buf(),
+            });
+        }
+        
+        // Check for null bytes
+        if module_ref.contains('\0') {
+            warn!("Rejected module reference with null byte: {:?}", module_ref);
+            return Err(ModuleError::InvalidPath {
+                path: PathBuf::from(module_ref),
+            });
+        }
+        
+        Ok(())
+    }
+    
     /// Resolve a module reference to a file path
     fn resolve_module_path(&self, module_ref: &str) -> Result<PathBuf> {
-        // If it's already a path with .cl extension, use it directly
+        // If it's already a path with .cl extension, validate and use it
         if module_ref.ends_with(".cl") {
             let path = Path::new(module_ref);
+            if path.is_absolute() {
+                return Err(ModuleError::InvalidPath {
+                    path: path.to_path_buf(),
+                });
+            }
             if path.exists() {
-                return Ok(path.to_path_buf());
+                return self.validate_resolved_path(path.to_path_buf());
             }
         }
         
@@ -93,14 +138,14 @@ impl ModuleLoader {
             let file_path = search_path.join(format!("{}.cl", module_ref));
             if file_path.exists() {
                 trace!("Found module at: {:?}", file_path);
-                return Ok(file_path);
+                return self.validate_resolved_path(file_path);
             }
             
             // Try as a directory with module.cl
             let dir_path = search_path.join(module_ref).join("module.cl");
             if dir_path.exists() {
                 trace!("Found module at: {:?}", dir_path);
-                return Ok(dir_path);
+                return self.validate_resolved_path(dir_path);
             }
         }
         
@@ -109,13 +154,56 @@ impl ModuleLoader {
         })
     }
     
+    /// Validate that a resolved path is within allowed search paths
+    fn validate_resolved_path(&self, path: PathBuf) -> Result<PathBuf> {
+        // Canonicalize the path to resolve symlinks and relative components
+        let canonical_path = path.canonicalize().map_err(|e| ModuleError::IoError {
+            path: path.clone(),
+            error: e,
+        })?;
+        
+        // Check if the canonical path is within any of our search paths
+        let mut is_within_search_path = false;
+        for search_path in &self.config.search_paths {
+            if let Ok(canonical_search) = search_path.canonicalize() {
+                if canonical_path.starts_with(&canonical_search) {
+                    is_within_search_path = true;
+                    break;
+                }
+            }
+        }
+        
+        if !is_within_search_path {
+            warn!("Module path {:?} is outside allowed search paths", canonical_path);
+            return Err(ModuleError::InvalidPath { path: canonical_path });
+        }
+        
+        // Additional safety check: ensure no directory traversal in components
+        for component in canonical_path.components() {
+            match component {
+                Component::ParentDir => {
+                    warn!("Path contains parent directory component: {:?}", canonical_path);
+                    return Err(ModuleError::InvalidPath { path: canonical_path });
+                }
+                Component::RootDir => {
+                    // This is ok if it's part of the canonical path
+                }
+                Component::CurDir => {
+                    // Current directory is ok
+                }
+                Component::Prefix(_) | Component::Normal(_) => {
+                    // Normal components are ok
+                }
+            }
+        }
+        
+        Ok(canonical_path)
+    }
+    
     /// Generate a module ID from a path
     fn module_id_from_path(&self, path: &Path) -> String {
-        // Convert to absolute path and use as ID
-        path.canonicalize()
-            .unwrap_or_else(|_| path.to_path_buf())
-            .to_string_lossy()
-            .to_string()
+        // Use canonical path as ID (already validated)
+        path.to_string_lossy().to_string()
     }
     
     /// Load a module from a specific file path
@@ -286,5 +374,98 @@ mod tests {
         
         // Should be the same Arc
         assert!(Arc::ptr_eq(&module1, &module2));
+    }
+    
+    #[test]
+    fn test_reject_directory_traversal() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = ModuleConfig {
+            search_paths: vec![temp_dir.path().to_path_buf()],
+            ..Default::default()
+        };
+        
+        let mut loader = ModuleLoader::new(config);
+        
+        // Test various directory traversal attempts
+        let dangerous_refs = vec![
+            "../etc/passwd",
+            "../../sensitive",
+            "./../../escape",
+            "normal/../../../escape",
+            "..\\windows\\path",
+        ];
+        
+        for module_ref in dangerous_refs {
+            let result = loader.load_module(module_ref);
+            assert!(matches!(result, Err(ModuleError::InvalidPath { .. })),
+                    "Should reject module ref: {}", module_ref);
+        }
+    }
+    
+    #[test]
+    fn test_reject_absolute_paths() {
+        let config = ModuleConfig::default();
+        let mut loader = ModuleLoader::new(config);
+        
+        // Test absolute path attempts
+        #[cfg(unix)]
+        let absolute_refs = vec![
+            "/etc/passwd",
+            "/usr/bin/evil",
+            "/absolute/path/module.cl",
+        ];
+        
+        #[cfg(windows)]
+        let absolute_refs = vec![
+            "C:\\Windows\\System32\\cmd.exe",
+            "\\\\server\\share\\file",
+            "D:\\absolute\\path\\module.cl",
+        ];
+        
+        for module_ref in absolute_refs {
+            let result = loader.load_module(module_ref);
+            assert!(matches!(result, Err(ModuleError::InvalidPath { .. })),
+                    "Should reject absolute path: {}", module_ref);
+        }
+    }
+    
+    #[test]
+    fn test_reject_null_bytes() {
+        let config = ModuleConfig::default();
+        let mut loader = ModuleLoader::new(config);
+        
+        let result = loader.load_module("evil\0module");
+        assert!(matches!(result, Err(ModuleError::InvalidPath { .. })));
+    }
+    
+    #[test]
+    fn test_reject_empty_module_ref() {
+        let config = ModuleConfig::default();
+        let mut loader = ModuleLoader::new(config);
+        
+        let result = loader.load_module("");
+        assert!(matches!(result, Err(ModuleError::InvalidPath { .. })));
+    }
+    
+    #[test]
+    fn test_module_outside_search_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let safe_dir = temp_dir.path().join("safe");
+        fs::create_dir(&safe_dir).unwrap();
+        
+        // Create a module outside the safe directory
+        let module_content = r#"(module outside-test (export x) x)"#;
+        create_test_module_file(temp_dir.path(), "outside", module_content);
+        
+        let config = ModuleConfig {
+            search_paths: vec![safe_dir], // Only allow modules from safe/
+            ..Default::default()
+        };
+        
+        let mut loader = ModuleLoader::new(config);
+        
+        // Try to load the module outside the search path
+        let result = loader.load_module("../outside");
+        assert!(matches!(result, Err(ModuleError::InvalidPath { .. })));
     }
 }

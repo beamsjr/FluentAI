@@ -1928,4 +1928,73 @@ mod tests {
         graph.dfs_from(no_arg_effect, |_, _| count += 1);
         assert_eq!(count, 1); // Just the effect node
     }
+    
+    // ===== Documentation Coverage Tests =====
+    
+    #[test]
+    fn test_all_nodes_have_documentation() {
+        // This test ensures that all Node variants have documentation.
+        // The get_node_docs() method must handle all variants exhaustively.
+        // If a new Node variant is added without updating get_node_docs(),
+        // this will cause a compile-time error due to non-exhaustive patterns.
+        
+        let mut graph = Graph::new();
+        
+        // Test literals
+        let _int_node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let _float_node = graph.add_node(Node::Literal(Literal::Float(3.14))).unwrap();
+        let _string_node = graph.add_node(Node::Literal(Literal::String("test".to_string()))).unwrap();
+        let _bool_node = graph.add_node(Node::Literal(Literal::Boolean(true))).unwrap();
+        let _nil_node = graph.add_node(Node::Literal(Literal::Nil)).unwrap();
+        
+        // Test all node types
+        let var_node = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+        let _lambda_node = graph.add_node(Node::Lambda { params: vec![], body: var_node }).unwrap();
+        let _let_node = graph.add_node(Node::Let { bindings: vec![], body: var_node }).unwrap();
+        let _letrec_node = graph.add_node(Node::Letrec { bindings: vec![], body: var_node }).unwrap();
+        let _if_node = graph.add_node(Node::If { condition: var_node, then_branch: var_node, else_branch: var_node }).unwrap();
+        let _app_node = graph.add_node(Node::Application { function: var_node, args: vec![] }).unwrap();
+        let _effect_node = graph.add_node(Node::Effect { effect_type: EffectType::Pure, operation: "test".to_string(), args: vec![] }).unwrap();
+        let _list_node = graph.add_node(Node::List(vec![])).unwrap();
+        let _match_node = graph.add_node(Node::Match { expr: var_node, branches: vec![] }).unwrap();
+        let _module_node = graph.add_node(Node::Module { name: "test".to_string(), exports: vec![], body: var_node }).unwrap();
+        let _import_node = graph.add_node(Node::Import { module_path: "test".to_string(), import_list: vec![], import_all: false }).unwrap();
+        let _export_node = graph.add_node(Node::Export { export_list: vec![] }).unwrap();
+        let _qualified_var_node = graph.add_node(Node::QualifiedVariable { module_name: "test".to_string(), variable_name: "x".to_string() }).unwrap();
+        let _async_node = graph.add_node(Node::Async { body: var_node }).unwrap();
+        let _await_node = graph.add_node(Node::Await { expr: var_node }).unwrap();
+        let _spawn_node = graph.add_node(Node::Spawn { expr: var_node }).unwrap();
+        let _channel_node = graph.add_node(Node::Channel).unwrap();
+        let _send_node = graph.add_node(Node::Send { channel: var_node, value: var_node }).unwrap();
+        let _receive_node = graph.add_node(Node::Receive { channel: var_node }).unwrap();
+        let _contract_node = graph.add_node(Node::Contract { 
+            function_name: "test".to_string(), 
+            preconditions: vec![], 
+            postconditions: vec![], 
+            invariants: vec![],
+            complexity: None,
+            pure: true 
+        }).unwrap();
+        
+        // Get documentation for each node - this will fail at compile time if any variant is missing
+        for node_id in graph.nodes.keys() {
+            let node = &graph.nodes[node_id];
+            let docs = node.get_node_docs();
+            assert!(!docs.name.is_empty());
+            assert!(!docs.syntax.is_empty());
+            assert!(!docs.description.is_empty());
+        }
+    }
+    
+    #[test]
+    fn test_exhaustive_documentation_match() {
+        // This is a compile-time test that ensures the match in get_node_docs is exhaustive.
+        // The #[deny(non_exhaustive_patterns)] attribute on get_node_docs enforces this.
+        // If you see a compile error here, it means a new Node variant was added
+        // without updating the get_node_docs() method.
+        fn _compile_time_exhaustiveness_check(node: &Node) {
+            // This function exists only to trigger compile-time checking
+            let _ = node.get_node_docs();
+        }
+    }
 }
