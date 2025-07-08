@@ -43,7 +43,7 @@ FluentAi is an experimental programming language designed for AI systems rather 
 - **JavaScript Compilation**: Compile to optimized JavaScript for browsers
 
 ### 🔧 Core Language Features
-- **Pattern matching**: ML-style with list destructuring (cons/nil patterns)
+- **Pattern matching**: ML-style with list destructuring (Cons/Nil patterns)
   - Literal, variable, wildcard, and constructor patterns
   - Special support for list pattern matching
   - Efficient compilation to bytecode
@@ -102,7 +102,7 @@ FluentAi is an experimental programming language designed for AI systems rather 
   - Macro expansion system
 - **Opt-in Garbage Collection**: Complement Rust's ownership with GC
   - Mark-and-sweep algorithm with tri-color marking
-  - Special `gc:let` form for GC-managed bindings
+  - Special `gc-let` form for GC-managed bindings
   - GC handles for safe value access
   - Scoped allocation with automatic root management
   - Configurable collection thresholds and strategies
@@ -142,19 +142,18 @@ FluentAi is an experimental programming language designed for AI systems rather 
 (import "ui/components" *)
 
 ;; Define a module
-(module list-utils (export length sum)
+(module list-utils [length sum]
   ;; Define an algebraic data type
   (data List a
     (Nil)
     (Cons a (List a)))
 
-  ;; Pattern matching with type annotation
+  ;; Pattern matching function
   (define length
-    (: (lambda (xs)
-         (match xs
-           ((Nil) 0)
-           ((Cons x xs) (+ 1 (length xs)))))
-       (Function (List a) Int)))
+    (lambda (xs)
+      (match xs
+        ((Nil) 0)
+        ((Cons x xs) (+ 1 (length xs))))))
   
   (define sum
     (lambda (xs)
@@ -162,13 +161,13 @@ FluentAi is an experimental programming language designed for AI systems rather 
         ((Nil) 0)
         ((Cons x xs) (+ x (sum xs)))))))
 
-;; Pattern matching on built-in lists (cons/nil patterns)
+;; Pattern matching on built-in lists (Cons/Nil patterns)
 (define list-operations
   (let ((my-list (list 1 2 3 4 5)))
     ;; Match on list structure
     (match my-list
-      ((nil) "empty list")
-      ((cons head tail) 
+      ((Nil) "empty list")
+      ((Cons head tail) 
         (print "First element:" head)
         (print "Rest of list:" tail)))
     
@@ -178,8 +177,8 @@ FluentAi is an experimental programming language designed for AI systems rather 
         (if (= n 0)
             (list)
             (match lst
-              ((nil) (list))
-              ((cons x xs) (cons x (take (- n 1) xs)))))))
+              ((Nil) (list))
+              ((Cons x xs) (cons x (take (- n 1) xs)))))))
     
     (take 3 my-list)))  ; Returns (list 1 2 3)
 
@@ -187,7 +186,7 @@ FluentAi is an experimental programming language designed for AI systems rather 
 (define circle-area (lambda (r) (* pi r r)))
 
 ;; Modern UI component with imports
-(ui:component "Counter" {:count (prop :number :default 0)}
+(define-component "Counter" {:count {:type :number :default 0}}
   (lambda (props)
     (h "div" {}
       (h "p" {} (str "Count: " (get props :count)))
@@ -200,15 +199,15 @@ FluentAi is an experimental programming language designed for AI systems rather 
   (handler
     ((error (lambda (err)
               (print "Network error:" (get err :message))
-              (effect dom:update "Failed to load data"))))
-    (let ((data (await (network:fetch "https://api.example.com/data"))))
-      (effect dom:update (get data :result))))))
+              (effect dom update "Failed to load data"))))
+    (let ((data (await (effect network fetch "https://api.example.com/data"))))
+      (effect dom update (get data :result))))))
 
-;; Concurrent programming with qualified names
-(import "concurrent" (chan go))
+;; Concurrent programming with channels
+(import "concurrent" (chan go send! receive!))
 (let ((ch (chan 10)))
-  (go (lambda () (concurrent:send! ch "Hello from goroutine!")))
-  (concurrent:receive! ch))
+  (go (lambda () (send! ch "Hello from goroutine!")))
+  (receive! ch))
 
 ;; High-performance packet processing
 (letrec ((process-packets
@@ -235,8 +234,8 @@ FluentAi is an experimental programming language designed for AI systems rather 
       (array2 (make-f64-array 1024))
       (result (make-f64-array 1024)))
   ; Vectorized operations run 4-8x faster
-  (simd:add-arrays array1 array2 result)
-  (simd:dot-product array1 array2))
+  (simd-add-arrays array1 array2 result)
+  (simd-dot-product array1 array2))
 
 ;; Configurable Thread Pool with CPU affinity
 (import "threading" *)
@@ -268,9 +267,9 @@ FluentAi is an experimental programming language designed for AI systems rather 
   (ask counter [:get] 1000))  ; Ask with 1s timeout
 
 ;; Concurrent GC with generational collection
-(gc:let ((large-data (generate-data 1000000)))  ; GC-managed binding
+(gc-let ((large-data (generate-data 1000000)))  ; GC-managed binding
   ; Young generation for short-lived objects
-  (map (lambda (x) (gc:let ((temp (* x x))) temp))
+  (map (lambda (x) (gc-let ((temp (* x x))) temp))
        (range 1000))
   ; Old generation for long-lived data
   (set! application-cache large-data))
@@ -452,7 +451,7 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ### Module System
 ```lisp
 ;; Define a module with exports
-(module math-utils (export square cube factorial)
+(module math-utils [square cube factorial]
   (define square (lambda (x) (* x x)))
   (define cube (lambda (x) (* x x x)))
   (define factorial 
@@ -505,24 +504,24 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ### Modern Web Development
 ```lisp
 ;; UI Components
-(ui:component "TodoItem" {:text (prop :string :required true)}
+(define-component "TodoItem" {:text {:type :string :required true}}
   (lambda (props)
     (h "li" {:className "todo-item"}
       (get props :text))))
 
 ;; Async HTTP requests
 (async (lambda ()
-  (let ((response (await (effect network:fetch "/api/todos"))))
-    (effect dom:update 
-      (ui:for (get response :items) 
-        (lambda (item) (TodoItem {:text item}))))))
+  (let ((response (await (effect network fetch "/api/todos"))))
+    (effect dom update 
+      (map (lambda (item) (TodoItem {:text item}))
+           (get response :items)))))
 
 ;; Reactive state
 (let ((state (reactive {:count 0})))
-  (ui:component "Counter" {}
+  (define-component "Counter" {}
     (lambda (_)
       (h "button" {:onClick (lambda () (swap! state update :count inc))}
-        (str "Count: " (get @state :count))))))
+        (str "Count: " (get (deref state) :count))))))
 ```
 
 ### Concurrent Programming
@@ -533,12 +532,12 @@ FluentAI's optimizations make it ideal for high-performance network applications
   ;; Producer
   (go (dotimes (i 10)
         (send! ch i)
-        (effect time:sleep 100)))
+        (effect time sleep 100)))
   
   ;; Consumer
   (go (dotimes (i 10)
         (let ((val (receive! ch)))
-          (effect io:print (str "Received: " val))))
+          (effect io print (str "Received: " val))))
       (send! done true))
   
   ;; Wait for completion
@@ -557,25 +556,25 @@ FluentAI's optimizations make it ideal for high-performance network applications
 (import "logger" *)
 
 ;; Log at different levels with structured data
-(logger:info "User logged in" {:user-id 123 :ip "192.168.1.1"})
-(logger:warn "Rate limit approaching" {:requests 95 :limit 100})
-(logger:error "Database connection failed" {:host "db.example.com" :retry-count 3})
-(logger:debug "Processing item" {:id "abc-123" :size 1024})
+(log-info "User logged in" {:user-id 123 :ip "192.168.1.1"})
+(log-warn "Rate limit approaching" {:requests 95 :limit 100})
+(log-error "Database connection failed" {:host "db.example.com" :retry-count 3})
+(log-debug "Processing item" {:id "abc-123" :size 1024})
 
 ;; Set log level (DEBUG, INFO, WARN, ERROR)
-(logger:set-log-level logger:WARN)  ; Only WARN and ERROR will be shown
+(set-log-level 'WARN)  ; Only WARN and ERROR will be shown
 
 ;; Simple messages without structured data
-(logger:info "Application started")
-(logger:error "Critical failure!")
+(log-info "Application started")
+(log-error "Critical failure!")
 
 ;; Logging in error handlers
 (handler
   ((error (lambda (err)
-            (logger:error "Operation failed" 
+            (log-error "Operation failed" 
               {:error (get err :message)
                :type (get err :type)
-               :timestamp (effect time:now)})
+               :timestamp (effect time now)})
             nil)))
   (risky-operation))
 
@@ -586,7 +585,7 @@ FluentAI's optimizations make it ideal for high-performance network applications
              ;; Custom formatting or routing
              (send-to-log-server (first args))
              (apply effect io op args)))))
-  (logger:info "This goes through custom handler"))
+  (log-info "This goes through custom handler"))
 ```
 
 ### Error Handling
@@ -600,7 +599,7 @@ FluentAI's optimizations make it ideal for high-performance network applications
 
 ;; Raise errors using the error effect
 (when (= denominator 0)
-  (effect error:raise "divide-by-zero" 
+  (effect error raise "divide-by-zero" 
     {:message "Cannot divide by zero"
      :numerator numerator
      :denominator denominator}))
@@ -612,16 +611,16 @@ FluentAI's optimizations make it ideal for high-performance network applications
               "timeout" (retry-request)
               "network" (use-cached-data)
               _ (show-error-message)))))
-  (await (network:fetch api-url)))
+  (await (effect network fetch api-url)))
 
 ;; Composable error handling in UI components
-(ui:component "DataDisplay" {:url (prop :string :required true)}
+(define-component "DataDisplay" {:url {:type :string :required true}}
   (lambda (props)
     (handler
       ((error (lambda (err) 
                 (h "div" {:className "error"} 
                   (str "Failed to load: " (get err :message))))))
-      (let ((data (await (fetch (get props :url)))))
+      (let ((data (await (effect network fetch (get props :url)))))
         (h "div" {:className "data"} 
           (render-data data))))))
 ```
@@ -629,7 +628,7 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ### Formal Contracts and Verification
 ```lisp
 ;; Define contracts with preconditions and postconditions
-(spec:contract factorial
+(define-contract factorial
   :requires [(>= n 0)]              ; Precondition: n must be non-negative
   :ensures [(>= result 1)]          ; Postcondition: result is at least 1
   :complexity "O(n)"                ; Complexity specification
@@ -641,12 +640,12 @@ FluentAI's optimizations make it ideal for high-performance network applications
       (* n (factorial (- n 1))))))
 
 ;; Contracts are verified at runtime (and optionally statically)
-(spec:contract safe-divide
+(define-contract safe-divide
   :requires [(and (number? x) (number? y) (not= y 0))]
   :ensures [(number? result)])
 
 ;; Contracts support complex conditions
-(spec:contract binary-search
+(define-contract binary-search
   :requires [(sorted? arr)]
   :ensures [(or (= result -1) 
                (= (nth arr result) target))]
@@ -655,24 +654,24 @@ FluentAI's optimizations make it ideal for high-performance network applications
 
 ;; Static verification with Z3 (when enabled)
 ;; Automatically proves contracts are satisfied for all inputs
-(spec:verify factorial)             ; Proves factorial contract holds
+(verify-contract factorial)             ; Proves factorial contract holds
 
 ;; Contract inheritance and refinement
-(spec:contract sort
+(define-contract sort
   :ensures [(sorted? result) (same-elements? input result)])
 
-(spec:contract stable-sort
+(define-contract stable-sort
   :inherits sort                    ; Inherits all conditions from sort
   :ensures [(stable? result)]       ; Adds stability guarantee
   :refines sort)                    ; Verified to be a valid refinement
 
 ;; Symbolic execution for exhaustive testing
-(spec:symbolic-test factorial
+(symbolic-test factorial
   :paths all                        ; Explore all execution paths
   :bound 5)                         ; Up to depth 5
 
 ;; Proof generation for critical properties
-(spec:prove factorial-positive
+(prove factorial-positive
   :property (forall n (>= n 0) (>= (factorial n) 1))
   :strategy induction               ; Use mathematical induction
   :var n)                          ; Induct on n
@@ -687,7 +686,7 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ### Advanced Symbolic Execution
 ```lisp
 ;; Automatic test generation from symbolic execution
-(spec:generate-tests safe-divide
+(generate-tests safe-divide
   :coverage path                    ; Generate tests for all paths
   :format rust)                     ; Output as Rust unit tests
 
@@ -707,21 +706,21 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ;; }
 
 ;; Parallel symbolic execution for performance
-(spec:symbolic-verify complex-function
+(symbolic-verify complex-function
   :parallel true                    ; Use all CPU cores
   :timeout 60)                      ; 60 second timeout
 
 ;; Visualize execution paths
-(spec:visualize-paths binary-search
+(visualize-paths binary-search
   :format dot                       ; Graphviz format
   :output "paths.png")             ; Renders execution tree
 
 ;; Advanced counterexample generation
-(spec:contract sqrt
+(define-contract sqrt
   :requires [(>= x 0)]
   :ensures [(>= result 0) (<= (- (* result result) x) 0.0001)])
 
-(spec:verify sqrt)
+(verify-contract sqrt)
 ;; If verification fails, generates:
 ;; Counterexample found:
 ;;   Input: x = -1
@@ -731,7 +730,7 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ;;   Suggestion: Add input validation for negative numbers
 
 ;; Incremental verification during development
-(spec:watch my-module
+(watch-contracts my-module
   :on-change verify               ; Re-verify on code changes
   :show-coverage true)            ; Display path coverage %
 ```
@@ -739,29 +738,29 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ### Database Operations
 ```lisp
 ;; Connect to database using effects
-(effect db:connect "postgresql://localhost/myapp")
+(effect db connect "postgresql://localhost/myapp")
 
 ;; Execute queries with parameters
-(effect db:query "SELECT * FROM users WHERE age > ?" [18])
+(effect db query "SELECT * FROM users WHERE age > ?" [18])
 
 ;; Build queries functionally
-(db:from 'users
-  (db:where (db:and 
-    (db:gt 'age 18)
-    (db:eq 'active true)))
-  (db:select '(id name email))
-  (db:order-by 'created_at :desc))
+(db-from 'users
+  (db-where (db-and 
+    (db-gt 'age 18)
+    (db-eq 'active true)))
+  (db-select '(id name email))
+  (db-order-by 'created_at :desc))
 
 ;; Transactions with automatic rollback on error
 (handler
   ((error (lambda (err)
-            (effect db:rollback-transaction)
+            (effect db rollback-transaction)
             (logger:error "Transaction failed" {:error err}))))
-  (effect db:begin-transaction)
-  (effect db:execute "INSERT INTO accounts (id, balance) VALUES (?, ?)" [1 1000])
-  (effect db:execute "UPDATE accounts SET balance = balance - 100 WHERE id = 1")
-  (effect db:execute "UPDATE accounts SET balance = balance + 100 WHERE id = 2")
-  (effect db:commit-transaction))
+  (effect db begin-transaction)
+  (effect db execute "INSERT INTO accounts (id, balance) VALUES (?, ?)" [1 1000])
+  (effect db execute "UPDATE accounts SET balance = balance - 100 WHERE id = 1")
+  (effect db execute "UPDATE accounts SET balance = balance + 100 WHERE id = 2")
+  (effect db commit-transaction))
 
 ;; Define type-safe schemas
 (define-schema user
@@ -812,40 +811,40 @@ impl Module for CoreModule {
 ### Reactive State System
 ```lisp
 ;; Create reactive state
-(let ((counter (reactive:state 0))
-      (doubled (reactive:computed 
-                 (lambda () (* 2 (reactive:get counter))))))
+(let ((counter (reactive-state 0))
+      (doubled (reactive-computed 
+                 (lambda () (* 2 (reactive-get counter))))))
   
   ;; Automatic dependency tracking
-  (reactive:effect 
+  (reactive-effect 
     (lambda () 
-      (println (str "Counter: " (reactive:get counter) 
-                    ", Doubled: " (reactive:get doubled)))))
+      (println (str "Counter: " (reactive-get counter) 
+                    ", Doubled: " (reactive-get doubled)))))
   
   ;; Updates trigger recomputation
-  (reactive:set! counter 5)  ; Prints: "Counter: 5, Doubled: 10"
-  (reactive:set! counter 10) ; Prints: "Counter: 10, Doubled: 20"
+  (reactive-set! counter 5)  ; Prints: "Counter: 5, Doubled: 10"
+  (reactive-set! counter 10) ; Prints: "Counter: 10, Doubled: 20"
   
   ;; Fine-grained updates
-  (let ((users (reactive:state [])))
-    (reactive:update! users 
+  (let ((users (reactive-state [])))
+    (reactive-update! users 
       (lambda (list) (cons {:id 1 :name "Alice"} list)))))
 
 ;; Integration with UI components
-(ui:component "Counter" {}
+(define-component "Counter" {}
   (lambda (_)
-    (let ((count (reactive:state 0)))
+    (let ((count (reactive-state 0)))
       (h "div" {}
-        (h "p" {} (str "Count: " (reactive:get count)))
+        (h "p" {} (str "Count: " (reactive-get count)))
         (h "button" 
-          {:onClick (lambda () (reactive:update! count inc))}
+          {:onClick (lambda () (reactive-update! count inc))}
           "Increment")))))
 ```
 
 ### UI Compilation Examples
 ```lisp
 ;; Define a UI component
-(ui:component "TodoList" {:items (prop :list :required true)}
+(define-component "TodoList" {:items {:type :list :required true}}
   (lambda (props)
     (h "ul" {:className "todo-list"}
       (map (lambda (item)
@@ -856,10 +855,10 @@ impl Module for CoreModule {
            (get props :items)))))
 
 ;; Compile to different targets
-(ui:compile-to-vanilla-js TodoList)    ; → Pure JavaScript
-(ui:compile-to-react TodoList)          ; → React component
-(ui:compile-to-vue TodoList)            ; → Vue 3 component  
-(ui:compile-to-web-component TodoList)  ; → Web Component
+(compile-to-vanilla-js TodoList)    ; → Pure JavaScript
+(compile-to-react TodoList)          ; → React component
+(compile-to-vue TodoList)            ; → Vue 3 component  
+(compile-to-web-component TodoList)  ; → Web Component
 
 ;; The compiler handles framework-specific details:
 ;; - React: Uses hooks, state management
@@ -894,7 +893,7 @@ impl Module for CoreModule {
 ### Linting and Static Analysis
 ```lisp
 ;; Run linter on code
-(lint:check my-module)
+(lint-check my-module)
 ;; => [{:rule "unused-variable"
 ;;      :severity :warning
 ;;      :location {:line 10 :column 5}
@@ -906,7 +905,7 @@ impl Module for CoreModule {
 ;;      :message "Function 'loop' has infinite recursion"}]
 
 ;; Define custom lint rules
-(lint:define-rule "no-magic-numbers"
+(define-lint-rule "no-magic-numbers"
   :severity :warning
   :pattern (lambda (node)
              (and (number? node)
@@ -917,7 +916,7 @@ impl Module for CoreModule {
          (suggest-constant-extraction node)))
 
 ;; Configure linting
-(lint:configure {:rules {:unused-variable :error
+(configure-lint {:rules {:unused-variable :error
                          :shadowed-variable :warning
                          :no-magic-numbers :off}
                  :ignore-paths ["tests/*" "generated/*"]})
@@ -926,7 +925,7 @@ impl Module for CoreModule {
 ### Metaprogramming and Code Generation
 ```lisp
 ;; Pattern matching on AST
-(meta:match expr
+(meta-match expr
   ;; Optimize (+ x 0) → x
   (('+ $x 0) x)
   ;; Optimize (* x 1) → x
@@ -937,19 +936,19 @@ impl Module for CoreModule {
   (_ expr))
 
 ;; Graph queries on code
-(meta:query my-module
+(meta-query my-module
   (pattern (function-call :name "deprecated-api"))
   (select :all))
 ;; => Returns all calls to deprecated APIs
 
 ;; Code transformation
-(meta:transform my-module
+(meta-transform my-module
   (rule "upgrade-api-calls"
     (pattern (call 'old-api $args))
     (replace (call 'new-api (migrate-args $args)))))
 
 ;; Template-based generation
-(meta:template "crud-operations" [:entity]
+(meta-template "crud-operations" [:entity]
   `(module ~(symbol (str entity "-crud"))
      (define ~(symbol (str "create-" entity))
        (lambda (data)
@@ -965,7 +964,7 @@ impl Module for CoreModule {
          (db:delete '~entity id)))))
 
 ;; Use the template
-(meta:instantiate "crud-operations" {:entity "user"})
+(meta-instantiate "crud-operations" {:entity "user"})
 ;; Generates create-user, read-user, update-user, delete-user functions
 ```
 
@@ -975,8 +974,8 @@ impl Module for CoreModule {
 (let ((data (large-computation)))
   (process data))  ; data is dropped after scope
 
-;; gc:let uses garbage collection
-(gc:let ((node1 (create-node "A"))
+;; gc-let uses garbage collection
+(gc-let ((node1 (create-node "A"))
          (node2 (create-node "B")))
   ;; Create circular references (would leak without GC)
   (set-next! node1 node2)

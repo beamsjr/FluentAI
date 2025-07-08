@@ -131,6 +131,7 @@ pub enum Opcode {
     // Module operations
     LoadModule,      // Load module by name (string const)
     ImportBinding,   // Import specific binding from module
+    ImportAll,       // Import all exports from module
     LoadQualified,   // Load qualified variable (module.name)
     BeginModule,     // Mark beginning of module scope
     EndModule,       // Mark end of module scope
@@ -280,6 +281,8 @@ impl BytecodeChunk {
     }
     
     pub fn patch_jump(&mut self, offset: usize, target: usize) {
+        assert!(offset < self.instructions.len(), "Invalid jump offset");
+        assert!(target <= u32::MAX as usize, "Jump target overflow");
         self.instructions[offset].arg = target as u32;
     }
 }
