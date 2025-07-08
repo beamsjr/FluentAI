@@ -51,7 +51,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Effect handlers for intercepting and customizing effects
   - Dynamic scoping of handlers with proper cleanup
   - Composable handler functions
-- **Module system**: Full namespace support with imports, exports, and qualified references
+- **Module system**: Full namespace support with imports, exports, qualified references, and top-level definitions
 - **Type annotations**: Optional type ascription for clarity and optimization
 
 ### 📊 Advanced Capabilities
@@ -146,24 +146,31 @@ FluentAI is an experimental programming language designed for AI systems rather 
 (import "ui/components" *)
 
 ;; Define a module
-(module list-utils [length sum]
+(module list-utils [length sum average]
   ;; Define an algebraic data type
   (data List a
     (Nil)
     (Cons a (List a)))
 
-  ;; Pattern matching function
-  (define length
-    (lambda (xs)
-      (match xs
-        ((Nil) 0)
-        ((Cons x xs) (+ 1 (length xs))))))
+  ;; Pattern matching function (nested syntax)
+  (define (length xs)
+    (match xs
+      ((Nil) 0)
+      ((Cons x xs) (+ 1 (length xs)))))
   
+  ;; Using simple syntax
   (define sum
     (lambda (xs)
       (match xs
         ((Nil) 0)
-        ((Cons x xs) (+ x (sum xs)))))))
+        ((Cons x xs) (+ x (sum xs))))))
+  
+  ;; Combining both functions
+  (define (average xs)
+    (let ((len (length xs)))
+      (if (= len 0)
+          0
+          (/ (sum xs) len))))))
 
 ;; Pattern matching on built-in lists (Cons/Nil patterns)
 (define list-operations
@@ -473,13 +480,21 @@ FluentAI's optimizations make it ideal for high-performance network applications
 
 ### Module System
 ```lisp
-;; Define a module with exports
-(module math-utils [square cube factorial]
+;; Define a module with exports and top-level definitions
+(module math-utils [square cube factorial pi e]
+  ;; Top-level definitions using 'define'
+  (define pi 3.14159265359)
+  (define e 2.71828182846)
+  
+  ;; Function definitions (simple syntax)
   (define square (lambda (x) (* x x)))
   (define cube (lambda (x) (* x x x)))
-  (define factorial 
-    (lambda (n)
-      (if (<= n 1) 1 (* n (factorial (- n 1)))))))
+  
+  ;; Function definitions (nested syntax)
+  (define (factorial n)
+    (if (<= n 1) 
+        1 
+        (* n (factorial (- n 1))))))
 
 ;; Import specific functions
 (import "math-utils" (square cube))
@@ -488,14 +503,34 @@ FluentAI's optimizations make it ideal for high-performance network applications
 ;; Import all exports
 (import "string-utils" *)
 
-;; Import with aliases
-(import "math" (sin as sine cos as cosine))
-
-;; Qualified references
+;; Import for qualified access only
+(import "math" ())
 (define area (lambda (r) (* math.pi r r)))
+
+;; Relative imports
+(import "./local-module" (helper))
+(import "../shared/utils" (process))
+
+;; Import with aliases (planned)
+(import "math" (sin as sine cos as cosine))
 
 ;; Export from current module
 (export helper-function process-data)
+
+;; Module with multiple expressions
+(module config-manager [get-config set-config]
+  (import "io" *)
+  (import "json" (parse stringify))
+  
+  (define config-file "./config.json")
+  (define current-config (parse (read-file config-file)))
+  
+  (define (get-config key)
+    (get current-config key))
+  
+  (define (set-config key value)
+    (set! current-config (assoc current-config key value))
+    (write-file config-file (stringify current-config))))
 ```
 
 ### Core S-Expression Syntax

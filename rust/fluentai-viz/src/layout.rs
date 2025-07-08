@@ -255,6 +255,7 @@ impl ASTLayouter {
                 let handler_count = handlers.len();
                 format!("handler ({})", handler_count)
             }
+            Node::Define { name, .. } => format!("define {}", name),
         }
     }
     
@@ -283,6 +284,7 @@ impl ASTLayouter {
             Node::Receive { .. } => "receive",
             Node::Contract { .. } => "contract",
             Node::Handler { .. } => "handler",
+            Node::Define { .. } => "define",
         }.to_string()
     }
 }

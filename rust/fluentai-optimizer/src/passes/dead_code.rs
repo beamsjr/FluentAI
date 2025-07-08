@@ -185,6 +185,7 @@ impl DeadCodeEliminationPass {
                 Node::QualifiedVariable { .. } => false, // Just a reference
                 Node::Channel => false, // Channel creation is considered pure
                 Node::Contract { .. } => false, // Contracts themselves don't have side effects
+                Node::Define { value, .. } => self.has_side_effects(graph, *value), // Define has side effects if its value does
             }
         } else {
             false

@@ -199,6 +199,11 @@ impl PyNode {
                     data.insert("effect_types".to_string(), handler_types.to_object(py));
                     "Handler"
                 }
+                Node::Define { name, value } => {
+                    data.insert("name".to_string(), name.to_object(py));
+                    data.insert("value_id".to_string(), value.to_string().to_object(py));
+                    "Define"
+                }
             };
             
             Self {
@@ -428,16 +433,19 @@ fn opcode_to_u8(opcode: &fluentai_vm::bytecode::Opcode) -> u8 {
         SubFloat => 91,
         MulFloat => 92,
         DivFloat => 93,
-        LtFloat => 94,
-        LeFloat => 95,
-        GtFloat => 96,
-        GeFloat => 97,
-        UnboxInt => 98,
-        UnboxFloat => 99,
-        BoxInt => 100,
-        BoxFloat => 101,
-        IsInt => 102,
-        IsFloat => 103,
+        MakeHandler => 94,
+        InstallHandler => 95,
+        UninstallHandler => 96,
+        ImportAll => 97,
+        GcAlloc => 98,
+        GcDeref => 99,
+        GcSet => 100,
+        GcCollect => 101,
+        TailCall => 102,
+        TailReturn => 103,
+        LoopStart => 104,
+        LoopEnd => 105,
+        UpdateLocal => 106,
     }
 }
 

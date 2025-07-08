@@ -145,8 +145,57 @@ pub struct SymbolicExecutor {
 
 /// Extract parameter names from a function definition
 fn extract_params(graph: &Graph, function_name: &str) -> Vec<String> {
-    // Look for (define (fname param1 param2 ...) body) pattern
+    // Look for Define node or (define (fname param1 param2 ...) body) pattern
+    // First check the root node if it exists
+    if let Some(root_id) = graph.root_id {
+        if let Some(node) = graph.get_node(root_id) {
+            // Check for Define node
+            if let Node::Define { name, value } = node {
+                if name == function_name {
+                    // The value should be a Lambda node
+                    if let Some(Node::Lambda { params, .. }) = graph.get_node(*value) {
+                        return params.clone();
+                    }
+                }
+            }
+            // Check for (define ...) application
+            if let Node::Application { function, args } = node {
+                // Check if this is a define application
+                if let Some(Node::Variable { name }) = graph.get_node(*function) {
+                    if name == "define" && args.len() == 2 {
+                        // Check if first arg is (fname param1 param2 ...)
+                        if let Some(Node::Application { function: fname_id, args: param_ids }) = graph.get_node(args[0]) {
+                            if let Some(Node::Variable { name: fname }) = graph.get_node(*fname_id) {
+                                if fname == function_name {
+                                    // Extract parameter names
+                                    let mut params = Vec::new();
+                                    for param_id in param_ids {
+                                        if let Some(Node::Variable { name }) = graph.get_node(*param_id) {
+                                            params.push(name.clone());
+                                        }
+                                    }
+                                    return params;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // If not found in root, search all nodes
     for (_id, node) in &graph.nodes {
+        // Check for Define node
+        if let Node::Define { name, value } = node {
+            if name == function_name {
+                // The value should be a Lambda node
+                if let Some(Node::Lambda { params, .. }) = graph.get_node(*value) {
+                    return params.clone();
+                }
+            }
+        }
+        // Check for (define ...) application
         if let Node::Application { function, args } = node {
             // Check if this is a define application
             if let Some(Node::Variable { name }) = graph.get_node(*function) {
@@ -175,8 +224,46 @@ fn extract_params(graph: &Graph, function_name: &str) -> Vec<String> {
 
 /// Helper to find function definitions in the graph
 fn find_definition(graph: &Graph, function_name: &str) -> Option<NodeId> {
-    // Look for (define (fname ...) body) pattern
+    // Look for Define node or (define (fname ...) body) pattern
+    // First check the root node if it exists
+    if let Some(root_id) = graph.root_id {
+        if let Some(node) = graph.get_node(root_id) {
+            // Check for Define node
+            if let Node::Define { name, value } = node {
+                if name == function_name {
+                    // The value should be a Lambda node
+                    return Some(*value);
+                }
+            }
+            // Check for (define ...) application
+            if let Node::Application { function, args } = node {
+                // Check if this is a define application
+                if let Some(Node::Variable { name }) = graph.get_node(*function) {
+                    if name == "define" && args.len() == 2 {
+                        // Check if first arg is (fname ...)
+                        if let Some(Node::Application { function: fname_id, .. }) = graph.get_node(args[0]) {
+                            if let Some(Node::Variable { name: fname }) = graph.get_node(*fname_id) {
+                                if fname == function_name {
+                                    // Return the body (second arg of define)
+                                    return Some(args[1]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // If not found in root, search all nodes
     for (_id, node) in &graph.nodes {
+        // Check for Define node
+        if let Node::Define { name, value } = node {
+            if name == function_name {
+                return Some(*value);
+            }
+        }
+        // Check for (define ...) application
         if let Node::Application { function, args } = node {
             // Check if this is a define application
             if let Some(Node::Variable { name }) = graph.get_node(*function) {
@@ -261,9 +348,16 @@ impl SymbolicExecutor {
             initial_state.bindings.insert(param.clone(), sym_value);
         }
         
+        // If the function_id points to a Lambda node, we need to execute its body
+        let body_id = if let Some(Node::Lambda { body, .. }) = graph.get_node(function_id) {
+            *body
+        } else {
+            function_id
+        };
+        
         // Work queue for states to explore
         let mut work_queue = VecDeque::new();
-        work_queue.push_back((initial_state, function_id, 0));
+        work_queue.push_back((initial_state, body_id, 0));
         
         let mut final_states = Vec::new();
         let mut explored_states = 0;

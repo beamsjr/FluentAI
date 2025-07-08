@@ -1,0 +1,32 @@
+; Module system examples - demonstrates module declarations, imports, and exports
+
+; Simple module definition
+(module math (export add subtract multiply)
+  (let ((add (lambda (x y) (+ x y)))
+        (subtract (lambda (x y) (- x y)))
+        (multiply (lambda (x y) (* x y)))
+        (divide (lambda (x y) (/ x y))))  ; Not exported
+    #t))
+
+; Module with empty export list (all private)
+(module helpers ()
+  (let ((internal-helper (lambda (x) (* x 2))))
+    internal-helper))
+
+; Import examples
+(import "std/math" (sin cos tan))
+(import "./utils" (format parse))
+(import "../shared/config" *)
+
+; Export examples
+(export calculate process-data)
+(export internal-fn as public-api)
+
+; Top-level definitions
+(define pi 3.14159)
+(define (square x) (* x x))
+(define add (lambda (x y) (+ x y)))
+
+; Using qualified variables (after import)
+; math.pi
+; std.collections.list.map

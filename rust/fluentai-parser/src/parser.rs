@@ -138,6 +138,7 @@ impl<'a> Parser<'a> {
                 "module" => return self.parse_module(),
                 "import" => return self.parse_import(),
                 "export" => return self.parse_export(),
+                "define" => return self.parse_define(),
                 "spec:contract" => return self.parse_contract(),
                 "handler" => return self.parse_handler(),
                 _ => {}
@@ -917,35 +918,57 @@ impl<'a> Parser<'a> {
             return Err(ParseError::InvalidSyntax("Expected module name".to_string()));
         };
         
-        // Parse optional export list
+        // Parse export list or body
         let mut exports = Vec::new();
-        if matches!(self.lexer.peek_token(), Some(Token::LParen)) {
-            // Check if this is an export list
+        let body = if matches!(self.lexer.peek_token(), Some(Token::LParen)) {
             self.lexer.next_token(); // consume (
-            if matches!(self.lexer.peek_token(), Some(Token::Symbol("export"))) {
-                self.expect_symbol("export")?;
-                
-                while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
-                    if let Some(Token::Symbol(export_name)) = self.lexer.next_token() {
-                        exports.push(export_name.to_string());
-                    } else {
-                        return Err(ParseError::InvalidSyntax("Expected export name".to_string()));
+            
+            // Check if this is an export list or empty export list
+            match self.lexer.peek_token() {
+                Some(Token::Symbol("export")) => {
+                    // Parse export list
+                    self.expect_symbol("export")?;
+                    
+                    while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+                        if let Some(Token::Symbol(export_name)) = self.lexer.next_token() {
+                            exports.push(export_name.to_string());
+                        } else {
+                            return Err(ParseError::InvalidSyntax("Expected export name".to_string()));
+                        }
                     }
+                    self.expect_token(Token::RParen)?;
+                    
+                    // Now parse the actual body
+                    self.parse_expr()?
+                },
+                Some(Token::RParen) => {
+                    // Empty export list: (module name () body)
+                    self.expect_token(Token::RParen)?;
+                    // Parse body
+                    self.parse_expr()?
+                },
+                _ => {
+                    // No export keyword, this paren starts the body expression
+                    // We need to parse this as a list/application
+                    let func = self.parse_expr()?;
+                    
+                    // Parse arguments
+                    let mut args = Vec::new();
+                    while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+                        args.push(self.parse_expr()?);
+                    }
+                    self.expect_token(Token::RParen)?;
+                    
+                    // Create application node
+                    let node = Node::Application { function: func, args };
+                    self.graph.add_node(node)?
                 }
-                self.expect_token(Token::RParen)?;
-            } else {
-                // This was the start of the body, put the paren back
-                // Since we can't put tokens back, we'll parse the body as a list starting here
-                let body = self.parse_application()?;
-                self.expect_token(Token::RParen)?;
-                
-                let node = Node::Module { name, exports, body };
-                return Ok(self.graph.add_node(node)?);
             }
-        }
+        } else {
+            // No parentheses, just parse body expression
+            self.parse_expr()?
+        };
         
-        // Parse body
-        let body = self.parse_expr()?;
         self.expect_token(Token::RParen)?;
         
         let node = Node::Module { name, exports, body };
@@ -1127,6 +1150,64 @@ impl<'a> Parser<'a> {
         };
         Ok(self.graph.add_node(node)?)
     }
+    
+    fn parse_define(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_define_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_define_inner(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("define")?;
+        
+        // Check if it's a nested function definition: (define (name args...) body)
+        if let Some(Token::LParen) = self.lexer.peek_token() {
+            self.lexer.next_token(); // consume (
+            
+            // Parse function name
+            let name = if let Some(Token::Symbol(n)) = self.lexer.next_token() {
+                n.to_string()
+            } else {
+                return Err(ParseError::InvalidSyntax("Expected function name".to_string()));
+            };
+            
+            // Parse parameters
+            let mut params = Vec::new();
+            while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+                if let Some(Token::Symbol(param)) = self.lexer.next_token() {
+                    params.push(param.to_string());
+                } else {
+                    return Err(ParseError::InvalidSyntax("Expected parameter name".to_string()));
+                }
+            }
+            self.expect_token(Token::RParen)?; // close params list
+            
+            // Parse body
+            let body = self.parse_expr()?;
+            self.expect_token(Token::RParen)?; // close define
+            
+            // Create lambda and define
+            let lambda_node = Node::Lambda { params, body };
+            let lambda_id = self.graph.add_node(lambda_node)?;
+            
+            let define_node = Node::Define { name, value: lambda_id };
+            Ok(self.graph.add_node(define_node)?)
+        } else {
+            // Simple definition: (define name value)
+            let name = if let Some(Token::Symbol(n)) = self.lexer.next_token() {
+                n.to_string()
+            } else {
+                return Err(ParseError::InvalidSyntax("Expected variable name".to_string()));
+            };
+            
+            let value = self.parse_expr()?;
+            self.expect_token(Token::RParen)?;
+            
+            let node = Node::Define { name, value };
+            Ok(self.graph.add_node(node)?)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1277,6 +1358,116 @@ mod tests {
                 assert_eq!(export_list[0].alias, Some("public-fn".to_string()));
             }
             _ => panic!("Expected Export node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_define() {
+        // Simple define
+        let result = parse(r#"(define x 42)"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Define { name, value: _ } => {
+                assert_eq!(name, "x");
+            }
+            _ => panic!("Expected Define node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_define_function() {
+        // Define with lambda
+        let result = parse(r#"(define add (lambda (x y) (+ x y)))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Define { name, value } => {
+                assert_eq!(name, "add");
+                // Check the value is a lambda
+                match result.get_node(*value).unwrap() {
+                    Node::Lambda { params, body: _ } => {
+                        assert_eq!(params.len(), 2);
+                        assert_eq!(params[0], "x");
+                        assert_eq!(params[1], "y");
+                    }
+                    _ => panic!("Expected Lambda node as value"),
+                }
+            }
+            _ => panic!("Expected Define node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_define_nested_syntax() {
+        // Nested function definition syntax
+        let result = parse(r#"(define (square x) (* x x))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Define { name, value } => {
+                assert_eq!(name, "square");
+                // Check the value is a lambda
+                match result.get_node(*value).unwrap() {
+                    Node::Lambda { params, body: _ } => {
+                        assert_eq!(params.len(), 1);
+                        assert_eq!(params[0], "x");
+                    }
+                    _ => panic!("Expected Lambda node as value"),
+                }
+            }
+            _ => panic!("Expected Define node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_module_empty_exports() {
+        let result = parse(r#"(module utils () (+ 1 2))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Module { name, exports, body: _ } => {
+                assert_eq!(name, "utils");
+                assert!(exports.is_empty());
+            }
+            _ => panic!("Expected Module node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_import_empty_list() {
+        let result = parse(r#"(import "math" ())"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Import { module_path, import_list, import_all } => {
+                assert_eq!(module_path, "math");
+                assert!(import_list.is_empty());
+                assert!(!*import_all);
+            }
+            _ => panic!("Expected Import node"),
+        }
+    }
+    
+    #[test]
+    fn test_parse_import_relative_path() {
+        let result = parse(r#"(import "./sibling" (helper))"#).unwrap();
+        assert!(result.root_id.is_some());
+        
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Import { module_path, import_list, import_all } => {
+                assert_eq!(module_path, "./sibling");
+                assert_eq!(import_list.len(), 1);
+                assert_eq!(import_list[0].name, "helper");
+                assert!(!*import_all);
+            }
+            _ => panic!("Expected Import node"),
         }
     }
     

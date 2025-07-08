@@ -155,6 +155,11 @@ impl TypeInferencer {
                 // Handler has the same type as its body expression
                 self.infer_node(graph, *body)?
             }
+            Node::Define { name: _, value } => {
+                // Define creates a binding and returns unit
+                self.infer_node(graph, *value)?;
+                TypedValue::primitive(PrimitiveType::unit())
+            }
         };
 
         // Store the inferred type

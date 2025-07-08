@@ -724,6 +724,12 @@ pub enum Node {
         variable_name: String,
     },
     
+    // Top-level definitions
+    Define {
+        name: String,
+        value: NodeId,
+    },
+    
     // Async/concurrent constructs
     Async {
         body: NodeId,
@@ -1248,6 +1254,19 @@ impl Node {
                 examples: vec!["math.pi".to_string(), "std.print".to_string()],
                 category: DocumentationCategory::Variable,
                 see_also: vec!["Variable".to_string(), "Import".to_string(), "Module".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Define { .. } => Documentation {
+                name: "Define".to_string(),
+                syntax: "(define <name> <value>) | (define (<name> <params>...) <body>)".to_string(),
+                description: "Defines a top-level binding. Can define variables or functions using nested syntax.".to_string(),
+                examples: vec![
+                    "(define x 42)".to_string(),
+                    "(define add (lambda (x y) (+ x y)))".to_string(),
+                    "(define (square x) (* x x))".to_string()
+                ],
+                category: DocumentationCategory::Variable,
+                see_also: vec!["Let".to_string(), "Lambda".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Async { .. } => Documentation {

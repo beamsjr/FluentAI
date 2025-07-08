@@ -349,7 +349,6 @@ impl VM {
     }
     
     pub fn run(&mut self) -> VMResult<Value> {
-        println!("[DEBUG] run: starting with main_chunk={}, initial call_stack_len={}", self.bytecode.main_chunk, self.call_stack.len());
         self.call_stack.push(CallFrame {
             chunk_id: self.bytecode.main_chunk,
             ip: 0,
@@ -357,7 +356,6 @@ impl VM {
             env: Vec::new(),
             start_time: self.usage_tracker.as_ref().map(|_| Instant::now()),
         });
-        println!("[DEBUG] run: after push, call_stack_len={}", self.call_stack.len());
         
         let result = self.run_inner();
         
@@ -376,10 +374,8 @@ impl VM {
     }
     
     fn run_inner(&mut self) -> VMResult<Value> {
-        println!("[DEBUG] run_inner: starting with call_stack_len={}", self.call_stack.len());
         loop {
             let frame = self.call_stack.last().ok_or_else(|| {
-                println!("[DEBUG] run_inner: ERROR - call stack is empty!");
                 VMError::StackUnderflow {
                     operation: "get_current_frame".to_string(),
                     stack_size: self.call_stack.len(),
@@ -1310,7 +1306,6 @@ impl VM {
             
             // Effects
             Effect => {
-                println!("[DEBUG] Effect opcode: START, call_stack_len={}", self.call_stack.len());
                 // Pop arguments, operation name, and effect type
                 let arg_count = instruction.arg as usize;
                 let mut args = Vec::with_capacity(arg_count);
@@ -1362,7 +1357,6 @@ impl VM {
                 // Check handler stack for a matching handler
                 let mut handler_result = None;
                 
-                println!("[DEBUG] Effect: type={}, op={}, handler_stack_len={}", effect_type_str, operation, self.handler_stack.len());
                 
                 // Search from most recent to oldest handler
                 for handler_frame in self.handler_stack.iter().rev() {
@@ -1376,14 +1370,11 @@ impl VM {
                     
                     // Check for general handler (effect_type only)
                     if let Some(handler_fn) = handler_frame.handlers.get(&(effect_type_str.clone(), None)) {
-                        println!("[DEBUG] Found general handler for {}", effect_type_str);
                         // Found a general handler for this effect type
                         // Create a list with operation as first argument, followed by other args
                         let mut handler_args = vec![Value::String(operation.clone())];
                         handler_args.extend(args.clone());
-                        println!("[DEBUG] Before call_handler_function: call_stack_len={}", self.call_stack.len());
                         handler_result = Some(self.call_handler_function(handler_fn.clone(), handler_args)?);
-                        println!("[DEBUG] After call_handler_function: call_stack_len={}", self.call_stack.len());
                         break;
                     }
                 }
@@ -2791,7 +2782,6 @@ impl VM {
                     let instruction = chunk.instructions[ip].clone();
                     self.call_stack.last_mut().unwrap().ip += 1;
                     
-                    println!("[DEBUG] Handler executing: {:?} at ip={}, next_ip={}", instruction.opcode, ip, self.call_stack.last().unwrap().ip);
                     
                     match self.execute_instruction(&instruction, chunk_id)? {
                         VMState::Continue => {}

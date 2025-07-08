@@ -118,6 +118,13 @@ cargo run -p fluentai-cli -- run examples/simple_list_ops.ai
 # Output: [0, 1, 2, 3, 4, 5]
 ```
 
+### modules.ai
+Module system examples including define, module declarations, imports, and exports.
+```bash
+cargo run -p fluentai-cli -- run examples/modules.ai
+# Note: Module features parse but may not execute in VM yet
+```
+
 ## Examples from Original Files
 
 The following files demonstrate syntax that is used in the codebase but may have limitations:

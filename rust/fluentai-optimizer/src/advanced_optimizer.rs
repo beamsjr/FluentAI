@@ -304,6 +304,9 @@ impl AdvancedOptimizer {
                                 stack.push(WorkItem::Process(*handler_fn));
                             }
                         }
+                        Node::Define { value, .. } => {
+                            stack.push(WorkItem::Process(*value));
+                        }
                     }
                 }
                 WorkItem::Complete(node_id, placeholder_id) => {
@@ -807,6 +810,16 @@ impl AdvancedOptimizer {
                     Node::Handler {
                         handlers: opt_handlers,
                         body: opt_body,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Define { name, value } => {
+                if let Some(opt_value) = self.optimize_node(value)? {
+                    Node::Define {
+                        name: name.clone(),
+                        value: opt_value,
                     }
                 } else {
                     return Ok(None);

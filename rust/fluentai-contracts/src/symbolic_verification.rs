@@ -203,8 +203,43 @@ impl SymbolicContractVerifier {
     
     /// Find function definition in the graph
     fn find_function(&self, graph: &Graph, function_name: &str) -> ContractResult<NodeId> {
-        // Look for (define (fname ...) body) pattern
+        // Look for Define node or (define (fname ...) body) pattern
+        // Start with the root node if it exists
+        if let Some(root_id) = graph.root_id {
+            if let Some(node) = graph.get_node(root_id) {
+                // Check for Define node
+                if let fluentai_core::ast::Node::Define { name, value } = node {
+                    if name == function_name {
+                        // The value should be a Lambda node
+                        return Ok(*value);
+                    }
+                }
+                // Check for (define ...) application
+                if let fluentai_core::ast::Node::Application { function, args } = node {
+                    if let Some(fluentai_core::ast::Node::Variable { name }) = graph.get_node(*function) {
+                        if name == "define" && args.len() == 2 {
+                            if let Some(fluentai_core::ast::Node::Application { function: fname_id, .. }) = graph.get_node(args[0]) {
+                                if let Some(fluentai_core::ast::Node::Variable { name: fname }) = graph.get_node(*fname_id) {
+                                    if fname == function_name {
+                                        return Ok(args[1]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // If not found in root, search all nodes
         for (_id, node) in &graph.nodes {
+            // Check for Define node
+            if let fluentai_core::ast::Node::Define { name, value } = node {
+                if name == function_name {
+                    return Ok(*value);
+                }
+            }
+            // Check for (define ...) application
             if let fluentai_core::ast::Node::Application { function, args } = node {
                 if let Some(fluentai_core::ast::Node::Variable { name }) = graph.get_node(*function) {
                     if name == "define" && args.len() == 2 {
@@ -225,8 +260,54 @@ impl SymbolicContractVerifier {
     
     /// Extract parameter names from function definition
     fn extract_parameters(&self, graph: &Graph, function_name: &str) -> ContractResult<Vec<String>> {
-        // Similar to find_function but extracts parameter names
+        // Look for Define node or (define (fname ...) body) pattern
+        // Start with the root node if it exists
+        if let Some(root_id) = graph.root_id {
+            if let Some(node) = graph.get_node(root_id) {
+                // Check for Define node
+                if let fluentai_core::ast::Node::Define { name, value } = node {
+                    if name == function_name {
+                        // The value should be a Lambda node
+                        if let Some(fluentai_core::ast::Node::Lambda { params, .. }) = graph.get_node(*value) {
+                            return Ok(params.clone());
+                        }
+                    }
+                }
+                // Check for (define ...) application
+                if let fluentai_core::ast::Node::Application { function, args } = node {
+                    if let Some(fluentai_core::ast::Node::Variable { name }) = graph.get_node(*function) {
+                        if name == "define" && args.len() == 2 {
+                            if let Some(fluentai_core::ast::Node::Application { function: fname_id, args: param_ids }) = graph.get_node(args[0]) {
+                                if let Some(fluentai_core::ast::Node::Variable { name: fname }) = graph.get_node(*fname_id) {
+                                    if fname == function_name {
+                                        let mut params = Vec::new();
+                                        for param_id in param_ids {
+                                            if let Some(fluentai_core::ast::Node::Variable { name }) = graph.get_node(*param_id) {
+                                                params.push(name.clone());
+                                            }
+                                        }
+                                        return Ok(params);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // If not found in root, search all nodes
         for (_id, node) in &graph.nodes {
+            // Check for Define node
+            if let fluentai_core::ast::Node::Define { name, value } = node {
+                if name == function_name {
+                    // The value should be a Lambda node
+                    if let Some(fluentai_core::ast::Node::Lambda { params, .. }) = graph.get_node(*value) {
+                        return Ok(params.clone());
+                    }
+                }
+            }
+            // Check for (define ...) application
             if let fluentai_core::ast::Node::Application { function, args } = node {
                 if let Some(fluentai_core::ast::Node::Variable { name }) = graph.get_node(*function) {
                     if name == "define" && args.len() == 2 {
