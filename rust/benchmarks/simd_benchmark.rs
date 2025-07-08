@@ -3,7 +3,7 @@
 //! Demonstrates FluentAI's SIMD operations achieving 4-8x speedup
 //! for vectorized numeric computations.
 
-use fluentai_vm::simd::{SimdOps, simd_available};
+use fluentai_vm::simd::SimdOps;
 use std::time::Instant;
 
 const ARRAY_SIZE: usize = 1024;
@@ -34,12 +34,13 @@ fn benchmark_scalar_ops(a: &[f64], b: &[f64]) -> (Vec<f64>, f64) {
 }
 
 fn benchmark_simd_ops(a: &[f64], b: &[f64]) -> (Vec<f64>, f64) {
-    let simd = SimdOps::new();
     let start = Instant::now();
     
     for _ in 0..ITERATIONS {
         let mut result = vec![0.0; ARRAY_SIZE];
-        simd.add_f64_arrays(a, b, &mut result);
+        unsafe {
+            SimdOps::add_f64_arrays(a, b, &mut result).unwrap();
+        }
         
         // Prevent optimization
         std::hint::black_box(&result);
@@ -49,7 +50,9 @@ fn benchmark_simd_ops(a: &[f64], b: &[f64]) -> (Vec<f64>, f64) {
     
     // Final computation for verification
     let mut result = vec![0.0; ARRAY_SIZE];
-    simd.add_f64_arrays(a, b, &mut result);
+    unsafe {
+        SimdOps::add_f64_arrays(a, b, &mut result).unwrap();
+    }
     
     (result, duration.as_secs_f64())
 }
@@ -71,12 +74,13 @@ fn benchmark_dot_product_scalar(a: &[f64], b: &[f64]) -> (f64, f64) {
 }
 
 fn benchmark_dot_product_simd(a: &[f64], b: &[f64]) -> (f64, f64) {
-    let simd = SimdOps::new();
     let start = Instant::now();
     
     let mut result = 0.0;
     for _ in 0..ITERATIONS {
-        result = simd.dot_product_f64(a, b);
+        unsafe {
+            result = SimdOps::dot_product_f64(a, b).unwrap();
+        }
         std::hint::black_box(result);
     }
     
@@ -91,7 +95,7 @@ fn main() {
     println!("Iterations: {}\n", ITERATIONS);
     
     // Check SIMD availability
-    if !simd_available() {
+    if !SimdOps::is_supported() {
         println!("WARNING: SIMD not available on this platform!");
         println!("Results will show fallback performance.\n");
     }
@@ -134,7 +138,7 @@ fn main() {
     
     if avg_speedup >= 4.0 {
         println!("\n✓ VERIFIED: FluentAI SIMD operations achieve 4-8x speedup");
-    } else if simd_available() {
+    } else if SimdOps::is_supported() {
         println!("\n⚠ SIMD speedup below expected range (4-8x)");
     } else {
         println!("\n⚠ SIMD not available - using fallback implementation");

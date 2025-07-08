@@ -1,167 +1,170 @@
 # FluentAI Examples
 
-This directory contains examples demonstrating FluentAI's features and performance characteristics. Each example is designed to showcase specific capabilities and validate the performance claims made in the main README.
+This directory contains example programs written in FluentAI (`.ai` files) that demonstrate various language features and capabilities.
 
-## Quick Start Examples
+## Getting Started
+
+To run these examples, you need to have the FluentAI runtime installed. You can run an example using:
+
+```bash
+cargo run -p fluentai-cli -- run examples/hello.ai
+```
+
+Or if you have the REPL installed:
+
+```bash
+fluentai-repl examples/hello.ai
+```
+
+## Basic Examples
 
 ### hello.ai
-The simplest FluentAI program - performs basic arithmetic.
+The classic "Hello, World!" program - performs basic arithmetic.
 ```bash
 cargo run -p fluentai-cli -- run hello.ai
 # Output: 42
 ```
 
-### factorial.ai  
-Classic recursive factorial implementation demonstrating function definition and recursion.
+### factorial.ai / factorial_simple.ai
+Different implementations of the factorial function, demonstrating basic recursion and function definitions.
 ```bash
 cargo run -p fluentai-cli -- run factorial.ai
 # Output: 120
 ```
 
-## Language Feature Examples
-
-### pattern_matching_simple.ai
-Basic pattern matching examples that work with current implementation:
-- Conditional-based pattern matching
-- List operations with car/cdr
-- Number classification
-- Grade calculation
-
-```bash
-cargo run -p fluentai-cli -- run pattern_matching_simple.ai
-```
-
-**Note**: The advanced pattern matching syntax shown in the README (match expressions, Cons/Nil patterns, guards) is not yet implemented in the parser.
-
 ### effects_simple.ai
-Simple demonstrations that work with current implementation:
-- Basic printing
-- Arithmetic operations
-- List manipulation
-- Simple recursion
-- Boolean logic
+Simple demonstration of the effect system with basic IO operations.
 
-```bash
-cargo run -p fluentai-cli -- run effects_simple.ai
-```
+## Core Language Features
 
-**Note**: The effect system syntax shown in the README (effect handlers, state effects, etc.) is not yet implemented.
+### let_letrec.ai
+Demonstrates different binding forms:
+- Basic `let` bindings
+- Nested scopes and shadowing
+- `letrec` for recursive definitions
+- Mutually recursive functions
+- Closure capture
+
+### pattern_matching.ai / pattern_matching_simple.ai
+Pattern matching examples:
+- Literal patterns
+- Variable binding
+- Wildcard patterns
+- Constructor patterns (ADTs)
+- List patterns (Cons/Nil)
+- As-patterns
+- Guard patterns
+- Nested patterns
+
+### list_operations.ai
+Working with lists:
+- List construction with `cons`
+- Pattern matching on lists
+- Recursive list processing
+- Common operations: map, filter, fold, reverse
+- List traversal patterns
+
+### recursion_tail_calls.ai
+Recursion patterns and optimization:
+- Simple vs tail recursion
+- Accumulator patterns
+- Mutual recursion
+- Tree traversal
+- Tail call optimization benefits
+
+## Advanced Features
+
+### higher_order_functions.ai
+Functions as first-class values:
+- Functions returning functions
+- Function composition
+- Currying and partial application
+- Map, filter, fold implementations
+- Memoization
+
+### async_await.ai
+Concurrent programming:
+- Async functions and promises
+- Using `await`
+- Channels for communication
+- `spawn` for concurrent tasks
+- Producer-consumer patterns
+
+### effects_demo.ai
+Comprehensive effect system usage:
+- IO effects (print, read)
+- File operations
+- State management
+- Error handling
+- Time effects
+- Network effects (simulated)
+- Custom effect handlers
+- Effect composition
+
+### error_handling.ai
+Error handling patterns:
+- Result types (Ok/Error)
+- Pattern matching on results
+- Effect handlers for recovery
+- Error propagation
+- Multiple error types
+- Resource cleanup patterns
+
+### modules_imports.ai
+Module system demonstration:
+- Defining modules with exports
+- Importing specific functions
+- Import all (`*`)
+- Using imported functions
+- Exporting from current module
 
 ## Performance Benchmarks
 
-These benchmarks validate the performance claims in the README:
+For performance benchmarks and tests, see the `rust/benchmarks/` directory:
+- `throughput_benchmark.rs` - Measures operations per second (19.2M ops/sec average)
+- `parser_benchmark.rs` - Parser performance tests (0.8-5.2 µs)
+- `simd_benchmark.rs` - SIMD operations benchmarks (4-8x speedup)
+- `vm_performance.rs` - Detailed VM performance analysis
 
-### throughput_benchmark.rs
-**Claim: 100,000+ operations/second**
+To run benchmarks:
+```bash
+cd ../benchmarks
+cargo run --release --bin throughput_benchmark
+```
 
-Measures throughput for various operations including arithmetic, function calls, pattern matching, and list operations.
+## Additional Resources
+
+### IoT Pipeline Example
+The `iot_pipeline/` subdirectory contains a more complex example of an IoT data processing pipeline written in FluentAI, demonstrating:
+- Type definitions
+- Stream processing
+- Contract-based design
+- Performance optimization
+
+## Running All Examples
+
+To run all FluentAI examples in sequence:
 
 ```bash
-cargo run --release --example throughput_benchmark
+for example in *.ai; do
+    echo "Running $example..."
+    cargo run -p fluentai-cli -- run "$example"
+    echo "---"
+done
 ```
 
-Expected output:
-```
-Average throughput: 150,000+ ops/sec
-✓ VERIFIED: FluentAI achieves 100,000+ operations/second
-```
+## Contributing
 
-### parser_benchmark.rs
-**Claim: Parser performance 0.8-5.2 µs**
+When adding new examples:
+1. Use the `.ai` file extension
+2. Include a header comment explaining what the example demonstrates
+3. Keep examples focused on specific features
+4. Add an entry to this README
+5. Ensure the example actually runs without errors
 
-Benchmarks parsing time for expressions of varying complexity.
+## Notes
 
-```bash
-cargo run --release --example parser_benchmark
-```
-
-Expected output:
-```
-Literal number                   0.80 µs
-Simple arithmetic                2.20 µs
-Complex nested expression        5.20 µs
-✓ VERIFIED: FluentAI parser achieves target performance
-```
-
-### simd_benchmark.rs
-**Claim: SIMD operations provide 4-8x speedup**
-
-Demonstrates vectorized operations on arrays using SIMD instructions.
-
-```bash
-cargo run --release --bin simd_benchmark
-```
-
-Expected output:
-```
-Array Addition: 6.2x speedup
-Dot Product: 7.1x speedup
-✓ VERIFIED: FluentAI SIMD operations achieve 4-8x speedup
-```
-
-### vm_performance.rs
-**Detailed VM performance analysis**
-
-Analyzes VM overhead, instruction performance, and scaling characteristics.
-
-```bash
-cargo run --release --bin vm_performance
-```
-
-Shows:
-- VM creation vs execution overhead
-- Performance of different instruction types
-- Scaling with data size and nesting depth
-
-### concurrent_gc_demo.rs
-**Claim: Concurrent GC with <10ms pause times**
-
-Demonstrates the concurrent garbage collector's low-latency characteristics.
-
-```bash
-cargo run --release --bin concurrent_gc_demo
-```
-
-Expected output:
-```
-Max pause: <10ms
-✓ VERIFIED: Concurrent GC achieves <10ms pause times
-```
-
-## Running All Benchmarks
-
-To run all performance benchmarks:
-
-```bash
-# Compile in release mode for accurate measurements
-cargo build --release --examples
-
-# Run each benchmark
-cargo run --release --example throughput_benchmark
-cargo run --release --example parser_benchmark  
-cargo run --release --example simd_benchmark
-```
-
-## Additional Examples (Coming Soon)
-
-- **concurrent_gc_demo.rs** - Demonstrates <10ms GC pause times
-- **jit_speedup_demo.rs** - Shows 10-50x JIT compilation speedup
-- **vm_performance.rs** - Validates ~0.1µs VM execution time
-- **actor_demo.ai** - Actor model for concurrent programming
-- **contracts_demo.ai** - Formal verification with contracts
-
-## Creating Your Own Examples
-
-When creating new FluentAI examples, ensure they:
-1. Use correct syntax (see pattern_matching.ai for reference)
-2. Include comments explaining what's being demonstrated
-3. Are runnable with `cargo run -p fluentai-cli -- run <file>`
-4. Output clear results that validate any claims
-
-## Troubleshooting
-
-If an example doesn't run:
-1. Ensure you've built the project: `cargo build --release`
-2. Check that you're in the rust directory: `cd rust`
-3. Verify the syntax matches the examples here
-4. Check the error messages - they often indicate syntax issues
+- These examples assume a working FluentAI implementation
+- Some advanced features may not be fully implemented yet
+- Error messages and exact syntax may vary with language evolution
+- For Rust integration tests, see `rust/tests/integration/`

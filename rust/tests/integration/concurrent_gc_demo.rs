@@ -3,7 +3,7 @@
 //! Demonstrates the concurrent garbage collector with <10ms pause times
 
 use fluentai_parser::parse;
-use fluentai_vm::{VM, Compiler, VMBuilder};
+use fluentai_vm::{VM, Compiler, VMBuilderLegacy as VMBuilder, GcConfig};
 use std::time::{Duration, Instant};
 use std::thread;
 use std::sync::{Arc, Mutex};
@@ -39,9 +39,13 @@ fn measure_gc_pauses() -> Result<(), Box<dyn std::error::Error>> {
     let bytecode = compiler.compile(&graph)?;
     
     // Create VM with GC enabled
+    let gc_config = GcConfig {
+        collection_threshold: 100,  // Low threshold to trigger GC frequently
+        ..Default::default()
+    };
     let mut vm = VMBuilder::new()
         .with_bytecode(bytecode.clone())
-        .with_gc_threshold(100)  // Low threshold to trigger GC frequently
+        .with_gc_config(gc_config)
         .build()?;
     
     let pause_times = Arc::new(Mutex::new(Vec::new()));
@@ -132,9 +136,13 @@ fn benchmark_gc_throughput() -> Result<(), Box<dyn std::error::Error>> {
     let time_no_gc = start.elapsed();
     
     // Benchmark with GC
+    let gc_config = GcConfig {
+        collection_threshold: 1000,
+        ..Default::default()
+    };
     let mut vm_with_gc = VMBuilder::new()
         .with_bytecode(bytecode)
-        .with_gc_threshold(1000)
+        .with_gc_config(gc_config)
         .build()?;
     
     let start = Instant::now();

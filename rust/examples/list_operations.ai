@@ -1,0 +1,71 @@
+; List operations in FluentAI
+; Demonstrates working with lists using built-in operations
+
+; Basic list creation and access
+(let ((my-list (list 1 2 3 4 5)))
+  (print "Original list:" my-list)
+  (print "First element:" (head my-list))
+  (print "Rest of list:" (tail my-list))
+  (print "List length:" (length my-list))
+  (print "Is empty?" (empty? my-list)))
+
+; List construction with cons
+(let ((new-list (cons 0 (list 1 2 3))))
+  (print "List built with cons:" new-list))
+
+; Pattern matching on lists
+(let ((numbers (list 10 20 30 40 50)))
+  (match numbers
+    ((Nil) (print "Empty list"))
+    ((Cons x xs) 
+      (print "First:" x)
+      (print "Rest:" xs))))
+
+; Recursive list processing
+(letrec ((sum-list 
+          (lambda (lst)
+            (match lst
+              ((Nil) 0)
+              ((Cons x xs) (+ x (sum-list xs)))))))
+  (print "Sum of (list 1 2 3 4 5):" (sum-list (list 1 2 3 4 5))))
+
+; List reversal
+(letrec ((reverse
+          (lambda (lst acc)
+            (match lst
+              ((Nil) acc)
+              ((Cons x xs) (reverse xs (cons x acc)))))))
+  (let ((original (list 1 2 3 4 5)))
+    (print "Original:" original)
+    (print "Reversed:" (reverse original (list)))))
+
+; Taking first n elements
+(letrec ((take
+          (lambda (n lst)
+            (if (= n 0)
+                (list)
+                (match lst
+                  ((Nil) (list))
+                  ((Cons x xs) (cons x (take (- n 1) xs))))))))
+  (print "First 3 of (list 1 2 3 4 5):" (take 3 (list 1 2 3 4 5))))
+
+; Filter even numbers
+(letrec ((filter-even
+          (lambda (lst)
+            (match lst
+              ((Nil) (list))
+              ((Cons x xs) 
+                (if (= (% x 2) 0)
+                    (cons x (filter-even xs))
+                    (filter-even xs)))))))
+  (print "Even numbers from (list 1 2 3 4 5 6):" 
+         (filter-even (list 1 2 3 4 5 6))))
+
+; Map function - double each element
+(letrec ((map-double
+          (lambda (lst)
+            (match lst
+              ((Nil) (list))
+              ((Cons x xs) (cons (* x 2) (map-double xs)))))))
+  (print "Double each in (list 1 2 3):" 
+         (map-double (list 1 2 3))))

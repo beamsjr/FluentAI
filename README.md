@@ -21,11 +21,11 @@ FluentAI is an experimental programming language designed for AI systems rather 
 ## Key Features
 
 ### 🚀 High-Performance Rust Implementation
-- **Parser**: 0.8-5.2µs - optimized S-expression parsing ([see benchmark](rust/examples/parser_benchmark.rs))
+- **Parser**: 0.8-5.2µs - optimized S-expression parsing ([see benchmark](rust/benchmarks/parser_benchmark.rs))
 - **VM**: ~0.1µs average execution time
 - **JIT Compiler**: Native code generation with Cranelift (x86_64)
 - **Memory Efficient**: 5-10x less memory usage through zero-cost abstractions
-- **Throughput**: 19.2 million operations/second average, up to 35.8M ops/sec ([see benchmark](rust/examples/throughput_benchmark.rs))
+- **Throughput**: 19.2 million operations/second average, up to 35.8M ops/sec ([see benchmark](rust/benchmarks/throughput_benchmark.rs))
 - **Production Ready**: Safe, concurrent, and reliable
 - **Packet Processing Optimizations**: Tail calls, unboxed types, memory pools, lock-free queues
 
@@ -111,7 +111,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **SIMD Operations**: Hardware-accelerated parallel numeric computation
   - AVX2 vectorized operations for f64 and i64 arrays
   - Automatic fallback to scalar operations on unsupported hardware
-  - 4-8x speedup for array operations (add, multiply, dot product) ([see benchmark](rust/examples/simd_benchmark.rs))
+  - 4-8x speedup for array operations (add, multiply, dot product) ([see benchmark](rust/benchmarks/simd_benchmark.rs))
   - Platform-specific optimizations with runtime detection
 - **Configurable Thread Pools**: Fine-grained control over thread execution
   - CPU affinity and NUMA-aware thread placement
@@ -320,9 +320,10 @@ cargo run -p fluentai-cli -- run examples/pattern_matching.ai
 cargo run -p fluentai-cli -- run examples/effects_demo.ai
 
 # Run performance benchmarks
-cargo run --release --example throughput_benchmark
-cargo run --release --example parser_benchmark
-cargo run --release --example simd_benchmark
+cd benchmarks
+cargo run --release --bin throughput_benchmark
+cargo run --release --bin parser_benchmark
+cargo run --release --bin simd_benchmark
 
 # See all examples
 ls examples/
@@ -366,7 +367,7 @@ cargo build --release --all-features
 cargo test --all-features
 
 # Run packet processing demo
-cargo run --example packet_processing_demo --release
+cargo run -p fluentai-vm --example packet_processing_demo --release
 
 # Run packet processing benchmarks
 cargo bench --bench packet_processing_bench
@@ -1060,9 +1061,9 @@ Every optimization generates a machine-checkable proof:
 | Parser | 0.8-5.2 µs | Zero-copy S-expression parsing |
 | VM | ~0.03 µs | Stack-based with optimizations |
 | End-to-End | 1-10 µs | Full parse-compile-execute cycle |
-| Throughput | 19.2M ops/sec (avg) | 192x faster than claimed ([benchmark](rust/examples/throughput_benchmark.rs)) |
+| Throughput | 19.2M ops/sec (avg) | 192x faster than claimed ([benchmark](rust/benchmarks/throughput_benchmark.rs)) |
 | Optimizer | 20-90% AST reduction | Multi-pass optimization |
-| SIMD Operations | 4-8x speedup | AVX2 vectorized math ([benchmark](rust/examples/simd_benchmark.rs)) |
+| SIMD Operations | 4-8x speedup | AVX2 vectorized math ([benchmark](rust/benchmarks/simd_benchmark.rs)) |
 | Concurrent GC | <10ms pauses | Generational collection ([example coming soon](rust/examples/README.md#additional-examples-coming-soon)) |
 
 ### Real-World Benchmark Results
@@ -1419,7 +1420,7 @@ cargo bench -- --save-baseline main
 cargo bench --bench packet_processing_bench
 
 # Profile with flamegraph (requires cargo-flamegraph)
-cargo flamegraph --example packet_processing_demo
+cargo flamegraph -p fluentai-vm --example packet_processing_demo
 
 # Run SIMD benchmarks
 cargo bench --bench simd_bench

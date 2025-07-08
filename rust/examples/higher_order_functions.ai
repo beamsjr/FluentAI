@@ -1,0 +1,114 @@
+; Higher-order functions in FluentAI
+; Demonstrates functions that take or return other functions
+
+; Function that returns a function
+(let ((make-adder
+       (lambda (n)
+         (lambda (x) (+ x n)))))
+  (let ((add5 (make-adder 5))
+        (add10 (make-adder 10)))
+    (print "add5(3) =" (add5 3))
+    (print "add10(7) =" (add10 7))))
+
+; Function composition
+(let ((compose
+       (lambda (f g)
+         (lambda (x) (f (g x))))))
+  (let ((double (lambda (x) (* x 2)))
+        (inc (lambda (x) (+ x 1)))
+        (double-then-inc (compose inc double)))
+    (print "double-then-inc(5) =" (double-then-inc 5))))
+
+; Map implementation
+(letrec ((map
+          (lambda (f lst)
+            (match lst
+              ((Nil) (list))
+              ((Cons x xs) (cons (f x) (map f xs)))))))
+  (let ((numbers (list 1 2 3 4 5))
+        (square (lambda (x) (* x x))))
+    (print "Original:" numbers)
+    (print "Squared:" (map square numbers))))
+
+; Filter implementation
+(letrec ((filter
+          (lambda (pred lst)
+            (match lst
+              ((Nil) (list))
+              ((Cons x xs)
+                (if (pred x)
+                    (cons x (filter pred xs))
+                    (filter pred xs)))))))
+  (let ((numbers (list 1 2 3 4 5 6 7 8))
+        (is-even (lambda (x) (= (% x 2) 0))))
+    (print "Original:" numbers)
+    (print "Even only:" (filter is-even numbers))))
+
+; Fold/Reduce implementation
+(letrec ((fold
+          (lambda (f init lst)
+            (match lst
+              ((Nil) init)
+              ((Cons x xs) (fold f (f init x) xs))))))
+  (let ((numbers (list 1 2 3 4 5)))
+    (print "Sum:" (fold + 0 numbers))
+    (print "Product:" (fold * 1 numbers))))
+
+; Function currying
+(let ((curry
+       (lambda (f)
+         (lambda (x)
+           (lambda (y) (f x y))))))
+  (let ((add (lambda (x y) (+ x y)))
+        (curried-add (curry add))
+        (add-to-10 (curried-add 10)))
+    (print "add-to-10(5) =" (add-to-10 5))))
+
+; Partial application
+(let ((partial
+       (lambda (f . args1)
+         (lambda args2
+           (apply f (append args1 args2))))))
+  (let ((multiply (lambda (x y z) (* x y z)))
+        (times-2-and-3 (partial multiply 2 3)))
+    (print "2 * 3 * 4 =" (times-2-and-3 4))))
+
+; Pipeline operator simulation
+(let ((pipe
+       (lambda (value . funcs)
+         (fold (lambda (acc f) (f acc)) value funcs))))
+  (let ((add1 (lambda (x) (+ x 1)))
+        (double (lambda (x) (* x 2)))
+        (square (lambda (x) (* x x))))
+    (print "Pipeline: 5 -> +1 -> *2 -> square ="
+           (pipe 5 add1 double square))))
+
+; Memoization
+(let ((memoize
+       (lambda (f)
+         (let ((cache (make-map)))
+           (lambda (x)
+             (if (map-has? cache x)
+                 (map-get cache x)
+                 (let ((result (f x)))
+                   (map-set! cache x result)
+                   result)))))))
+  (letrec ((slow-fib
+            (lambda (n)
+              (if (<= n 1)
+                  n
+                  (+ (slow-fib (- n 1))
+                     (slow-fib (- n 2)))))))
+    (let ((fast-fib (memoize slow-fib)))
+      (print "fib(10) =" (fast-fib 10)))))
+
+; Function that applies a function n times
+(letrec ((repeat
+          (lambda (f n)
+            (lambda (x)
+              (if (= n 0)
+                  x
+                  ((repeat f (- n 1)) (f x)))))))
+  (let ((inc (lambda (x) (+ x 1)))
+        (add10 (repeat inc 10)))
+    (print "Starting from 5, increment 10 times:" (add10 5))))
