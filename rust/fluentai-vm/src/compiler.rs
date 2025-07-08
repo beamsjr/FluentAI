@@ -478,7 +478,7 @@ impl Compiler {
         let saved_scope_bases = self.scope_bases.clone();
         let saved_cell_vars = self.cell_vars.clone();
         let saved_function = self.current_function.clone();
-        let saved_tail = self.in_tail_position;
+        let _saved_tail = self.in_tail_position;
         
         // Switch to lambda chunk
         self.current_chunk = chunk_id;
@@ -508,10 +508,10 @@ impl Compiler {
         }
         
         // Compile body in tail position
-        let saved_tail = self.in_tail_position;
+        let _saved_tail = self.in_tail_position;
         self.in_tail_position = true;
         self.compile_node(graph, body)?;
-        self.in_tail_position = saved_tail;
+        self.in_tail_position = _saved_tail;
         self.emit(Instruction::new(Opcode::Return));
         
         // Restore context
@@ -522,7 +522,7 @@ impl Compiler {
         self.scope_bases = saved_scope_bases;
         self.cell_vars = saved_cell_vars;
         self.current_function = saved_function;
-        self.in_tail_position = saved_tail;
+        self.in_tail_position = _saved_tail;
         
         // Push function value with captures
         if free_vars.is_empty() {
@@ -546,7 +546,7 @@ impl Compiler {
         let scope_idx = self.locals.len() - 1;
         
         // Compile bindings
-        for (i, (name, value)) in bindings.iter().enumerate() {
+        for (_i, (name, value)) in bindings.iter().enumerate() {
             let before_depth = self.stack_depth;
             self.compile_node(graph, *value)?;
             
@@ -652,10 +652,10 @@ impl Compiler {
     
     fn compile_if(&mut self, graph: &ASTGraph, condition: NodeId, then_branch: NodeId, else_branch: NodeId) -> Result<()> {
         // Compile condition (not in tail position)
-        let saved_tail = self.in_tail_position;
+        let _saved_tail = self.in_tail_position;
         self.in_tail_position = false;
         self.compile_node(graph, condition)?;
-        self.in_tail_position = saved_tail;
+        self.in_tail_position = _saved_tail;
         
         // Jump to else if false
         let jump_to_else = self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0));
@@ -760,7 +760,7 @@ impl Compiler {
             Opcode::MakeClosure => {
                 // MakeClosure consumes N captured values and produces 1 function
                 let capture_count = (instruction.arg & 0xFFFF) as usize;
-                let old_depth = self.stack_depth;
+                let _old_depth = self.stack_depth;
                 self.stack_depth = self.stack_depth.saturating_sub(capture_count).saturating_add(1);
             },
             Opcode::MakeFunc => {

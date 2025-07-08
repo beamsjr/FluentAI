@@ -72,10 +72,6 @@ impl Slab {
         self.used = 0;
     }
     
-    /// Check if slab is empty
-    fn is_empty(&self) -> bool {
-        self.used == 0
-    }
 }
 
 /// Object pool for a specific type

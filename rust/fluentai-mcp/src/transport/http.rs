@@ -17,10 +17,10 @@ use axum::{
 };
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 use tower_http::cors::CorsLayer;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// HTTP transport for MCP communication

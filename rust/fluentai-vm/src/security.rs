@@ -72,11 +72,11 @@ pub struct ResourceUsage {
     /// CPU instructions executed
     instructions: AtomicU64,
     /// File handles opened
-    file_handles: AtomicU64,
+    _file_handles: AtomicU64,
     /// Network connections
-    network_connections: AtomicU64,
+    _network_connections: AtomicU64,
     /// Threads created
-    threads: AtomicU64,
+    _threads: AtomicU64,
 }
 
 /// Security policy configuration
@@ -161,9 +161,9 @@ impl ResourceUsage {
             memory_bytes: AtomicU64::new(0),
             allocations: AtomicU64::new(0),
             instructions: AtomicU64::new(0),
-            file_handles: AtomicU64::new(0),
-            network_connections: AtomicU64::new(0),
-            threads: AtomicU64::new(0),
+            _file_handles: AtomicU64::new(0),
+            _network_connections: AtomicU64::new(0),
+            _threads: AtomicU64::new(0),
         }
     }
     

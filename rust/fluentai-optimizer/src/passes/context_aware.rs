@@ -13,6 +13,7 @@ use rustc_hash::FxHashMap;
 pub struct ContextAwarePass;
 
 impl ContextAwarePass {
+    /// Create a new context-aware optimization pass
     pub fn new() -> Self {
         Self
     }
@@ -55,28 +56,6 @@ impl ContextAwarePass {
         false
     }
     
-    /// Check if a loop should be unrolled based on context
-    fn should_unroll(&self, graph: &Graph, node_id: NodeId) -> bool {
-        if let Some(context) = graph.get_context_memory(node_id) {
-            // Check performance hints
-            for hint in &context.performance_hints {
-                if matches!(hint.hint_type, fluentai_core::ast::PerformanceHintType::ShouldUnroll { .. }) {
-                    return hint.confidence > 0.7;
-                }
-            }
-            
-            // Check if it's a hot loop with predictable iterations
-            let stats = &context.usage_stats;
-            if stats.is_hot_path {
-                // Look for semantic tags that indicate fixed iterations
-                if context.semantic_tags.contains(&"fixed-iterations".to_string()) {
-                    return true;
-                }
-            }
-        }
-        
-        false
-    }
     
     /// Check if operations can be vectorized based on context
     fn can_vectorize(&self, graph: &Graph, node_id: NodeId) -> bool {

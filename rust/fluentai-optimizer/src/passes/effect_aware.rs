@@ -1,6 +1,6 @@
 //! Effect-aware optimization pass
 
-use fluentai_core::ast::{Graph, Node, NodeId, EffectType};
+use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::{FxHashMap, FxHashSet};
 use anyhow::Result;
 use crate::passes::OptimizationPass;
@@ -23,30 +23,6 @@ impl EffectAwarePass {
         }
     }
 
-    /// Check if two effects can be reordered
-    fn can_reorder_effects(effect1: &EffectType, effect2: &EffectType) -> bool {
-        use EffectType::*;
-        
-        match (effect1, effect2) {
-            // Pure operations can always be reordered
-            (Pure, _) | (_, Pure) => true,
-            
-            // IO operations generally cannot be reordered
-            (IO, IO) => false,
-            
-            // State operations on different states can be reordered
-            (State, State) => false, // Conservative: assume same state
-            
-            // Async operations can sometimes be reordered
-            (Async, Async) => true,
-            
-            // Network operations might be reorderable depending on endpoints
-            (Network, Network) => false, // Conservative
-            
-            // Different effect types might be reorderable
-            _ => false, // Conservative default
-        }
-    }
 
 
     /// Create a canonical string representation of an expression

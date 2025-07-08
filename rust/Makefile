@@ -62,7 +62,45 @@ install-tools:
 
 # Generate test coverage
 coverage:
-	cargo tarpaulin --out Html --all-features
+	@cd .. && ./coverage.sh
+
+# Generate coverage with HTML report and open
+coverage-open:
+	@cd .. && ./coverage.sh -O
+
+# Generate coverage summary only
+coverage-summary:
+	@cd .. && ./coverage.sh -s
+
+# Generate coverage for specific crate
+coverage-crate:
+	@if [ -z "$(CRATE)" ]; then \
+		echo "Usage: make coverage-crate CRATE=fluentai-core"; \
+		exit 1; \
+	fi
+	@cd .. && ./coverage.sh -c $(CRATE)
+
+# Generate coverage report in multiple formats
+coverage-full:
+	@cd .. && ./coverage.sh -f Html
+	@cd .. && ./coverage.sh -f Json -o coverage-report/coverage.json
+	@cd .. && ./coverage.sh -f Lcov -o coverage-report/lcov.info
+
+# Generate coverage for CI (with minimum threshold)
+coverage-ci:
+	@cd .. && ./coverage.sh -f Lcov -m 75 -u
+
+# Compare coverage with previous report
+coverage-compare:
+	@if [ -z "$(PREV)" ]; then \
+		echo "Usage: make coverage-compare PREV=path/to/previous.json"; \
+		exit 1; \
+	fi
+	@cd .. && ./coverage.sh -f Json -C $(PREV)
+
+# Quick coverage check for core components
+coverage-quick:
+	cargo tarpaulin --config .tarpaulin.toml --profile fluentai-quick
 
 # Profile parser performance
 profile-parser:
@@ -101,3 +139,13 @@ help:
 	@echo "  make clean          - Clean build artifacts"
 	@echo "  make doc            - Build and open documentation"
 	@echo "  make ci             - Run full CI pipeline"
+	@echo ""
+	@echo "Coverage targets:"
+	@echo "  make coverage       - Generate HTML coverage report"
+	@echo "  make coverage-open  - Generate and open HTML report"
+	@echo "  make coverage-summary - Show coverage summary only"
+	@echo "  make coverage-crate CRATE=name - Coverage for specific crate"
+	@echo "  make coverage-full  - Generate reports in all formats"
+	@echo "  make coverage-quick - Quick coverage for core components"
+	@echo "  make coverage-ci    - CI coverage with minimum threshold"
+	@echo "  make coverage-compare PREV=path - Compare with previous"

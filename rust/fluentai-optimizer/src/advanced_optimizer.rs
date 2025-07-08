@@ -550,17 +550,6 @@ impl AdvancedOptimizer {
         }
     }
 
-    /// Copy node with optimized children (wrapper for external calls)
-    fn copy_node_optimized(&mut self, node_id: NodeId) -> Result<Option<NodeId>> {
-        match self.copy_node_optimized_internal(node_id) {
-            Ok(Some(node)) => {
-                let new_id = self.optimized.add_node(node)?;
-                self.node_mapping.insert(node_id, new_id);
-                Ok(Some(new_id))
-            }
-            other => other.map(|_| None),
-        }
-    }
 
     /// Copy node with optimized children (internal version that returns Node)
     fn copy_node_optimized_internal(&mut self, node_id: NodeId) -> Result<Option<Node>> {
@@ -1083,14 +1072,12 @@ impl AdvancedOptimizer {
             node_id: NodeId,
             substitutions: FxHashMap<String, NodeId>,
             parent_id: Option<NodeId>,
-            field_name: String,
         }
         
         let mut stack = vec![WorkItem {
             node_id: start_node_id,
             substitutions: substitutions.clone(),
             parent_id: None,
-            field_name: String::new(),
         }];
         
         let mut results: FxHashMap<NodeId, NodeId> = FxHashMap::default();
@@ -1587,31 +1574,6 @@ impl AdvancedOptimizer {
         }
     }
 
-    /// Check if a node has effects (by looking at the original graph)
-    fn has_effects(&self, node_id: NodeId) -> bool {
-        // We need to check the original graph since that's what the effect analysis was run on
-        if let Some(graph) = &self.graph {
-            if let Some(node) = graph.get_node(node_id) {
-                // Check if it's a print or other effect operation
-                if let Node::Application { function, .. } = node {
-                    if let Some(Node::Variable { name }) = graph.get_node(*function) {
-                        // List of known effect operations
-                        if matches!(name.as_str(), "print" | "read" | "write" | "error" | "set!" | "display") {
-                            return true;
-                        }
-                    }
-                }
-                
-                // Use effect analysis if available
-                if let Some(effect_analysis) = &self.effect_analysis {
-                    return !effect_analysis.pure_nodes.contains(&node_id);
-                }
-            }
-        }
-        
-        // Conservative: assume it has effects if we don't have analysis
-        false
-    }
 }
 
 impl Default for AdvancedOptimizer {

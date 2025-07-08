@@ -4,7 +4,6 @@
 //! which is essential for sound contract verification.
 
 use std::collections::HashSet;
-use std::num::NonZeroU32;
 use fluentai_core::ast::{Graph, Node, NodeId, Pattern};
 use crate::{
     contract::Contract,
@@ -372,7 +371,7 @@ mod tests {
         
         let contract = Contract::new(
             "add".to_string(),
-            NodeId(NonZeroU32::new(1).unwrap())
+            NodeId(std::num::NonZeroU32::new(1).unwrap())
         );
         
         let result = checker.analyze_contract(&contract);

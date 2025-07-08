@@ -23,7 +23,7 @@ impl UsageTracker {
         }
     }
     
-    pub fn record_execution(&mut self, _chunk_id: usize, time_ns: u64) {
+    pub fn record_execution(&mut self, _chunk_id: usize, _time_ns: u64) {
         // Placeholder implementation
     }
     

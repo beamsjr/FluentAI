@@ -24,12 +24,12 @@ pub enum FusedOpcode {
 /// Instruction fusion analyzer
 pub struct InstructionFusion {
     /// Pattern matching window size
-    window_size: usize,
+    _window_size: usize,
 }
 
 impl InstructionFusion {
     pub fn new() -> Self {
-        Self { window_size: 4 }
+        Self { _window_size: 4 }
     }
     
     /// Analyze instruction sequence and return fused instructions
@@ -314,10 +314,10 @@ impl ProfileInfo {
             let total = taken_count + not_taken_count;
             
             if total > 0 {
-                let taken_ratio = taken_count as f64 / total as f64;
-                if taken_ratio > bias_threshold {
+                let _taken_ratio = taken_count as f64 / total as f64;
+                if _taken_ratio > bias_threshold {
                     biased.push((pc, true));
-                } else if taken_ratio < (1.0 - bias_threshold) {
+                } else if _taken_ratio < (1.0 - bias_threshold) {
                     biased.push((pc, false));
                 }
             }
@@ -334,7 +334,7 @@ impl ProfileInfo {
             let total = taken_count + not_taken_count;
             
             if total > 0 {
-                let taken_ratio = taken_count as f64 / total as f64;
+                let _taken_ratio = taken_count as f64 / total as f64;
                 // taken_ratio is 0, so it's definitely < (1.0 - bias_threshold)
                 if bias_threshold < 1.0 {
                     biased.push((pc, false));

@@ -138,9 +138,9 @@ pub struct HandlerFrame {
     /// Map from effect type + operation to handler function value
     handlers: FxHashMap<(String, Option<String>), Value>,
     /// Continuation point - where to return after handler execution
-    return_ip: usize,
+    _return_ip: usize,
     /// Stack depth when handler was installed
-    stack_depth: usize,
+    _stack_depth: usize,
 }
 
 impl VM {
@@ -2343,8 +2343,8 @@ impl VM {
                 
                 let handler_frame = HandlerFrame {
                     handlers,
-                    return_ip: current_frame.ip,
-                    stack_depth: self.stack.len(),
+                    _return_ip: current_frame.ip,
+                    _stack_depth: self.stack.len(),
                 };
                 
                 // Push handler frame onto handler stack

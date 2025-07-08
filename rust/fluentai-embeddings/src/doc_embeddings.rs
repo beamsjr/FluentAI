@@ -271,7 +271,7 @@ impl DocumentationEmbeddingService {
         let similar = self.embedding_service.find_similar(query_id, limit * 2, threshold).await?;
         
         // Map back to documentation
-        let mut results = Vec::new();
+        let results = Vec::new();
         for (embedding_id, score) in similar {
             // This would need a reverse mapping from embedding_id to doc name
             // For now, we'll skip this implementation detail

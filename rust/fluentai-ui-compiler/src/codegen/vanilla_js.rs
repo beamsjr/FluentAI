@@ -1,7 +1,7 @@
 //! Vanilla JavaScript code generation
 
 use crate::error::{CompilerError, Result};
-use fluentai_core::ast::{Graph, Node, NodeId, Literal, EffectType};
+use fluentai_core::ast::{Graph, Node, NodeId, Literal};
 use std::collections::HashSet;
 
 /// Compile a FluentAi graph to vanilla JavaScript

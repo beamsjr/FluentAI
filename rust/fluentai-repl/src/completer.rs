@@ -1,7 +1,6 @@
 //! Auto-completion support for the REPL
 
 use rustyline::completion::{Completer, Pair};
-use rustyline::error::ReadlineError;
 use rustyline::{Context, Result};
 use std::collections::HashSet;
 

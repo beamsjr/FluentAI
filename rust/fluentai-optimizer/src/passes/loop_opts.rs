@@ -34,10 +34,10 @@ impl LoopOptimizationPass {
                         if self.is_tail_recursive(graph, name, *lambda_body) {
                             return Some(LoopInfo {
                                 kind: LoopKind::TailRecursive,
-                                func_name: name.clone(),
+                                _func_name: name.clone(),
                                 params: params.clone(),
                                 body: *lambda_body,
-                                binding_id: *func_id,
+                                _binding_id: *func_id,
                             });
                         }
                     }
@@ -52,10 +52,10 @@ impl LoopOptimizationPass {
                             if args.len() >= 2 {
                                 return Some(LoopInfo {
                                     kind: LoopKind::HigherOrder(name.clone()),
-                                    func_name: name.clone(),
+                                    _func_name: name.clone(),
                                     params: vec![],
                                     body: args[0], // The function being mapped
-                                    binding_id: *function,
+                                    _binding_id: *function,
                                 });
                             }
                         }
@@ -204,28 +204,6 @@ impl LoopOptimizationPass {
         }
     }
 
-    /// Try to fuse adjacent loops
-    fn try_fuse_loops(&self, graph: &Graph, node1: &Node, node2: &Node) -> Option<Node> {
-        // Check if both are map/filter operations on the same list
-        if let (Some(loop1), Some(loop2)) = (self.detect_loop(graph, node1), self.detect_loop(graph, node2)) {
-            match (&loop1.kind, &loop2.kind) {
-                (LoopKind::HigherOrder(name1), LoopKind::HigherOrder(name2)) => {
-                    if (name1 == "map" || name1 == "filter") && (name2 == "map" || name2 == "filter") {
-                        // Can fuse these operations
-                        return self.fuse_map_operations(graph, &loop1, &loop2);
-                    }
-                }
-                _ => {}
-            }
-        }
-        None
-    }
-
-    /// Fuse two map/filter operations
-    fn fuse_map_operations(&self, _graph: &Graph, _loop1: &LoopInfo, _loop2: &LoopInfo) -> Option<Node> {
-        // TODO: Implement map fusion
-        None
-    }
 }
 
 impl OptimizationPass for LoopOptimizationPass {
@@ -293,10 +271,10 @@ impl OptimizationPass for LoopOptimizationPass {
 /// Information about a detected loop
 struct LoopInfo {
     kind: LoopKind,
-    func_name: String,
+    _func_name: String,
     params: Vec<String>,
     body: NodeId,
-    binding_id: NodeId,
+    _binding_id: NodeId,
 }
 
 /// Kind of loop detected

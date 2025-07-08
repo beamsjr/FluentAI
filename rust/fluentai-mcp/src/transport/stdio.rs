@@ -3,7 +3,7 @@
 //! This transport communicates via stdin/stdout, which is the traditional
 //! method for MCP servers.
 
-use super::{Transport, JsonRpcRequest, JsonRpcResponse, JsonRpcNotification, RequestHandler};
+use super::{Transport, JsonRpcRequest, JsonRpcResponse, JsonRpcNotification};
 use async_trait::async_trait;
 use anyhow::Result;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -108,6 +108,7 @@ impl Transport for StdioTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transport::RequestHandler;
     use serde_json::Value as JsonValue;
     
     #[tokio::test]

@@ -27,7 +27,7 @@ pub struct ConcurrentGc {
     write_barrier: WriteBarrier,
     
     /// GC thread handle
-    gc_thread: Option<thread::JoinHandle<()>>,
+    _gc_thread: Option<thread::JoinHandle<()>>,
     
     /// Shutdown flag
     shutdown: Arc<AtomicBool>,
@@ -72,7 +72,7 @@ struct WriteBarrier {
     remembered_set: Arc<RwLock<FxHashSet<GcNodePtr>>>,
     
     /// Card table for efficient scanning
-    card_table: Arc<RwLock<Vec<AtomicBool>>>,
+    _card_table: Arc<RwLock<Vec<AtomicBool>>>,
 }
 
 /// GC phases for concurrent collection
@@ -132,7 +132,7 @@ impl Default for ConcurrentGcConfig {
 #[derive(Debug, Default)]
 struct GcStats {
     /// Total collections
-    collections: AtomicUsize,
+    _collections: AtomicUsize,
     
     /// Minor collections (young gen only)
     minor_collections: AtomicUsize,
@@ -144,7 +144,7 @@ struct GcStats {
     total_pause_ns: AtomicUsize,
     
     /// Total concurrent time
-    total_concurrent_ns: AtomicUsize,
+    _total_concurrent_ns: AtomicUsize,
     
     /// Bytes allocated
     bytes_allocated: AtomicUsize,
@@ -160,7 +160,7 @@ impl ConcurrentGc {
             young_gen: RwLock::new(Generation::new(config.young_gen_size)),
             old_gen: RwLock::new(Generation::new(config.old_gen_size)),
             write_barrier: WriteBarrier::new(),
-            gc_thread: None,
+            _gc_thread: None,
             shutdown: Arc::new(AtomicBool::new(false)),
             stats: GcStats::default(),
             config,
@@ -172,7 +172,7 @@ impl ConcurrentGc {
         // Start GC thread
         let gc_clone = Arc::clone(&gc);
         let shutdown = Arc::clone(&gc.shutdown);
-        let gc_thread = thread::spawn(move || {
+        let _gc_thread = thread::spawn(move || {
             gc_clone.gc_thread_loop(shutdown);
         });
         
@@ -357,7 +357,7 @@ impl ConcurrentGc {
     /// Concurrent mark young generation
     fn concurrent_mark_young(&self, roots: &[GcNodePtr]) -> Result<()> {
         // Use snapshot-at-the-beginning (SATB) technique
-        let snapshot = self.take_heap_snapshot();
+        let _snapshot = self.take_heap_snapshot();
         
         // Mark concurrently
         let guard = epoch::pin();
@@ -437,7 +437,7 @@ impl ConcurrentGc {
                     self.scan_value(v);
                 }
             }
-            Value::GcHandle(handle) => {
+            Value::GcHandle(_handle) => {
                 // Mark referenced GC object
                 // This would need integration with the GcHandle type
             }
@@ -649,23 +649,10 @@ impl WriteBarrier {
         }
         Self {
             remembered_set: Arc::new(RwLock::new(FxHashSet::default())),
-            card_table: Arc::new(RwLock::new(cards)),
+            _card_table: Arc::new(RwLock::new(cards)),
         }
     }
     
-    /// Record a write of young object reference into old object
-    pub fn record_write(&self, old_obj: &GcNodePtr, young_ref: &GcNodePtr) {
-        if old_obj.generation.load(Ordering::Relaxed) == 1 &&
-           young_ref.generation.load(Ordering::Relaxed) == 0 {
-            self.remembered_set.write().insert(old_obj.clone());
-            
-            // Mark card
-            let card_idx = (old_obj.id / 512) % 1024;
-            if let Some(card) = self.card_table.read().get(card_idx) {
-                card.store(true, Ordering::Relaxed);
-            }
-        }
-    }
 }
 
 

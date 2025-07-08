@@ -1,0 +1,2667 @@
+[2m2025-07-08T17:23:05.084752Z[0m [32m INFO[0m [2mcargo_tarpaulin::config[0m[2m:[0m Creating config
+[2m2025-07-08T17:23:05.347177Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Running config fluentai-full
+[2m2025-07-08T17:23:05.347197Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Running Tarpaulin
+[2m2025-07-08T17:23:05.347201Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Building project
+[2m2025-07-08T17:23:05.347205Z[0m [32m INFO[0m [2mcargo_tarpaulin::cargo[0m[2m:[0m Cleaning project
+   Compiling proc-macro2 v1.0.95
+   Compiling unicode-ident v1.0.18
+   Compiling serde v1.0.219
+   Compiling cfg-if v1.0.1
+   Compiling libc v0.2.174
+   Compiling autocfg v1.5.0
+   Compiling scopeguard v1.2.0
+   Compiling once_cell v1.21.3
+   Compiling memchr v2.7.5
+   Compiling pin-project-lite v0.2.16
+   Compiling log v0.4.27
+   Compiling itoa v1.0.15
+   Compiling parking_lot_core v0.9.11
+   Compiling libm v0.2.15
+   Compiling ryu v1.0.20
+   Compiling serde_json v1.0.140
+   Compiling bytes v1.10.1
+   Compiling crossbeam-utils v0.8.21
+   Compiling lock_api v0.4.13
+   Compiling tracing-core v0.1.34
+   Compiling futures-core v0.3.31
+   Compiling fnv v1.0.7
+   Compiling num-traits v0.2.19
+   Compiling allocator-api2 v0.2.21
+   Compiling foldhash v0.1.5
+   Compiling equivalent v1.0.2
+   Compiling rustc-hash v1.1.0
+   Compiling getrandom v0.3.3
+   Compiling zerocopy v0.8.26
+   Compiling thiserror v1.0.69
+   Compiling hashbrown v0.15.4
+   Compiling indexmap v2.10.0
+   Compiling quote v1.0.40
+   Compiling syn v2.0.104
+   Compiling pin-utils v0.1.0
+   Compiling futures-task v0.3.31
+   Compiling futures-io v0.3.31
+   Compiling slab v0.4.10
+   Compiling crossbeam-epoch v0.9.18
+   Compiling crossbeam-queue v0.3.12
+   Compiling bumpalo v3.19.0
+   Compiling signal-hook-registry v1.4.5
+   Compiling mio v1.0.4
+   Compiling litemap v0.8.0
+   Compiling crossbeam-deque v0.8.6
+   Compiling writeable v0.6.1
+   Compiling core-foundation-sys v0.8.7
+   Compiling anyhow v1.0.98
+   Compiling futures-sink v0.3.31
+   Compiling socket2 v0.5.10
+   Compiling crossbeam-channel v0.5.15
+   Compiling num_cpus v1.17.0
+   Compiling stable_deref_trait v1.2.0
+   Compiling icu_properties_data v2.0.1
+   Compiling icu_normalizer_data v2.0.0
+   Compiling errno v0.3.13
+   Compiling fastrand v2.3.0
+   Compiling futures-channel v0.3.31
+   Compiling rustix v1.0.7
+   Compiling crossbeam v0.8.4
+   Compiling percent-encoding v2.3.1
+   Compiling utf8_iter v1.0.4
+   Compiling native-tls v0.2.14
+   Compiling form_urlencoded v1.2.1
+   Compiling iana-time-zone v0.1.63
+   Compiling httparse v1.10.1
+   Compiling getrandom v0.2.16
+   Compiling core-foundation v0.9.4
+   Compiling rand_core v0.6.4
+   Compiling bitflags v1.3.2
+   Compiling tower-service v0.3.3
+   Compiling security-framework-sys v2.14.0
+   Compiling httpdate v1.0.3
+   Compiling mime v0.3.17
+   Compiling winnow v0.7.11
+   Compiling hashbrown v0.14.5
+   Compiling toml_write v0.1.2
+   Compiling http v0.2.12
+   Compiling unicase v2.8.1
+   Compiling system-configuration-sys v0.5.0
+   Compiling try-lock v0.2.5
+   Compiling want v0.3.1
+   Compiling mime_guess v2.0.5
+   Compiling ppv-lite86 v0.2.21
+   Compiling encoding_rs v0.8.35
+   Compiling base64 v0.21.7
+   Compiling ipnet v2.11.0
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.5
+   Compiling http-body v0.4.6
+   Compiling system-configuration v0.5.1
+   Compiling rustls-pemfile v1.0.4
+   Compiling sync_wrapper v0.1.2
+   Compiling synstructure v0.13.2
+   Compiling downcast-rs v1.2.1
+   Compiling beef v0.5.2
+   Compiling regex-syntax v0.6.29
+   Compiling regex-syntax v0.8.5
+   Compiling heck v0.5.0
+   Compiling rayon-core v1.12.1
+   Compiling utf8parse v0.2.2
+   Compiling anstyle-parse v0.2.7
+   Compiling colorchoice v1.0.4
+   Compiling anstyle-query v1.1.3
+   Compiling anstyle v1.0.11
+   Compiling is_terminal_polyfill v1.70.1
+   Compiling strsim v0.11.1
+   Compiling clap_lex v0.7.5
+   Compiling rustc-hash v2.1.1
+   Compiling anstream v0.6.19
+   Compiling aho-corasick v1.1.3
+   Compiling same-file v1.0.6
+   Compiling clap_builder v4.5.40
+   Compiling walkdir v2.5.0
+   Compiling half v2.6.0
+   Compiling ciborium-io v0.2.2
+   Compiling plotters-backend v0.3.7
+   Compiling ciborium-ll v0.2.2
+   Compiling cast v0.3.0
+   Compiling plotters-svg v0.3.7
+   Compiling is-terminal v0.4.16
+   Compiling anes v0.1.6
+   Compiling oorandom v11.1.5
+   Compiling plotters v0.3.7
+   Compiling byteorder v1.5.0
+   Compiling spin v0.9.8
+   Compiling version_check v0.9.5
+   Compiling regex-automata v0.4.9
+   Compiling lazy_static v1.5.0
+   Compiling logos-codegen v0.13.0
+   Compiling typenum v1.18.0
+   Compiling generic-array v0.14.7
+   Compiling const-oid v0.9.6
+   Compiling shlex v1.3.0
+   Compiling cc v1.2.27
+   Compiling subtle v2.6.1
+   Compiling serde_derive v1.0.219
+   Compiling tracing-attributes v0.1.30
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.0
+   Compiling zerovec-derive v0.11.1
+   Compiling displaydoc v0.2.5
+   Compiling thiserror-impl v1.0.69
+   Compiling tokio-macros v2.5.0
+   Compiling futures-macro v0.3.31
+   Compiling async-trait v0.1.88
+   Compiling logos-derive v0.13.0
+   Compiling clap_derive v4.5.40
+   Compiling regex v1.11.1
+   Compiling tracing v0.1.41
+   Compiling zerofrom v0.1.6
+   Compiling rand_core v0.9.3
+   Compiling futures-util v0.3.31
+   Compiling wait-timeout v0.2.1
+   Compiling logos v0.13.0
+   Compiling quick-error v1.2.3
+   Compiling yoke v0.8.0
+   Compiling bit-vec v0.8.0
+   Compiling rand v0.9.1
+   Compiling bit-set v0.8.0
+   Compiling crypto-common v0.1.6
+   Compiling block-buffer v0.10.4
+   Compiling rand_xorshift v0.4.0
+   Compiling digest v0.10.7
+   Compiling rand_chacha v0.9.0
+   Compiling unarray v0.1.4
+   Compiling cpufeatures v0.2.17
+   Compiling glob v0.3.2
+   Compiling base64 v0.22.1
+   Compiling minimal-lexical v0.2.1
+   Compiling zerovec v0.11.2
+   Compiling zerotrie v0.2.2
+   Compiling nom v7.1.3
+   Compiling libloading v0.8.8
+   Compiling clang-sys v1.8.1
+   Compiling bindgen v0.66.1
+   Compiling http v1.3.1
+   Compiling indexmap v1.9.3
+   Compiling peeking_take_while v0.1.2
+   Compiling lazycell v1.3.0
+   Compiling clap v4.5.40
+   Compiling tinystr v0.8.1
+   Compiling potential_utf v0.1.2
+   Compiling icu_locale_core v2.0.0
+   Compiling icu_collections v2.0.0
+   Compiling futures-executor v0.3.31
+   Compiling cexpr v0.6.0
+   Compiling futures v0.3.31
+   Compiling cmake v0.1.54
+   Compiling hashbrown v0.12.3
+   Compiling sha1 v0.10.6
+   Compiling icu_provider v2.0.0
+   Compiling pkg-config v0.3.32
+   Compiling icu_properties v2.0.1
+   Compiling overload v0.1.1
+   Compiling nu-ansi-term v0.46.0
+   Compiling sharded-slab v0.1.7
+   Compiling tracing-log v0.2.0
+   Compiling thread_local v1.1.9
+   Compiling tower-layer v0.3.3
+   Compiling async-stream-impl v0.3.6
+   Compiling ahash v0.8.12
+   Compiling adler2 v2.0.1
+   Compiling miniz_oxide v0.8.9
+   Compiling smallvec v1.15.1
+   Compiling bitflags v2.9.1
+   Compiling parking_lot v0.12.4
+   Compiling icu_normalizer v2.0.0
+   Compiling tokio v1.46.0
+   Compiling fluentai-core v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-core)
+   Compiling security-framework v2.11.1
+   Compiling idna_adapter v1.2.1
+   Compiling serde_urlencoded v0.7.1
+   Compiling idna v1.0.3
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling chrono v0.4.41
+   Compiling url v2.5.4
+   Compiling toml_edit v0.22.27
+   Compiling tempfile v3.20.0
+   Compiling uuid v1.17.0
+   Compiling dashmap v5.5.3
+   Compiling fluentai-parser v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-parser)
+   Compiling either v1.15.0
+   Compiling tinytemplate v1.2.1
+   Compiling ciborium v0.2.2
+   Compiling rayon v1.10.0
+   Compiling itertools v0.10.5
+   Compiling rusty-fork v0.3.0
+   Compiling toml v0.8.23
+   Compiling fluentai-modules v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-modules)
+   Compiling proptest v1.7.0
+   Compiling criterion-plot v0.5.0
+   Compiling tracing-subscriber v0.3.19
+   Compiling async-stream v0.3.6
+   Compiling criterion v0.5.1
+   Compiling tokio-util v0.7.15
+   Compiling tokio-native-tls v0.3.1
+   Compiling fluentai-di v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-di)
+   Compiling lru v0.12.5
+   Compiling h2 v0.3.26
+   Compiling tokio-stream v0.1.17
+   Compiling thiserror v2.0.12
+   Compiling parking v2.2.1
+   Compiling zeroize v1.8.1
+   Compiling http-body v1.0.1
+   Compiling pin-project-internal v1.1.10
+   Compiling thiserror-impl v2.0.12
+   Compiling base64ct v1.8.0
+   Compiling yansi v1.0.1
+   Compiling crc-catalog v2.4.0
+   Compiling cranelift-isle v0.104.3
+   Compiling crc v3.3.0
+   Compiling pem-rfc7468 v0.7.0
+   Compiling hashlink v0.10.0
+   Compiling diff v0.1.13
+   Compiling hex v0.4.3
+   Compiling cranelift-codegen-shared v0.104.3
+   Compiling cranelift-codegen-meta v0.104.3
+   Compiling pretty_assertions v1.4.1
+   Compiling der v0.7.10
+   Compiling pin-project v1.1.10
+   Compiling hyper v0.14.32
+   Compiling hdrhistogram v7.5.4
+   Compiling num-bigint-dig v0.8.4
+   Compiling target-lexicon v0.12.16
+   Compiling tinyvec_macros v0.1.1
+   Compiling rustversion v1.0.21
+   Compiling tinyvec v1.9.0
+   Compiling tower v0.4.13
+   Compiling spki v0.7.3
+   Compiling z3-sys v0.8.1
+   Compiling http-body-util v0.1.3
+   Compiling hashbrown v0.13.2
+   Compiling sha2 v0.10.9
+   Compiling hyper-tls v0.5.0
+   Compiling cranelift-codegen v0.104.3
+   Compiling reqwest v0.11.27
+   Compiling slice-group-by v0.3.1
+   Compiling sync_wrapper v1.0.2
+   Compiling cranelift-entity v0.104.3
+   Compiling arbitrary v1.4.1
+   Compiling utf-8 v0.7.6
+   Compiling data-encoding v2.9.0
+   Compiling home v0.5.11
+   Compiling cranelift-bforest v0.104.3
+   Compiling regalloc2 v0.9.3
+   Compiling tungstenite v0.24.0
+   Compiling cranelift-control v0.104.3
+   Compiling unicode-normalization v0.1.24
+   Compiling pkcs8 v0.10.2
+   Compiling fluentai-effects v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-effects)
+   Compiling concurrent-queue v2.5.0
+   Compiling hyper v1.6.0
+   Compiling hmac v0.12.1
+   Compiling gimli v0.28.1
+   Compiling fluentai-types v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-types)
+   Compiling fluentai-stdlib v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-stdlib)
+   Compiling unicode-properties v0.1.3
+   Compiling fluentai-optimizer v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-optimizer)
+   Compiling unicode-bidi v0.3.18
+   Compiling vcpkg v0.2.15
+   Compiling stringprep v0.1.5
+   Compiling fluentai-vm v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-vm)
+   Compiling libsqlite3-sys v0.30.1
+   Compiling hyper-util v0.1.14
+   Compiling hkdf v0.12.4
+   Compiling axum-core v0.4.5
+   Compiling event-listener v5.4.0
+   Compiling pyo3-build-config v0.19.2
+   Compiling pkcs1 v0.7.5
+   Compiling futures-intrusive v0.5.0
+   Compiling tokio-tungstenite v0.24.0
+   Compiling tower v0.5.2
+error: failed to run custom build command for `z3-sys v0.8.1`
+
+Caused by:
+  process didn't exit successfully: `/Users/joe/repos/claudelang/rust/target/debug/build/z3-sys-f35b9f2bc0c271b5/build-script-build` (exit status: 101)
+  --- stdout
+  CMAKE_TOOLCHAIN_FILE_aarch64-apple-darwin = None
+  CMAKE_TOOLCHAIN_FILE_aarch64_apple_darwin = None
+  HOST_CMAKE_TOOLCHAIN_FILE = None
+  CMAKE_TOOLCHAIN_FILE = None
+  CMAKE_GENERATOR_aarch64-apple-darwin = None
+  CMAKE_GENERATOR_aarch64_apple_darwin = None
+  HOST_CMAKE_GENERATOR = None
+  CMAKE_GENERATOR = None
+  CMAKE_PREFIX_PATH_aarch64-apple-darwin = None
+  CMAKE_PREFIX_PATH_aarch64_apple_darwin = None
+  HOST_CMAKE_PREFIX_PATH = None
+  CMAKE_PREFIX_PATH = None
+  CMAKE_aarch64-apple-darwin = None
+  CMAKE_aarch64_apple_darwin = None
+  HOST_CMAKE = None
+  CMAKE = None
+  running: cd "/Users/joe/repos/claudelang/rust/target/debug/build/z3-sys-526ddcfcef5e5ce1/out/build" && CMAKE_PREFIX_PATH="" LC_ALL="C" "cmake" "/Users/joe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/z3-sys-0.8.1/z3" "-DCMAKE_OSX_ARCHITECTURES=arm64" "-DZ3_BUILD_LIBZ3_SHARED=false" "-DZ3_BUILD_EXECUTABLE=false" "-DZ3_BUILD_TEST_EXECUTABLES=false" "-DCMAKE_INSTALL_PREFIX=/Users/joe/repos/claudelang/rust/target/debug/build/z3-sys-526ddcfcef5e5ce1/out" "-DCMAKE_C_FLAGS= -ffunction-sections -fdata-sections -fPIC --target=arm64-apple-macosx -mmacosx-version-min=15.5" "-DCMAKE_C_COMPILER=/usr/bin/cc" "-DCMAKE_CXX_FLAGS= -ffunction-sections -fdata-sections -fPIC --target=arm64-apple-macosx -mmacosx-version-min=15.5" "-DCMAKE_CXX_COMPILER=/usr/bin/c++" "-DCMAKE_ASM_FLAGS= -ffunction-sections -fdata-sections -fPIC --target=arm64-apple-macosx -mmacosx-version-min=15.5" "-DCMAKE_ASM_COMPILER=/usr/bin/cc" "-DCMAKE_BUILD_TYPE=Debug"
+  -- The CXX compiler identification is AppleClang 17.0.0.17000013
+  -- Detecting CXX compiler ABI info
+  -- Detecting CXX compiler ABI info - done
+  -- Check for working CXX compiler: /usr/bin/c++ - skipped
+  -- Detecting CXX compile features
+  -- Detecting CXX compile features - done
+  -- Z3 version 4.12.1.0
+  -- Failed to find git directory.
+  -- CMake generator: Unix Makefiles
+  -- Build type: Debug
+  -- Found PythonInterp: /opt/homebrew/bin/python3 (found suitable version "3.13.2", minimum required is "3")
+  -- PYTHON_EXECUTABLE: /opt/homebrew/bin/python3
+  -- Detected target architecture: arm64
+  -- Not using libgmp
+  -- Not using Z3_API_LOG_SYNC
+  -- Thread-safe build
+  -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+  -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+  -- Found Threads: TRUE
+  -- Performing Test HAS__Wall
+  -- Performing Test HAS__Wall - Success
+  -- C++ compiler supports -Wall
+  -- Treating only serious compiler warnings as errors
+  -- Performing Test HAS__Werror_odr
+  -- Performing Test HAS__Werror_odr - Success
+  -- C++ compiler supports -Werror=odr
+  -- Performing Test HAS__Werror_delete_non_virtual_dtor
+  -- Performing Test HAS__Werror_delete_non_virtual_dtor - Success
+  -- C++ compiler supports -Werror=delete-non-virtual-dtor
+  -- Performing Test HAS__Werror_overloaded_virtual
+  -- Performing Test HAS__Werror_overloaded_virtual - Success
+  -- C++ compiler supports -Werror=overloaded-virtual
+  -- Performing Test HAS__Werror_non_virtual_dtor
+  -- Performing Test HAS__Werror_non_virtual_dtor - Success
+  -- C++ compiler supports -Werror=non-virtual-dtor
+  -- Performing Test HAS__Werror_null_dereference
+  -- Performing Test HAS__Werror_null_dereference - Success
+  -- C++ compiler supports -Werror=null-dereference
+  -- Performing Test HAS__Werror_no_unreachable_code_return
+  -- Performing Test HAS__Werror_no_unreachable_code_return - Failed
+  -- C++ compiler does not support -Werror=no-unreachable-code-return
+  -- LTO disabled
+  -- Performing Test BUILTIN_ATOMIC
+  -- Performing Test BUILTIN_ATOMIC - Failed
+  -- Performing Test ATOMICS_REQUIRE_LIBATOMIC
+  -- Performing Test ATOMICS_REQUIRE_LIBATOMIC - Failed
+  -- Configuring incomplete, errors occurred!
+
+  --- stderr
+  CMake Deprecation Warning at CMakeLists.txt:2 (cmake_minimum_required):
+    Compatibility with CMake < 3.10 will be removed from a future version of
+    CMake.
+
+    Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+    to tell CMake that the project requires at least <min> but has been updated
+    to work with policies introduced by <max> or earlier.
+
+
+  CMake Warning at CMakeLists.txt:44 (message):
+    Disabling Z3_INCLUDE_GIT_DESCRIBE
+  Call Stack (most recent call first):
+    CMakeLists.txt:93 (disable_git_describe)
+
+
+  CMake Warning at CMakeLists.txt:48 (message):
+    Disabling Z3_INCLUDE_GIT_HASH
+  Call Stack (most recent call first):
+    CMakeLists.txt:94 (disable_git_hash)
+
+
+  CMake Warning (dev) at CMakeLists.txt:156 (find_package):
+    Policy CMP0148 is not set: The FindPythonInterp and FindPythonLibs modules
+    are removed.  Run "cmake --help-policy CMP0148" for policy details.  Use
+    the cmake_policy command to set the policy and suppress this warning.
+
+  This warning is for project developers.  Use -Wno-dev to suppress it.
+
+  CMake Error at cmake/check_link_atomic.cmake:21 (message):
+    Host compiler must support std::atomic!
+  Call Stack (most recent call first):
+    CMakeLists.txt:376 (include)
+
+
+
+  thread 'main' panicked at /Users/joe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cmake-0.1.54/src/lib.rs:1119:5:
+
+  command did not execute successfully, got: exit status: 1
+
+  build script failed, must exit now
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+warning: build failed, waiting for other jobs to finish...
+[2m2025-07-08T17:23:36.914770Z[0m [31mERROR[0m [2mcargo_tarpaulin[0m[2m:[0m Cargo failed to run! Error: cargo run failed
+[2m2025-07-08T17:23:37.299828Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Running config fluentai-core
+[2m2025-07-08T17:23:37.299849Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Running Tarpaulin
+[2m2025-07-08T17:23:37.299853Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Building project
+[2m2025-07-08T17:23:37.299857Z[0m [32m INFO[0m [2mcargo_tarpaulin::cargo[0m[2m:[0m Cleaning project
+   Compiling proc-macro2 v1.0.95
+   Compiling unicode-ident v1.0.18
+   Compiling libc v0.2.174
+   Compiling cfg-if v1.0.1
+   Compiling autocfg v1.5.0
+   Compiling smallvec v1.15.1
+   Compiling once_cell v1.21.3
+   Compiling parking_lot_core v0.9.11
+   Compiling scopeguard v1.2.0
+   Compiling pin-project-lite v0.2.16
+   Compiling crossbeam-utils v0.8.21
+   Compiling serde v1.0.219
+   Compiling itoa v1.0.15
+   Compiling thiserror v1.0.69
+   Compiling tracing-core v0.1.34
+   Compiling ryu v1.0.20
+   Compiling anyhow v1.0.98
+   Compiling fnv v1.0.7
+   Compiling serde_json v1.0.140
+   Compiling lock_api v0.4.13
+   Compiling num-traits v0.2.19
+   Compiling memchr v2.7.5
+   Compiling crossbeam-epoch v0.9.18
+   Compiling crossbeam-queue v0.3.12
+   Compiling crossbeam-channel v0.5.15
+   Compiling rustc-hash v1.1.0
+   Compiling quote v1.0.40
+   Compiling crossbeam-deque v0.8.6
+   Compiling bumpalo v3.19.0
+   Compiling syn v2.0.104
+   Compiling crossbeam v0.8.4
+   Compiling either v1.15.0
+   Compiling rayon-core v1.12.1
+   Compiling half v2.6.0
+   Compiling ciborium-io v0.2.2
+   Compiling regex-syntax v0.8.5
+   Compiling clap_lex v0.7.5
+   Compiling stable_deref_trait v1.2.0
+   Compiling plotters-backend v0.3.7
+   Compiling num_cpus v1.17.0
+   Compiling anstyle v1.0.11
+   Compiling plotters-svg v0.3.7
+   Compiling ciborium-ll v0.2.2
+   Compiling clap_builder v4.5.40
+   Compiling itertools v0.10.5
+   Compiling regex-syntax v0.6.29
+   Compiling cast v0.3.0
+   Compiling same-file v1.0.6
+   Compiling beef v0.5.2
+   Compiling walkdir v2.5.0
+   Compiling is-terminal v0.4.16
+   Compiling parking_lot v0.12.4
+   Compiling anes v0.1.6
+   Compiling regex-automata v0.4.9
+   Compiling oorandom v11.1.5
+   Compiling core-foundation-sys v0.8.7
+   Compiling bytes v1.10.1
+   Compiling rayon v1.10.0
+   Compiling plotters v0.3.7
+   Compiling criterion-plot v0.5.0
+   Compiling getrandom v0.3.3
+   Compiling litemap v0.8.0
+   Compiling clap v4.5.40
+   Compiling writeable v0.6.1
+   Compiling mio v1.0.4
+   Compiling signal-hook-registry v1.4.5
+   Compiling socket2 v0.5.10
+   Compiling regex v1.11.1
+   Compiling bitflags v2.9.1
+   Compiling icu_properties_data v2.0.1
+   Compiling rustix v1.0.7
+   Compiling icu_normalizer_data v2.0.0
+   Compiling futures-core v0.3.31
+   Compiling core-foundation v0.9.4
+   Compiling errno v0.3.13
+   Compiling http v0.2.12
+   Compiling synstructure v0.13.2
+   Compiling logos-codegen v0.13.0
+   Compiling security-framework-sys v2.14.0
+   Compiling futures-sink v0.3.31
+   Compiling httparse v1.10.1
+   Compiling equivalent v1.0.2
+   Compiling futures-task v0.3.31
+   Compiling pin-utils v0.1.0
+   Compiling hashbrown v0.15.4
+   Compiling native-tls v0.2.14
+   Compiling fastrand v2.3.0
+   Compiling zerocopy v0.8.26
+   Compiling futures-util v0.3.31
+   Compiling indexmap v2.10.0
+   Compiling security-framework v2.11.1
+   Compiling slab v0.4.10
+   Compiling percent-encoding v2.3.1
+   Compiling try-lock v0.2.5
+   Compiling system-configuration-sys v0.5.0
+   Compiling want v0.3.1
+   Compiling tempfile v3.20.0
+   Compiling form_urlencoded v1.2.1
+   Compiling http-body v0.4.6
+   Compiling futures-channel v0.3.31
+   Compiling getrandom v0.2.16
+   Compiling httpdate v1.0.3
+   Compiling utf8_iter v1.0.4
+   Compiling tower-service v0.3.3
+   Compiling rand_core v0.6.4
+   Compiling bitflags v1.3.2
+   Compiling base64 v0.21.7
+   Compiling iana-time-zone v0.1.63
+   Compiling system-configuration v0.5.1
+   Compiling encoding_rs v0.8.35
+   Compiling ipnet v2.11.0
+   Compiling log v0.4.27
+   Compiling rustls-pemfile v1.0.4
+   Compiling mime v0.3.17
+   Compiling sync_wrapper v0.1.2
+   Compiling hashbrown v0.14.5
+   Compiling chrono v0.4.41
+   Compiling uuid v1.17.0
+   Compiling downcast-rs v1.2.1
+   Compiling rustc-hash v2.1.1
+   Compiling byteorder v1.5.0
+   Compiling diff v0.1.13
+   Compiling yansi v1.0.1
+   Compiling dashmap v5.5.3
+   Compiling pretty_assertions v1.4.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling serde_derive v1.0.219
+   Compiling tracing-attributes v0.1.30
+   Compiling thiserror-impl v1.0.69
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.0
+   Compiling zerovec-derive v0.11.1
+   Compiling logos-derive v0.13.0
+   Compiling displaydoc v0.2.5
+   Compiling tokio-macros v2.5.0
+   Compiling logos v0.13.0
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.5
+   Compiling async-trait v0.1.88
+   Compiling tracing v0.1.41
+   Compiling tokio v1.46.0
+   Compiling zerofrom v0.1.6
+   Compiling yoke v0.8.0
+   Compiling zerovec v0.11.2
+   Compiling zerotrie v0.2.2
+   Compiling tinystr v0.8.1
+   Compiling potential_utf v0.1.2
+   Compiling icu_collections v2.0.0
+   Compiling icu_locale_core v2.0.0
+   Compiling icu_provider v2.0.0
+   Compiling fluentai-core v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-core)
+   Compiling ciborium v0.2.2
+   Compiling serde_urlencoded v0.7.1
+   Compiling icu_normalizer v2.0.0
+   Compiling icu_properties v2.0.1
+   Compiling tokio-util v0.7.15
+   Compiling tokio-native-tls v0.3.1
+   Compiling tinytemplate v1.2.1
+   Compiling idna_adapter v1.2.1
+   Compiling criterion v0.5.1
+   Compiling h2 v0.3.26
+   Compiling idna v1.0.3
+   Compiling url v2.5.4
+   Compiling fluentai-parser v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-parser)
+   Compiling fluentai-di v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-di)
+   Compiling fluentai-modules v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-modules)
+   Compiling hyper v0.14.32
+   Compiling hyper-tls v0.5.0
+   Compiling reqwest v0.11.27
+   Compiling fluentai-effects v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-effects)
+   Compiling fluentai-types v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-types)
+   Compiling fluentai-stdlib v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-stdlib)
+   Compiling fluentai-optimizer v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-optimizer)
+   Compiling fluentai-vm v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-vm)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.67s
+[2m2025-07-08T17:23:59.309072Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/iot_demo_validation-6e5ac583e8c163b5
+[2m2025-07-08T17:23:59.309303Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 9 tests
+test test_basic_expressions ... ok
+test test_complex_functions ... ok
+test test_demo_snippets ... ok
+test test_error_cases ... ok
+test test_functions ... ok
+test test_iot_specific_syntax ... ok
+test test_module_syntax ... ok
+test test_pattern_matching ... ok
+test test_stream_operations ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:00.581128Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/iot_demo_validation-6e5ac583e8c163b5
+[2m2025-07-08T17:24:00.582242Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/iot_demo_validation-6e5ac583e8c163b5_4398870195208626509_0-31942.profraw
+[2m2025-07-08T17:24:00.582259Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:00.592155Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:00.651701Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/contract_parsing_tests-f1a9d49c985a1e77
+[2m2025-07-08T17:24:00.651831Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 17 tests
+test test_parse_contract_all_features ... ok
+test test_parse_contract_alternative_keywords ... ok
+test test_parse_contract_empty_conditions ... ok
+test test_parse_contract_error_invalid_keyword ... ok
+test test_parse_contract_error_without_name ... ok
+test test_parse_contract_nested_lists ... ok
+test test_parse_contract_only_ensures ... ok
+test test_parse_contract_only_requires ... ok
+test test_parse_contract_order_independence ... ok
+test test_parse_contract_with_complex_expressions ... ok
+test test_parse_contract_with_complexity ... ok
+test test_parse_contract_with_invariants ... ok
+test test_parse_contract_with_let_in_condition ... ok
+test test_parse_contract_with_multiple_conditions ... ok
+test test_parse_contract_with_quoted_function_name ... ok
+test test_parse_pure_contract ... ok
+test test_parse_simple_contract ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:01.867167Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/contract_parsing_tests-f1a9d49c985a1e77
+[2m2025-07-08T17:24:01.867232Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/contract_parsing_tests-f1a9d49c985a1e77_3830351697137264161_0-31945.profraw
+[2m2025-07-08T17:24:01.867241Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:01.874775Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:01.926293Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/qualified_symbol_tests-7fda1c28554880e3
+[2m2025-07-08T17:24:01.926395Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 17 tests
+test test_parse_multiple_qualified_symbols ... ok
+test test_parse_qualified_symbol_as_argument ... ok
+test test_parse_qualified_symbol_case_sensitivity ... ok
+test test_parse_qualified_symbol_error_leading_dot ... ok
+test test_parse_qualified_symbol_error_multiple_dots ... ok
+test test_parse_qualified_symbol_error_trailing_dot ... ok
+test test_parse_qualified_symbol_in_application ... ok
+test test_parse_qualified_symbol_in_if ... ok
+test test_parse_qualified_symbol_in_lambda ... ok
+test test_parse_qualified_symbol_in_let ... ok
+test test_parse_qualified_symbol_in_list ... ok
+test test_parse_qualified_symbol_with_hyphen ... ok
+test test_parse_qualified_symbol_with_keywords ... ok
+test test_parse_qualified_symbol_with_numbers ... ok
+test test_parse_qualified_symbol_with_special_chars ... ok
+test test_parse_qualified_symbol_with_underscore ... ok
+test test_parse_simple_qualified_symbol ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:03.137391Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/qualified_symbol_tests-7fda1c28554880e3
+[2m2025-07-08T17:24:03.137466Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/qualified_symbol_tests-7fda1c28554880e3_18435768677082095369_0-31947.profraw
+[2m2025-07-08T17:24:03.137476Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:03.144963Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:03.226850Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/error_tests-7726b47c5994ddfb
+[2m2025-07-08T17:24:03.226931Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 13 tests
+test test_error_clone ... ok
+test test_error_debug ... ok
+test test_error_display_formatting ... ok
+test test_error_kind_copy ... ok
+test test_error_kind_equality ... ok
+test test_error_patterns ... ok
+test test_invalid_escape_error ... ok
+test test_invalid_number_error ... ok
+test test_invalid_syntax_error ... ok
+test test_max_depth_exceeded_error ... ok
+test test_unclosed_delimiter_error ... ok
+test test_unexpected_eof_error ... ok
+test test_unexpected_token_error ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:04.417923Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/error_tests-7726b47c5994ddfb
+[2m2025-07-08T17:24:04.418020Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/error_tests-7726b47c5994ddfb_18087981484922080370_0-31952.profraw
+[2m2025-07-08T17:24:04.418030Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:04.425218Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:04.498908Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/async_parsing_tests-c1c4fe15c4b4dcfd
+[2m2025-07-08T17:24:04.498998Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 18 tests
+test test_parse_async_basic ... ok
+test test_parse_async_empty_body ... ok
+test test_parse_async_lambda ... ok
+test test_parse_async_with_complex_body ... ok
+test test_parse_async_with_multiple_statements ... ok
+test test_parse_await_basic ... ok
+test test_parse_await_in_condition ... ok
+test test_parse_await_with_expression ... ok
+test test_parse_complex_async_pattern ... ok
+test test_parse_error_await_without_arg ... ok
+test test_parse_error_spawn_without_arg ... ok
+test test_parse_error_unclosed_async ... ok
+test test_parse_multiple_awaits ... ok
+test test_parse_nested_async_await ... ok
+test test_parse_spawn_basic ... ok
+test test_parse_spawn_in_async ... ok
+test test_parse_spawn_with_arguments ... ok
+test test_parse_spawn_with_lambda ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:05.718766Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/async_parsing_tests-c1c4fe15c4b4dcfd
+[2m2025-07-08T17:24:05.718819Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/async_parsing_tests-c1c4fe15c4b4dcfd_5595174703980981959_0-31959.profraw
+[2m2025-07-08T17:24:05.718829Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:05.725486Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:05.798118Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/pattern_builder_tests-c1fcadcc31db7d58
+[2m2025-07-08T17:24:05.798266Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 12 tests
+test test_complex_pattern_matching_example ... ok
+test test_cons_and_nil_patterns ... ok
+test test_custom_constructor_pattern ... ok
+test test_match_builder_error_no_branches ... ok
+test test_match_builder_error_no_expr ... ok
+test test_match_builder_multiple_cases ... ok
+test test_match_builder_simple ... ok
+test test_match_builder_with_patterns ... ok
+test test_match_list_helper ... ok
+test test_match_value_helper ... ok
+test test_old_vs_new_api_comparison ... ok
+test test_pattern_builder_methods ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:07.003869Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/pattern_builder_tests-c1fcadcc31db7d58
+[2m2025-07-08T17:24:07.003954Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/pattern_builder_tests-c1fcadcc31db7d58_12690987167125070581_0-31963.profraw
+[2m2025-07-08T17:24:07.003965Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:07.010778Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:07.081033Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/test_duplicates-4d9dcc5ce0921ca3
+[2m2025-07-08T17:24:07.081135Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 1 test
+test test_no_duplicate_operators ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:08.299093Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/test_duplicates-4d9dcc5ce0921ca3
+[2m2025-07-08T17:24:08.299199Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/test_duplicates-4d9dcc5ce0921ca3_1459371611761020648_0-31965.profraw
+[2m2025-07-08T17:24:08.299212Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:08.305901Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:08.380115Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/iot_syntax_test-7d36edd555dbff7f
+[2m2025-07-08T17:24:08.380213Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 3 tests
+test test_iot_demo_full_module ... ok
+test test_iot_demo_parses ... ok
+test test_sensor_data_operations ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:09.596848Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/iot_syntax_test-7d36edd555dbff7f
+[2m2025-07-08T17:24:09.596930Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/iot_syntax_test-7d36edd555dbff7f_10092681078222136293_0-31969.profraw
+[2m2025-07-08T17:24:09.596944Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:09.605341Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:09.678621Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/thread_pool_tests-9de05db28b2e96a4
+[2m2025-07-08T17:24:09.678740Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 12 tests
+test test_thread_pool_concurrent_execution ... ok
+test test_thread_pool_cpu_affinity_options ... ok
+test test_thread_pool_custom_stack_size ... ok
+test test_thread_pool_dynamic_resize ... ok
+test test_thread_pool_graceful_shutdown ... ignored, Long-running test with thread synchronization delays - run manually with: cargo test test_thread_pool_graceful_shutdown -- --ignored
+test test_thread_pool_keep_alive ... ignored, Long-running test with 150ms+ sleep - run manually with: cargo test test_thread_pool_keep_alive -- --ignored
+test test_thread_pool_panic_recovery ... ok
+test test_thread_pool_priority_settings ... ok
+test test_thread_pool_queue_saturation ... ignored, Test uses barrier synchronization which can hang - run manually with: cargo test test_thread_pool_queue_saturation -- --ignored
+test test_thread_pool_stats_accuracy ... ok
+test test_thread_pool_stress_test ... ok
+test test_thread_pool_work_distribution ... ok
+
+test result: ok. 9 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+[2m2025-07-08T17:24:11.260294Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/thread_pool_tests-9de05db28b2e96a4
+[2m2025-07-08T17:24:11.260364Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/thread_pool_tests-9de05db28b2e96a4_10110044179330260105_0-31976.profraw
+[2m2025-07-08T17:24:11.260374Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:11.267302Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:11.337757Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/handler_parsing_tests-d5e3cc9de5a3e66d
+[2m2025-07-08T17:24:11.337856Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 7 tests
+test test_parse_handler_error_invalid_syntax ... ok
+test test_parse_handler_error_no_handlers ... ok
+test test_parse_handler_multiple_handlers ... ok
+test test_parse_handler_with_complex_body ... ok
+test test_parse_handler_with_operation ... ok
+test test_parse_nested_handlers ... ok
+test test_parse_simple_handler ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:12.542049Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/handler_parsing_tests-d5e3cc9de5a3e66d
+[2m2025-07-08T17:24:12.542151Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/handler_parsing_tests-d5e3cc9de5a3e66d_6187000074416694634_0-31980.profraw
+[2m2025-07-08T17:24:12.542162Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:12.550468Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:12.634817Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/complex_pattern_parsing_tests-1575fbce3789678f
+[2m2025-07-08T17:24:12.634931Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 9 tests
+test test_parse_as_pattern ... ok
+test test_parse_as_pattern_infix ... ok
+test test_parse_complex_nested_patterns ... ok
+test test_parse_guard_pattern ... ok
+test test_parse_multiple_or_patterns ... ok
+test test_parse_or_pattern ... ok
+test test_parse_range_pattern_exclusive ... ok
+test test_parse_range_pattern_inclusive ... ok
+test test_parse_view_pattern ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:13.841242Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/complex_pattern_parsing_tests-1575fbce3789678f
+[2m2025-07-08T17:24:13.841274Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/complex_pattern_parsing_tests-1575fbce3789678f_10796990871106048825_0-31982.profraw
+[2m2025-07-08T17:24:13.841282Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:13.847567Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:13.915635Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/channel_operations_tests-ec33fe8dd7f11122
+[2m2025-07-08T17:24:13.915724Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 17 tests
+test test_parse_buffered_channel ... ok
+test test_parse_channel_as_value ... ok
+test test_parse_channel_communication_pattern ... ok
+test test_parse_channel_creation ... ok
+test test_parse_channel_in_async ... ok
+test test_parse_channel_in_let ... ok
+test test_parse_channel_in_spawn ... ok
+test test_parse_channel_pipeline ... ok
+test test_parse_error_recv_extra_args ... ok
+test test_parse_error_recv_without_channel ... ok
+test test_parse_error_send_without_channel ... ok
+test test_parse_error_send_without_value ... ok
+test test_parse_multiple_channels ... ok
+test test_parse_receive_basic ... ok
+test test_parse_select_on_channels ... ok
+test test_parse_send_basic ... ok
+test test_parse_send_with_expression ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:15.113201Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/channel_operations_tests-ec33fe8dd7f11122
+[2m2025-07-08T17:24:15.113297Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/channel_operations_tests-ec33fe8dd7f11122_17571322802638355457_0-31991.profraw
+[2m2025-07-08T17:24:15.113308Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:15.123635Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:15.197493Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/complex_pattern_tests-668dae7bba43b403
+[2m2025-07-08T17:24:15.197597Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 11 tests
+test test_as_pattern_creation ... ok
+test test_complex_nested_patterns ... ok
+test test_complex_pattern_combination ... ok
+test test_guard_pattern_creation ... ok
+test test_match_builder_with_as_pattern ... ok
+test test_match_builder_with_guard ... ok
+test test_match_builder_with_or_pattern ... ok
+test test_match_builder_with_range ... ok
+test test_or_pattern_creation ... ok
+test test_range_pattern_creation ... ok
+test test_view_pattern_creation ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:16.410866Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/complex_pattern_tests-668dae7bba43b403
+[2m2025-07-08T17:24:16.410964Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/complex_pattern_tests-668dae7bba43b403_13256486336284786136_0-31995.profraw
+[2m2025-07-08T17:24:16.410975Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:16.420196Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:16.491681Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/module_system_tests-601c24716525d36d
+[2m2025-07-08T17:24:16.491798Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 20 tests
+test test_parse_complex_qualified_variable ... ok
+test test_parse_error_export_empty ... ok
+test test_parse_error_import_invalid_syntax ... ok
+test test_parse_error_import_without_path ... ok
+test test_parse_error_module_without_body ... ok
+test test_parse_error_module_without_exports ... ok
+test test_parse_error_module_without_name ... ok
+test test_parse_export_with_aliases ... ok
+test test_parse_import_all ... ok
+test test_parse_import_export_combination ... ok
+test test_parse_import_with_aliases ... ok
+test test_parse_module_definition ... ok
+test test_parse_module_with_imports ... ok
+test test_parse_nested_module_path ... ok
+test test_parse_parent_relative_import ... ok
+test test_parse_qualified_variable ... ok
+test test_parse_qualified_variable_in_expression ... ok
+test test_parse_relative_import ... ok
+test test_parse_simple_export ... ok
+test test_parse_simple_import ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:17.709394Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/module_system_tests-601c24716525d36d
+[2m2025-07-08T17:24:17.709493Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/module_system_tests-601c24716525d36d_17224512029346744547_0-32000.profraw
+[2m2025-07-08T17:24:17.709504Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:17.719300Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:17.797162Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/fluentai_parser-220a0b6ffd535160
+[2m2025-07-08T17:24:17.797268Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 299 tests
+test integration_tests::tests::test_async_await_pattern ... ok
+test integration_tests::tests::test_comments_and_whitespace ... ok
+test integration_tests::tests::test_complex_lambda_with_rest_args ... ok
+test integration_tests::tests::test_contract_specifications ... ok
+test integration_tests::tests::test_deeply_nested_expressions ... ok
+test integration_tests::tests::test_do_sequence_with_effects ... ok
+test integration_tests::tests::test_effect_handlers ... ok
+test integration_tests::tests::test_escaped_strings ... ok
+test integration_tests::tests::test_fibonacci_function ... ok
+test integration_tests::tests::test_large_list_literal ... ok
+test integration_tests::tests::test_long_symbol_names ... ok
+test integration_tests::tests::test_many_small_expressions ... ok
+test integration_tests::tests::test_mixed_delimiters ... ok
+test integration_tests::tests::test_module_with_imports_exports ... ok
+test integration_tests::tests::test_multiple_top_level_expressions ... ok
+test integration_tests::tests::test_pattern_matching_with_guards ... ok
+test integration_tests::tests::test_qualified_and_effect_symbols ... ok
+test integration_tests::tests::test_quicksort_implementation ... ok
+test integration_tests::tests::test_unicode_in_strings_and_comments ... ok
+test iterative_integration_tests::tests::test_depth_limit_prevents_overflow ... ok
+test iterative_integration_tests::tests::test_iterative_parser_complex_expression ... ok
+test iterative_integration_tests::tests::test_iterative_parser_handles_deep_nesting ... ok
+test iterative_integration_tests::tests::test_iterative_parser_memory_efficiency ... ok
+test iterative_integration_tests::tests::test_iterative_parser_produces_same_ast ... ok
+test iterative_integration_tests::tests::test_normal_parser_for_moderate_nesting ... ok
+test iterative_integration_tests::tests::test_performance_comparison ... ok
+test iterative_parser::tests::test_iterative_max_depth ... ok
+test iterative_parser::tests::test_iterative_parse_deeply_nested ... ok
+test iterative_parser::tests::test_iterative_parse_list ... ok
+test iterative_parser::tests::test_iterative_parse_list_literal ... ok
+test iterative_parser::tests::test_iterative_parse_nested_lists ... ok
+test iterative_parser::tests::test_iterative_parse_simple ... ok
+test lexer::edge_tests::lexer_edge_tests::test_multiple_peek_span_interactions ... ok
+test lexer::edge_tests::lexer_edge_tests::test_next_without_peek ... ok
+test lexer::edge_tests::lexer_edge_tests::test_peek_error_token ... ok
+test lexer::edge_tests::lexer_edge_tests::test_peek_then_next ... ok
+test lexer::edge_tests::lexer_edge_tests::test_process_string_escapes_direct ... ok
+test lexer::edge_tests::lexer_edge_tests::test_slice_method ... ok
+test lexer::edge_tests::lexer_edge_tests::test_slice_with_different_tokens ... ok
+test lexer::edge_tests::lexer_edge_tests::test_span_after_peek ... ok
+test lexer::edge_tests::lexer_edge_tests::test_span_with_peeked_token_coverage ... ok
+test lexer::edge_tests::lexer_edge_tests::test_string_ending_with_backslash ... ok
+test lexer::edge_tests::lexer_edge_tests::test_string_with_trailing_backslash_in_content ... ok
+test lexer::tests::tests::test_boolean_literals ... ok
+test lexer::tests::tests::test_comment_at_end ... ok
+test lexer::tests::tests::test_comments ... ok
+test lexer::tests::tests::test_complex_expression ... ok
+test lexer::tests::tests::test_delimiters ... ok
+test lexer::tests::tests::test_empty_input ... ok
+test lexer::tests::tests::test_empty_string ... ok
+test lexer::tests::tests::test_integer_edge_cases ... ok
+test lexer::tests::tests::test_keywords ... ok
+test lexer::tests::tests::test_keywords_with_hyphens ... ok
+test lexer::tests::tests::test_mixed_literals ... ok
+test lexer::tests::tests::test_negative_integers ... ok
+test lexer::tests::tests::test_numbers_followed_by_symbols ... ok
+test lexer::tests::tests::test_only_comments ... ok
+test lexer::tests::tests::test_only_whitespace ... ok
+test lexer::tests::tests::test_operator_symbols ... ok
+test lexer::tests::tests::test_peek_token ... ok
+test lexer::tests::tests::test_positive_integers ... ok
+test lexer::tests::tests::test_qualified_symbols ... ok
+test lexer::tests::tests::test_qualified_symbols_with_underscores ... ok
+test lexer::tests::tests::test_scientific_notation ... ok
+test lexer::tests::tests::test_simple_floats ... ok
+test lexer::tests::tests::test_simple_strings ... ok
+test lexer::tests::tests::test_simple_symbols ... ok
+test lexer::tests::tests::test_span ... ok
+test lexer::tests::tests::test_special_symbols ... ok
+test lexer::tests::tests::test_special_tokens ... ok
+test lexer::tests::tests::test_string_escapes ... ok
+test lexer::tests::tests::test_string_unknown_escape ... ok
+test lexer::tests::tests::test_string_with_spaces ... ok
+test lexer::tests::tests::test_symbols_with_colons ... ok
+test lexer::tests::tests::test_symbols_with_hyphens ... ok
+test lexer::tests::tests::test_symbols_with_question_marks ... ok
+test lexer::tests::tests::test_unclosed_string ... ok
+test lexer::tests::tests::test_unicode_in_comments ... ok
+test lexer::tests::tests::test_unicode_in_strings ... ok
+test lexer::tests::tests::test_whitespace_handling ... ok
+test lexer_tests::tests::test_boolean_literals ... ok
+test lexer_tests::tests::test_comment_at_end ... ok
+test lexer_tests::tests::test_comments ... ok
+test lexer_tests::tests::test_complex_expression ... ok
+test lexer_tests::tests::test_delimiters ... ok
+test lexer_tests::tests::test_empty_input ... ok
+test lexer_tests::tests::test_empty_string ... ok
+test lexer_tests::tests::test_integer_edge_cases ... ok
+test lexer_tests::tests::test_keywords ... ok
+test lexer_tests::tests::test_keywords_with_hyphens ... ok
+test lexer_tests::tests::test_mixed_literals ... ok
+test lexer_tests::tests::test_negative_integers ... ok
+test lexer_tests::tests::test_numbers_followed_by_symbols ... ok
+test lexer_tests::tests::test_only_comments ... ok
+test lexer_tests::tests::test_only_whitespace ... ok
+test lexer_tests::tests::test_operator_symbols ... ok
+test lexer_tests::tests::test_peek_token ... ok
+test lexer_tests::tests::test_positive_integers ... ok
+test lexer_tests::tests::test_qualified_symbols ... ok
+test lexer_tests::tests::test_qualified_symbols_with_underscores ... ok
+test lexer_tests::tests::test_scientific_notation ... ok
+test lexer_tests::tests::test_simple_floats ... ok
+test lexer_tests::tests::test_simple_strings ... ok
+test lexer_tests::tests::test_simple_symbols ... ok
+test lexer_tests::tests::test_span ... ok
+test lexer_tests::tests::test_special_symbols ... ok
+test lexer_tests::tests::test_special_tokens ... ok
+test lexer_tests::tests::test_string_escapes ... ok
+test lexer_tests::tests::test_string_unknown_escape ... ok
+test lexer_tests::tests::test_string_with_spaces ... ok
+test lexer_tests::tests::test_symbols_with_colons ... ok
+test lexer_tests::tests::test_symbols_with_hyphens ... ok
+test lexer_tests::tests::test_symbols_with_question_marks ... ok
+test lexer_tests::tests::test_unclosed_string ... ok
+test lexer_tests::tests::test_unicode_in_comments ... ok
+test lexer_tests::tests::test_unicode_in_strings ... ok
+test lexer_tests::tests::test_whitespace_handling ... ok
+test lib_tests::tests::test_arena_allocation_efficiency ... ok
+test lib_tests::tests::test_iterative_vs_recursive_equivalence ... ok
+test lib_tests::tests::test_parse_async_constructs ... ok
+test lib_tests::tests::test_parse_basic ... ok
+test lib_tests::tests::test_parse_comments_only ... ok
+test lib_tests::tests::test_parse_constructors ... ok
+test lib_tests::tests::test_parse_contract_constructs ... ok
+test lib_tests::tests::test_parse_effects ... ok
+test lib_tests::tests::test_parse_empty_string ... ok
+test lib_tests::tests::test_parse_errors ... ok
+test lib_tests::tests::test_parse_iterative ... ok
+test lib_tests::tests::test_parse_iterative_with_depth ... ok
+test lib_tests::tests::test_parse_large_expression ... ok
+test lib_tests::tests::test_parse_match_expressions ... ok
+test lib_tests::tests::test_parse_module_constructs ... ok
+test lib_tests::tests::test_parse_multiple_expressions ... ok
+test lib_tests::tests::test_parse_numeric_edge_cases ... ok
+test lib_tests::tests::test_parse_special_forms ... ok
+test lib_tests::tests::test_parse_whitespace_only ... ok
+test lib_tests::tests::test_parse_with_all_literal_types ... ok
+test lib_tests::tests::test_parse_with_arena ... ok
+test lib_tests::tests::test_parse_with_depth_limit ... ok
+test lib_tests::tests::test_unicode_handling ... ok
+test parser::parser_tests::tests::test_parse_async ... ok
+test parser::parser_tests::tests::test_parse_await ... ok
+test parser::parser_tests::tests::test_parse_booleans ... ok
+test parser::parser_tests::tests::test_parse_channel ... ok
+test parser::parser_tests::tests::test_parse_do_sequence ... ok
+test parser::parser_tests::tests::test_parse_effect_shorthand ... ok
+test parser::parser_tests::tests::test_parse_empty_application ... ok
+test parser::parser_tests::tests::test_parse_empty_input ... ok
+test parser::parser_tests::tests::test_parse_empty_list ... ok
+test parser::parser_tests::tests::test_parse_factorial ... ok
+test parser::parser_tests::tests::test_parse_floats ... ok
+test parser::parser_tests::tests::test_parse_if ... ok
+test parser::parser_tests::tests::test_parse_integers ... ok
+test parser::parser_tests::tests::test_parse_invalid_lambda_params ... ok
+test parser::parser_tests::tests::test_parse_invalid_let_binding ... ok
+test parser::parser_tests::tests::test_parse_lambda_no_params ... ok
+test parser::parser_tests::tests::test_parse_letrec ... ok
+test parser::parser_tests::tests::test_parse_list_with_literals ... ok
+test parser::parser_tests::tests::test_parse_map_implementation ... ok
+test parser::parser_tests::tests::test_parse_match_with_constructor ... ok
+test parser::parser_tests::tests::test_parse_multi_binding_let ... ok
+test parser::parser_tests::tests::test_parse_multi_param_lambda ... ok
+test parser::parser_tests::tests::test_parse_multiple_expressions ... ok
+test parser::parser_tests::tests::test_parse_nested_application ... ok
+test parser::parser_tests::tests::test_parse_nested_lists ... ok
+test parser::parser_tests::tests::test_parse_nil ... ok
+test parser::parser_tests::tests::test_parse_qualified_variables ... ok
+test parser::parser_tests::tests::test_parse_receive ... ok
+test parser::parser_tests::tests::test_parse_send ... ok
+test parser::parser_tests::tests::test_parse_simple_application ... ok
+test parser::parser_tests::tests::test_parse_simple_effect ... ok
+test parser::parser_tests::tests::test_parse_simple_lambda ... ok
+test parser::parser_tests::tests::test_parse_simple_let ... ok
+test parser::parser_tests::tests::test_parse_simple_match ... ok
+test parser::parser_tests::tests::test_parse_simple_variables ... ok
+test parser::parser_tests::tests::test_parse_spawn ... ok
+test parser::parser_tests::tests::test_parse_strings ... ok
+test parser::parser_tests::tests::test_parse_unclosed_paren ... ok
+test parser::parser_tests::tests::test_parse_unexpected_rparen ... ok
+test parser::parser_tests::tests::test_parse_unicode_strings ... ok
+test parser::parser_tests::tests::test_parse_unicode_symbols ... ok
+test parser::tests::test_parse_arithmetic ... ok
+test parser::tests::test_parse_contract_with_pre_post ... ok
+test parser::tests::test_parse_define ... ok
+test parser::tests::test_parse_define_function ... ok
+test parser::tests::test_parse_define_nested_syntax ... ok
+test parser::tests::test_parse_export ... ok
+test parser::tests::test_parse_export_with_alias ... ok
+test parser::tests::test_parse_import_all ... ok
+test parser::tests::test_parse_import_empty_list ... ok
+test parser::tests::test_parse_import_list ... ok
+test parser::tests::test_parse_import_relative_path ... ok
+test parser::tests::test_parse_import_with_alias ... ok
+test parser::tests::test_parse_impure_contract ... ok
+test parser::tests::test_parse_lambda ... ok
+test parser::tests::test_parse_let ... ok
+test parser::tests::test_parse_list_literal ... ok
+test parser::tests::test_parse_module ... ok
+test parser::tests::test_parse_module_empty_exports ... ok
+test parser::tests::test_parse_module_no_exports ... ok
+test parser::tests::test_parse_qualified_in_expression ... ok
+test parser::tests::test_parse_qualified_variable ... ok
+test parser::tests::test_parse_simple_contract ... ok
+test parser_coverage_tests::tests::test_parse_as_pattern ... ignored, As patterns might not be implemented
+test parser_coverage_tests::tests::test_parse_async ... ok
+test parser_coverage_tests::tests::test_parse_await ... ok
+test parser_coverage_tests::tests::test_parse_channel ... ok
+test parser_coverage_tests::tests::test_parse_cons_pattern ... ignored, Constructor patterns might not be implemented
+test parser_coverage_tests::tests::test_parse_contract ... ignored, Contracts might not be fully implemented
+test parser_coverage_tests::tests::test_parse_deeply_nested ... ok
+test parser_coverage_tests::tests::test_parse_do_sequence ... ok
+test parser_coverage_tests::tests::test_parse_effect_io ... ok
+test parser_coverage_tests::tests::test_parse_effect_network ... ok
+test parser_coverage_tests::tests::test_parse_effect_random ... ok
+test parser_coverage_tests::tests::test_parse_effect_state ... ok
+test parser_coverage_tests::tests::test_parse_empty_application ... ok
+test parser_coverage_tests::tests::test_parse_empty_input ... ok
+test parser_coverage_tests::tests::test_parse_empty_list_literal ... ok
+test parser_coverage_tests::tests::test_parse_export ... ok
+test parser_coverage_tests::tests::test_parse_export_all ... ok
+test parser_coverage_tests::tests::test_parse_import ... ok
+test parser_coverage_tests::tests::test_parse_import_all ... ok
+test parser_coverage_tests::tests::test_parse_invalid_if ... ok
+test parser_coverage_tests::tests::test_parse_invalid_lambda ... ok
+test parser_coverage_tests::tests::test_parse_invalid_let ... ok
+test parser_coverage_tests::tests::test_parse_invalid_match ... ok
+test parser_coverage_tests::tests::test_parse_invalid_pattern ... ok
+test parser_coverage_tests::tests::test_parse_lambda_with_multiple_params ... ok
+test parser_coverage_tests::tests::test_parse_letrec_recursive ... ok
+test parser_coverage_tests::tests::test_parse_list_literal ... ok
+test parser_coverage_tests::tests::test_parse_match_with_patterns ... ignored, Complex patterns might not be fully implemented
+test parser_coverage_tests::tests::test_parse_module ... ok
+test parser_coverage_tests::tests::test_parse_multiple_expressions ... ok
+test parser_coverage_tests::tests::test_parse_nested_let ... ok
+test parser_coverage_tests::tests::test_parse_qualified_symbol ... ignored, Qualified symbols might not be fully implemented
+test parser_coverage_tests::tests::test_parse_receive ... ok
+test parser_coverage_tests::tests::test_parse_send ... ok
+test parser_coverage_tests::tests::test_parse_spawn ... ok
+test parser_coverage_tests::tests::test_parse_string_escapes ... ok
+test parser_coverage_tests::tests::test_parse_symbol_starting_with_keyword ... ok
+test parser_coverage_tests::tests::test_parse_unclosed_list ... ok
+test parser_coverage_tests::tests::test_parse_unexpected_token ... ok
+test parser_coverage_tests::tests::test_parse_vector_pattern ... ignored, Vector patterns might not be implemented
+test parser_coverage_tests::tests::test_parse_with_arena ... ok
+test parser_depth_tests::tests::test_custom_depth_limit ... ok
+test parser_depth_tests::tests::test_depth_limit_prevents_stack_overflow ... ok
+test parser_depth_tests::tests::test_depth_reset_between_expressions ... ok
+test parser_depth_tests::tests::test_depth_tracking_in_let_bindings ... ok
+test parser_depth_tests::tests::test_reasonable_depth_succeeds ... ok
+test parser_tests::tests::test_parse_async ... ok
+test parser_tests::tests::test_parse_await ... ok
+test parser_tests::tests::test_parse_booleans ... ok
+test parser_tests::tests::test_parse_channel ... ok
+test parser_tests::tests::test_parse_do_sequence ... ok
+test parser_tests::tests::test_parse_effect_shorthand ... ok
+test parser_tests::tests::test_parse_empty_application ... ok
+test parser_tests::tests::test_parse_empty_input ... ok
+test parser_tests::tests::test_parse_empty_list ... ok
+test parser_tests::tests::test_parse_factorial ... ok
+test parser_tests::tests::test_parse_floats ... ok
+test parser_tests::tests::test_parse_if ... ok
+test parser_tests::tests::test_parse_integers ... ok
+test parser_tests::tests::test_parse_invalid_lambda_params ... ok
+test parser_tests::tests::test_parse_invalid_let_binding ... ok
+test parser_tests::tests::test_parse_lambda_no_params ... ok
+test parser_tests::tests::test_parse_letrec ... ok
+test parser_tests::tests::test_parse_list_with_literals ... ok
+test parser_tests::tests::test_parse_map_implementation ... ok
+test parser_tests::tests::test_parse_match_with_constructor ... ok
+test parser_tests::tests::test_parse_multi_binding_let ... ok
+test parser_tests::tests::test_parse_multi_param_lambda ... ok
+test parser_tests::tests::test_parse_multiple_expressions ... ok
+test parser_tests::tests::test_parse_nested_application ... ok
+test parser_tests::tests::test_parse_nested_lists ... ok
+test parser_tests::tests::test_parse_nil ... ok
+test parser_tests::tests::test_parse_qualified_variables ... ok
+test parser_tests::tests::test_parse_receive ... ok
+test parser_tests::tests::test_parse_send ... ok
+test parser_tests::tests::test_parse_simple_application ... ok
+test parser_tests::tests::test_parse_simple_effect ... ok
+test parser_tests::tests::test_parse_simple_lambda ... ok
+test parser_tests::tests::test_parse_simple_let ... ok
+test parser_tests::tests::test_parse_simple_match ... ok
+test parser_tests::tests::test_parse_simple_variables ... ok
+test parser_tests::tests::test_parse_spawn ... ok
+test parser_tests::tests::test_parse_strings ... ok
+test parser_tests::tests::test_parse_unclosed_paren ... ok
+test parser_tests::tests::test_parse_unexpected_rparen ... ok
+test parser_tests::tests::test_parse_unicode_strings ... ok
+test parser_tests::tests::test_parse_unicode_symbols ... ok
+test parsing_strategies_test::tests::test_embedded_environment_simulation ... ok
+test parsing_strategies_test::tests::test_parsing_strategy_comparison ... ok
+test parsing_strategies_test::tests::test_performance_characteristics ... ok
+test parsing_strategies_test::tests::test_untrusted_input_handling ... ok
+test threaded_parser::tests::test_threaded_parser_custom_config ... ok
+test threaded_parser::tests::test_threaded_parser_deep_nesting ... ok
+test threaded_parser::tests::test_threaded_parser_handles_errors ... ok
+test threaded_parser::tests::test_threaded_parser_respects_depth_limit ... ok
+test threaded_parser::tests::test_threaded_parser_simple ... ok
+
+test result: ok. 293 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+[2m2025-07-08T17:24:19.089826Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/fluentai_parser-220a0b6ffd535160
+[2m2025-07-08T17:24:19.089856Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/fluentai_parser-220a0b6ffd535160_5517731506928847677_0-32002.profraw
+[2m2025-07-08T17:24:19.089865Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:19.102600Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:19.152473Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/fluentai_core-fb0eefb301893211
+[2m2025-07-08T17:24:19.152557Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 188 tests
+test ast::tests::tests::test_add_node ... ok
+test ast::tests::tests::test_add_node_overflow ... ok
+test ast::tests::tests::test_all_nodes_have_documentation ... ok
+test ast::tests::tests::test_all_performance_hint_types ... ok
+test ast::tests::tests::test_application_and_effect_docs ... ok
+test ast::tests::tests::test_async_constructs ... ok
+test ast::tests::tests::test_async_docs ... ok
+test ast::tests::tests::test_await_node ... ok
+test ast::tests::tests::test_children ... ok
+test ast::tests::tests::test_children_of_complex_nodes ... ok
+test ast::tests::tests::test_complex_graph ... ok
+test ast::tests::tests::test_context_memory ... ok
+test ast::tests::tests::test_contract_docs ... ok
+test ast::tests::tests::test_contract_node ... ok
+test ast::tests::tests::test_control_flow_docs ... ok
+test ast::tests::tests::test_data_structure_docs ... ok
+test ast::tests::tests::test_deep_graph_iterative_dfs ... ok
+test ast::tests::tests::test_default_graph ... ok
+test ast::tests::tests::test_dfs_effect_traversal ... ok
+test ast::tests::tests::test_dfs_empty_collections ... ok
+test ast::tests::tests::test_dfs_if_traversal ... ok
+test ast::tests::tests::test_dfs_lambda_traversal ... ok
+test ast::tests::tests::test_dfs_list_traversal ... ok
+test ast::tests::tests::test_dfs_match_traversal ... ok
+test ast::tests::tests::test_dfs_no_cycles ... ok
+test ast::tests::tests::test_dfs_traversal ... ok
+test ast::tests::tests::test_dfs_traversal_all_node_types ... ok
+test ast::tests::tests::test_dfs_with_cycles ... ok
+test ast::tests::tests::test_documentation_operations ... ok
+test ast::tests::tests::test_effect_node ... ok
+test ast::tests::tests::test_effect_type_display ... ok
+test ast::tests::tests::test_effect_type_equality ... ok
+test ast::tests::tests::test_embedding_id ... ok
+test ast::tests::tests::test_exhaustive_documentation_match ... ok
+test ast::tests::tests::test_get_node ... ok
+test ast::tests::tests::test_get_node_mut ... ok
+test ast::tests::tests::test_graph_creation ... ok
+test ast::tests::tests::test_graph_metadata_persistence ... ok
+test ast::tests::tests::test_graph_node_removal ... ok
+test ast::tests::tests::test_import_export_nodes ... ok
+test ast::tests::tests::test_iterative_dfs ... ok
+test ast::tests::tests::test_lambda_node ... ok
+test ast::tests::tests::test_lambda_node_docs ... ok
+test ast::tests::tests::test_let_and_letrec_docs ... ok
+test ast::tests::tests::test_let_node ... ok
+test ast::tests::tests::test_letrec_node ... ok
+test ast::tests::tests::test_list_node ... ok
+test ast::tests::tests::test_literal_display ... ok
+test ast::tests::tests::test_literal_documented_node ... ok
+test ast::tests::tests::test_literal_equality ... ok
+test ast::tests::tests::test_match_node ... ok
+test ast::tests::tests::test_metadata_operations ... ok
+test ast::tests::tests::test_module_node ... ok
+test ast::tests::tests::test_module_system_docs ... ok
+test ast::tests::tests::test_nested_patterns ... ok
+test ast::tests::tests::test_node_documentation ... ok
+test ast::tests::tests::test_node_documented_node ... ok
+test ast::tests::tests::test_node_id_creation ... ok
+test ast::tests::tests::test_node_id_display ... ok
+test ast::tests::tests::test_node_id_equality ... ok
+test ast::tests::tests::test_node_ids_iterator ... ok
+test ast::tests::tests::test_node_ids_iterator_empty_and_sorted ... ok
+test ast::tests::tests::test_nodes_iterator ... ok
+test ast::tests::tests::test_nodes_iterator_with_types ... ok
+test ast::tests::tests::test_pattern_equality ... ok
+test ast::tests::tests::test_pattern_types ... ok
+test ast::tests::tests::test_performance_hints ... ok
+test ast::tests::tests::test_qualified_variable ... ok
+test ast::tests::tests::test_receive_node ... ok
+test ast::tests::tests::test_spawn_node ... ok
+test ast::tests::tests::test_structured_performance_hints ... ok
+test ast::tests::tests::test_update_usage_stats_creates_context ... ok
+test ast::tests::tests::test_update_usage_stats_existing_context ... ok
+test ast::tests::tests::test_usage_statistics_default ... ok
+test ast::tests::tests::test_validate_complex_valid_graph ... ok
+test ast::tests::tests::test_validate_cycle_detection ... ok
+test ast::tests::tests::test_validate_dangling_reference ... ok
+test ast::tests::tests::test_validate_empty_graph ... ok
+test ast::tests::tests::test_validate_invalid_root ... ok
+test ast::tests::tests::test_validate_metadata_for_nonexistent_node ... ok
+test ast::tests::tests::test_validate_simple_graph ... ok
+test ast::tests::tests::test_variable_node_docs ... ok
+test documentation::tests::tests::test_builtin_documentation_conversion ... ok
+test documentation::tests::tests::test_documentation_completeness ... ok
+test documentation::tests::tests::test_documentation_registry ... ok
+test documentation::tests::tests::test_documented_node_trait ... ok
+test documentation::tests::tests::test_get_builtins ... ok
+test documentation::tests::tests::test_keywords_documentation ... ok
+test documentation::tests::tests::test_list_all_features ... ok
+test documentation::tests::tests::test_list_user_facing ... ok
+test documentation::tests::tests::test_operators_documentation ... ok
+test documentation::tests::tests::test_search_functionality ... ok
+test documentation::tests::tests::test_search_user_facing ... ok
+test error::tests::tests::test_contract_violation_error ... ok
+test error::tests::tests::test_error_chain_with_anyhow ... ok
+test error::tests::tests::test_error_chain_with_io ... ok
+test error::tests::tests::test_error_debug ... ok
+test error::tests::tests::test_error_display_formatting ... ok
+test error::tests::tests::test_error_matching ... ok
+test error::tests::tests::test_error_propagation ... ok
+test error::tests::tests::test_from_anyhow_error ... ok
+test error::tests::tests::test_from_io_error ... ok
+test error::tests::tests::test_invalid_arity_error ... ok
+test error::tests::tests::test_invalid_arity_formatting ... ok
+test error::tests::tests::test_io_error ... ok
+test error::tests::tests::test_other_error ... ok
+test error::tests::tests::test_parse_error ... ok
+test error::tests::tests::test_parser_error_scenario ... ok
+test error::tests::tests::test_result_err ... ok
+test error::tests::tests::test_result_ok ... ok
+test error::tests::tests::test_runtime_error ... ok
+test error::tests::tests::test_runtime_error_scenario ... ok
+test error::tests::tests::test_type_checking_scenario ... ok
+test error::tests::tests::test_type_error ... ok
+test error::tests::tests::test_undefined_variable_error ... ok
+test error::tests::tests::test_unknown_effect_error ... ok
+test thread_pool::tests::test_bounded_queue ... ok
+test thread_pool::tests::test_cpu_affinity_enum ... ok
+test thread_pool::tests::test_panic_handler_enum ... ok
+test thread_pool::tests::test_panic_handler_restart ... ok
+test thread_pool::tests::test_thread_pool_basic ... ok
+test thread_pool::tests::test_thread_pool_builder ... ok
+test thread_pool::tests::test_thread_pool_config_clone ... ok
+test thread_pool::tests::test_thread_pool_config_default ... ok
+test thread_pool::tests::test_thread_pool_execute_after_shutdown ... ok
+test thread_pool::tests::test_thread_pool_resize ... ok
+test thread_pool::tests::test_thread_pool_shutdown ... ignored, Shutdown test has timing issues
+test thread_pool::tests::test_thread_pool_stats ... ok
+test thread_pool::tests::test_thread_pool_with_default_threads ... ok
+test thread_pool::tests::test_thread_priority_enum ... ok
+test traits::tests::tests::test_code_generator ... ok
+test traits::tests::tests::test_diagnostic_reporter ... ok
+test traits::tests::tests::test_effect_context_provider ... ok
+test traits::tests::tests::test_effect_handler ... ok
+test traits::tests::tests::test_module_loader ... ok
+test traits::tests::tests::test_optimization_levels ... ok
+test traits::tests::tests::test_optimization_pass ... ok
+test traits::tests::tests::test_send_sync_bounds ... ok
+test traits::tests::tests::test_stdlib_provider ... ok
+test traits::tests::tests::test_trait_objects ... ok
+test traits::tests::tests::test_type_checker ... ok
+test value::tests::tests::test_as_boolean ... ok
+test value::tests::tests::test_as_float ... ok
+test value::tests::tests::test_as_integer ... ok
+test value::tests::tests::test_as_list ... ok
+test value::tests::tests::test_as_map ... ok
+test value::tests::tests::test_as_number ... ok
+test value::tests::tests::test_as_procedure ... ok
+test value::tests::tests::test_as_string ... ok
+test value::tests::tests::test_as_symbol ... ok
+test value::tests::tests::test_as_tagged ... ok
+test value::tests::tests::test_as_vector ... ok
+test value::tests::tests::test_deep_eq_edge_cases ... ok
+test value::tests::tests::test_deep_equality ... ok
+test value::tests::tests::test_display_edge_cases ... ok
+test value::tests::tests::test_float_equality_epsilon ... ok
+test value::tests::tests::test_float_special_values ... ok
+test value::tests::tests::test_is_truthy ... ok
+test value::tests::tests::test_list_equality ... ok
+test value::tests::tests::test_map_deep_equality ... ok
+test value::tests::tests::test_native_function ... ok
+test value::tests::tests::test_native_function_execution ... ok
+test value::tests::tests::test_nested_display ... ok
+test value::tests::tests::test_numeric_comparison ... ok
+test value::tests::tests::test_numeric_comparison_errors ... ok
+test value::tests::tests::test_numeric_comparison_nan ... ok
+test value::tests::tests::test_procedure_creation ... ok
+test value::tests::tests::test_procedure_equality ... ok
+test value::tests::tests::test_procedure_equality_with_env ... ok
+test value::tests::tests::test_procedure_with_environment ... ok
+test value::tests::tests::test_tagged_equality ... ok
+test value::tests::tests::test_tagged_values ... ok
+test value::tests::tests::test_truthy_edge_cases ... ok
+test value::tests::tests::test_type_names ... ok
+test value::tests::tests::test_value_debug ... ok
+test value::tests::tests::test_value_display ... ok
+test value::tests::tests::test_value_equality ... ok
+test value::tests::tests::test_value_error_arity_mismatch ... ok
+test value::tests::tests::test_value_error_conversion_error ... ok
+test value::tests::tests::test_value_error_division_by_zero ... ok
+test value::tests::tests::test_value_error_equality ... ok
+test value::tests::tests::test_value_error_index_out_of_bounds ... ok
+test value::tests::tests::test_value_error_invalid_operation ... ok
+test value::tests::tests::test_value_error_key_not_found ... ok
+test value::tests::tests::test_value_error_std_error ... ok
+test value::tests::tests::test_value_error_type_error ... ok
+test value::tests::tests::test_value_result_type ... ok
+test value::tests::tests::test_value_type_predicates ... ok
+
+test result: ok. 187 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+[2m2025-07-08T17:24:20.439602Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/fluentai_core-fb0eefb301893211
+[2m2025-07-08T17:24:20.439658Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/fluentai_core-fb0eefb301893211_6508186284074144295_0-32012.profraw
+[2m2025-07-08T17:24:20.439708Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:20.450051Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:20.518538Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/compiler_module_tests-54e7399f8b0fc92c
+[2m2025-07-08T17:24:20.518672Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 10 tests
+test test_compile_empty_module ... ok
+test test_compile_export ... ok
+test test_compile_import_all ... ok
+test test_compile_import_multiple_modules ... ok
+test test_compile_import_single ... ok
+test test_compile_module_declaration ... ok
+test test_compile_module_with_nested_imports ... ok
+test test_compile_multiple_exports ... ok
+test test_compile_qualified_function_call ... ok
+test test_compile_qualified_variable ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:21.778962Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/compiler_module_tests-54e7399f8b0fc92c
+[2m2025-07-08T17:24:21.779056Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/compiler_module_tests-54e7399f8b0fc92c_17094747902058444352_0-32015.profraw
+[2m2025-07-08T17:24:21.779067Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:21.846422Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:22.077417Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/module_loading_test-e74a4d89f1256d56
+[2m2025-07-08T17:24:22.077554Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 3 tests
+test test_module_import_all ... ignored, Module loading requires define or set-global to be implemented for creating exportable bindings
+test test_module_loading_and_execution ... ignored, Module loading requires define or set-global to be implemented for creating exportable bindings
+test test_module_not_found_error ... ok
+
+test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:23.493462Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/module_loading_test-e74a4d89f1256d56
+[2m2025-07-08T17:24:23.493740Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/module_loading_test-e74a4d89f1256d56_15523000579399935379_0-32018.profraw
+[2m2025-07-08T17:24:23.493758Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:23.560256Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:23.786754Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/stdlib_integration_test-0c6c1f68ab0c2e83
+[2m2025-07-08T17:24:23.786882Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 5 tests
+test test_direct_stdlib_call ... ok
+test test_loadglobal_creates_stdlib_prefix ... ok
+test test_stdlib_filter_function ... ok
+test test_stdlib_fold_function ... ok
+test test_stdlib_map_function ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:25.211885Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/stdlib_integration_test-0c6c1f68ab0c2e83
+[2m2025-07-08T17:24:25.211938Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/stdlib_integration_test-0c6c1f68ab0c2e83_10602705860855377004_0-32022.profraw
+[2m2025-07-08T17:24:25.211954Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:25.273781Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:25.524507Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/handler_integration_tests-17545101a1b9fbad
+[2m2025-07-08T17:24:25.524636Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 10 tests
+test test_basic_handler_syntax ... ok
+test test_handler_function_receives_args ... ok
+test test_handler_passes_through_unhandled ... ok
+test test_handler_removes_after_body ... ok
+test test_handler_with_conditional ... ok
+test test_handler_with_effect_invocation ... ok
+test test_handler_with_lexical_scope ... ok
+test test_handler_with_multiple_handlers ... ok
+test test_handler_with_string_result ... ok
+test test_nested_handlers ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+[2m2025-07-08T17:24:26.953298Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/handler_integration_tests-17545101a1b9fbad
+[2m2025-07-08T17:24:26.953365Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/handler_integration_tests-17545101a1b9fbad_12747613124077534706_0-32034.profraw
+[2m2025-07-08T17:24:26.953374Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:27.025955Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:27.253453Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/handler_tests-08c4478585511944
+[2m2025-07-08T17:24:27.253588Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 3 tests
+test test_handler_parsing_and_compilation ... ok
+test test_handler_without_actual_effects ... ok
+test test_nested_handlers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:28.654806Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/handler_tests-08c4478585511944
+[2m2025-07-08T17:24:28.654920Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/handler_tests-08c4478585511944_15013688233546144602_0-32038.profraw
+[2m2025-07-08T17:24:28.654930Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:28.725651Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:28.946513Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/safety_test-6f5e69945a54a301
+[2m2025-07-08T17:24:28.946642Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 7 tests
+test test_channel_limits ... ok
+test test_integer_overflow_protection ... ok
+test test_resource_limits ... ok
+test test_stack_overflow_protection ... ok
+test test_stack_trace_generation ... ok
+test test_typed_ids ... ok
+test test_vm_arithmetic_overflow ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[2m2025-07-08T17:24:30.368294Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/safety_test-6f5e69945a54a301
+[2m2025-07-08T17:24:30.368389Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/safety_test-6f5e69945a54a301_1605629671300379078_0-32042.profraw
+[2m2025-07-08T17:24:30.368404Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:30.435486Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:30.661451Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/complex_pattern_matching_tests-c9e547baba211174
+[2m2025-07-08T17:24:30.661589Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 13 tests
+test test_as_pattern_bindings ... ok
+test test_as_pattern_execution ... ok
+test test_complex_nested_patterns_execution ... ok
+test test_complex_nested_patterns_execution_skip ... ok
+test test_guard_pattern_execution ... ok
+test test_guard_pattern_execution_skip ... ok
+test test_multiple_or_patterns_execution ... ok
+test test_or_pattern_execution ... ok
+test test_range_pattern_exclusive_execution ... ok
+test test_range_pattern_inclusive_execution ... ok
+test test_range_pattern_with_variables ... ok
+test test_view_pattern_execution ... ok
+test test_view_pattern_execution_skip ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+[2m2025-07-08T17:24:32.078144Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/complex_pattern_matching_tests-c9e547baba211174
+[2m2025-07-08T17:24:32.078212Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/complex_pattern_matching_tests-c9e547baba211174_18149476220202633419_0-32052.profraw
+[2m2025-07-08T17:24:32.078222Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:32.142774Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:32.367330Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/module_tests-8b363fc7fb04c284
+[2m2025-07-08T17:24:32.367434Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 10 tests
+test test_compile_export_statement ... ok
+test test_compile_import_statement ... ok
+test test_compile_module_declaration ... ok
+test test_compile_qualified_variable ... ok
+test test_import_all_not_implemented ... ok
+test test_module_isolation ... ok
+test test_multiple_exports ... ok
+test test_qualified_variable_execution ... ok
+test test_vm_export_binding ... ok
+test test_vm_module_value_type ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:33.798862Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/module_tests-8b363fc7fb04c284
+[2m2025-07-08T17:24:33.798924Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/module_tests-8b363fc7fb04c284_411312937927875073_0-32055.profraw
+[2m2025-07-08T17:24:33.798935Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:33.863967Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:34.095653Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/compiler_tests-61fa1b857909a790
+[2m2025-07-08T17:24:34.095820Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 21 tests
+test test_bytecode_structure ... ok
+test test_compile_closure_with_capture ... ok
+test test_compile_empty_list ... ok
+test test_compile_error_no_root_node ... ok
+test test_compile_if_expression ... ok
+test test_compile_if_without_else ... ok
+test test_compile_lambda_identity ... ok
+test test_compile_let_binding ... ok
+test test_compile_list_with_literals ... ok
+test test_compile_list_with_variables ... ok
+test test_compile_literal_bool ... ok
+test test_compile_literal_float ... ok
+test test_compile_literal_integer ... ok
+test test_compile_literal_nil ... ok
+test test_compile_literal_string ... ok
+test test_compile_match_expression ... ok
+test test_compile_multiple_let_bindings ... ok
+test test_compile_nested_let ... ok
+test test_compile_simple_application ... ok
+test test_compile_undefined_variable ... ok
+test test_compiler_with_optimization_levels ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+[2m2025-07-08T17:24:35.537712Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/compiler_tests-61fa1b857909a790
+[2m2025-07-08T17:24:35.537843Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/compiler_tests-61fa1b857909a790_17179263426790738846_0-32059.profraw
+[2m2025-07-08T17:24:35.537864Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:35.606354Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:35.826871Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/compiler_async_tests-4a105e3e7a0414c9
+[2m2025-07-08T17:24:35.827009Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 10 tests
+test test_compile_async ... ok
+test test_compile_async_with_await ... ok
+test test_compile_await ... ok
+test test_compile_channel ... ok
+test test_compile_channel_in_closure ... ok
+test test_compile_channel_operations_sequence ... ok
+test test_compile_receive ... ok
+test test_compile_send ... ok
+test test_compile_spawn ... ok
+test test_compile_spawn_multiple ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:37.077364Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/compiler_async_tests-4a105e3e7a0414c9
+[2m2025-07-08T17:24:37.077479Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/compiler_async_tests-4a105e3e7a0414c9_648735246131924593_0-32070.profraw
+[2m2025-07-08T17:24:37.077494Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:37.140004Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:37.364733Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/test_simple_pattern-60a220095f1d9897
+[2m2025-07-08T17:24:37.364876Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 1 test
+test test_simple_or_pattern ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:38.780967Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/test_simple_pattern-60a220095f1d9897
+[2m2025-07-08T17:24:38.781039Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/test_simple_pattern-60a220095f1d9897_9604827804158248971_0-32072.profraw
+[2m2025-07-08T17:24:38.781053Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:38.842056Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:39.063253Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/pattern_matching_comprehensive_tests-77912bc95d9688ad
+[2m2025-07-08T17:24:39.063376Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 15 tests
+test test_match_boolean_literals ... ok
+test test_match_empty_list_with_nil ... ok
+test test_match_integer_literal ... ok
+test test_match_list_tail ... ok
+test test_match_list_with_wrong_pattern_order ... ok
+test test_match_non_empty_list_with_cons ... ok
+test test_match_single_element_list ... ok
+test test_match_string_literal ... ok
+test test_match_variable_binding ... ok
+test test_match_with_no_branches_should_error ... ok
+test test_multiple_pattern_branches ... ok
+test test_pattern_matching_with_aggressive_optimization ... ok
+test test_pattern_matching_with_standard_optimization ... ok
+test test_wildcard_pattern ... ok
+test test_wildcard_with_other_patterns ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[2m2025-07-08T17:24:40.490696Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/pattern_matching_comprehensive_tests-77912bc95d9688ad
+[2m2025-07-08T17:24:40.491686Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/pattern_matching_comprehensive_tests-77912bc95d9688ad_16690716073095381753_0-32076.profraw
+[2m2025-07-08T17:24:40.491705Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:40.564564Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:40.783937Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/pattern_matching_edge_cases-cf2f2965d1ddf746
+[2m2025-07-08T17:24:40.784085Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 7 tests
+test test_match_deeply_nested_lists ... ok
+test test_match_list_of_different_types ... ok
+test test_match_multiple_variable_bindings ... ok
+test test_match_nil_before_cons ... ok
+test test_match_very_long_list ... ok
+test test_match_with_nil_fallthrough ... ok
+test test_match_with_shadowed_variables ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[2m2025-07-08T17:24:42.213266Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/pattern_matching_edge_cases-cf2f2965d1ddf746
+[2m2025-07-08T17:24:42.213357Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/pattern_matching_edge_cases-cf2f2965d1ddf746_3680528758580892009_0-32084.profraw
+[2m2025-07-08T17:24:42.213376Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:42.279113Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:42.504849Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/compiler_uncovered_tests-d2be48d05aac6276
+[2m2025-07-08T17:24:42.504996Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 25 tests
+test test_async_in_conditional_branches ... ok
+test test_async_with_error_handling ... ok
+test test_complex_await_chains ... ok
+test test_constructor_as_first_class_value ... ok
+test test_constructor_many_args ... ok
+test test_constructor_zero_args ... ok
+test test_export_with_complex_aliases ... ok
+test test_gc_collect_special_form ... ok
+test test_gc_deref_operations ... ok
+test test_gc_let_error_invalid_binding_format ... ok
+test test_gc_let_error_missing_bindings ... ok
+test test_gc_let_error_no_body ... ok
+test test_gc_let_multiple_bindings ... ok
+test test_gc_let_with_complex_expressions ... ok
+test test_import_all_not_implemented ... ok
+test test_import_with_complex_aliases ... ok
+test test_module_system_with_optimization ... ok
+test test_module_with_complex_exports ... ok
+test test_module_with_no_body ... ok
+test test_nested_async_operations ... ok
+test test_nested_constructors ... ok
+test test_nested_gc_let ... ok
+test test_qualified_variable_in_nested_contexts ... ok
+test test_spawn_with_captured_variables ... ok
+test test_unicode_uppercase_constructor ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[2m2025-07-08T17:24:43.761311Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/compiler_uncovered_tests-d2be48d05aac6276
+[2m2025-07-08T17:24:43.761411Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/compiler_uncovered_tests-d2be48d05aac6276_17378214415902037172_0-32086.profraw
+[2m2025-07-08T17:24:43.761424Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:43.839082Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:44.073156Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/compiler_coverage_tests-ea7122a74c359540
+[2m2025-07-08T17:24:44.073288Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 15 tests
+test test_compile_all_effect_types ... ok
+test test_compile_async_complex ... ok
+test test_compile_channel_complex ... ok
+test test_compile_export_with_alias ... ok
+test test_compile_import_with_alias ... ok
+test test_compile_module_with_exports ... ok
+test test_compile_qualified_variable_complex ... ok
+test test_compile_spawn_lambda ... ok
+test test_effect_many_args ... ok
+test test_effect_no_args ... ok
+test test_import_empty_list ... ok
+test test_module_function_exports ... ok
+test test_module_no_exports ... ok
+test test_nested_scopes ... ok
+test test_qualified_variable_positions ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:45.324899Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/compiler_coverage_tests-ea7122a74c359540
+[2m2025-07-08T17:24:45.324978Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/compiler_coverage_tests-ea7122a74c359540_15941529476552427262_0-32093.profraw
+[2m2025-07-08T17:24:45.325019Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:45.370813Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:45.593183Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/simd_tests-2e1f6d9a897645d0
+[2m2025-07-08T17:24:45.593306Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 16 tests
+test test_portable_simd_fallback ... ok
+test test_simd_add_f64_arrays ... ok
+test test_simd_add_i64_arrays ... ok
+test test_simd_dot_product ... ok
+test test_simd_edge_cases ... ok
+test test_simd_empty_lists ... ok
+test test_simd_i64_wrapping ... ok
+test test_simd_length_mismatch ... ok
+test test_simd_mismatched_list_lengths ... ok
+test test_simd_mixed_numeric_lists ... ok
+test test_simd_mul_f64_arrays ... ok
+test test_simd_non_list_values ... ok
+test test_simd_non_numeric_lists ... ok
+test test_simd_performance_comparison ... ignored, Performance test - run manually
+test test_simd_with_values_float_lists ... ok
+test test_simd_with_values_int_lists ... ok
+
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:46.848468Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/simd_tests-2e1f6d9a897645d0
+[2m2025-07-08T17:24:46.848614Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/simd_tests-2e1f6d9a897645d0_5974046928276024429_0-32102.profraw
+[2m2025-07-08T17:24:46.848640Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:46.917967Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:47.139571Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/test_simple_handler-3165f1f1510cd805
+[2m2025-07-08T17:24:47.139704Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 1 test
+test test_simple_handler ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:48.540198Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/test_simple_handler-3165f1f1510cd805
+[2m2025-07-08T17:24:48.540278Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/test_simple_handler-3165f1f1510cd805_17211490908070071162_0-32104.profraw
+[2m2025-07-08T17:24:48.540297Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:48.606792Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:48.824026Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/debug_compiler_test-713eb2c8ea844e8e
+[2m2025-07-08T17:24:48.824168Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 1 test
+test test_debug_compilation_issue ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:50.071302Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/debug_compiler_test-713eb2c8ea844e8e
+[2m2025-07-08T17:24:50.071425Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/debug_compiler_test-713eb2c8ea844e8e_321423976987674382_0-32108.profraw
+[2m2025-07-08T17:24:50.071440Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:50.133697Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:50.352635Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/optimization_tests-1a63b741cdb7a93a
+[2m2025-07-08T17:24:50.352786Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 19 tests
+test test_cache_clear ... ok
+test test_compare_jump_fusion ... ok
+test test_complex_fusion_patterns ... ok
+test test_fusion_with_empty_instructions ... ok
+test test_fusion_with_single_instruction ... ok
+test test_inline_cache_basic ... ok
+test test_inline_cache_concurrent ... ok
+test test_inline_cache_eviction ... ok
+test test_inline_cache_polymorphic ... ok
+test test_instruction_fusion_patterns ... ok
+test test_load_push_add_fusion ... ok
+test test_load_store_fusion ... ok
+test test_no_fusion_opportunities ... ok
+test test_optimization_performance ... ignored, Performance test - run manually
+test test_overlapping_patterns ... ok
+test test_profile_edge_cases ... ok
+test test_profile_info_branch_bias ... ok
+test test_profile_info_call_targets ... ok
+test test_profile_info_instruction_counting ... ok
+
+test result: ok. 18 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:51.613347Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/optimization_tests-1a63b741cdb7a93a
+[2m2025-07-08T17:24:51.613439Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/optimization_tests-1a63b741cdb7a93a_15012525059063825437_0-32115.profraw
+[2m2025-07-08T17:24:51.613457Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:51.679723Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:51.893285Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/handler_let_test-a5c471136cd33186
+[2m2025-07-08T17:24:51.893410Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 1 test
+test test_handler_in_let_binding ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:53.303333Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/handler_let_test-a5c471136cd33186
+[2m2025-07-08T17:24:53.303447Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/handler_let_test-a5c471136cd33186_15841721365256419574_0-32120.profraw
+[2m2025-07-08T17:24:53.303462Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:53.380795Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:53.600889Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/error_handling_tests-7724869ed938f128
+[2m2025-07-08T17:24:53.601027Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 23 tests
+test test_call_stack_overflow ... ok
+test test_cell_get_on_non_cell ... ok
+test test_cell_limit_exceeded ... ok
+test test_channel_limit_exceeded ... ok
+test test_division_by_zero ... ok
+test test_error_in_nested_context ... ok
+test test_error_propagation_through_calls ... ok
+test test_integer_overflow ... ok
+test test_invalid_constant_index ... ok
+test test_invalid_jump_target ... ok
+test test_invalid_local_index ... ok
+test test_invalid_opcode ... ok
+test test_module_not_found ... ok
+test test_multiple_errors_in_sequence ... ok
+test test_stack_overflow ... ok
+test test_stack_trace_in_function ... ok
+test test_stack_underflow ... ok
+test test_stack_underflow_binary_op ... ok
+test test_type_error_add ... ok
+test test_type_error_list_operations ... ok
+test test_type_error_not ... ok
+test test_unknown_global ... ok
+test test_value_type_name ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+[2m2025-07-08T17:24:55.060086Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/error_handling_tests-7724869ed938f128
+[2m2025-07-08T17:24:55.060150Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/error_handling_tests-7724869ed938f128_8967105846902871787_0-32122.profraw
+[2m2025-07-08T17:24:55.060165Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:55.134768Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:55.366177Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/compiler_effects_tests-096b618bb906726f
+[2m2025-07-08T17:24:55.366312Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 11 tests
+test test_compile_constructor_call ... ok
+test test_compile_contract_node ... ok
+test test_compile_effect_io ... ok
+test test_compile_effect_network ... ok
+test test_compile_effect_state ... ok
+test test_compile_effect_with_multiple_args ... ok
+test test_compile_gc_let ... ok
+test test_compile_gc_operations ... ok
+test test_compile_loop_constructs ... ok
+test test_compile_specialized_arithmetic ... ok
+test test_compile_tail_call_optimization ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+[2m2025-07-08T17:24:56.777610Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/compiler_effects_tests-096b618bb906726f
+[2m2025-07-08T17:24:56.777951Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/compiler_effects_tests-096b618bb906726f_1462905959341968534_0-32132.profraw
+[2m2025-07-08T17:24:56.777967Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:56.849136Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:57.071494Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/iot_demo_test-930ad96f2467fbc6
+[2m2025-07-08T17:24:57.071634Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 4 tests
+test test_basic_iot_functionality ... ignored, Stdlib functions not properly loaded
+test test_fold_operations ... ignored, Stdlib functions not properly loaded
+test test_pipeline_concept ... ignored, Stdlib functions not properly loaded
+test test_sensor_reading_simulation ... ignored, Stdlib functions not properly loaded
+
+test result: ok. 0 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:24:58.461569Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/iot_demo_test-930ad96f2467fbc6
+[2m2025-07-08T17:24:58.461704Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/iot_demo_test-930ad96f2467fbc6_10325233995872288926_0-32135.profraw
+[2m2025-07-08T17:24:58.461724Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:24:58.538814Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:24:58.759860Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/concurrent_execution_tests-ccc7ebbac213a501
+[2m2025-07-08T17:24:58.760006Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 10 tests
+test test_bounded_queue_capacity ... ok
+test test_concurrent_gc_generations ... ok
+test test_concurrent_gc_stress ... ok
+test test_concurrent_performance_scaling ... ignored, Performance test - run manually with: cargo test test_concurrent_performance_scaling -- --ignored
+test test_concurrent_queue_ordering ... ok
+test test_concurrent_stack_stress ... ok
+test test_concurrent_structure_fairness ... ok
+test test_concurrent_vm_execution ... ok
+test test_memory_ordering_guarantees ... ok
+test test_work_stealing_deque ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+[2m2025-07-08T17:25:00.788879Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/concurrent_execution_tests-ccc7ebbac213a501
+[2m2025-07-08T17:25:00.789014Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/concurrent_execution_tests-ccc7ebbac213a501_5660472761563510167_0-32139.profraw
+[2m2025-07-08T17:25:00.789034Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:00.858705Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:01.073625Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/compiler_tests_extended-bb62c86feb9bc851
+[2m2025-07-08T17:25:01.073759Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 23 tests
+test test_compile_builtin_arithmetic ... ok
+test test_compile_channel_operations ... ok
+test test_compile_comparison_operators ... ok
+test test_compile_deeply_nested_let ... ok
+test test_compile_if_false_branch ... ok
+test test_compile_large_list ... ok
+test test_compile_letrec_empty_bindings ... ok
+test test_compile_letrec_mutual_recursion ... ok
+test test_compile_letrec_simple ... ok
+test test_compile_letrec_with_closure ... ok
+test test_compile_list_operations ... ok
+test test_compile_logical_operators ... ok
+test test_compile_multiple_bindings_access ... ok
+test test_compile_multiple_lambdas ... ok
+test test_compile_nested_if ... ok
+test test_compile_nested_lambda ... ok
+test test_compile_pattern_matching ... ok
+test test_compile_pattern_matching_nested ... ok
+test test_compile_pattern_matching_nil ... ok
+test test_compile_pattern_matching_tail ... ok
+test test_compile_pattern_matching_with_optimization ... ok
+test test_compile_special_integer_values ... ok
+test test_compile_string_operations ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+[2m2025-07-08T17:25:02.507189Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/compiler_tests_extended-bb62c86feb9bc851
+[2m2025-07-08T17:25:02.507322Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/compiler_tests_extended-bb62c86feb9bc851_7542043539344460005_0-32149.profraw
+[2m2025-07-08T17:25:02.507339Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:02.577462Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:02.792115Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/fluentai_vm-0eaee87a3356a97a
+[2m2025-07-08T17:25:02.792263Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 341 tests
+test builder::tests::test_vm_builder ... ok
+test builder::tests::test_vm_builder_requires_bytecode ... ok
+test builder::tests::test_vm_builder_with_config ... ok
+test builder_tests::tests::test_builder_basic_construction ... ok
+test builder_tests::tests::test_builder_clone ... ok
+test builder_tests::tests::test_builder_default ... ok
+test builder_tests::tests::test_builder_error_no_bytecode ... ok
+test builder_tests::tests::test_builder_fluent_api ... ok
+test builder_tests::tests::test_builder_multiple_globals ... ok
+test builder_tests::tests::test_builder_overrides ... ok
+test builder_tests::tests::test_builder_with_all_options ... ok
+test builder_tests::tests::test_builder_with_development_config ... ok
+test builder_tests::tests::test_builder_with_effect_context ... ok
+test builder_tests::tests::test_builder_with_effect_runtime ... ok
+test builder_tests::tests::test_builder_with_gc ... ok
+test builder_tests::tests::test_builder_with_gc_config ... ok
+test builder_tests::tests::test_builder_with_globals ... ok
+test builder_tests::tests::test_builder_with_module_config ... ok
+test builder_tests::tests::test_builder_with_production_config ... ok
+test builder_tests::tests::test_builder_with_sandbox_config ... ok
+test builder_tests::tests::test_builder_with_sandbox_mode ... ok
+test builder_tests::tests::test_builder_with_security_manager ... ok
+test builder_tests::tests::test_builder_with_security_policy ... ok
+test builder_tests::tests::test_builder_with_stack_size ... ok
+test builder_tests::tests::test_builder_with_stdlib_registry ... ok
+test builder_tests::tests::test_builder_with_testing_config ... ok
+test builder_tests::tests::test_builder_with_trace_mode ... ok
+test builder_tests::tests::test_custom_vm_config ... ok
+test builder_tests::tests::test_sandbox_config_default ... ok
+test builder_tests::tests::test_security_policy_priority ... ok
+test bytecode_tests::tests::bytecode_tests::test_add_chunk ... ok
+test bytecode_tests::tests::bytecode_tests::test_bytecode_clone ... ok
+test bytecode_tests::tests::bytecode_tests::test_bytecode_creation ... ok
+test bytecode_tests::tests::bytecode_tests::test_bytecode_with_multiple_functions ... ok
+test bytecode_tests::tests::chunk_tests::test_add_constant ... ok
+test bytecode_tests::tests::chunk_tests::test_add_instruction ... ok
+test bytecode_tests::tests::chunk_tests::test_chunk_creation ... ok
+test bytecode_tests::tests::chunk_tests::test_chunk_with_complex_program ... ok
+test bytecode_tests::tests::chunk_tests::test_patch_jump ... ok
+test bytecode_tests::tests::chunk_tests::test_patch_jump_invalid_offset - should panic ... ok
+test bytecode_tests::tests::chunk_tests::test_patch_jump_target_overflow - should panic ... ok
+test bytecode_tests::tests::instruction_tests::test_all_opcodes ... ok
+test bytecode_tests::tests::instruction_tests::test_instruction_clone ... ok
+test bytecode_tests::tests::instruction_tests::test_instruction_creation ... ok
+test bytecode_tests::tests::serialization_tests::test_instruction_size ... ok
+test bytecode_tests::tests::serialization_tests::test_opcode_representation ... ok
+test bytecode_tests::tests::serialization_tests::test_value_size ... ok
+test bytecode_tests::tests::value_tests::test_value_bool ... ok
+test bytecode_tests::tests::value_tests::test_value_cell ... ok
+test bytecode_tests::tests::value_tests::test_value_channel ... ok
+test bytecode_tests::tests::value_tests::test_value_clone ... ok
+test bytecode_tests::tests::value_tests::test_value_equality ... ok
+test bytecode_tests::tests::value_tests::test_value_float ... ok
+test bytecode_tests::tests::value_tests::test_value_function ... ok
+test bytecode_tests::tests::value_tests::test_value_gc_handle ... ok
+test bytecode_tests::tests::value_tests::test_value_int ... ok
+test bytecode_tests::tests::value_tests::test_value_list ... ok
+test bytecode_tests::tests::value_tests::test_value_map ... ok
+test bytecode_tests::tests::value_tests::test_value_module ... ok
+test bytecode_tests::tests::value_tests::test_value_nil ... ok
+test bytecode_tests::tests::value_tests::test_value_promise ... ok
+test bytecode_tests::tests::value_tests::test_value_string ... ok
+test bytecode_tests::tests::value_tests::test_value_tagged ... ok
+test compiler::tests::test_handler_bytecode_generation ... ok
+test concurrent::tests::test_bounded_queue ... ok
+test concurrent::tests::test_lock_free_queue ... ok
+test concurrent::tests::test_lock_free_stack ... ok
+test concurrent::tests::test_work_stealing_deque ... ok
+test concurrent_gc::tests::test_concurrent_gc_allocation ... ok
+test concurrent_gc::tests::test_concurrent_gc_collection ... ok
+test debug_tests::tests::debug_config::test_add_breakpoint ... ok
+test debug_tests::tests::debug_config::test_default_config ... ok
+test debug_tests::tests::debug_config::test_remove_breakpoint ... ok
+test debug_tests::tests::debug_config::test_send_event ... ok
+test debug_tests::tests::debug_config::test_send_event_no_sender ... ok
+test debug_tests::tests::debug_config::test_should_break ... ok
+test debug_tests::tests::debug_config::test_with_events ... ok
+test debug_tests::tests::debug_events::test_breakpoint_event ... ok
+test debug_tests::tests::debug_events::test_error_event ... ok
+test debug_tests::tests::debug_events::test_event_clone ... ok
+test debug_tests::tests::debug_events::test_function_call_event ... ok
+test debug_tests::tests::debug_events::test_function_return_event ... ok
+test debug_tests::tests::debug_events::test_post_instruction_event ... ok
+test debug_tests::tests::debug_events::test_pre_instruction_event ... ok
+test debug_tests::tests::debug_events::test_stack_pop_event ... ok
+test debug_tests::tests::debug_events::test_stack_push_event ... ok
+test debug_tests::tests::debug_events::test_variable_bind_event ... ok
+test debug_tests::tests::step_mode::test_step_mode_copy ... ok
+test debug_tests::tests::step_mode::test_step_mode_equality ... ok
+test debug_tests::tests::test_debug_config_modifications ... ok
+test debug_tests::tests::test_event_channel_integration ... ok
+test di::tests::test_vm_di_registration ... ok
+test di::tests::test_vm_factory ... ok
+test di::tests::test_vm_provider ... ok
+test error_tests::tests::test_arithmetic_error ... ok
+test error_tests::tests::test_async_error ... ok
+test error_tests::tests::test_call_stack_overflow ... ok
+test error_tests::tests::test_cell_error ... ok
+test error_tests::tests::test_complex_error_scenario ... ok
+test error_tests::tests::test_division_by_zero ... ok
+test error_tests::tests::test_error_clone ... ok
+test error_tests::tests::test_error_is_std_error ... ok
+test error_tests::tests::test_from_anyhow_error ... ok
+test error_tests::tests::test_integer_overflow ... ok
+test error_tests::tests::test_invalid_constant_index ... ok
+test error_tests::tests::test_invalid_jump_target ... ok
+test error_tests::tests::test_invalid_local_index ... ok
+test error_tests::tests::test_invalid_opcode ... ok
+test error_tests::tests::test_module_error ... ok
+test error_tests::tests::test_resource_limit_exceeded ... ok
+test error_tests::tests::test_runtime_error ... ok
+test error_tests::tests::test_source_location_no_file ... ok
+test error_tests::tests::test_stack_overflow_error ... ok
+test error_tests::tests::test_stack_overflow_with_trace ... ok
+test error_tests::tests::test_stack_trace_formatting ... ok
+test error_tests::tests::test_stack_underflow_error ... ok
+test error_tests::tests::test_type_error ... ok
+test error_tests::tests::test_unknown_identifier ... ok
+test error_tests::tests::test_value_type_names ... ok
+test fast_channel::tests::test_buffered_channel ... ok
+test fast_channel::tests::test_sync_channel ... ok
+test fast_channel::tests::test_unbounded_channel ... ok
+test gc::tests::test_gc_allocation ... ok
+test gc::tests::test_gc_collection ... ok
+test gc::tests::test_gc_scope ... ok
+test gc::tests::test_gc_with_complex_values ... ok
+test gc_tests::tests::test_gc_allocate_multiple ... ok
+test gc_tests::tests::test_gc_allocate_simple ... ok
+test gc_tests::tests::test_gc_circular_reference ... ok
+test gc_tests::tests::test_gc_collection_basic ... ok
+test gc_tests::tests::test_gc_config_custom ... ok
+test gc_tests::tests::test_gc_config_default ... ok
+test gc_tests::tests::test_gc_handle_equality ... ok
+test gc_tests::tests::test_gc_list_allocation ... ok
+test gc_tests::tests::test_gc_map_allocation ... ok
+test gc_tests::tests::test_gc_new ... ok
+test gc_tests::tests::test_gc_pinning ... ok
+test gc_tests::tests::test_gc_roots ... ok
+test gc_tests::tests::test_gc_scope ... ok
+test gc_tests::tests::test_gc_set_value ... ok
+test gc_tests::tests::test_gc_stats_accuracy ... ok
+test gc_tests::tests::test_gc_thread_safety ... ok
+test gc_tests::tests::test_gc_with_mut ... ok
+test memory_pool::tests::test_object_pool ... ok
+test memory_pool::tests::test_slab_allocator ... ok
+test memory_pool_tests::tests::test_memory_pool_allocate_aligned ... ok
+test memory_pool_tests::tests::test_memory_pool_allocate_deallocate ... ok
+test memory_pool_tests::tests::test_memory_pool_new ... ok
+test memory_pool_tests::tests::test_memory_pool_stats_tracking ... ok
+test memory_pool_tests::tests::test_object_pool_allocate_deallocate ... ok
+test memory_pool_tests::tests::test_object_pool_grow ... ok
+test memory_pool_tests::tests::test_object_pool_max_limit ... ok
+test memory_pool_tests::tests::test_object_pool_new ... ok
+test memory_pool_tests::tests::test_pool_config_clone ... ok
+test memory_pool_tests::tests::test_pool_config_custom ... ok
+test memory_pool_tests::tests::test_pool_config_default ... ok
+test memory_pool_tests::tests::test_pool_stats_clone ... ok
+test memory_pool_tests::tests::test_pool_stats_default ... ok
+test memory_pool_tests::tests::test_slab_allocator_allocate ... ok
+test memory_pool_tests::tests::test_slab_allocator_new ... ok
+test memory_pool_tests::tests::test_slab_allocator_reset ... ok
+test memory_pool_tests::tests::test_slab_allocator_thread_safety ... ok
+test optimization::tests::test_inline_cache ... ok
+test optimization::tests::test_instruction_fusion ... ok
+test optimization::tests::test_profile_info ... ok
+test safety::tests::test_checked_arithmetic ... ok
+test safety::tests::test_id_generation ... ok
+test security::tests::test_capability_checking ... ok
+test security::tests::test_resource_limits ... ok
+test security::tests::test_taint_tracking ... ok
+test security_tests::tests::test_capability_subsets ... ok
+test security_tests::tests::test_capability_wildcards ... ok
+test security_tests::tests::test_custom_capabilities ... ok
+test security_tests::tests::test_module_capabilities ... ok
+test security_tests::tests::test_module_import_restrictions ... ok
+test security_tests::tests::test_module_isolation ... ok
+test security_tests::tests::test_resource_limits ... ok
+test security_tests::tests::test_resource_tracking ... ok
+test security_tests::tests::test_sanitized_taint ... ok
+test security_tests::tests::test_security_context_capabilities ... ok
+test security_tests::tests::test_security_manager_creation ... ok
+test security_tests::tests::test_security_policy_default ... ok
+test security_tests::tests::test_security_policy_sandbox ... ok
+test security_tests::tests::test_security_policy_trusted ... ok
+test security_tests::tests::test_taint_flow_restrictions ... ok
+test security_tests::tests::test_taint_tracking ... ok
+test security_tests::tests::test_termination ... ok
+test security_tests::tests::test_thread_safety ... ok
+test security_tests::tests::test_time_limits ... ok
+test simd::tests::test_simd_add_f64 ... ok
+test simd::tests::test_simd_dot_product ... ok
+test simd::tests::test_simd_with_values ... ok
+test stdlib_bridge_tests::tests::bridge_callback::test_call_function_simple ... ok
+test stdlib_bridge_tests::tests::bridge_callback::test_call_function_with_multiple_args ... ok
+test stdlib_bridge_tests::tests::error_handling::test_filter_non_boolean_result ... ok
+test stdlib_bridge_tests::tests::error_handling::test_map_non_list_argument ... ok
+test stdlib_bridge_tests::tests::error_handling::test_map_wrong_arg_count ... ok
+test stdlib_bridge_tests::tests::error_handling::test_unknown_higher_order_function ... ok
+test stdlib_bridge_tests::tests::higher_order_functions::test_filter_function ... ok
+test stdlib_bridge_tests::tests::higher_order_functions::test_fold_function ... ok
+test stdlib_bridge_tests::tests::higher_order_functions::test_fold_with_string_concat ... ok
+test stdlib_bridge_tests::tests::higher_order_functions::test_map_empty_list ... ok
+test stdlib_bridge_tests::tests::higher_order_functions::test_map_function ... ok
+test stdlib_bridge_tests::tests::value_conversion::test_round_trip_conversion ... ok
+test stdlib_bridge_tests::tests::value_conversion::test_stdlib_to_vm_value_conversion ... ok
+test stdlib_bridge_tests::tests::value_conversion::test_vm_to_stdlib_value_conversion ... ok
+test typed_stack::tests::test_overflow_to_float ... ok
+test typed_stack::tests::test_typed_stack_basic ... ok
+test unboxed_tests::tests::arithmetic_operations::test_add_float_float ... ok
+test unboxed_tests::tests::arithmetic_operations::test_add_float_int ... ok
+test unboxed_tests::tests::arithmetic_operations::test_add_int_float ... ok
+test unboxed_tests::tests::arithmetic_operations::test_add_int_int ... ok
+test unboxed_tests::tests::arithmetic_operations::test_add_overflow_to_float ... ok
+test unboxed_tests::tests::arithmetic_operations::test_add_type_error ... ok
+test unboxed_tests::tests::arithmetic_operations::test_mul_int_int ... ok
+test unboxed_tests::tests::arithmetic_operations::test_mul_mixed_types ... ok
+test unboxed_tests::tests::arithmetic_operations::test_mul_overflow_to_float ... ok
+test unboxed_tests::tests::arithmetic_operations::test_sub_int_int ... ok
+test unboxed_tests::tests::arithmetic_operations::test_sub_underflow_to_float ... ok
+test unboxed_tests::tests::basic_unboxed_values::test_bool_unboxed ... ok
+test unboxed_tests::tests::basic_unboxed_values::test_float_unboxed ... ok
+test unboxed_tests::tests::basic_unboxed_values::test_int_unboxed ... ok
+test unboxed_tests::tests::basic_unboxed_values::test_nil_unboxed ... ok
+test unboxed_tests::tests::boxed_values::test_cell_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_channel_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_closure_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_list_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_module_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_native_func_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_promise_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_string_boxed ... ok
+test unboxed_tests::tests::boxed_values::test_tagged_boxed ... ok
+test unboxed_tests::tests::clone_tests::test_clone_boxed ... ok
+test unboxed_tests::tests::clone_tests::test_clone_primitives ... ok
+test unboxed_tests::tests::equality_operations::test_eq_bool ... ok
+test unboxed_tests::tests::equality_operations::test_eq_boxed_pointer ... ok
+test unboxed_tests::tests::equality_operations::test_eq_different_types ... ok
+test unboxed_tests::tests::equality_operations::test_eq_float ... ok
+test unboxed_tests::tests::equality_operations::test_eq_int ... ok
+test unboxed_tests::tests::equality_operations::test_eq_int_float ... ok
+test unboxed_tests::tests::equality_operations::test_eq_nil ... ok
+test unboxed_tests::tests::value_conversion::test_from_value_function ... ok
+test unboxed_tests::tests::value_conversion::test_from_value_list ... ok
+test unboxed_tests::tests::value_conversion::test_from_value_map ... ok
+test unboxed_tests::tests::value_conversion::test_from_value_primitives ... ok
+test unboxed_tests::tests::value_conversion::test_from_value_string ... ok
+test unboxed_tests::tests::value_conversion::test_round_trip_conversion ... ok
+test unboxed_tests::tests::value_conversion::test_to_value_list ... ok
+test unboxed_tests::tests::value_conversion::test_to_value_primitives ... ok
+test unboxed_tests::tests::value_conversion::test_to_value_string ... ok
+test vm::inline_tests::test_call_frame_creation ... ok
+test vm::inline_tests::test_usage_tracker_all_stats ... ok
+test vm::inline_tests::test_usage_tracker_error_recording ... ok
+test vm::inline_tests::test_usage_tracker_hot_path ... ok
+test vm::inline_tests::test_usage_tracker_inline ... ok
+test vm::inline_tests::test_value_conversions ... ok
+test vm::inline_tests::test_vm_creation_inline ... ok
+test vm_integration_tests::tests::bytecode_execution::test_function_calls ... ok
+test vm_integration_tests::tests::bytecode_execution::test_list_operations ... ok
+test vm_integration_tests::tests::bytecode_execution::test_simple_arithmetic ... ok
+test vm_integration_tests::tests::gc_integration::test_gc_during_execution ... ok
+test vm_integration_tests::tests::security_integration::test_security_restrictions ... ok
+test vm_integration_tests::tests::test_async_execution ... ignored, Requires async VM implementation
+test vm_integration_tests::tests::vm_builder_integration::test_vm_with_custom_config ... ok
+test vm_simple_coverage_tests::tests::test_arithmetic_ops ... ok
+test vm_simple_coverage_tests::tests::test_arithmetic_with_different_types ... ok
+test vm_simple_coverage_tests::tests::test_comparison_ops ... ok
+test vm_simple_coverage_tests::tests::test_control_flow ... ok
+test vm_simple_coverage_tests::tests::test_debug_config ... ok
+test vm_simple_coverage_tests::tests::test_equality_ops ... ok
+test vm_simple_coverage_tests::tests::test_gc_operations ... ok
+test vm_simple_coverage_tests::tests::test_get_global ... ok
+test vm_simple_coverage_tests::tests::test_list_ops ... ok
+test vm_simple_coverage_tests::tests::test_logical_operations ... ok
+test vm_simple_coverage_tests::tests::test_more_opcodes ... ok
+test vm_simple_coverage_tests::tests::test_negation ... ok
+test vm_simple_coverage_tests::tests::test_resource_limits ... ok
+test vm_simple_coverage_tests::tests::test_set_module_loader ... ok
+test vm_simple_coverage_tests::tests::test_set_security_manager ... ok
+test vm_simple_coverage_tests::tests::test_set_stdlib_registry ... ok
+test vm_simple_coverage_tests::tests::test_specialized_arithmetic ... ok
+test vm_simple_coverage_tests::tests::test_specialized_comparison ... ok
+test vm_simple_coverage_tests::tests::test_state_accessors ... ok
+test vm_simple_coverage_tests::tests::test_string_ops ... ok
+test vm_simple_coverage_tests::tests::test_usage_tracking ... ok
+test vm_simple_coverage_tests::tests::test_vm_global_state ... ok
+test vm_simple_coverage_tests::tests::test_vm_push_pop_dup ... ok
+test vm_simple_coverage_tests::tests::test_vm_stack_operations ... ok
+test vm_simple_coverage_tests::tests::test_vm_with_empty_bytecode ... ok
+test vm_simple_coverage_tests::tests::test_with_gc ... ok
+test vm_simple_coverage_tests::tests::test_with_gc_config ... ok
+test vm_simple_coverage_tests::tests::test_with_sandbox_security ... ok
+test vm_simple_coverage_tests::tests::test_with_security_policy ... ok
+test vm_tests::tests::arithmetic_operations::test_add ... ok
+test vm_tests::tests::arithmetic_operations::test_div ... ok
+test vm_tests::tests::arithmetic_operations::test_div_by_zero ... ok
+test vm_tests::tests::arithmetic_operations::test_float_arithmetic ... ok
+test vm_tests::tests::arithmetic_operations::test_mod ... ok
+test vm_tests::tests::arithmetic_operations::test_mul ... ok
+test vm_tests::tests::arithmetic_operations::test_neg ... ok
+test vm_tests::tests::arithmetic_operations::test_sub ... ok
+test vm_tests::tests::boolean_operations::test_and ... ok
+test vm_tests::tests::boolean_operations::test_not ... ok
+test vm_tests::tests::boolean_operations::test_or ... ok
+test vm_tests::tests::comparison_operations::test_eq ... ok
+test vm_tests::tests::comparison_operations::test_ge ... ok
+test vm_tests::tests::comparison_operations::test_gt ... ok
+test vm_tests::tests::comparison_operations::test_le ... ok
+test vm_tests::tests::comparison_operations::test_lt ... ok
+test vm_tests::tests::comparison_operations::test_ne ... ok
+test vm_tests::tests::control_flow::test_jump ... ok
+test vm_tests::tests::control_flow::test_jump_if ... ok
+test vm_tests::tests::control_flow::test_jump_if_not ... ok
+test vm_tests::tests::error_handling::test_invalid_constant_index ... ok
+test vm_tests::tests::error_handling::test_type_error ... ok
+test vm_tests::tests::function_operations::test_make_closure ... ok
+test vm_tests::tests::function_operations::test_make_func_and_call ... ok
+test vm_tests::tests::initialization::test_enable_trace ... ok
+test vm_tests::tests::initialization::test_enable_usage_tracking ... ok
+test vm_tests::tests::initialization::test_set_effect_context ... ok
+test vm_tests::tests::initialization::test_set_effect_runtime ... ok
+test vm_tests::tests::initialization::test_vm_new ... ok
+test vm_tests::tests::list_operations::test_list_cons ... ok
+test vm_tests::tests::list_operations::test_list_empty ... ok
+test vm_tests::tests::list_operations::test_list_head ... ok
+test vm_tests::tests::list_operations::test_list_len ... ok
+test vm_tests::tests::list_operations::test_list_tail ... ok
+test vm_tests::tests::list_operations::test_make_list ... ok
+test vm_tests::tests::stack_operations::test_dup_instruction ... ok
+test vm_tests::tests::stack_operations::test_pop_n_instruction ... ok
+test vm_tests::tests::stack_operations::test_push_pop ... ok
+test vm_tests::tests::stack_operations::test_stack_underflow ... ok
+test vm_tests::tests::stack_operations::test_swap_instruction ... ok
+test vm_tests::tests::string_operations::test_str_concat ... ok
+test vm_tests::tests::string_operations::test_str_len ... ok
+test vm_tests::tests::string_operations::test_str_lower ... ok
+test vm_tests::tests::string_operations::test_str_upper ... ok
+test vm_tests::tests::usage_tracking::test_hot_path_detection ... ok
+test vm_tests::tests::usage_tracking::test_usage_tracking ... ok
+test vm_tests::tests::variable_operations::test_store_load_global ... ok
+test vm_tests::tests::variable_operations::test_store_load_local ... ok
+
+test result: ok. 340 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+[2m2025-07-08T17:25:04.366131Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/fluentai_vm-0eaee87a3356a97a
+[2m2025-07-08T17:25:04.366286Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/fluentai_vm-0eaee87a3356a97a_7738795425764527844_0-32151.profraw
+[2m2025-07-08T17:25:04.366299Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:04.442965Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:05.042374Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Running config fluentai-parser
+[2m2025-07-08T17:25:05.042402Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Running Tarpaulin
+[2m2025-07-08T17:25:05.042406Z[0m [32m INFO[0m [2mcargo_tarpaulin[0m[2m:[0m Building project
+[2m2025-07-08T17:25:05.042410Z[0m [32m INFO[0m [2mcargo_tarpaulin::cargo[0m[2m:[0m Cleaning project
+   Compiling proc-macro2 v1.0.95
+   Compiling unicode-ident v1.0.18
+   Compiling libc v0.2.174
+   Compiling cfg-if v1.0.1
+   Compiling autocfg v1.5.0
+   Compiling smallvec v1.15.1
+   Compiling parking_lot_core v0.9.11
+   Compiling once_cell v1.21.3
+   Compiling scopeguard v1.2.0
+   Compiling pin-project-lite v0.2.16
+   Compiling crossbeam-utils v0.8.21
+   Compiling serde v1.0.219
+   Compiling itoa v1.0.15
+   Compiling ryu v1.0.20
+   Compiling tracing-core v0.1.34
+   Compiling serde_json v1.0.140
+   Compiling anyhow v1.0.98
+   Compiling thiserror v1.0.69
+   Compiling lock_api v0.4.13
+   Compiling fnv v1.0.7
+   Compiling num-traits v0.2.19
+   Compiling memchr v2.7.5
+   Compiling quote v1.0.40
+   Compiling bumpalo v3.19.0
+   Compiling syn v2.0.104
+   Compiling crossbeam-epoch v0.9.18
+   Compiling crossbeam-channel v0.5.15
+   Compiling crossbeam-queue v0.3.12
+   Compiling rustc-hash v1.1.0
+   Compiling rayon-core v1.12.1
+   Compiling crossbeam-deque v0.8.6
+   Compiling either v1.15.0
+   Compiling crossbeam v0.8.4
+   Compiling num_cpus v1.17.0
+   Compiling half v2.6.0
+   Compiling regex-syntax v0.8.5
+   Compiling clap_lex v0.7.5
+   Compiling anstyle v1.0.11
+   Compiling stable_deref_trait v1.2.0
+   Compiling plotters-backend v0.3.7
+   Compiling ciborium-io v0.2.2
+   Compiling clap_builder v4.5.40
+   Compiling itertools v0.10.5
+   Compiling ciborium-ll v0.2.2
+   Compiling plotters-svg v0.3.7
+   Compiling cast v0.3.0
+   Compiling beef v0.5.2
+   Compiling regex-syntax v0.6.29
+   Compiling same-file v1.0.6
+   Compiling is-terminal v0.4.16
+   Compiling parking_lot v0.12.4
+   Compiling walkdir v2.5.0
+   Compiling anes v0.1.6
+   Compiling regex-automata v0.4.9
+   Compiling oorandom v11.1.5
+   Compiling rayon v1.10.0
+   Compiling criterion-plot v0.5.0
+   Compiling core-foundation-sys v0.8.7
+   Compiling plotters v0.3.7
+   Compiling clap v4.5.40
+   Compiling bytes v1.10.1
+   Compiling getrandom v0.3.3
+   Compiling litemap v0.8.0
+   Compiling writeable v0.6.1
+   Compiling signal-hook-registry v1.4.5
+   Compiling mio v1.0.4
+   Compiling regex v1.11.1
+   Compiling socket2 v0.5.10
+   Compiling synstructure v0.13.2
+   Compiling logos-codegen v0.13.0
+   Compiling bitflags v2.9.1
+   Compiling icu_normalizer_data v2.0.0
+   Compiling icu_properties_data v2.0.1
+   Compiling rustix v1.0.7
+   Compiling futures-core v0.3.31
+   Compiling core-foundation v0.9.4
+   Compiling errno v0.3.13
+   Compiling http v0.2.12
+   Compiling security-framework-sys v2.14.0
+   Compiling pin-utils v0.1.0
+   Compiling hashbrown v0.15.4
+   Compiling equivalent v1.0.2
+   Compiling httparse v1.10.1
+   Compiling futures-task v0.3.31
+   Compiling futures-sink v0.3.31
+   Compiling fastrand v2.3.0
+   Compiling zerocopy v0.8.26
+   Compiling native-tls v0.2.14
+   Compiling futures-util v0.3.31
+   Compiling security-framework v2.11.1
+   Compiling indexmap v2.10.0
+   Compiling percent-encoding v2.3.1
+   Compiling system-configuration-sys v0.5.0
+   Compiling slab v0.4.10
+   Compiling try-lock v0.2.5
+   Compiling want v0.3.1
+   Compiling form_urlencoded v1.2.1
+   Compiling http-body v0.4.6
+   Compiling futures-channel v0.3.31
+   Compiling tempfile v3.20.0
+   Compiling getrandom v0.2.16
+   Compiling utf8_iter v1.0.4
+   Compiling httpdate v1.0.3
+   Compiling tower-service v0.3.3
+   Compiling rand_core v0.6.4
+   Compiling bitflags v1.3.2
+   Compiling base64 v0.21.7
+   Compiling system-configuration v0.5.1
+   Compiling iana-time-zone v0.1.63
+   Compiling encoding_rs v0.8.35
+   Compiling log v0.4.27
+   Compiling mime v0.3.17
+   Compiling ipnet v2.11.0
+   Compiling rustls-pemfile v1.0.4
+   Compiling hashbrown v0.14.5
+   Compiling sync_wrapper v0.1.2
+   Compiling chrono v0.4.41
+   Compiling uuid v1.17.0
+   Compiling downcast-rs v1.2.1
+   Compiling rustc-hash v2.1.1
+   Compiling byteorder v1.5.0
+   Compiling yansi v1.0.1
+   Compiling serde_derive v1.0.219
+   Compiling tracing-attributes v0.1.30
+   Compiling thiserror-impl v1.0.69
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.0
+   Compiling zerovec-derive v0.11.1
+   Compiling logos-derive v0.13.0
+   Compiling displaydoc v0.2.5
+   Compiling tokio-macros v2.5.0
+   Compiling logos v0.13.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling dashmap v5.5.3
+   Compiling rand_chacha v0.3.1
+   Compiling async-trait v0.1.88
+   Compiling rand v0.8.5
+   Compiling diff v0.1.13
+   Compiling pretty_assertions v1.4.1
+   Compiling tracing v0.1.41
+   Compiling zerofrom v0.1.6
+   Compiling tokio v1.46.0
+   Compiling yoke v0.8.0
+   Compiling zerovec v0.11.2
+   Compiling zerotrie v0.2.2
+   Compiling tinystr v0.8.1
+   Compiling potential_utf v0.1.2
+   Compiling icu_collections v2.0.0
+   Compiling icu_locale_core v2.0.0
+   Compiling icu_provider v2.0.0
+   Compiling fluentai-core v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-core)
+   Compiling ciborium v0.2.2
+   Compiling serde_urlencoded v0.7.1
+   Compiling icu_normalizer v2.0.0
+   Compiling icu_properties v2.0.1
+   Compiling tokio-util v0.7.15
+   Compiling tokio-native-tls v0.3.1
+   Compiling tinytemplate v1.2.1
+   Compiling idna_adapter v1.2.1
+   Compiling criterion v0.5.1
+   Compiling idna v1.0.3
+   Compiling h2 v0.3.26
+   Compiling url v2.5.4
+   Compiling fluentai-parser v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-parser)
+   Compiling fluentai-di v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-di)
+   Compiling fluentai-modules v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-modules)
+   Compiling hyper v0.14.32
+   Compiling hyper-tls v0.5.0
+   Compiling reqwest v0.11.27
+   Compiling fluentai-effects v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-effects)
+   Compiling fluentai-types v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-types)
+   Compiling fluentai-stdlib v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-stdlib)
+   Compiling fluentai-optimizer v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-optimizer)
+   Compiling fluentai-vm v0.1.0 (/Users/joe/repos/claudelang/rust/fluentai-vm)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.18s
+[2m2025-07-08T17:25:26.726963Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/iot_syntax_test-7d36edd555dbff7f
+[2m2025-07-08T17:25:26.727231Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 3 tests
+test test_iot_demo_full_module ... ok
+test test_iot_demo_parses ... ok
+test test_sensor_data_operations ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:25:27.923507Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/iot_syntax_test-7d36edd555dbff7f
+[2m2025-07-08T17:25:27.923526Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/iot_syntax_test-7d36edd555dbff7f_10092681078222136293_0-32989.profraw
+[2m2025-07-08T17:25:27.923533Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:27.928198Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:27.971326Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/handler_parsing_tests-d5e3cc9de5a3e66d
+[2m2025-07-08T17:25:27.971412Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 7 tests
+test test_parse_handler_error_invalid_syntax ... ok
+test test_parse_handler_error_no_handlers ... ok
+test test_parse_handler_multiple_handlers ... ok
+test test_parse_handler_with_complex_body ... ok
+test test_parse_handler_with_operation ... ok
+test test_parse_nested_handlers ... ok
+test test_parse_simple_handler ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:25:29.165343Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/handler_parsing_tests-d5e3cc9de5a3e66d
+[2m2025-07-08T17:25:29.165407Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/handler_parsing_tests-d5e3cc9de5a3e66d_6187000074416694634_0-33010.profraw
+[2m2025-07-08T17:25:29.165423Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:29.172727Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:29.223319Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/module_system_tests-601c24716525d36d
+[2m2025-07-08T17:25:29.223426Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 20 tests
+test test_parse_complex_qualified_variable ... ok
+test test_parse_error_export_empty ... ok
+test test_parse_error_import_invalid_syntax ... ok
+test test_parse_error_import_without_path ... ok
+test test_parse_error_module_without_body ... ok
+test test_parse_error_module_without_exports ... ok
+test test_parse_error_module_without_name ... ok
+test test_parse_export_with_aliases ... ok
+test test_parse_import_all ... ok
+test test_parse_import_export_combination ... ok
+test test_parse_import_with_aliases ... ok
+test test_parse_module_definition ... ok
+test test_parse_module_with_imports ... ok
+test test_parse_nested_module_path ... ok
+test test_parse_parent_relative_import ... ok
+test test_parse_qualified_variable ... ok
+test test_parse_qualified_variable_in_expression ... ok
+test test_parse_relative_import ... ok
+test test_parse_simple_export ... ok
+test test_parse_simple_import ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:25:30.420180Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/module_system_tests-601c24716525d36d
+[2m2025-07-08T17:25:30.420273Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/module_system_tests-601c24716525d36d_17224512029346744547_0-33013.profraw
+[2m2025-07-08T17:25:30.420287Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:30.429388Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:30.485808Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/error_tests-7726b47c5994ddfb
+[2m2025-07-08T17:25:30.485927Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 13 tests
+test test_error_clone ... ok
+test test_error_debug ... ok
+test test_error_display_formatting ... ok
+test test_error_kind_copy ... ok
+test test_error_kind_equality ... ok
+test test_error_patterns ... ok
+test test_invalid_escape_error ... ok
+test test_invalid_number_error ... ok
+test test_invalid_syntax_error ... ok
+test test_max_depth_exceeded_error ... ok
+test test_unclosed_delimiter_error ... ok
+test test_unexpected_eof_error ... ok
+test test_unexpected_token_error ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:25:31.672551Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/error_tests-7726b47c5994ddfb
+[2m2025-07-08T17:25:31.672614Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/error_tests-7726b47c5994ddfb_18087981484922080370_0-33018.profraw
+[2m2025-07-08T17:25:31.672627Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:31.680889Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:31.739313Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/channel_operations_tests-ec33fe8dd7f11122
+[2m2025-07-08T17:25:31.739431Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 17 tests
+test test_parse_buffered_channel ... ok
+test test_parse_channel_as_value ... ok
+test test_parse_channel_communication_pattern ... ok
+test test_parse_channel_creation ... ok
+test test_parse_channel_in_async ... ok
+test test_parse_channel_in_let ... ok
+test test_parse_channel_in_spawn ... ok
+test test_parse_channel_pipeline ... ok
+test test_parse_error_recv_extra_args ... ok
+test test_parse_error_recv_without_channel ... ok
+test test_parse_error_send_without_channel ... ok
+test test_parse_error_send_without_value ... ok
+test test_parse_multiple_channels ... ok
+test test_parse_receive_basic ... ok
+test test_parse_select_on_channels ... ok
+test test_parse_send_basic ... ok
+test test_parse_send_with_expression ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:25:32.947031Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/channel_operations_tests-ec33fe8dd7f11122
+[2m2025-07-08T17:25:32.947080Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/channel_operations_tests-ec33fe8dd7f11122_17571322802638355457_0-33027.profraw
+[2m2025-07-08T17:25:32.947087Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:32.950981Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:33.003244Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/pattern_builder_tests-c1fcadcc31db7d58
+[2m2025-07-08T17:25:33.003344Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 12 tests
+test test_complex_pattern_matching_example ... ok
+test test_cons_and_nil_patterns ... ok
+test test_custom_constructor_pattern ... ok
+test test_match_builder_error_no_branches ... ok
+test test_match_builder_error_no_expr ... ok
+test test_match_builder_multiple_cases ... ok
+test test_match_builder_simple ... ok
+test test_match_builder_with_patterns ... ok
+test test_match_list_helper ... ok
+test test_match_value_helper ... ok
+test test_old_vs_new_api_comparison ... ok
+test test_pattern_builder_methods ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[2m2025-07-08T17:25:34.193932Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m For binary: target/debug/deps/pattern_builder_tests-c1fcadcc31db7d58
+[2m2025-07-08T17:25:34.193989Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Generated: target/tarpaulin/profraws/pattern_builder_tests-c1fcadcc31db7d58_12690987167125070581_0-33031.profraw
+[2m2025-07-08T17:25:34.194000Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Merging coverage reports
+[2m2025-07-08T17:25:34.200928Z[0m [32m INFO[0m [2mcargo_tarpaulin::statemachine::instrumented[0m[2m:[0m Mapping coverage data to source
+[2m2025-07-08T17:25:34.241846Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m running /Users/joe/repos/claudelang/rust/target/debug/deps/complex_pattern_tests-668dae7bba43b403
+[2m2025-07-08T17:25:34.241943Z[0m [32m INFO[0m [2mcargo_tarpaulin::process_handling[0m[2m:[0m Setting LLVM_PROFILE_FILE
+
+running 11 tests
+test test_as_pattern_creation ... ok
+test test_complex_nested_patterns ... ok
+test test_complex_pattern_combination ... ok
+test test_guard_pattern_creation ... ok
+test test_match_builder_with_as_pattern ... ok
+test test_match_builder_with_guard ... ok
+test test_match_builder_with_or_pattern ... ok
+test test_match_builder_with_range ... ok
+test test_or_pattern_creation ... ok
+test test_range_pattern_creation ... ok
+test test_view_pattern_creation ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

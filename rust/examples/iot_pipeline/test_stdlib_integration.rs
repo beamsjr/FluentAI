@@ -1,4 +1,4 @@
-use fluentai_vm::{VM, VMBuilder};
+use fluentai_vm::VM;
 use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
 use fluentai_vm::compiler::Compiler;
 use fluentai_parser::parser::Parser;

@@ -17,10 +17,15 @@ pub type PassFactory = Arc<dyn Fn() -> Box<dyn OptimizationPass> + Send + Sync>;
 /// Pass registration with metadata
 #[derive(Clone)]
 pub struct PassRegistration {
+    /// Name of the optimization pass
     pub name: String,
+    /// Factory function to create the pass
     pub factory: PassFactory,
+    /// Optimization levels where this pass is enabled
     pub enabled_levels: Vec<OptimizationLevel>,
+    /// Names of passes that must run before this one
     pub dependencies: Vec<String>,
+    /// Priority for ordering passes (higher runs first)
     pub priority: i32,
 }
 
@@ -428,6 +433,7 @@ pub struct ContainerOptimizationProvider {
 }
 
 impl ContainerOptimizationProvider {
+    /// Create a new dynamic pipeline builder
     pub fn new(container: Arc<Container>) -> Self {
         Self { container }
     }

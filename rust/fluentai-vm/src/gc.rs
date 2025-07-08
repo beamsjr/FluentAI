@@ -76,7 +76,7 @@ struct GcMetadata {
     /// Unique ID for this allocation
     id: usize,
     /// Reference count (for cycle detection)
-    ref_count: AtomicUsize,
+    _ref_count: AtomicUsize,
     /// Color for tri-color marking
     color: Mutex<Color>,
     /// Whether this object is pinned (cannot be collected)
@@ -162,7 +162,7 @@ impl GarbageCollector {
             value: RwLock::new(value),
             metadata: GcMetadata {
                 id,
-                ref_count: AtomicUsize::new(1),
+                _ref_count: AtomicUsize::new(1),
                 color: Mutex::new(Color::Black),
                 pinned: AtomicBool::new(false),
             },

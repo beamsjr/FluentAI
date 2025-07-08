@@ -5,7 +5,7 @@ use rustyline::error::ReadlineError;
 use colored::*;
 use std::path::PathBuf;
 
-use crate::error::{ReplError, ReplResult};
+use crate::error::ReplResult;
 use crate::environment::ReplEnvironment;
 use crate::commands::{CommandRegistry, CommandResult};
 use crate::history::HistoryManager;

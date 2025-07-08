@@ -162,34 +162,6 @@ impl GraphOptimizer {
         None
     }
 
-    /// Try to fold a node into a constant
-    fn try_fold_node(&mut self, graph: &Graph, mapping: &FxHashMap<NodeId, NodeId>, 
-                     _node_id: NodeId, node: &Node) -> Option<Node> {
-        match node {
-            Node::Application { function, args } => {
-                // Check if it's a foldable function
-                if let Some(Node::Variable { name }) = graph.get_node(*function) {
-                    if let Some(result) = self.try_fold_primitive(graph, mapping, name, args) {
-                        return Some(result);
-                    }
-                }
-            }
-            Node::If { condition, then_branch, else_branch } => {
-                // Check if condition is constant
-                let cond_id = mapping.get(condition).copied().unwrap_or(*condition);
-                
-                if let Some(Node::Literal(Literal::Boolean(value))) = graph.get_node(cond_id) {
-                    // Return the appropriate branch
-                    self.stats.branches_eliminated += 1;
-                    let branch_id = if *value { then_branch } else { else_branch };
-                    let mapped_id = mapping.get(branch_id).copied().unwrap_or(*branch_id);
-                    return graph.get_node(mapped_id).cloned();
-                }
-            }
-            _ => {}
-        }
-        None
-    }
 
     /// Try to fold a primitive function application
     fn try_fold_primitive(&self, graph: &Graph, mapping: &FxHashMap<NodeId, NodeId>,

@@ -68,7 +68,7 @@ pub trait NodeVisitor {
 
 /// Guarded visitor that switches to iterative traversal when depth limit is exceeded
 pub struct GuardedVisitor<V: NodeVisitor> {
-    inner: V,
+    _inner: V,
     depth: usize,
     max_depth: usize,
 }
@@ -77,7 +77,7 @@ impl<V: NodeVisitor> GuardedVisitor<V> {
     /// Create a new guarded visitor
     pub fn new(inner: V, max_depth: usize) -> Self {
         Self {
-            inner,
+            _inner: inner,
             depth: 0,
             max_depth,
         }
@@ -135,10 +135,12 @@ pub fn trampoline<T>(mut bounce: Bounce<T>) -> T {
 
 /// A visitor that collects all node IDs in traversal order
 pub struct CollectingVisitor {
+    /// List of collected node IDs
     pub nodes: Vec<NodeId>,
 }
 
 impl CollectingVisitor {
+    /// Create a new collecting visitor
     pub fn new() -> Self {
         Self { nodes: Vec::new() }
     }

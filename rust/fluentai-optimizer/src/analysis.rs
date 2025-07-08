@@ -335,10 +335,6 @@ impl EffectAnalysis {
         analysis
     }
 
-    fn analyze_node_effects(&self, graph: &Graph, node_id: NodeId, node: &Node) -> FxHashSet<EffectType> {
-        let mut visited = FxHashSet::default();
-        self.analyze_node_effects_with_visited(graph, node_id, node, &mut visited)
-    }
 
     fn analyze_node_effects_with_cache(&self, graph: &Graph, node_id: NodeId, node: &Node, visited: &mut FxHashSet<NodeId>, cache: &mut FxHashMap<NodeId, FxHashSet<EffectType>>) -> FxHashSet<EffectType> {
         // Check for cycles
@@ -423,97 +419,6 @@ impl EffectAnalysis {
                 }
                 // Analyze body
                 effects.extend(analyze_child(*body));
-            }
-            _ => {
-                // Default to no effects for other nodes
-            }
-        }
-
-        effects
-    }
-    
-    fn analyze_node_effects_with_visited(&self, graph: &Graph, node_id: NodeId, node: &Node, visited: &mut FxHashSet<NodeId>) -> FxHashSet<EffectType> {
-        // Check for cycles
-        if !visited.insert(node_id) {
-            // We've already visited this node - assume no effects to break the cycle
-            return FxHashSet::default();
-        }
-
-        let mut effects = FxHashSet::default();
-
-        match node {
-            Node::Literal(_) => {
-                // Literals have no effects
-            }
-            Node::Variable { .. } => {
-                // Variables have no effects
-            }
-            Node::Lambda { .. } => {
-                // Lambdas themselves have no effects
-            }
-            Node::Effect { effect_type, .. } => {
-                effects.insert(*effect_type);
-            }
-            Node::Application { function, args } => {
-                // Check if this is an effect primitive
-                if let Some(Node::Variable { name }) = graph.get_node(*function) {
-                    if let Some(effect_type) = is_effect_primitive(name) {
-                        effects.insert(effect_type);
-                    }
-                }
-                
-                // Collect effects from function and arguments
-                if let Some(func_node) = graph.get_node(*function) {
-                    effects.extend(self.analyze_node_effects_with_visited(graph, *function, func_node, visited));
-                }
-                for arg in args {
-                    if let Some(arg_node) = graph.get_node(*arg) {
-                        effects.extend(self.analyze_node_effects_with_visited(graph, *arg, arg_node, visited));
-                    }
-                }
-            }
-            Node::If { condition, then_branch, else_branch } => {
-                if let Some(cond) = graph.get_node(*condition) {
-                    effects.extend(self.analyze_node_effects_with_visited(graph, *condition, cond, visited));
-                }
-                if let Some(then_n) = graph.get_node(*then_branch) {
-                    effects.extend(self.analyze_node_effects_with_visited(graph, *then_branch, then_n, visited));
-                }
-                if let Some(else_n) = graph.get_node(*else_branch) {
-                    effects.extend(self.analyze_node_effects_with_visited(graph, *else_branch, else_n, visited));
-                }
-            }
-            Node::List(items) => {
-                // Lists have no effects, but analyze contained items
-                for item in items {
-                    if let Some(item_node) = graph.get_node(*item) {
-                        effects.extend(self.analyze_node_effects_with_visited(graph, *item, item_node, visited));
-                    }
-                }
-            }
-            Node::Let { bindings, body } => {
-                // Analyze bindings
-                for (_, binding_id) in bindings {
-                    if let Some(binding_node) = graph.get_node(*binding_id) {
-                        effects.extend(self.analyze_node_effects_with_visited(graph, *binding_id, binding_node, visited));
-                    }
-                }
-                // Analyze body
-                if let Some(body_node) = graph.get_node(*body) {
-                    effects.extend(self.analyze_node_effects_with_visited(graph, *body, body_node, visited));
-                }
-            }
-            Node::Letrec { bindings, body } => {
-                // Analyze bindings
-                for (_, binding_id) in bindings {
-                    if let Some(binding_node) = graph.get_node(*binding_id) {
-                        effects.extend(self.analyze_node_effects_with_visited(graph, *binding_id, binding_node, visited));
-                    }
-                }
-                // Analyze body
-                if let Some(body_node) = graph.get_node(*body) {
-                    effects.extend(self.analyze_node_effects_with_visited(graph, *body, body_node, visited));
-                }
             }
             _ => {
                 // Default to no effects for other nodes
@@ -822,11 +727,17 @@ pub enum TypeInfo {
 /// Concrete types we can optimize for
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConcreteType {
+    /// Integer type
     Integer,
+    /// Floating point type
     Float,
+    /// Boolean type
     Boolean,
+    /// String type
     String,
+    /// List type with element type
     List(Box<ConcreteType>),
+    /// Function type with parameter types and return type
     Function(Vec<ConcreteType>, Box<ConcreteType>),
 }
 

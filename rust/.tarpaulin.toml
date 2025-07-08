@@ -1,0 +1,94 @@
+# Tarpaulin Configuration for FluentAI Code Coverage
+
+[fluentai-full]
+# Full coverage configuration for all crates
+workspace = true
+all-features = true
+timeout = "600s"
+follow-exec = true
+ignore-panics = true
+force-clean = true
+out = ["Html", "Json", "Xml"]
+output-dir = "coverage-report"
+exclude-files = [
+    "*/tests/*",
+    "*/benches/*",
+    "*/examples/*",
+    "*/build.rs",
+    "*/.cargo/*",
+    "*/target/*"
+]
+
+[fluentai-core]
+# Core library coverage
+packages = ["fluentai-core"]
+all-features = true
+timeout = "300s"
+out = ["Html", "Json"]
+output-dir = "coverage-report/fluentai-core"
+
+[fluentai-parser]
+# Parser coverage
+packages = ["fluentai-parser"]
+all-features = true
+timeout = "300s"
+out = ["Html", "Json"]
+output-dir = "coverage-report/fluentai-parser"
+
+[fluentai-vm]
+# Virtual Machine coverage
+packages = ["fluentai-vm"]
+all-features = true
+timeout = "300s"
+out = ["Html", "Json"]
+output-dir = "coverage-report/fluentai-vm"
+
+[fluentai-stdlib]
+# Standard Library coverage
+packages = ["fluentai-stdlib"]
+all-features = true
+timeout = "300s"
+out = ["Html", "Json"]
+output-dir = "coverage-report/fluentai-stdlib"
+
+[fluentai-quick]
+# Quick check - core components only
+packages = [
+    "fluentai-core",
+    "fluentai-parser",
+    "fluentai-vm",
+    "fluentai-types"
+]
+timeout = "180s"
+out = ["Json"]
+output-dir = "coverage-report/quick"
+
+[ci]
+# Configuration for CI/CD pipelines
+workspace = true
+all-features = true
+timeout = "900s"
+follow-exec = true
+ignore-panics = true
+force-clean = true
+out = ["Lcov", "Json", "Xml"]
+exclude-files = [
+    "*/tests/*",
+    "*/benches/*",
+    "*/examples/*",
+    "*/build.rs",
+    "*/.cargo/*",
+    "*/target/*",
+    "*/src/bin/*"
+]
+# CI-specific: fail if coverage drops below threshold
+# fail-under = 75.0
+
+[report]
+# Report generation settings
+skip-clean = false
+print-summary = true
+print-uncovered-lines = false
+# Generate coverage badges
+# coveralls = "your-repo-token"
+# codecov = "your-repo-token"

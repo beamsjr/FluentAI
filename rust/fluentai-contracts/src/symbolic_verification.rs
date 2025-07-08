@@ -4,12 +4,11 @@
 //! to explore all possible execution paths and verify contract conditions.
 
 use crate::symbolic_execution::{SymbolicExecutor, SymbolicState, SymbolicValue};
-use crate::contract::{Contract, ContractCondition, ContractKind};
+use crate::contract::{Contract, ContractCondition};
 use crate::errors::{ContractError, ContractResult};
 use crate::test_generation::{TestGenerator, TestCase};
 use crate::visualization::{ExecutionTree, TreeBuilder};
 use fluentai_core::ast::{Graph, NodeId};
-use std::num::NonZeroU32;
 
 #[cfg(feature = "static")]
 use crate::incremental_solver::IncrementalSolver;
@@ -510,9 +509,9 @@ mod tests {
             preconditions: vec![],
             postconditions: vec![
                 ContractCondition {
-                    expression: NodeId(NonZeroU32::new(1).unwrap()), // Dummy
+                    expression: NodeId(std::num::NonZeroU32::new(1).unwrap()), // Dummy
                     message: Some("result >= 0".to_string()),
-                    kind: ContractKind::Postcondition,
+                    kind: crate::contract::ContractKind::Postcondition,
                     span: None,
                     blame_label: None,
                 }
@@ -521,7 +520,7 @@ mod tests {
             complexity: None,
             pure: false,
             frame_condition: None,
-            node_id: NodeId(NonZeroU32::new(1).unwrap()),
+            node_id: NodeId(std::num::NonZeroU32::new(1).unwrap()),
         };
         
         let verifier = SymbolicContractVerifier::new();

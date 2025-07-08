@@ -8,10 +8,10 @@ use rustc_hash::{FxHashMap, FxHashSet};
 /// Information about a tail call
 #[derive(Debug, Clone)]
 struct TailCallInfo {
-    node_id: NodeId,
-    args: Vec<NodeId>,
-    is_self_recursive: bool,
-    target_function: String,
+    _node_id: NodeId,
+    _args: Vec<NodeId>,
+    _is_self_recursive: bool,
+    _target_function: String,
 }
 
 /// Tail call optimization pass
@@ -57,10 +57,10 @@ impl TailCallOptimizationPass {
                         if let Some(Node::Variable { name }) = graph.get_node(*function) {
                             if name == func_name {
                                 tail_calls.push(TailCallInfo {
-                                    node_id,
-                                    args: args.clone(),
-                                    is_self_recursive: true,
-                                    target_function: name.clone(),
+                                    _node_id: node_id,
+                                    _args: args.clone(),
+                                    _is_self_recursive: true,
+                                    _target_function: name.clone(),
                                 });
                             }
                         }

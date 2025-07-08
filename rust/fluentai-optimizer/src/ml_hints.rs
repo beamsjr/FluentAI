@@ -34,36 +34,52 @@ pub enum OptimizationHint {
 pub struct ProgramFeatures {
     /// Structural features
     pub node_count: usize,
+    /// Maximum depth of the computation graph
     pub depth: usize,
+    /// Average branching factor
     pub branching_factor: f32,
+    /// Number of cycles in the graph
     pub cycle_count: usize,
     
     /// Operation features
     pub arithmetic_ops: usize,
+    /// Number of memory operations
     pub memory_ops: usize,
+    /// Number of control flow operations
     pub control_flow_ops: usize,
+    /// Number of function calls
     pub function_calls: usize,
     
     /// Data flow features
     pub data_dependencies: usize,
+    /// Number of live variables
     pub live_variables: usize,
+    /// Estimated register pressure
     pub register_pressure: f32,
     
     /// Pattern features
     pub has_recursion: bool,
+    /// Whether the program contains loops
     pub has_loops: bool,
+    /// Whether the program contains map patterns
     pub has_map_pattern: bool,
+    /// Whether the program contains reduce patterns
     pub has_reduce_pattern: bool,
     
     /// Type features
     pub uses_integers: bool,
+    /// Whether the program uses floating point operations
     pub uses_floats: bool,
+    /// Whether the program uses list operations
     pub uses_lists: bool,
+    /// Whether the program uses higher-order functions
     pub uses_higher_order: bool,
     
     /// Performance hints
     pub estimated_iterations: Option<usize>,
+    /// Hint about expected data size
     pub data_size_hint: Option<usize>,
+    /// Hotness score for optimization priority
     pub hotness_score: f32,
 }
 
@@ -552,6 +568,7 @@ fn is_memory_op(name: &str) -> bool {
 }
 
 /// Check if a function name is a control flow operation
+#[cfg(test)]
 fn is_control_flow_op(name: &str) -> bool {
     matches!(name, 
         "if" | "cond" | "case" | "match" | "call/cc" | 

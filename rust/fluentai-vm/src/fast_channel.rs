@@ -20,7 +20,7 @@ pub enum ChannelMode {
 
 /// Fast channel implementation
 pub struct FastChannel {
-    mode: ChannelMode,
+    _mode: ChannelMode,
     inner: ChannelInner,
 }
 
@@ -42,7 +42,7 @@ struct SyncChannel {
 struct BufferedChannel {
     queue: Arc<BoundedQueue<Value>>,
     sender_count: Arc<AtomicUsize>,
-    receiver_count: Arc<AtomicUsize>,
+    _receiver_count: Arc<AtomicUsize>,
     closed: Arc<AtomicBool>,
     // Notification for blocking operations
     not_empty: Arc<Condvar>,
@@ -54,7 +54,7 @@ struct BufferedChannel {
 struct UnboundedChannel {
     queue: Arc<LockFreeQueue<Value>>,
     sender_count: Arc<AtomicUsize>,
-    receiver_count: Arc<AtomicUsize>,
+    _receiver_count: Arc<AtomicUsize>,
     closed: Arc<AtomicBool>,
 }
 
@@ -74,7 +74,7 @@ impl FastChannel {
                 ChannelInner::Buffered(BufferedChannel {
                     queue: Arc::new(BoundedQueue::new(capacity)),
                     sender_count: Arc::new(AtomicUsize::new(1)),
-                    receiver_count: Arc::new(AtomicUsize::new(1)),
+                    _receiver_count: Arc::new(AtomicUsize::new(1)),
                     closed: Arc::new(AtomicBool::new(false)),
                     not_empty: Arc::new(Condvar::new()),
                     not_full: Arc::new(Condvar::new()),
@@ -84,12 +84,12 @@ impl FastChannel {
             ChannelMode::Unbounded => ChannelInner::Unbounded(UnboundedChannel {
                 queue: Arc::new(LockFreeQueue::new()),
                 sender_count: Arc::new(AtomicUsize::new(1)),
-                receiver_count: Arc::new(AtomicUsize::new(1)),
+                _receiver_count: Arc::new(AtomicUsize::new(1)),
                 closed: Arc::new(AtomicBool::new(false)),
             }),
         };
         
-        Self { mode, inner }
+        Self { _mode: mode, inner }
     }
     
     /// Send a value on the channel
