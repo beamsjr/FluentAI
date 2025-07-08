@@ -134,9 +134,9 @@ fn init_package(dir: &std::path::Path, name: Option<String>) -> Result<()> {
 }
 
 fn load_manifest() -> Result<Manifest> {
-    let path = std::path::Path::new("claude.json");
+    let path = std::path::Path::new("fluentai.json");
     if !path.exists() {
-        anyhow::bail!("No claude.json found. Run 'claudelang package init' to create one.");
+        anyhow::bail!("No fluentai.json found. Run 'fluentai package init' to create one.");
     }
     
     let content = std::fs::read_to_string(path)?;
@@ -146,7 +146,7 @@ fn load_manifest() -> Result<Manifest> {
 
 fn save_manifest(manifest: &Manifest) -> Result<()> {
     let content = serde_json::to_string_pretty(manifest)?;
-    std::fs::write("claude.json", content)?;
+    std::fs::write("fluentai.json", content)?;
     Ok(())
 }
 

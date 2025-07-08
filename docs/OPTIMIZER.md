@@ -1,8 +1,8 @@
-# ClaudeLang Optimizer Documentation
+# FluentAI Optimizer Documentation
 
 ## Overview
 
-The ClaudeLang optimizer is a sophisticated multi-pass optimization framework that transforms ClaudeLang programs to improve performance while preserving semantics. It achieves 80-95% AST node reduction for many common patterns.
+The FluentAI optimizer is a sophisticated multi-pass optimization framework that transforms FluentAI programs to improve performance while preserving semantics. It achieves 80-95% AST node reduction for many common patterns.
 
 ## Architecture
 
@@ -96,9 +96,9 @@ pub struct OptimizationStats {
 ## Usage Example
 
 ```rust
-use claudelang_optimizer::{OptimizationPipeline, OptimizationConfig};
-use claudelang_optimizer::pipeline::OptimizationLevel;
-use claudelang_parser::parse;
+use fluentai_optimizer::{OptimizationPipeline, OptimizationConfig};
+use fluentai_optimizer::pipeline::OptimizationLevel;
+use fluentai_parser::parse;
 
 fn optimize_program(code: &str) -> Result<Graph> {
     // Parse the code
@@ -220,7 +220,7 @@ The optimizer runs multiple passes to reach a fixpoint:
 3. Order matters: constant folding before dead code elimination
 
 ### Graph Representation
-- Uses ClaudeLang's graph-based AST
+- Uses FluentAI's graph-based AST
 - Nodes have unique IDs for efficient manipulation
 - Enables sophisticated whole-program analysis
 

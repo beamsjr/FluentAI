@@ -139,6 +139,7 @@ impl<'a> Parser<'a> {
                 "import" => return self.parse_import(),
                 "export" => return self.parse_export(),
                 "spec:contract" => return self.parse_contract(),
+                "handler" => return self.parse_handler(),
                 _ => {}
             }
         }
@@ -379,6 +380,79 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParseError::InvalidSyntax("Expected effect specification".to_string()))
         }
+    }
+    
+    fn parse_handler(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_handler_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_handler_inner(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("handler")?;
+        self.expect_token(Token::LParen)?;
+        
+        // Parse handlers list
+        let mut handlers = Vec::new();
+        while matches!(self.lexer.peek_token(), Some(Token::LParen)) {
+            self.lexer.next_token(); // consume LParen
+            
+            // Parse effect type
+            if let Some(Token::Symbol(effect_spec)) = self.lexer.next_token() {
+                let (effect_type, operation) = if let Some(colon_pos) = effect_spec.find(':') {
+                    let effect_str = &effect_spec[..colon_pos];
+                    let operation_str = &effect_spec[colon_pos + 1..];
+                    
+                    let effect_type = match effect_str.to_lowercase().as_str() {
+                        "io" => EffectType::IO,
+                        "state" => EffectType::State,
+                        "error" => EffectType::Error,
+                        "time" => EffectType::Time,
+                        "network" => EffectType::Network,
+                        "random" => EffectType::Random,
+                        "concurrent" => EffectType::Concurrent,
+                        "async" => EffectType::Async,
+                        "dom" => EffectType::Dom,
+                        _ => EffectType::IO,
+                    };
+                    
+                    (effect_type, Some(operation_str.to_string()))
+                } else {
+                    let effect_type = match effect_spec.to_lowercase().as_str() {
+                        "io" => EffectType::IO,
+                        "state" => EffectType::State,
+                        "error" => EffectType::Error,
+                        "time" => EffectType::Time,
+                        "network" => EffectType::Network,
+                        "random" => EffectType::Random,
+                        "concurrent" => EffectType::Concurrent,
+                        "async" => EffectType::Async,
+                        "dom" => EffectType::Dom,
+                        _ => EffectType::IO,
+                    };
+                    
+                    (effect_type, None)
+                };
+                
+                // Parse handler function
+                let handler_fn = self.parse_expr()?;
+                handlers.push((effect_type, operation, handler_fn));
+                
+                self.expect_token(Token::RParen)?;
+            } else {
+                return Err(ParseError::InvalidSyntax("Expected effect type in handler".to_string()));
+            }
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        // Parse body
+        let body = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Handler { handlers, body };
+        Ok(self.graph.add_node(node)?)
     }
     
     fn parse_match(&mut self) -> ParseResult<NodeId> {

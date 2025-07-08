@@ -4,27 +4,27 @@
 
 This report summarizes the testing of all examples in the `rust/examples` directory.
 
-## ClaudeLang (.cl) Examples
+## FluentAI (.ai) Examples
 
 ### Working Examples
-1. **hello.cl** - ✅ Works correctly
+1. **hello.ai** - ✅ Works correctly
    - Simple arithmetic expression `(+ (* 3 4) (* 5 6))`
    - Result: 42
 
-2. **factorial_simple.cl** - ✅ Works correctly (created as alternative)
+2. **factorial_simple.ai** - ✅ Works correctly (created as alternative)
    - Simple factorial implementation without tail call optimization
    - Result: 120 (for factorial of 5)
 
 ### Broken Examples
-1. **factorial.cl** - ❌ Runtime error
+1. **factorial.ai** - ❌ Runtime error
    - Error: `Type error in tail_call: expected function, got int`
    - Issue: Tail call optimization bug in the VM
 
-2. **effects_demo.cl** - ❌ Parse error
+2. **effects_demo.ai** - ❌ Parse error
    - Error: `Invalid syntax: Expected expression`
    - Issue: Complex effects syntax not supported by parser
 
-3. **pattern_matching.cl** - ❌ Parse error
+3. **pattern_matching.ai** - ❌ Parse error
    - Error: `Invalid syntax: Invalid pattern`
    - Issue: Advanced pattern matching syntax not implemented
 

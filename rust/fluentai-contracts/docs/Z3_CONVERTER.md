@@ -1,6 +1,6 @@
 # Z3 Converter Documentation
 
-The Z3 converter translates ClaudeLang contract expressions into Z3 SMT formulas for static verification.
+The Z3 converter translates FluentAI contract expressions into Z3 SMT formulas for static verification.
 
 ## Supported Operators
 
@@ -67,7 +67,7 @@ The Z3 converter translates ClaudeLang contract expressions into Z3 SMT formulas
 
 ```rust
 use z3::{Config, Context};
-use claudelang_contracts::z3_converter::{Z3Converter, Z3Sort, Z3Expr};
+use fluentai_contracts::z3_converter::{Z3Converter, Z3Sort, Z3Expr};
 
 // Create Z3 context
 let config = Config::new();

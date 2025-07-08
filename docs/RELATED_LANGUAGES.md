@@ -1,4 +1,4 @@
-# Related Languages to ClaudeLang
+# Related Languages to FluentAI
 
 ## Languages with Similar Features
 
@@ -129,7 +129,7 @@
   - Probabilistic semantics
 - **Differences**: No explicit effects, research languages
 
-## What Makes ClaudeLang Unique?
+## What Makes FluentAI Unique?
 
 The combination of:
 
@@ -154,7 +154,7 @@ But Unison still:
 - Doesn't prioritize machine documentation
 - Has more complex syntax
 
-### The Gap ClaudeLang Fills
+### The Gap FluentAI Fills
 
 No existing language simultaneously:
 - Prioritizes machine parsing/generation
@@ -175,4 +175,4 @@ Several developments suggest the need for AI-first languages:
 3. **Automated Verification**: Easier with explicit effects
 4. **AI-Assisted Development**: Benefits from structured code representation
 
-ClaudeLang represents what programming languages might look like if designed today with AI as a primary user, not an afterthought.
+FluentAI represents what programming languages might look like if designed today with AI as a primary user, not an afterthought.

@@ -1,4 +1,4 @@
-# Native Code Generation Strategy for ClaudeLang
+# Native Code Generation Strategy for FluentAI
 
 ## Overview
 
@@ -32,7 +32,7 @@ Source → Parser → AST → Optimizer → IR → Native Code
    - Effect annotations for optimization hints
 
 2. **LLVM Code Generation**
-   - Map ClaudeLang primitives to LLVM intrinsics
+   - Map FluentAI primitives to LLVM intrinsics
    - Implement runtime support library in C/Rust
    - Generate position-independent code
 
@@ -78,7 +78,7 @@ class TypeInfo:
 
 ### LLVM IR Generation Example
 
-ClaudeLang code:
+FluentAI code:
 ```lisp
 (defun add (x y)
   (+ x y))
@@ -86,7 +86,7 @@ ClaudeLang code:
 
 Generated LLVM IR:
 ```llvm
-define i64 @claudelang_add(i64 %x, i64 %y) {
+define i64 @fluentai_add(i64 %x, i64 %y) {
 entry:
   %result = add i64 %x, %y
   ret i64 %result

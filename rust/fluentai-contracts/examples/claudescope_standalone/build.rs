@@ -20,7 +20,7 @@ fn main() {
     writeln!(f, "pub static CLAUDESCOPE_SOURCES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {{").unwrap();
     writeln!(f, "    let mut sources = HashMap::new();").unwrap();
 
-    // Find all .cl files in the claudescope directory
+    // Find all .ai files in the claudescope directory
     let claudescope_path = Path::new("../../examples/claudescope");
     for entry in WalkDir::new(claudescope_path)
         .follow_links(true)

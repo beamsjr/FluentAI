@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Performance tracking script for ClaudeLang Rust implementation.
+Performance tracking script for FluentAI Rust implementation.
 Runs benchmarks and stores results for historical tracking.
 """
 
@@ -18,7 +18,7 @@ RESULTS_FILE = RESULTS_DIR / "performance_history.json"
 
 def run_benchmarks() -> Dict[str, Any]:
     """Run all benchmarks and collect results."""
-    print("Running ClaudeLang Rust benchmarks...")
+    print("Running FluentAI Rust benchmarks...")
     
     results = {
         "timestamp": datetime.datetime.now().isoformat(),
@@ -108,7 +108,7 @@ def parse_comprehensive_output(output: str) -> Dict[str, Any]:
     # Look for the performance summary section
     in_summary = False
     for line in output.split('\n'):
-        if "ClaudeLang Performance Comparison" in line:
+        if "FluentAI Performance Comparison" in line:
             in_summary = True
         elif in_summary and "AVERAGE" in line:
             parts = line.split()

@@ -109,7 +109,7 @@ When the VM encounters a `TailCall` instruction:
 
 2. **Verify Optimization**: Use the VM's debug features to verify that tail calls are being optimized:
    ```bash
-   FLUENTAI_DEBUG_TAILCALL=1 fluentai run myprogram.cl
+   FLUENTAI_DEBUG_TAILCALL=1 fluentai run myprogram.ai
    ```
 
 3. **Test with Large Inputs**: Test recursive functions with large inputs to ensure they don't cause stack overflow.

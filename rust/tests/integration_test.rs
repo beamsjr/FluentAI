@@ -22,7 +22,7 @@ fn test_module_loading_and_execution() {
     nil))
 "#;
     
-    fs::write(temp_dir.path().join("math.cl"), math_module).unwrap();
+    fs::write(temp_dir.path().join("math.ai"), math_module).unwrap();
     
     // Create a main module that imports math
     let main_module = r#"
@@ -65,7 +65,7 @@ fn test_qualified_module_access() {
     nil))
 "#;
     
-    fs::write(temp_dir.path().join("utils.cl"), utils_module).unwrap();
+    fs::write(temp_dir.path().join("utils.ai"), utils_module).unwrap();
     
     // Use qualified access
     let main_code = r#"
@@ -110,7 +110,7 @@ fn test_package_manifest_and_dependencies() {
     }
 }"#;
     
-    let manifest_path = temp_dir.path().join("claude.json");
+    let manifest_path = temp_dir.path().join("fluentai.json");
     fs::write(&manifest_path, manifest_content).unwrap();
     
     // Parse manifest
@@ -133,7 +133,7 @@ fn test_module_with_effects() {
     nil))
 "#;
     
-    fs::write(temp_dir.path().join("io.cl"), io_module).unwrap();
+    fs::write(temp_dir.path().join("io.ai"), io_module).unwrap();
     
     // Use the IO module
     let main_code = r#"
@@ -186,8 +186,8 @@ fn test_nested_module_imports() {
 (circle-area 5)
 "#;
     
-    fs::write(temp_dir.path().join("base.cl"), base_module).unwrap();
-    fs::write(temp_dir.path().join("math.cl"), math_module).unwrap();
+    fs::write(temp_dir.path().join("base.ai"), base_module).unwrap();
+    fs::write(temp_dir.path().join("math.ai"), math_module).unwrap();
     
     let ast = parse(main_code).unwrap();
     let compiler = Compiler::new();
@@ -224,7 +224,7 @@ fn test_module_exports_validation() {
     nil))
 "#;
     
-    fs::write(temp_dir.path().join("secure.cl"), secure_module).unwrap();
+    fs::write(temp_dir.path().join("secure.ai"), secure_module).unwrap();
     
     // Try to import non-exported function (should fail at runtime)
     let invalid_code = r#"
@@ -297,7 +297,7 @@ fn test_module_caching() {
     nil))
 "#;
     
-    fs::write(temp_dir.path().join("cached.cl"), cached_module).unwrap();
+    fs::write(temp_dir.path().join("cached.ai"), cached_module).unwrap();
     
     let config = ModuleConfig {
         search_paths: vec![temp_dir.path().to_path_buf()],
@@ -337,7 +337,7 @@ fn test_module_search_paths() {
     nil))
 "#;
     
-    fs::write(lib_dir.join("stdlib.cl"), lib_module).unwrap();
+    fs::write(lib_dir.join("stdlib.ai"), lib_module).unwrap();
     
     // Create an app module
     let app_module = r#"
@@ -346,7 +346,7 @@ fn test_module_search_paths() {
     nil))
 "#;
     
-    fs::write(app_dir.join("app.cl"), app_module).unwrap();
+    fs::write(app_dir.join("app.ai"), app_module).unwrap();
     
     // Configure with multiple search paths
     let config = ModuleConfig {

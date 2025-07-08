@@ -1,8 +1,8 @@
-# ClaudeLang JIT Compiler
+# FluentAI JIT Compiler
 
 ## Overview
 
-The ClaudeLang JIT (Just-In-Time) compiler provides native code generation for hot code paths, achieving an additional 5-10x performance improvement over the bytecode VM.
+The FluentAI JIT (Just-In-Time) compiler provides native code generation for hot code paths, achieving an additional 5-10x performance improvement over the bytecode VM.
 
 ## Architecture
 
@@ -75,7 +75,7 @@ BytecodeChunk → Cranelift IR → Machine Code → Function Pointer
 ### Basic Example
 
 ```rust
-use claudelang_jit::JitCompiler;
+use fluentai_jit::JitCompiler;
 
 // Create JIT compiler
 let mut jit = JitCompiler::new()?;
@@ -155,12 +155,12 @@ The JIT compiler maintains debug information for:
 
 ### Running Tests
 ```bash
-cargo test -p claudelang-jit
+cargo test -p fluentai-jit
 ```
 
 ### Benchmarking
 ```bash
-cargo bench -p claudelang-jit
+cargo bench -p fluentai-jit
 ```
 
 ## Future Enhancements
@@ -170,4 +170,4 @@ cargo bench -p claudelang-jit
 3. **GPU Acceleration**: Offload parallel computations
 4. **Adaptive Optimization**: Runtime specialization based on profiling
 
-The JIT compiler represents the final piece in achieving native performance for ClaudeLang, completing the transformation from a research prototype to a production-ready platform.
+The JIT compiler represents the final piece in achieving native performance for FluentAI, completing the transformation from a research prototype to a production-ready platform.

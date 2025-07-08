@@ -343,6 +343,13 @@ impl Graph {
                             stack.push(*arg);
                         }
                     }
+                    Node::Handler { handlers, body } => {
+                        stack.push(*body);
+                        // Push handler functions in reverse order
+                        for (_, _, handler_fn) in handlers.iter().rev() {
+                            stack.push(*handler_fn);
+                        }
+                    }
                     Node::Send { channel, value } => {
                         stack.push(*value);
                         stack.push(*channel);
@@ -423,6 +430,12 @@ impl Graph {
                         self.dfs_helper(*arg, visited, visitor);
                     }
                 }
+                Node::Handler { handlers, body } => {
+                    self.dfs_helper(*body, visited, visitor);
+                    for (_, _, handler_fn) in handlers {
+                        self.dfs_helper(*handler_fn, visited, visitor);
+                    }
+                }
                 _ => {} // Leaf nodes
             }
         }
@@ -458,6 +471,10 @@ impl Graph {
                 }
                 Node::Effect { args, .. } => {
                     children.extend(args);
+                }
+                Node::Handler { handlers, body } => {
+                    children.push(*body);
+                    children.extend(handlers.iter().map(|(_, _, handler_fn)| handler_fn));
                 }
                 Node::Send { channel, value } => {
                     children.push(*channel);
@@ -670,6 +687,13 @@ pub enum Node {
         effect_type: EffectType,
         operation: String,
         args: Vec<NodeId>,
+    },
+    
+    // Effect handlers
+    Handler {
+        /// List of handlers: (effect_type, optional operation filter, handler function)
+        handlers: Vec<(EffectType, Option<String>, NodeId)>,
+        body: NodeId,
     },
     
     // Data structures
@@ -1157,7 +1181,19 @@ impl Node {
                 description: "Performs an effectful operation. Effects are tracked by the type system and handled by effect handlers. Can be called using explicit effect syntax or shorthand notation with colon.".to_string(),
                 examples: vec!["(effect IO print \"Hello\")".to_string(), "(io:print \"Hello\")".to_string()],
                 category: DocumentationCategory::Effect,
-                see_also: vec!["Async".to_string(), "IO".to_string()],
+                see_also: vec!["Handler".to_string(), "Async".to_string(), "IO".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Handler { .. } => Documentation {
+                name: "Handler".to_string(),
+                syntax: "(handler ((<effect-type> <handler-fn>) ...) <body>)".to_string(),
+                description: "Installs effect handlers for the dynamic scope of the body expression. Handlers intercept matching effects and can provide custom implementations.".to_string(),
+                examples: vec![
+                    "(handler ((error (lambda (err) \"default\"))) (risky-op))".to_string(),
+                    "(handler ((io (lambda (op . args) (log op args)))) (io:print \"test\"))".to_string(),
+                ],
+                category: DocumentationCategory::Effect,
+                see_also: vec!["Effect".to_string(), "Error".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::List(_) => Documentation {

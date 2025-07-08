@@ -198,11 +198,11 @@ mod tests {
 
     #[test]
     fn test_source_location() {
-        let loc = SourceLocation::new("test.cl".to_string(), 10, 5);
-        assert_eq!(loc.to_string(), "test.cl:10:5");
+        let loc = SourceLocation::new("test.ai".to_string(), 10, 5);
+        assert_eq!(loc.to_string(), "test.ai:10:5");
 
-        let loc = SourceLocation::with_range("test.cl".to_string(), 10, 5, 10, 15);
-        assert_eq!(loc.to_string(), "test.cl:10:5-10:15");
+        let loc = SourceLocation::with_range("test.ai".to_string(), 10, 5, 10, 15);
+        assert_eq!(loc.to_string(), "test.ai:10:5-10:15");
     }
 
     #[test]
@@ -224,10 +224,10 @@ mod tests {
         let frame = StackFrame {
             function_name: "factorial".to_string(),
             arguments: vec!["5".to_string()],
-            location: Some(SourceLocation::new("test.cl".to_string(), 10, 5)),
+            location: Some(SourceLocation::new("test.ai".to_string(), 10, 5)),
             locals: vec![],
         };
 
-        assert_eq!(frame.to_string(), "  at factorial(5) [test.cl:10:5]");
+        assert_eq!(frame.to_string(), "  at factorial(5) [test.ai:10:5]");
     }
 }

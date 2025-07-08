@@ -294,7 +294,7 @@ mod tests {
         ModuleInfo {
             id: id.to_string(),
             name: name.to_string(),
-            path: PathBuf::from(format!("{}.cl", id)),
+            path: PathBuf::from(format!("{}.ai", id)),
             graph: Graph::new(),
             root: NodeId::new(1).unwrap(),
             exports: vec![],

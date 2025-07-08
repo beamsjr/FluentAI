@@ -9,7 +9,7 @@ from src.compiler.ui_compiler import UICompiler, CompilerOptions, OutputFormat
 
 def main():
     # Read the counter example
-    with open('examples/component_demo.cl', 'r') as f:
+    with open('examples/component_demo.ai', 'r') as f:
         source = f.read()
     
     # Create compiler with vanilla JS output

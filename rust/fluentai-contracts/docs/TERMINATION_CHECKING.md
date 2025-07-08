@@ -108,7 +108,7 @@ let measure = TerminationMeasure {
 ### Basic Termination Check
 
 ```rust
-use claudelang_contracts::TerminationChecker;
+use fluentai_contracts::TerminationChecker;
 
 let mut checker = TerminationChecker::new(&graph);
 let result = checker.analyze_contract(&contract)?;

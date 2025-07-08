@@ -2,7 +2,7 @@
 name = "claudescope"
 version = "1.0.0"
 edition = "2021"
-authors = ["ClaudeLang Team"]
+authors = ["FluentAI Team"]
 description = "Self-verifying network analyzer with formal contracts"
 
 [[bin]]

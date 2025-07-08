@@ -98,7 +98,7 @@ fn test_qualified_variable() {
 #[test]
 fn test_module_loader_file_discovery() {
     let temp_dir = TempDir::new().unwrap();
-    let module_path = temp_dir.path().join("test_module.cl");
+    let module_path = temp_dir.path().join("test_module.ai");
     
     fs::write(&module_path, r#"(module test_module (export greet) (let ((greet (lambda (name) (str-concat "Hello, " name)))) greet))"#).unwrap();
     
@@ -150,7 +150,7 @@ fn test_circular_dependency_detection() {
     let module_a = ModuleInfo {
         id: "a".to_string(),
         name: "a".to_string(),
-        path: PathBuf::from("a.cl"),
+        path: PathBuf::from("a.ai"),
         graph: parse("()").unwrap(),
         root: fluentai_core::ast::NodeId::new(1).unwrap(),
         exports: vec![],
@@ -161,7 +161,7 @@ fn test_circular_dependency_detection() {
     let module_b = ModuleInfo {
         id: "b".to_string(),
         name: "b".to_string(),
-        path: PathBuf::from("b.cl"),
+        path: PathBuf::from("b.ai"),
         graph: parse("()").unwrap(),
         root: fluentai_core::ast::NodeId::new(1).unwrap(),
         exports: vec![],
@@ -194,7 +194,7 @@ fn test_module_environment_imports() {
     let module = Arc::new(ModuleInfo {
         id: "test".to_string(),
         name: "test".to_string(),
-        path: PathBuf::from("test.cl"),
+        path: PathBuf::from("test.ai"),
         graph: parse("()").unwrap(),
         root: fluentai_core::ast::NodeId::new(1).unwrap(),
         exports: vec!["foo".to_string()],

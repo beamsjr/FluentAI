@@ -191,6 +191,14 @@ impl PyNode {
                     data.insert("pure".to_string(), pure.to_object(py));
                     "Contract"
                 }
+                Node::Handler { handlers, body: _ } => {
+                    data.insert("handler_count".to_string(), handlers.len().to_object(py));
+                    let handler_types: Vec<String> = handlers.iter()
+                        .map(|(effect_type, _, _)| format!("{:?}", effect_type))
+                        .collect();
+                    data.insert("effect_types".to_string(), handler_types.to_object(py));
+                    "Handler"
+                }
             };
             
             Self {

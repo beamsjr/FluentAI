@@ -1,14 +1,14 @@
-# Security Guide for ClaudeLang Database Module
+# Security Guide for FluentAI Database Module
 
 ## SQL Injection Prevention
 
-The ClaudeLang database module is designed with security as a top priority. All database operations use **parameterized queries** to prevent SQL injection attacks.
+The FluentAI database module is designed with security as a top priority. All database operations use **parameterized queries** to prevent SQL injection attacks.
 
 ### ✅ Safe Practices (Always Use These)
 
 #### 1. Use Parameterized Queries
 
-**ClaudeLang (Safe):**
+**FluentAI (Safe):**
 ```lisp
 ;; Parameters are automatically escaped
 (effect db:query "SELECT * FROM users WHERE age > ? AND name = ?" [18 user-input])
@@ -175,7 +175,7 @@ let query = builder.build();
 
 ### 🚨 Reporting Security Issues
 
-If you discover a security vulnerability, please email security@claudelang.org with:
+If you discover a security vulnerability, please email security@fluentai.org with:
 
 1. Description of the vulnerability
 2. Steps to reproduce

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple example runner for ClaudeLang
+Simple example runner for FluentAI
 """
 
 import sys
@@ -48,7 +48,7 @@ def run_example():
     
     # Example 5: Effects (IO)
     print("Example 5: Effects")
-    code5 = "(let ((msg \"Hello from ClaudeLang!\")) (do msg))"
+    code5 = "(let ((msg \"Hello from FluentAI!\")) (do msg))"
     graph5 = parse(code5)
     print(f"Code: {code5}")
     result5 = interpreter.interpret(graph5)

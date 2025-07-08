@@ -1,6 +1,6 @@
-use claudelang_parser::parse;
-use claudelang_vm::compiler::Compiler;
-use claudelang_jit::JitCompiler;
+use fluentai_parser::parse;
+use fluentai_vm::compiler::Compiler;
+use fluentai_jit::JitCompiler;
 
 fn main() {
     println!("Testing JIT compiler on current platform...");

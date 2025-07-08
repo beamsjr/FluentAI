@@ -67,20 +67,20 @@ pub struct RegistryConfig {
 }
 
 fn default_registry() -> String {
-    "https://registry.claudelang.org".to_string()
+    "https://registry.fluentai.org".to_string()
 }
 
 fn default_global_dir() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("claudelang")
+        .join("fluentai")
         .join("packages")
 }
 
 fn default_cache_dir() -> PathBuf {
     dirs::cache_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("claudelang")
+        .join("fluentai")
         .join("packages")
 }
 
@@ -156,7 +156,7 @@ impl PackageConfig {
     /// Get the configuration file path
     pub fn config_path() -> Option<PathBuf> {
         dirs::config_dir()
-            .map(|d| d.join("claudelang").join("package.toml"))
+            .map(|d| d.join("fluentai").join("package.toml"))
     }
     
     /// Get registry URL by name
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = PackageConfig::default();
-        assert_eq!(config.registry, "https://registry.claudelang.org");
+        assert_eq!(config.registry, "https://registry.fluentai.org");
         assert!(config.verify_checksums);
         assert!(!config.offline);
     }
@@ -231,7 +231,7 @@ mod tests {
             Some("token123".to_string()),
         );
         
-        assert_eq!(config.get_registry_url(None), "https://registry.claudelang.org");
+        assert_eq!(config.get_registry_url(None), "https://registry.fluentai.org");
         assert_eq!(config.get_registry_url(Some("custom")), "https://custom.registry.com");
         assert_eq!(config.get_auth_token("https://custom.registry.com"), Some("token123"));
     }

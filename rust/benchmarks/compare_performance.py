@@ -104,7 +104,7 @@ def compare_results(rust_results, python_results):
             print(f"{bench:<30} {py_time:<15.2f} {rust_time:<15.2f} {speedup:<10.1f}x")
 
 def main():
-    print("ClaudeLang Performance Comparison")
+    print("FluentAI Performance Comparison")
     print("="*50)
     
     # Run benchmarks

@@ -1,10 +1,10 @@
 # ClaudeScope - Self-Verifying Network Analyzer
 
-A demonstration application showcasing ClaudeLang's design-by-contract capabilities in the context of network security analysis.
+A demonstration application showcasing FluentAI's design-by-contract capabilities in the context of network security analysis.
 
 ## Overview
 
-ClaudeScope is a network analyzer that automatically verifies security policies using formal contracts. It demonstrates how ClaudeLang's contract system can be applied to real-world security problems.
+ClaudeScope is a network analyzer that automatically verifies security policies using formal contracts. It demonstrates how FluentAI's contract system can be applied to real-world security problems.
 
 ## Features
 
@@ -43,24 +43,24 @@ ClaudeScope is a network analyzer that automatically verifies security policies 
 ```
 claudescope/
 ├── src/
-│   ├── types.cl          # Core data types (IP, MAC, Packet, etc.)
-│   ├── topology.cl       # Network topology discovery
-│   ├── contracts.cl      # Security contract definitions
-│   ├── capture.cl        # Packet capture simulation
-│   ├── firewall.cl       # Firewall rule optimization
-│   ├── replay.cl         # Traffic replay engine
-│   ├── explain.cl        # Violation explainability
-│   └── claudescope.cl    # Main application logic
-├── main.cl               # Entry point
+│   ├── types.ai          # Core data types (IP, MAC, Packet, etc.)
+│   ├── topology.ai       # Network topology discovery
+│   ├── contracts.ai      # Security contract definitions
+│   ├── capture.ai        # Packet capture simulation
+│   ├── firewall.ai       # Firewall rule optimization
+│   ├── replay.ai         # Traffic replay engine
+│   ├── explain.ai        # Violation explainability
+│   └── claudescope.ai    # Main application logic
+├── main.ai               # Entry point
 ├── README.md             # This file
-└── LanguageRequests.md   # ClaudeLang feature wishlist
+└── LanguageRequests.md   # FluentAI feature wishlist
 ```
 
 ## Running the Demo
 
 ### Interactive Demo (Recommended)
 ```bash
-claudelang main.cl
+fluentai main.ai
 ```
 
 This runs through a complete workflow demonstrating all features.
@@ -68,16 +68,16 @@ This runs through a complete workflow demonstrating all features.
 ### Individual Commands
 ```bash
 # Start packet capture
-claudelang main.cl capture
+fluentai main.ai capture
 
 # Analyze network
-claudelang main.cl analyze
+fluentai main.ai analyze
 
 # Explain violations
-claudelang main.cl explain
+fluentai main.ai explain
 
 # Generate report
-claudelang main.cl report
+fluentai main.ai report
 ```
 
 ## Example Security Contracts
@@ -105,7 +105,7 @@ claudelang main.cl report
 
 ## Contract Verification
 
-ClaudeScope uses ClaudeLang's contract system to ensure:
+ClaudeScope uses FluentAI's contract system to ensure:
 
 1. **Data Integrity**: All network data types have validation contracts
 2. **State Consistency**: Topology invariants are maintained
@@ -156,7 +156,7 @@ Recommendations:
 ## Technical Implementation
 
 ### Type Safety
-ClaudeScope uses ClaudeLang's algebraic data types for all network entities:
+ClaudeScope uses FluentAI's algebraic data types for all network entities:
 ```clojure
 (define-type Packet
   (TCPPacket (src-ip IPAddr) (dst-ip IPAddr) ...)
@@ -183,7 +183,7 @@ Analysis functions are marked as pure for optimization:
 
 ## Limitations and Workarounds
 
-Due to current ClaudeLang limitations, we implement workarounds for:
+Due to current FluentAI limitations, we implement workarounds for:
 - **Network Types**: IP addresses as tagged unions instead of native types
 - **Binary Data**: Packet payloads as integer lists instead of byte arrays
 - **Async Operations**: Synchronous simulation instead of true async
@@ -193,7 +193,7 @@ See `LanguageRequests.md` for detailed feature requests.
 
 ## Future Enhancements
 
-With additional ClaudeLang features:
+With additional FluentAI features:
 1. Real packet capture via libpcap FFI
 2. Concurrent packet processing with channels
 3. Binary pattern matching for deep packet inspection

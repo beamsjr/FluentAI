@@ -57,7 +57,7 @@ Functions are marked as changed when:
 ### Basic Setup
 
 ```rust
-use claudelang_contracts::{IncrementalVerifier, StaticVerifier};
+use fluentai_contracts::{IncrementalVerifier, StaticVerifier};
 
 // Create incremental verifier
 let mut inc_verifier = IncrementalVerifier::new(&graph);
@@ -87,7 +87,7 @@ let results = inc_verifier.verify_incremental(&contracts, &mut static_verifier)?
 ### Dependency Analysis
 
 ```rust
-use claudelang_contracts::DependencyAnalyzer;
+use fluentai_contracts::DependencyAnalyzer;
 
 // Analyze function calls
 let mut analyzer = DependencyAnalyzer::new(&graph);

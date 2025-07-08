@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Comprehensive documentation for tail call optimization in `docs/tail_call_optimization.md`
-- Example file demonstrating various tail-recursive algorithms in `examples/tail_recursion_examples.cl`
+- Example file demonstrating various tail-recursive algorithms in `examples/tail_recursion_examples.ai`
 - Debug support for tail call execution with `FLUENTAI_DEBUG_TAILCALL` environment variable
 
 ### Changed

@@ -2,7 +2,7 @@
 
 ## Overview
 
-FluentAi (formerly ClaudeLang) is now a **production-ready Rust implementation** of an AI-first programming language. The Python implementation has been completely replaced with a high-performance Rust implementation that achieves 10-200x performance improvements while maintaining full feature parity.
+FluentAi (formerly FluentAI) is now a **production-ready Rust implementation** of an AI-first programming language. The Python implementation has been completely replaced with a high-performance Rust implementation that achieves 10-200x performance improvements while maintaining full feature parity.
 
 ## Architecture
 

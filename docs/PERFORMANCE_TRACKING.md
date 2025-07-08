@@ -1,8 +1,8 @@
-# ClaudeLang Performance Tracking Framework
+# FluentAI Performance Tracking Framework
 
 ## Overview
 
-This document describes the comprehensive performance tracking framework for the ClaudeLang Rust migration. Our goal is to achieve 5-10x Python performance (from current 40-120x slower) through systematic optimization and careful measurement.
+This document describes the comprehensive performance tracking framework for the FluentAI Rust migration. Our goal is to achieve 5-10x Python performance (from current 40-120x slower) through systematic optimization and careful measurement.
 
 ## Current Performance Baseline
 

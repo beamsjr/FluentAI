@@ -1,6 +1,6 @@
-# ClaudeLang Module System
+# FluentAI Module System
 
-The ClaudeLang module system provides a way to organize code into reusable, encapsulated units with controlled visibility.
+The FluentAI module system provides a way to organize code into reusable, encapsulated units with controlled visibility.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -12,7 +12,7 @@ The ClaudeLang module system provides a way to organize code into reusable, enca
 
 ## Overview
 
-Modules in ClaudeLang allow you to:
+Modules in FluentAI allow you to:
 - Organize code into logical units
 - Control visibility of functions and values
 - Avoid naming conflicts
@@ -95,23 +95,23 @@ Modules are searched in the following order:
 
 ### File Naming
 
-- Module files use the `.cl` extension
+- Module files use the `.ai` extension
 - Module `foo` is looked for as:
-  - `foo.cl` (file)
-  - `foo/module.cl` (directory with module file)
+  - `foo.ai` (file)
+  - `foo/module.ai` (directory with module file)
 
 ### Example Directory Structure
 
 ```
 project/
-├── main.cl
+├── main.ai
 ├── lib/
-│   ├── math.cl
-│   └── utils.cl
+│   ├── math.ai
+│   └── utils.ai
 └── modules/
     ├── database/
-    │   └── module.cl
-    └── network.cl
+    │   └── module.ai
+    └── network.ai
 ```
 
 ## Module Loading
@@ -126,7 +126,7 @@ Modules are cached after first load:
 ### Configuration
 
 ```rust
-use claudelang_modules::{ModuleLoader, ModuleConfig};
+use fluentai_modules::{ModuleLoader, ModuleConfig};
 
 let config = ModuleConfig {
     search_paths: vec![
@@ -261,7 +261,7 @@ Use descriptive module names:
 
 ## Integration with VM
 
-The module system is integrated with the ClaudeLang VM through:
+The module system is integrated with the FluentAI VM through:
 
 1. **Module Opcodes**: Special bytecode instructions for module operations
 2. **Module Loader**: Handles finding and loading modules
@@ -288,7 +288,7 @@ Common module errors:
 (import "math" (undefined-function))  ; Error: Export not found
 
 ; CircularDependency
-; a.cl imports b.cl, b.cl imports a.cl  ; Error: Circular dependency
+; a.ai imports b.ai, b.ai imports a.ai  ; Error: Circular dependency
 ```
 
 ## Performance Considerations

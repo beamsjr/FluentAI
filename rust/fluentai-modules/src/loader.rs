@@ -119,8 +119,8 @@ impl ModuleLoader {
     
     /// Resolve a module reference to a file path
     fn resolve_module_path(&self, module_ref: &str) -> Result<PathBuf> {
-        // If it's already a path with .cl extension, validate and use it
-        if module_ref.ends_with(".cl") {
+        // If it's already a path with .ai extension, validate and use it
+        if module_ref.ends_with(".ai") {
             let path = Path::new(module_ref);
             if path.is_absolute() {
                 return Err(ModuleError::InvalidPath {
@@ -135,14 +135,14 @@ impl ModuleLoader {
         // Try each search path
         for search_path in &self.config.search_paths {
             // Try as a file
-            let file_path = search_path.join(format!("{}.cl", module_ref));
+            let file_path = search_path.join(format!("{}.ai", module_ref));
             if file_path.exists() {
                 trace!("Found module at: {:?}", file_path);
                 return self.validate_resolved_path(file_path);
             }
             
-            // Try as a directory with module.cl
-            let dir_path = search_path.join(module_ref).join("module.cl");
+            // Try as a directory with module.ai
+            let dir_path = search_path.join(module_ref).join("module.ai");
             if dir_path.exists() {
                 trace!("Found module at: {:?}", dir_path);
                 return self.validate_resolved_path(dir_path);
@@ -315,7 +315,7 @@ mod tests {
     use tempfile::TempDir;
     
     fn create_test_module_file(dir: &Path, name: &str, content: &str) -> PathBuf {
-        let path = dir.join(format!("{}.cl", name));
+        let path = dir.join(format!("{}.ai", name));
         fs::write(&path, content).unwrap();
         path
     }
@@ -412,14 +412,14 @@ mod tests {
         let absolute_refs = vec![
             "/etc/passwd",
             "/usr/bin/evil",
-            "/absolute/path/module.cl",
+            "/absolute/path/module.ai",
         ];
         
         #[cfg(windows)]
         let absolute_refs = vec![
             "C:\\Windows\\System32\\cmd.exe",
             "\\\\server\\share\\file",
-            "D:\\absolute\\path\\module.cl",
+            "D:\\absolute\\path\\module.ai",
         ];
         
         for module_ref in absolute_refs {

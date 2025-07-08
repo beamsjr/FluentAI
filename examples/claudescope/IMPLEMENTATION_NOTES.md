@@ -2,7 +2,7 @@
 
 ## Overview
 
-ClaudeScope is a demonstration application that showcases how ClaudeLang's design-by-contract system can be applied to build a self-verifying network security analyzer. The implementation emphasizes formal verification, type safety, and contract-based security policy enforcement.
+ClaudeScope is a demonstration application that showcases how FluentAI's design-by-contract system can be applied to build a self-verifying network security analyzer. The implementation emphasizes formal verification, type safety, and contract-based security policy enforcement.
 
 ## Key Design Decisions
 
@@ -54,38 +54,38 @@ Analysis functions are marked as pure for caching and parallelization:
 
 ## Architecture Components
 
-### Core Types (types.cl)
+### Core Types (types.ai)
 - IP address representations with validation contracts
 - Network packet structures
 - Device and topology types
 - Contract result types
 
-### Topology Discovery (topology.cl)
+### Topology Discovery (topology.ai)
 - Automatic network graph construction
 - Invariant: No duplicate nodes, edges reference existing nodes
 - Path finding and bottleneck detection
 
-### Security Contracts (contracts.cl)
+### Security Contracts (contracts.ai)
 - Pre-defined security policies
 - Real-time violation tracking
 - Statistical analysis of compliance
 
-### Packet Capture (capture.cl)
+### Packet Capture (capture.ai)
 - Simulated packet generation
 - Buffer management with size constraints
 - Integration with topology and contract verification
 
-### Firewall Optimization (firewall.cl)
+### Firewall Optimization (firewall.ai)
 - Rule conflict detection (shadowing, redundancy)
 - Optimization suggestions
 - Report generation
 
-### Traffic Replay (replay.cl)
+### Traffic Replay (replay.ai)
 - Session recording and playback
 - Speed control and filtering
 - Comparative analysis
 
-### Explainability (explain.cl)
+### Explainability (explain.ai)
 - Human-readable violation explanations
 - Business impact assessment
 - Remediation guidance
@@ -100,7 +100,7 @@ Analysis functions are marked as pure for caching and parallelization:
 
 ## Workarounds and Limitations
 
-Due to current ClaudeLang limitations, we implemented workarounds:
+Due to current FluentAI limitations, we implemented workarounds:
 
 1. **Network Types**: IP addresses as tagged unions instead of native types
 2. **Binary Data**: Packet payloads as integer lists
@@ -124,7 +124,7 @@ The contract system enables comprehensive testing:
 
 ## Future Enhancements
 
-With additional ClaudeLang features:
+With additional FluentAI features:
 1. Native network types with built-in validation
 2. Binary pattern matching for packet inspection
 3. Async/await for real packet capture

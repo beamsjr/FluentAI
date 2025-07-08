@@ -117,6 +117,11 @@ pub enum Opcode {
     Send,
     Receive,
     
+    // Effect handlers
+    MakeHandler,     // Create handler table from stack values
+    InstallHandler,  // Install handler for dynamic scope
+    UninstallHandler,// Uninstall handler, preserving result
+    
     // Mutable cells
     MakeCell,    // Create a cell with initial value
     CellGet,     // Get value from cell

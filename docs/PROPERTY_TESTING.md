@@ -1,6 +1,6 @@
-# Property-Based Testing for ClaudeLang
+# Property-Based Testing for FluentAI
 
-This directory contains property-based tests using the Hypothesis library. Property-based testing helps ensure that ClaudeLang behaves correctly for a wide range of inputs by automatically generating test cases.
+This directory contains property-based tests using the Hypothesis library. Property-based testing helps ensure that FluentAI behaves correctly for a wide range of inputs by automatically generating test cases.
 
 ## Overview
 

@@ -1,6 +1,6 @@
-# JIT Compilation in ClaudeLang
+# JIT Compilation in FluentAI
 
-ClaudeLang includes a Just-In-Time (JIT) compiler that can significantly improve performance for hot code paths.
+FluentAI includes a Just-In-Time (JIT) compiler that can significantly improve performance for hot code paths.
 
 ## Overview
 
@@ -259,7 +259,7 @@ inc    %r15
 
 ## Trace-based JIT
 
-For hot loops, ClaudeLang can record execution traces:
+For hot loops, FluentAI can record execution traces:
 
 ```lisp
 ; This loop will be trace-compiled
@@ -285,7 +285,7 @@ Currently supported platforms:
 
 ```python
 import logging
-logging.getLogger('claudelang.jit').setLevel(logging.DEBUG)
+logging.getLogger('fluentai.jit').setLevel(logging.DEBUG)
 ```
 
 ### Inspect Compiled Code
@@ -347,7 +347,7 @@ Arithmetic Loop (1000 iterations):
 
 ## Integration with AI Features
 
-The JIT compiler integrates with ClaudeLang's AI-first features:
+The JIT compiler integrates with FluentAI's AI-first features:
 
 1. **Automatic proof generation** - Proves JIT optimizations correct
 2. **ML-guided compilation** - Learn which functions benefit from JIT

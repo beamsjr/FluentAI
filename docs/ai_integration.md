@@ -1,23 +1,23 @@
-# AI Integration Guide for ClaudeLang
+# AI Integration Guide for FluentAI
 
-This guide explains how AI systems can effectively work with ClaudeLang code, including parsing, generation, analysis, and transformation.
+This guide explains how AI systems can effectively work with FluentAI code, including parsing, generation, analysis, and transformation.
 
 ## Overview
 
-ClaudeLang is designed specifically for AI interaction:
+FluentAI is designed specifically for AI interaction:
 - **Structured representation**: Code as graphs, not text
 - **Explicit semantics**: No ambiguity in meaning
 - **Machine-readable documentation**: JSON-first documentation
 - **Effect tracking**: All side effects visible
 
-## Parsing ClaudeLang
+## Parsing FluentAI
 
 ### 1. Text to AST
 
 Convert S-expression syntax to AST:
 
 ```python
-from claudelang.parser import parse
+from fluentai.parser import parse
 
 # Parse source code
 source = "(+ 1 2)"
@@ -40,19 +40,19 @@ effects = graph.get_effects()
 ordered_nodes = graph.topological_sort()
 
 # Type inference
-from claudelang.types import TypeChecker
+from fluentai.types import TypeChecker
 checker = TypeChecker()
 node_type = checker.infer_type(root_node, graph)
 ```
 
-## Generating ClaudeLang
+## Generating FluentAI
 
 ### 1. Building AST Programmatically
 
 Create code by constructing AST nodes:
 
 ```python
-from claudelang.core.ast import *
+from fluentai.core.ast import *
 
 # Create a simple addition
 graph = Graph()
@@ -422,9 +422,9 @@ def generate_documentation(graph):
 
 ## Future Directions
 
-1. **Neural Program Synthesis**: Train models on ClaudeLang's structured representation
+1. **Neural Program Synthesis**: Train models on FluentAI's structured representation
 2. **Automated Verification**: Prove properties about AI-generated code
 3. **Interactive Development**: AI assists in real-time during coding
-4. **Cross-Language Translation**: Convert between ClaudeLang and other languages
+4. **Cross-Language Translation**: Convert between FluentAI and other languages
 
-ClaudeLang's design makes it an ideal target for AI-assisted programming, enabling more reliable and understandable code generation.
+FluentAI's design makes it an ideal target for AI-assisted programming, enabling more reliable and understandable code generation.

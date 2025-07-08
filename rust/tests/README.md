@@ -62,7 +62,7 @@ Example:
 fn test_module_feature() {
     // Setup
     let temp_dir = TempDir::new().unwrap();
-    fs::write(temp_dir.path().join("module.cl"), MODULE_CODE).unwrap();
+    fs::write(temp_dir.path().join("module.ai"), MODULE_CODE).unwrap();
     
     // Execute
     let result = load_and_run_module("module");

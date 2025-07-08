@@ -1,4 +1,4 @@
-# ClaudeLang Language Specification v1.0
+# FluentAI Language Specification v1.0
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -11,7 +11,7 @@
 
 ## Introduction
 
-ClaudeLang is an AI-first programming language designed for machine understanding and optimization. It prioritizes unambiguous syntax, explicit semantics, and compile-time optimization over human convenience.
+FluentAI is an AI-first programming language designed for machine understanding and optimization. It prioritizes unambiguous syntax, explicit semantics, and compile-time optimization over human convenience.
 
 ### Design Principles
 - **Unambiguous Parsing**: S-expression syntax with no precedence rules
@@ -24,7 +24,7 @@ ClaudeLang is an AI-first programming language designed for machine understandin
 
 ### Basic Syntax
 
-ClaudeLang uses S-expressions (symbolic expressions) for all constructs:
+FluentAI uses S-expressions (symbolic expressions) for all constructs:
 
 ```lisp
 (operator argument1 argument2 ...)
@@ -131,14 +131,14 @@ x
 
 ### Type Inference
 
-ClaudeLang performs type inference for optimization purposes:
+FluentAI performs type inference for optimization purposes:
 - Constant propagation
 - Type specialization
 - Dead code elimination
 
 ## Effects System
 
-ClaudeLang features a comprehensive effect system with first-class effect primitives.
+FluentAI features a comprehensive effect system with first-class effect primitives.
 
 ### Effect Types
 
@@ -389,4 +389,4 @@ Programs are represented as directed graphs:
 
 ## Conclusion
 
-ClaudeLang demonstrates that languages designed for machines can achieve both clarity and performance. By making semantics explicit and optimization-friendly, we enable aggressive compile-time optimization while maintaining correctness.
+FluentAI demonstrates that languages designed for machines can achieve both clarity and performance. By making semantics explicit and optimization-friendly, we enable aggressive compile-time optimization while maintaining correctness.

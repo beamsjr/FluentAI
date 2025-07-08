@@ -28,7 +28,7 @@
 //! 
 //! # Example
 //! 
-//! ```claudelang
+//! ```fluentai
 //! (spec:contract factorial
 //!   :requires [(>= n 0)]
 //!   :ensures [(>= result 1)
@@ -270,7 +270,7 @@ mod contract_examples {
     //! These examples show how contracts work in different scenarios:
     //! 
     //! ## Example 1: Simple arithmetic function
-    //! ```claudelang
+    //! ```fluentai
     //! (spec:contract safe-divide
     //!   :requires [(not (= divisor 0))]
     //!   :ensures [(= result (/ dividend divisor))]
@@ -278,7 +278,7 @@ mod contract_examples {
     //! ```
     //! 
     //! ## Example 2: Data structure invariant
-    //! ```claudelang
+    //! ```fluentai
     //! (spec:contract sorted-list-insert
     //!   :requires [(sorted? lst)]
     //!   :ensures [(sorted? result)
@@ -287,7 +287,7 @@ mod contract_examples {
     //! ```
     //! 
     //! ## Example 3: Loop invariant
-    //! ```claudelang
+    //! ```fluentai
     //! (spec:contract sum-array
     //!   :requires [(>= n 0)]
     //!   :ensures [(= result (sum arr 0 n))]
@@ -296,14 +296,14 @@ mod contract_examples {
     //! ```
     //! 
     //! ## Example 4: Object invariant
-    //! ```claudelang
+    //! ```fluentai
     //! (spec:contract bank-account
     //!   :invariant [(>= balance 0)
     //!               (= balance (- deposits withdrawals))])
     //! ```
     //! 
     //! ## Example 5: Postcondition with old() reference
-    //! ```claudelang
+    //! ```fluentai
     //! (spec:contract increment
     //!   :ensures [(= result (+ (old counter) 1))])
     //! ```

@@ -1,8 +1,8 @@
-# ClaudeLang Optimization Journey
+# FluentAI Optimization Journey
 
 ## Overview
 
-ClaudeLang is an AI-first programming language designed for machine understanding rather than human convenience. This document chronicles our journey to make it performant while maintaining its AI-friendly properties.
+FluentAI is an AI-first programming language designed for machine understanding rather than human convenience. This document chronicles our journey to make it performant while maintaining its AI-friendly properties.
 
 ## Starting Point
 
@@ -100,7 +100,7 @@ Bytecode:
 
 **Approach 1: LLVM Backend**
 ```python
-# ClaudeLang → LLVM IR → Native code
+# FluentAI → LLVM IR → Native code
 def compile_to_llvm(ast):
     return LLVMCodeGenerator().generate(ast)
 ```
@@ -206,6 +206,6 @@ HALT
 
 ## Conclusion
 
-Through systematic optimization, we've improved ClaudeLang's performance by 27-83x while maintaining its AI-friendly design. The path from 500-1500x slower to our 10x target is clear, with native code generation and JIT compilation as the final steps.
+Through systematic optimization, we've improved FluentAI's performance by 27-83x while maintaining its AI-friendly design. The path from 500-1500x slower to our 10x target is clear, with native code generation and JIT compilation as the final steps.
 
 The language proves that AI-first design and practical performance are not mutually exclusive—with careful engineering, we can have both.

@@ -1,11 +1,11 @@
-# ClaudeLang GitHub Push Summary
+# FluentAI GitHub Push Summary
 
-Successfully pushed ClaudeLang to: https://github.com/beamsjr/ClaudeLang
+Successfully pushed FluentAI to: https://github.com/beamsjr/FluentAI
 
 ## What Was Pushed
 
 ### Core Implementation
-- Complete ClaudeLang interpreter with graph-based AST
+- Complete FluentAI interpreter with graph-based AST
 - S-expression parser with full language support
 - Bytecode VM with 27-83x performance improvement
 - Interactive REPL with history and special commands
@@ -46,7 +46,7 @@ Successfully pushed ClaudeLang to: https://github.com/beamsjr/ClaudeLang
 ## Repository Structure
 
 ```
-ClaudeLang/
+FluentAI/
 ├── src/                    # Source code
 │   ├── core/              # AST and primitives
 │   ├── parser/            # S-expression parser
@@ -72,14 +72,14 @@ ClaudeLang/
 
 ```bash
 # Clone and run
-git clone https://github.com/beamsjr/ClaudeLang.git
-cd ClaudeLang
+git clone https://github.com/beamsjr/FluentAI.git
+cd FluentAI
 python3 -m src.repl  # Start REPL
 ```
 
 ## Key Innovation
 
-ClaudeLang demonstrates that a language designed for AI can:
+FluentAI demonstrates that a language designed for AI can:
 - Provide mathematical guarantees about optimizations
 - Learn from execution to improve performance
 - Enable powerful metaprogramming through graph manipulation

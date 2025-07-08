@@ -28,7 +28,7 @@ impl HistoryManager {
     fn default_history_file() -> ReplResult<PathBuf> {
         let home = dirs::home_dir()
             .ok_or_else(|| ReplError::History("Could not find home directory".to_string()))?;
-        let fluentai_dir = home.join(".claudelang");
+        let fluentai_dir = home.join(".fluentai");
         
         // Create directory if it doesn't exist
         if !fluentai_dir.exists() {

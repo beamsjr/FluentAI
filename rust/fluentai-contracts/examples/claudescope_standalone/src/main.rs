@@ -14,9 +14,9 @@ use std::thread;
 // Embed all ClaudeScope source files at compile time
 #[derive(RustEmbed)]
 #[folder = "../../examples/claudescope/"]
-#[include = "*.cl"]
-#[include = "src/*.cl"]
-#[include = "test/*.cl"]
+#[include = "*.ai"]
+#[include = "src/*.ai"]
+#[include = "test/*.ai"]
 struct ClaudeScopeAssets;
 
 #[derive(Parser, Debug)]
@@ -247,10 +247,10 @@ impl NetworkState {
 }
 
 fn show_source(module: &str) -> Result<()> {
-    let file_path = if module.ends_with(".cl") {
+    let file_path = if module.ends_with(".ai") {
         module.to_string()
     } else {
-        format!("src/{}.cl", module)
+        format!("src/{}.ai", module)
     };
     
     match ClaudeScopeAssets::get(&file_path) {
@@ -274,8 +274,8 @@ fn list_modules() {
     
     println!("\n{}", "Core modules:".yellow());
     for module in &modules {
-        if module.starts_with("src/") && module.ends_with(".cl") {
-            let name = module.strip_prefix("src/").unwrap().strip_suffix(".cl").unwrap();
+        if module.starts_with("src/") && module.ends_with(".ai") {
+            let name = module.strip_prefix("src/").unwrap().strip_suffix(".ai").unwrap();
             println!("  • {}", name);
         }
     }

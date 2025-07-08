@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for ClaudeLang
+Test runner for FluentAI
 
 Usage:
     python run_tests.py              # Run all tests
@@ -86,7 +86,7 @@ def run_tests(suite_name='all', verbose=2):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Run ClaudeLang tests')
+    parser = argparse.ArgumentParser(description='Run FluentAI tests')
     parser.add_argument('suite', nargs='?', default='all',
                       choices=list(TEST_SUITES.keys()),
                       help='Test suite to run (default: all)')

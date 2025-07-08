@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ClaudeLang runner - Execute ClaudeLang files
+FluentAI runner - Execute FluentAI files
 
 Usage:
-    python run_claudelang.py <filename> [options]
+    python run_fluentai.py <filename> [options]
     
 Options:
     --verbose    Show optimization statistics
@@ -27,7 +27,7 @@ from src.stdlib import core
 
 
 def run_file(filename: str, args):
-    """Run a ClaudeLang file with given options"""
+    """Run a FluentAI file with given options"""
     # Read file
     try:
         with open(filename, 'r') as f:
@@ -119,17 +119,17 @@ def run_file(filename: str, args):
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description="Run ClaudeLang programs",
+        description="Run FluentAI programs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_claudelang.py examples/fibonacci.cl
-  python run_claudelang.py examples/optimization_demo.cl --verbose
-  python run_claudelang.py test.cl --bytecode --no-optimize
+  python run_fluentai.py examples/fibonacci.ai
+  python run_fluentai.py examples/optimization_demo.ai --verbose
+  python run_fluentai.py test.ai --bytecode --no-optimize
         """
     )
     
-    parser.add_argument('filename', help='ClaudeLang source file to run')
+    parser.add_argument('filename', help='FluentAI source file to run')
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Show detailed execution information')
     parser.add_argument('--bytecode', '-b', action='store_true',

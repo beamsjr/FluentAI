@@ -4,23 +4,23 @@ This directory contains examples demonstrating FluentAI's features and performan
 
 ## Quick Start Examples
 
-### hello.cl
+### hello.ai
 The simplest FluentAI program - performs basic arithmetic.
 ```bash
-cargo run -p fluentai-cli -- run hello.cl
+cargo run -p fluentai-cli -- run hello.ai
 # Output: 42
 ```
 
-### factorial.cl  
+### factorial.ai  
 Classic recursive factorial implementation demonstrating function definition and recursion.
 ```bash
-cargo run -p fluentai-cli -- run factorial.cl
+cargo run -p fluentai-cli -- run factorial.ai
 # Output: 120
 ```
 
 ## Language Feature Examples
 
-### pattern_matching_simple.cl
+### pattern_matching_simple.ai
 Basic pattern matching examples that work with current implementation:
 - Conditional-based pattern matching
 - List operations with car/cdr
@@ -28,12 +28,12 @@ Basic pattern matching examples that work with current implementation:
 - Grade calculation
 
 ```bash
-cargo run -p fluentai-cli -- run pattern_matching_simple.cl
+cargo run -p fluentai-cli -- run pattern_matching_simple.ai
 ```
 
 **Note**: The advanced pattern matching syntax shown in the README (match expressions, Cons/Nil patterns, guards) is not yet implemented in the parser.
 
-### effects_simple.cl
+### effects_simple.ai
 Simple demonstrations that work with current implementation:
 - Basic printing
 - Arithmetic operations
@@ -42,7 +42,7 @@ Simple demonstrations that work with current implementation:
 - Boolean logic
 
 ```bash
-cargo run -p fluentai-cli -- run effects_simple.cl
+cargo run -p fluentai-cli -- run effects_simple.ai
 ```
 
 **Note**: The effect system syntax shown in the README (effect handlers, state effects, etc.) is not yet implemented.
@@ -147,13 +147,13 @@ cargo run --release --example simd_benchmark
 - **concurrent_gc_demo.rs** - Demonstrates <10ms GC pause times
 - **jit_speedup_demo.rs** - Shows 10-50x JIT compilation speedup
 - **vm_performance.rs** - Validates ~0.1µs VM execution time
-- **actor_demo.cl** - Actor model for concurrent programming
-- **contracts_demo.cl** - Formal verification with contracts
+- **actor_demo.ai** - Actor model for concurrent programming
+- **contracts_demo.ai** - Formal verification with contracts
 
 ## Creating Your Own Examples
 
 When creating new FluentAI examples, ensure they:
-1. Use correct syntax (see pattern_matching.cl for reference)
+1. Use correct syntax (see pattern_matching.ai for reference)
 2. Include comments explaining what's being demonstrated
 3. Are runnable with `cargo run -p fluentai-cli -- run <file>`
 4. Output clear results that validate any claims

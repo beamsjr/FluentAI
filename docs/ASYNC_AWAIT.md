@@ -1,10 +1,10 @@
-# Async/Await in ClaudeLang
+# Async/Await in FluentAI
 
-ClaudeLang provides first-class support for asynchronous programming through promises, async functions, and the await operator. These primitives enable concurrent execution while maintaining clean, sequential-looking code.
+FluentAI provides first-class support for asynchronous programming through promises, async functions, and the await operator. These primitives enable concurrent execution while maintaining clean, sequential-looking code.
 
 ## Overview
 
-Async programming in ClaudeLang is based on:
+Async programming in FluentAI is based on:
 - **Promises**: Values that will be available in the future
 - **Async functions**: Functions that return promises
 - **Await**: Operator to extract values from promises

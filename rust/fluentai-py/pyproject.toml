@@ -3,8 +3,8 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "claudelang-rust"
-description = "Rust implementation of ClaudeLang parser, compiler, and VM"
+name = "fluentai-rust"
+description = "Rust implementation of FluentAI parser, compiler, and VM"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
@@ -21,4 +21,4 @@ classifiers = [
 [tool.maturin]
 python-source = "python"
 features = ["pyo3/extension-module"]
-module-name = "claudelang_rust"
+module-name = "fluentai_rust"

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Build script for ClaudeLang Rust components
+# Build script for FluentAI Rust components
 
 set -e
 
-echo "Building ClaudeLang Rust components..."
+echo "Building FluentAI Rust components..."
 echo "===================================="
 
 # Build all Rust crates
@@ -16,7 +16,7 @@ cargo test --all
 
 # Build Python bindings
 echo -e "\nBuilding Python bindings..."
-cd claudelang-py
+cd fluentai-py
 
 # Check if maturin is installed
 if ! command -v maturin &> /dev/null; then

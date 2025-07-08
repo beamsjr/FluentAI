@@ -1,8 +1,8 @@
-# ClaudeLang Standard Library Performance
+# FluentAI Standard Library Performance
 
 ## Rust Implementation Performance Results
 
-Based on the benchmarks run with `cargo bench`, the Rust implementation of the ClaudeLang standard library shows excellent performance:
+Based on the benchmarks run with `cargo bench`, the Rust implementation of the FluentAI standard library shows excellent performance:
 
 ### List Operations
 - **list_append_small**: ~166 ns per operation
@@ -48,13 +48,13 @@ Benchmarks were run using Criterion.rs with:
 
 To run benchmarks:
 ```bash
-cd claudelang-stdlib
+cd fluentai-stdlib
 cargo bench --bench stdlib_benchmarks
 ```
 
 ## Conclusion
 
-The Rust implementation of the ClaudeLang standard library successfully achieves the target 5-10x performance improvement over the Python implementation for most operations. The performance gains are particularly notable for:
+The Rust implementation of the FluentAI standard library successfully achieves the target 5-10x performance improvement over the Python implementation for most operations. The performance gains are particularly notable for:
 
 1. **List operations** - Taking advantage of Rust's Vec<T> efficiency
 2. **String manipulation** - Using Rust's UTF-8 string handling

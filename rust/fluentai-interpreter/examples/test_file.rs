@@ -5,7 +5,7 @@ use fluentai_parser::parse;
 use fluentai_interpreter::{Interpreter, InterpreterOptions};
 
 fn main() -> anyhow::Result<()> {
-    let content = fs::read_to_string("test_repl.cl")?;
+    let content = fs::read_to_string("test_repl.ai")?;
     let mut interpreter = Interpreter::new(InterpreterOptions::default());
     
     // Split by lines and execute each non-empty, non-comment line

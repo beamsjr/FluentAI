@@ -1,8 +1,8 @@
-# ClaudeLang Design Document
+# FluentAI Design Document
 
 ## Executive Summary
 
-ClaudeLang is an AI-first programming language that prioritizes machine understanding while maintaining human readability. Unlike traditional languages designed for human cognition, ClaudeLang optimizes for unambiguous parsing, explicit semantics, and structured representation.
+FluentAI is an AI-first programming language that prioritizes machine understanding while maintaining human readability. Unlike traditional languages designed for human cognition, FluentAI optimizes for unambiguous parsing, explicit semantics, and structured representation.
 
 ## Design Philosophy
 
@@ -31,7 +31,7 @@ ClaudeLang is an AI-first programming language that prioritizes machine understa
 
 ### AST Structure
 
-ClaudeLang represents programs as graphs of typed nodes:
+FluentAI represents programs as graphs of typed nodes:
 
 ```python
 Graph
@@ -106,7 +106,7 @@ Bidirectional type checking with:
 
 ### Code Generation
 
-AI systems can generate ClaudeLang by:
+AI systems can generate FluentAI by:
 1. Building AST nodes programmatically
 2. Using template-based generation
 3. Constraint-based synthesis
@@ -174,4 +174,4 @@ This compiles to:
 
 ## Conclusion
 
-ClaudeLang demonstrates how a programming language designed for AI can maintain human usability while providing unprecedented capabilities for automated reasoning, transformation, and generation. By making all implicit concepts explicit and choosing consistency over convenience, we enable a new paradigm of AI-assisted programming.
+FluentAI demonstrates how a programming language designed for AI can maintain human usability while providing unprecedented capabilities for automated reasoning, transformation, and generation. By making all implicit concepts explicit and choosing consistency over convenience, we enable a new paradigm of AI-assisted programming.

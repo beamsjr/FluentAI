@@ -1,6 +1,6 @@
-# ClaudeLang UI System
+# FluentAI UI System
 
-ClaudeLang provides a powerful, reactive UI system for building web applications. It combines functional programming principles with modern UI patterns to create efficient, maintainable interfaces.
+FluentAI provides a powerful, reactive UI system for building web applications. It combines functional programming principles with modern UI patterns to create efficient, maintainable interfaces.
 
 ## Overview
 
@@ -9,20 +9,20 @@ The UI system consists of several key components:
 - **Virtual DOM**: Efficient diffing and rendering
 - **Reactive State**: Automatic UI updates on state changes
 - **Component System**: Reusable UI components with lifecycle hooks
-- **Effect Integration**: Seamless integration with ClaudeLang's effect system
+- **Effect Integration**: Seamless integration with FluentAI's effect system
 - **Learning Optimization**: AI-powered performance optimizations
 
 ## Core Concepts
 
 ### Virtual DOM
 
-ClaudeLang uses a virtual DOM to efficiently update the UI:
+FluentAI uses a virtual DOM to efficiently update the UI:
 
 ```lisp
 ; Create virtual DOM nodes
 (dom:h "div" {:class "container"}
   [(dom:h "h1" {} [(dom:text "Hello, World!")])
-   (dom:h "p" {} [(dom:text "Welcome to ClaudeLang UI")])])
+   (dom:h "p" {} [(dom:text "Welcome to FluentAI UI")])])
 ```
 
 ### Reactive State
@@ -256,7 +256,7 @@ Always use keys for efficient list updates:
 
 ## Learning Optimization
 
-ClaudeLang can learn from user interactions to optimize UI performance:
+FluentAI can learn from user interactions to optimize UI performance:
 
 ```lisp
 ; Enable learning for a component
@@ -271,7 +271,7 @@ ClaudeLang can learn from user interactions to optimize UI performance:
 
 ## Integration with Effects
 
-The UI system integrates seamlessly with ClaudeLang's effect system:
+The UI system integrates seamlessly with FluentAI's effect system:
 
 ```lisp
 (define DataTable
@@ -304,7 +304,7 @@ The UI system integrates seamlessly with ClaudeLang's effect system:
 
 ## Example: Complete Todo App
 
-See `examples/ui_demo.cl` for a complete todo application demonstrating:
+See `examples/ui_demo.ai` for a complete todo application demonstrating:
 
 - Component composition
 - Reactive state management

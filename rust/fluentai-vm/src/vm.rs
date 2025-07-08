@@ -128,6 +128,19 @@ pub struct VM {
     gc: Option<Arc<GarbageCollector>>,
     // Usage tracking for context memory
     usage_tracker: Option<Arc<RwLock<UsageTracker>>>,
+    // Effect handler stack
+    handler_stack: Vec<HandlerFrame>,
+}
+
+/// Handler frame for tracking active effect handlers
+#[derive(Clone)]
+pub struct HandlerFrame {
+    /// Map from effect type + operation to handler function value
+    handlers: FxHashMap<(String, Option<String>), Value>,
+    /// Continuation point - where to return after handler execution
+    return_ip: usize,
+    /// Stack depth when handler was installed
+    stack_depth: usize,
 }
 
 impl VM {
@@ -156,6 +169,7 @@ impl VM {
             security_manager: None,
             gc: None,
             usage_tracker: None,
+            handler_stack: Vec::new(),
         }
     }
     
@@ -173,6 +187,7 @@ impl VM {
         self.channels.clear();
         self.cells.clear();
         self.instruction_count = 0;
+        self.handler_stack.clear();
         
         // Keep these expensive initializations:
         // - self.stdlib (258 functions)
@@ -1337,21 +1352,51 @@ impl VM {
                     }),
                 };
                 
-                // Convert VM values to core values for effect handlers
-                let core_args: Vec<fluentai_core::value::Value> = args.iter()
-                    .map(|v| self.vm_value_to_core_value(v))
-                    .collect();
+                // Check handler stack for a matching handler
+                let mut handler_result = None;
                 
-                // Execute the effect synchronously
-                let result = self.effect_context.perform_sync(effect_type, &operation, &core_args)
-                    .map_err(|e| VMError::RuntimeError {
-                        message: format!("Effect error: {}", e),
-                        stack_trace: Some(self.build_stack_trace()),
-                    })?;
+                // Search from most recent to oldest handler
+                for handler_frame in self.handler_stack.iter().rev() {
+                    // Check for exact match first (effect_type + operation)
+                    if let Some(handler_fn) = handler_frame.handlers.get(&(effect_type_str.clone(), Some(operation.clone()))) {
+                        // Found a specific handler for this effect + operation
+                        // Call the handler function with args
+                        handler_result = Some(self.call_handler_function(handler_fn.clone(), args.clone())?);
+                        break;
+                    }
+                    
+                    // Check for general handler (effect_type only)
+                    if let Some(handler_fn) = handler_frame.handlers.get(&(effect_type_str.clone(), None)) {
+                        // Found a general handler for this effect type
+                        // Create a list with operation as first argument, followed by other args
+                        let mut handler_args = vec![Value::String(operation.clone())];
+                        handler_args.extend(args.clone());
+                        handler_result = Some(self.call_handler_function(handler_fn.clone(), handler_args)?);
+                        break;
+                    }
+                }
                 
-                // Convert result back to VM value
-                let vm_result = self.core_value_to_vm_value(&result);
-                self.push(vm_result)?;
+                if let Some(result) = handler_result {
+                    // Handler was called, push its result
+                    self.push(result)?;
+                } else {
+                    // No handler found, execute the default effect
+                    // Convert VM values to core values for effect handlers
+                    let core_args: Vec<fluentai_core::value::Value> = args.iter()
+                        .map(|v| self.vm_value_to_core_value(v))
+                        .collect();
+                    
+                    // Execute the effect synchronously
+                    let result = self.effect_context.perform_sync(effect_type, &operation, &core_args)
+                        .map_err(|e| VMError::RuntimeError {
+                            message: format!("Effect error: {}", e),
+                            stack_trace: Some(self.build_stack_trace()),
+                        })?;
+                    
+                    // Convert result back to VM value
+                    let vm_result = self.core_value_to_vm_value(&result);
+                    self.push(vm_result)?;
+                }
             }
             
             EffectAsync => {
@@ -2200,6 +2245,118 @@ impl VM {
                 }
             }
             
+            // Effect handlers
+            MakeHandler => {
+                // Create handler table from stack values
+                let handler_count = instruction.arg as usize;
+                let mut handler_map = FxHashMap::default();
+                
+                for _ in 0..handler_count {
+                    // Pop handler function
+                    let handler_fn = self.pop()?;
+                    
+                    // Pop operation filter
+                    let op_filter = match self.pop()? {
+                        Value::Nil => None,
+                        Value::String(s) => Some(s),
+                        v => return Err(VMError::TypeError {
+                            operation: "make_handler".to_string(),
+                            expected: "string or nil for operation filter".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        }),
+                    };
+                    
+                    // Pop effect type
+                    let effect_type = match self.pop()? {
+                        Value::String(s) => s,
+                        v => return Err(VMError::TypeError {
+                            operation: "make_handler".to_string(),
+                            expected: "string for effect type".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        }),
+                    };
+                    
+                    // Store in handler map
+                    handler_map.insert((effect_type, op_filter), handler_fn);
+                }
+                
+                // For now, create a map to represent the handler
+                // In a complete implementation, we'd have a way to store the handler_map
+                let mut handler_data = FxHashMap::default();
+                handler_data.insert("_type".to_string(), Value::String("handler".to_string()));
+                handler_data.insert("_count".to_string(), Value::Int(handler_count as i64));
+                
+                // TODO: Store handler_map in a way the InstallHandler opcode can access it
+                // For now, just push the placeholder
+                self.push(Value::Map(handler_data))?;
+            }
+            InstallHandler => {
+                // Pop handler object (created by MakeHandler)
+                let handler = self.pop()?;
+                
+                // Extract handler map from the Map value
+                let handlers = match handler {
+                    Value::Map(map) => {
+                        let mut handler_funcs = FxHashMap::default();
+                        
+                        // Convert Map entries to handler entries
+                        for (key, value) in map {
+                            if key.starts_with("handler:") {
+                                // Extract effect type and optional operation
+                                let parts: Vec<&str> = key[8..].split(':').collect();
+                                if !parts.is_empty() {
+                                    let effect_type = parts[0].to_string();
+                                    let operation = if parts.len() > 1 && parts[1] != "nil" {
+                                        Some(parts[1].to_string())
+                                    } else {
+                                        None
+                                    };
+                                    handler_funcs.insert((effect_type, operation), value);
+                                }
+                            }
+                        }
+                        handler_funcs
+                    }
+                    _ => return Err(VMError::TypeError {
+                        operation: "install_handler".to_string(),
+                        expected: "handler map".to_string(),
+                        got: value_type_name(&handler).to_string(),
+                        location: None,
+                        stack_trace: None,
+                    }),
+                };
+                
+                // Create handler frame with current execution context
+                let current_frame = self.call_stack.last()
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "Cannot install handler without active call frame".to_string(),
+                        stack_trace: None,
+                    })?;
+                
+                let handler_frame = HandlerFrame {
+                    handlers,
+                    return_ip: current_frame.ip,
+                    stack_depth: self.stack.len(),
+                };
+                
+                // Push handler frame onto handler stack
+                self.handler_stack.push(handler_frame);
+            }
+            UninstallHandler => {
+                // Pop the most recent handler frame
+                if self.handler_stack.pop().is_none() {
+                    return Err(VMError::RuntimeError {
+                        message: "No handler to uninstall".to_string(),
+                        stack_trace: None,
+                    });
+                }
+                // Result value stays on stack
+            }
+            
             // Special
             Halt => return Ok(VMState::Halt),
             Nop => {}
@@ -2560,6 +2717,86 @@ impl VM {
             }
             v => Err(VMError::TypeError {
                 operation: "call_value".to_string(),
+                expected: "function".to_string(),
+                got: value_type_name(&v).to_string(),
+                location: None,
+                stack_trace: None,
+            }),
+        }
+    }
+    
+    fn call_handler_function(&mut self, handler: Value, args: Vec<Value>) -> VMResult<Value> {
+        // Call a handler function with the given arguments
+        match handler {
+            Value::Function { chunk_id, env } => {
+                // Save current call frame state
+                let call_frame = CallFrame {
+                    chunk_id,
+                    ip: 0,
+                    stack_base: self.stack.len(),
+                    env,
+                    start_time: None,
+                };
+                
+                // Push arguments onto stack
+                for arg in args {
+                    self.push(arg)?;
+                }
+                
+                self.call_stack.push(call_frame);
+                
+                // Execute the handler function
+                let result;
+                loop {
+                    // Get current frame
+                    let frame = self.call_stack.last().ok_or_else(|| VMError::RuntimeError {
+                        message: "No call frame in handler execution".to_string(),
+                        stack_trace: None,
+                    })?;
+                    
+                    let chunk_id = frame.chunk_id;
+                    let ip = frame.ip;
+                    
+                    // Check bounds
+                    let chunk = &self.bytecode.chunks[chunk_id];
+                    if ip >= chunk.instructions.len() {
+                        return Err(VMError::RuntimeError {
+                            message: "Instruction pointer out of bounds in handler".to_string(),
+                            stack_trace: Some(self.build_stack_trace()),
+                        });
+                    }
+                    
+                    // Get instruction and advance IP
+                    let instruction = chunk.instructions[ip].clone();
+                    self.call_stack.last_mut().unwrap().ip += 1;
+                    
+                    match self.execute_instruction(&instruction, chunk_id)? {
+                        VMState::Continue => {}
+                        VMState::Return => {
+                            // Pop return value
+                            result = self.pop()?;
+                            
+                            // Clean up stack to stack_base
+                            let frame = self.call_stack.last().unwrap();
+                            let stack_base = frame.stack_base;
+                            self.stack.truncate(stack_base);
+                            
+                            self.call_stack.pop();
+                            break;
+                        }
+                        VMState::Halt => {
+                            return Err(VMError::RuntimeError {
+                                message: "Unexpected halt in handler function".to_string(),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
+                        }
+                    }
+                }
+                
+                Ok(result)
+            }
+            v => Err(VMError::TypeError {
+                operation: "call_handler_function".to_string(),
                 expected: "function".to_string(),
                 got: value_type_name(&v).to_string(),
                 location: None,

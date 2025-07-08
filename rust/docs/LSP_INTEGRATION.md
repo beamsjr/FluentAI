@@ -1,8 +1,8 @@
-# ClaudeLang LSP Integration Guide
+# FluentAI LSP Integration Guide
 
 ## Overview
 
-The ClaudeLang Language Server Protocol (LSP) implementation provides IDE features with sub-10ms response times, enabling a smooth development experience.
+The FluentAI Language Server Protocol (LSP) implementation provides IDE features with sub-10ms response times, enabling a smooth development experience.
 
 ## Features
 
@@ -43,20 +43,20 @@ The ClaudeLang Language Server Protocol (LSP) implementation provides IDE featur
 
 ```bash
 cd rust
-cargo build --release --bin claudelang-lsp
+cargo build --release --bin fluentai-lsp
 ```
 
-The binary will be at: `target/release/claudelang-lsp`
+The binary will be at: `target/release/fluentai-lsp`
 
 ### VSCode Integration
 
-1. Install the ClaudeLang extension (when available)
+1. Install the FluentAI extension (when available)
 2. Or configure manually in `.vscode/settings.json`:
 
 ```json
 {
-  "claudelang.lsp.path": "/path/to/claudelang-lsp",
-  "claudelang.trace.server": "verbose"
+  "fluentai.lsp.path": "/path/to/fluentai-lsp",
+  "fluentai.trace.server": "verbose"
 }
 ```
 
@@ -68,16 +68,16 @@ Add to your Neovim configuration:
 local lspconfig = require('lspconfig')
 local configs = require('lspconfig.configs')
 
-configs.claudelang = {
+configs.fluentai = {
   default_config = {
-    cmd = {'/path/to/claudelang-lsp'},
-    filetypes = {'claudelang', 'cl'},
+    cmd = {'/path/to/fluentai-lsp'},
+    filetypes = {'fluentai', 'cl'},
     root_dir = lspconfig.util.root_pattern('.git'),
     settings = {},
   },
 }
 
-lspconfig.claudelang.setup{}
+lspconfig.fluentai.setup{}
 ```
 
 ## Architecture
@@ -134,4 +134,4 @@ fn add_custom_completions(completions: &mut Vec<CompletionItem>) {
 4. **Refactoring**: Automated code transformations
 5. **Code Actions**: Quick fixes and improvements
 
-The ClaudeLang LSP server demonstrates that modern language tooling can be both feature-rich and blazingly fast, with most operations completing in under 10 milliseconds.
+The FluentAI LSP server demonstrates that modern language tooling can be both feature-rich and blazingly fast, with most operations completing in under 10 milliseconds.

@@ -1,11 +1,11 @@
-# ClaudeLang Quick Start Guide
+# FluentAI Quick Start Guide
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/anthropic/claudelang.git
-cd claudelang
+git clone https://github.com/anthropic/fluentai.git
+cd fluentai
 
 # Install dependencies (optional, for benchmarks)
 pip install matplotlib numpy
@@ -14,7 +14,7 @@ pip install matplotlib numpy
 python3 -m src.repl
 ```
 
-## Your First ClaudeLang Program
+## Your First FluentAI Program
 
 ### Hello World
 
@@ -44,13 +44,13 @@ python3 -m src.repl
   (double 21))    ; Returns 42
 ```
 
-## Running ClaudeLang Code
+## Running FluentAI Code
 
 ### Using the REPL
 
 ```bash
 $ python3 -m src.repl
-ClaudeLang REPL v1.0
+FluentAI REPL v1.0
 Type 'exit' to quit
 
 > (+ 2 3)
@@ -65,11 +65,11 @@ Type 'exit' to quit
 ### Running Files
 
 ```bash
-# Run a ClaudeLang file
-python3 run_claudelang.py examples/fibonacci.cl
+# Run a FluentAI file
+python3 run_fluentai.py examples/fibonacci.ai
 
 # With optimization stats
-python3 run_claudelang.py --verbose examples/optimization_demo.cl
+python3 run_fluentai.py --verbose examples/optimization_demo.ai
 ```
 
 ### Using as a Library

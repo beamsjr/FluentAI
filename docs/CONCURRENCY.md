@@ -1,6 +1,6 @@
-# Concurrency in ClaudeLang
+# Concurrency in FluentAI
 
-ClaudeLang provides Go-inspired concurrency primitives that enable safe, efficient concurrent programming. The concurrency model is based on communicating sequential processes (CSP) with channels for communication and goroutines for lightweight concurrent execution.
+FluentAI provides Go-inspired concurrency primitives that enable safe, efficient concurrent programming. The concurrency model is based on communicating sequential processes (CSP) with channels for communication and goroutines for lightweight concurrent execution.
 
 ## Overview
 
@@ -13,7 +13,7 @@ Key concurrency features:
 
 ## Goroutines
 
-Goroutines are lightweight threads managed by the ClaudeLang runtime. They enable concurrent execution with minimal overhead.
+Goroutines are lightweight threads managed by the FluentAI runtime. They enable concurrent execution with minimal overhead.
 
 ### Launching Goroutines
 

@@ -1,6 +1,6 @@
-# ClaudeLang Module System
+# FluentAI Module System
 
-ClaudeLang provides a module system for organizing code into reusable components.
+FluentAI provides a module system for organizing code into reusable components.
 
 ## Module Definition
 
@@ -42,7 +42,7 @@ The module system searches for modules in these locations:
 ### Math Utilities Module
 
 ```lisp
-; modules/math_utils.cl
+; modules/math_utils.ai
 (module math-utils (export square cube factorial-memo)
   
   (let ((square (lambda (x) (* x x))))
@@ -59,7 +59,7 @@ The module system searches for modules in these locations:
 ### Using the Module
 
 ```lisp
-; main.cl
+; main.ai
 (import "modules/math_utils" (square cube))
 
 (io:print "square(5) =" (square 5))

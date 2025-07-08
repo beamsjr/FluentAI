@@ -84,6 +84,12 @@ impl DeadCodeEliminationPass {
                 Node::Receive { channel } => {
                     self.mark_reachable(graph, *channel, reachable);
                 }
+                Node::Handler { handlers, body } => {
+                    self.mark_reachable(graph, *body, reachable);
+                    for (_, _, handler_fn) in handlers {
+                        self.mark_reachable(graph, *handler_fn, reachable);
+                    }
+                }
                 _ => {}
             }
         }
@@ -159,6 +165,15 @@ impl DeadCodeEliminationPass {
                 }
                 // Async might have side effects
                 Node::Async { body } => self.has_side_effects(graph, *body),
+                // Handler nodes might have side effects in their body
+                Node::Handler { handlers, body } => {
+                    // Check if the body has side effects
+                    if self.has_side_effects(graph, *body) {
+                        return true;
+                    }
+                    // Check if any handler function has side effects
+                    handlers.iter().any(|(_, _, handler_fn)| self.has_side_effects(graph, *handler_fn))
+                }
                 // Lambda bodies are not evaluated until called
                 Node::Lambda { .. } => false,
                 // Pure nodes

@@ -162,7 +162,7 @@ impl PackageInstaller {
         }
         
         // Save manifest
-        manifest.save(&self.cwd.join("claude.json"))?;
+        manifest.save(&self.cwd.join("fluentai.json"))?;
         
         // Install the new dependency
         self.install(manifest, dev)?;
@@ -184,7 +184,7 @@ impl PackageInstaller {
         }
         
         // Save manifest
-        manifest.save(&self.cwd.join("claude.json"))?;
+        manifest.save(&self.cwd.join("fluentai.json"))?;
         
         // TODO: Remove orphaned packages
         

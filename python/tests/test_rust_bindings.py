@@ -3,7 +3,7 @@
 
 import sys
 sys.path.insert(0, 'rust/target/debug')
-import claudelang_rust
+import fluentai_rust
 
 # Test simple parsing
 test_cases = [
@@ -18,7 +18,7 @@ print("=" * 50)
 
 for code in test_cases:
     try:
-        result = claudelang_rust.parse(code)
+        result = fluentai_rust.parse(code)
         print(f"✓ Parse '{code}' -> {result}")
         
         # Check if we can access the root_id

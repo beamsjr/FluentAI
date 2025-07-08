@@ -151,6 +151,9 @@ impl Compiler {
                 // For now, we'll emit a no-op
                 self.emit(Instruction::new(Opcode::Nop));
             }
+            Node::Handler { handlers, body } => {
+                self.compile_handler(graph, handlers, *body)?;
+            }
         }
         
         Ok(())
@@ -814,6 +817,19 @@ impl Compiler {
             }
             Opcode::Swap => {
                 // Swaps top two values, no net change
+            }
+            Opcode::MakeHandler => {
+                // Consumes 3 * handler_count values (effect type, op filter, handler fn)
+                // Produces 1 handler object
+                let handler_count = instruction.arg as usize;
+                self.stack_depth = self.stack_depth.saturating_sub(3 * handler_count).saturating_add(1);
+            }
+            Opcode::InstallHandler => {
+                // Consumes handler object, no net change (handler is saved in VM state)
+                self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
+            Opcode::UninstallHandler => {
+                // No stack effect (preserves result from body)
             }
             _ => {} // Most instructions don't change stack depth
         }
@@ -1664,6 +1680,60 @@ impl Compiler {
         
         // LoadQualified pushes one value onto the stack
         self.stack_depth += 1;
+        
+        Ok(())
+    }
+    
+    fn compile_handler(&mut self, graph: &ASTGraph, handlers: &[(fluentai_core::ast::EffectType, Option<String>, NodeId)], body: NodeId) -> Result<()> {
+        // Handler implementation:
+        // 1. Compile handler functions and push them onto the stack
+        // 2. Create handler table with effect types and optional operation filters
+        // 3. Install handler for the dynamic extent of the body
+        // 4. Execute body
+        // 5. Uninstall handler
+        
+        // Compile handler functions
+        for (effect_type, op_filter, handler_fn) in handlers {
+            // Push effect type - use the same case as VM expects
+            let effect_str = match effect_type {
+                fluentai_core::ast::EffectType::IO => "IO",
+                fluentai_core::ast::EffectType::State => "State",
+                fluentai_core::ast::EffectType::Error => "Error",
+                fluentai_core::ast::EffectType::Time => "Time",
+                fluentai_core::ast::EffectType::Network => "Network",
+                fluentai_core::ast::EffectType::Random => "Random",
+                fluentai_core::ast::EffectType::Dom => "Dom",
+                fluentai_core::ast::EffectType::Async => "Async",
+                fluentai_core::ast::EffectType::Concurrent => "Concurrent",
+                fluentai_core::ast::EffectType::Pure => "Pure",
+            }.to_string();
+            let idx = self.add_constant(Value::String(effect_str));
+            self.emit(Instruction::with_arg(Opcode::PushConst, idx));
+            
+            // Push operation filter (or nil if none)
+            if let Some(op) = op_filter {
+                let idx = self.add_constant(Value::String(op.clone()));
+                self.emit(Instruction::with_arg(Opcode::PushConst, idx));
+            } else {
+                let nil_idx = self.add_constant(Value::Nil);
+                self.emit(Instruction::with_arg(Opcode::PushConst, nil_idx));
+            }
+            
+            // Compile handler function
+            self.compile_node(graph, *handler_fn)?;
+        }
+        
+        // Create handler with the number of handlers
+        self.emit(Instruction::with_arg(Opcode::MakeHandler, handlers.len() as u32));
+        
+        // Install handler
+        self.emit(Instruction::new(Opcode::InstallHandler));
+        
+        // Compile body
+        self.compile_node(graph, body)?;
+        
+        // Uninstall handler (preserving the body's result)
+        self.emit(Instruction::new(Opcode::UninstallHandler));
         
         Ok(())
     }

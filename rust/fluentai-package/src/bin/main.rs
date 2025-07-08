@@ -10,14 +10,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Parser)]
-#[command(name = "claudelang")]
+#[command(name = "fluentai")]
 #[command(about = "FluentAi package manager", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
     
     /// Path to manifest file
-    #[arg(long, default_value = "claude.json")]
+    #[arg(long, default_value = "fluentai.json")]
     manifest_path: PathBuf,
     
     /// Use offline mode
@@ -91,7 +91,7 @@ enum Commands {
     /// Publish a package
     Publish {
         /// Authentication token
-        #[arg(long, env = "CLAUDELANG_TOKEN")]
+        #[arg(long, env = "FLUENTAI_TOKEN")]
         token: String,
     },
     
@@ -204,7 +204,7 @@ fn main() -> Result<()> {
 }
 
 fn init_package(dir: &PathBuf, name: Option<String>) -> Result<()> {
-    let manifest_path = dir.join("claude.json");
+    let manifest_path = dir.join("fluentai.json");
     
     if manifest_path.exists() {
         eprintln!("Package already initialized");
@@ -227,7 +227,7 @@ fn init_package(dir: &PathBuf, name: Option<String>) -> Result<()> {
     // Add default scripts
     manifest.scripts.insert(
         "test".to_string(),
-        fluentai_package::manifest::Script::Command("claudelang test".to_string()),
+        fluentai_package::manifest::Script::Command("fluentai test".to_string()),
     );
     
     // Save manifest
@@ -236,7 +236,7 @@ fn init_package(dir: &PathBuf, name: Option<String>) -> Result<()> {
     // Create source directory
     std::fs::create_dir_all(dir.join("src"))?;
     
-    // Create main.cl
+    // Create main.ai
     let main_content = r#"; Main entry point for the package
 
 (define main ()
@@ -244,7 +244,7 @@ fn init_package(dir: &PathBuf, name: Option<String>) -> Result<()> {
 
 (export main)
 "#;
-    std::fs::write(dir.join("src").join("main.cl"), main_content)?;
+    std::fs::write(dir.join("src").join("main.ai"), main_content)?;
     
     println!("Initialized package: {}", manifest.name);
     Ok(())
@@ -252,7 +252,7 @@ fn init_package(dir: &PathBuf, name: Option<String>) -> Result<()> {
 
 fn load_manifest(path: &PathBuf) -> Result<Manifest> {
     if !path.exists() {
-        anyhow::bail!("No claude.json found. Run 'claudelang init' to create one.");
+        anyhow::bail!("No fluentai.json found. Run 'fluentai init' to create one.");
     }
     
     Ok(Manifest::from_file(path)?)

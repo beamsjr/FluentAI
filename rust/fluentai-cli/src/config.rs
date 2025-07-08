@@ -100,7 +100,7 @@ fn default_viz_port() -> u16 { 8080 }
 fn default_true() -> bool { true }
 fn default_theme() -> String { "dark".to_string() }
 fn default_prompt() -> String { "claude> ".to_string() }
-fn default_registry() -> String { "https://registry.claudelang.org".to_string() }
+fn default_registry() -> String { "https://registry.fluentai.org".to_string() }
 
 /// Load configuration from file or use defaults
 pub fn load_config(path: Option<PathBuf>) -> Result<Config> {
@@ -109,7 +109,7 @@ pub fn load_config(path: Option<PathBuf>) -> Result<Config> {
         let config: Config = toml::from_str(&content)?;
         Ok(config)
     } else if let Some(home) = dirs::home_dir() {
-        let default_path = home.join(".claudelang").join("config.toml");
+        let default_path = home.join(".fluentai").join("config.toml");
         if default_path.exists() {
             let content = std::fs::read_to_string(&default_path)?;
             let config: Config = toml::from_str(&content)?;

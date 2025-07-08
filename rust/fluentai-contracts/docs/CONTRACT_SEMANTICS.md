@@ -1,6 +1,6 @@
-# ClaudeLang Contract Semantics
+# FluentAI Contract Semantics
 
-This document provides a detailed explanation of how contracts work in ClaudeLang, including when they are evaluated, who is blamed for failures, and how they interact with the rest of the language.
+This document provides a detailed explanation of how contracts work in FluentAI, including when they are evaluated, who is blamed for failures, and how they interact with the rest of the language.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This document provides a detailed explanation of how contracts work in ClaudeLan
 
 ## Overview
 
-ClaudeLang uses design-by-contract to specify and verify the behavior of functions. Contracts serve three purposes:
+FluentAI uses design-by-contract to specify and verify the behavior of functions. Contracts serve three purposes:
 
 1. **Documentation**: Contracts document the expected behavior of functions
 2. **Static Verification**: Contracts can be verified at compile-time using Z3
@@ -33,7 +33,7 @@ ClaudeLang uses design-by-contract to specify and verify the behavior of functio
 - **Rationale**: The caller failed to meet the function's requirements
 
 ### Example
-```claudelang
+```fluentai
 (spec:contract withdraw
   :requires [(>= balance amount)   ; Caller must ensure sufficient funds
              (> amount 0)]         ; Amount must be positive
@@ -67,7 +67,7 @@ ClaudeLang uses design-by-contract to specify and verify the behavior of functio
 - **Rationale**: The function failed to deliver its promised behavior
 
 ### Example
-```claudelang
+```fluentai
 (spec:contract abs
   :ensures [(>= result 0)                    ; Result is non-negative
             (or (= result x) (= result (- x)))] ; Result is |x|
@@ -86,7 +86,7 @@ ClaudeLang uses design-by-contract to specify and verify the behavior of functio
 - **NOT checked**: During private method execution
 - **Purpose**: Maintain consistent object state
 
-```claudelang
+```fluentai
 (class BankAccount
   :invariant [(>= balance 0)              ; Balance never negative
               (= balance (- deposits withdrawals))])
@@ -99,7 +99,7 @@ ClaudeLang uses design-by-contract to specify and verify the behavior of functio
   - After loop exit (conclusion)
 - **Purpose**: Prove loop correctness
 
-```claudelang
+```fluentai
 (define (sum-list lst)
   (let loop ([lst lst] [sum 0])
     ; Invariant: sum = sum of processed elements
@@ -113,7 +113,7 @@ ClaudeLang uses design-by-contract to specify and verify the behavior of functio
 - **When checked**: After any operation that modifies the structure
 - **Purpose**: Ensure structural properties are maintained
 
-```claudelang
+```fluentai
 (spec:contract binary-search-tree
   :invariant [(bst? tree)     ; Tree satisfies BST property
               (balanced? tree)]) ; Tree is balanced
@@ -144,7 +144,7 @@ All expressions within contracts must be pure, meaning they:
 
 ### Pure Function Annotations
 
-```claudelang
+```fluentai
 (spec:contract fibonacci
   :requires [(>= n 0)]
   :ensures [(>= result 0)]
@@ -164,7 +164,7 @@ All expressions within contracts must be pure, meaning they:
 - Must be a pure expression
 - Evaluated before any function side effects
 
-```claudelang
+```fluentai
 (spec:contract push
   :ensures [(= (length stack) (+ 1 (old (length stack))))])
 ```
@@ -198,7 +198,7 @@ When contracts are inherited or refined:
 - **Invariants**: Must be preserved
 
 ### Example
-```claudelang
+```fluentai
 (class Shape
   :contract area
     :ensures [(>= result 0)])

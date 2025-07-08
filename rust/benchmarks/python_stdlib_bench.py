@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Benchmark Python implementation of ClaudeLang stdlib functions"""
+"""Benchmark Python implementation of FluentAI stdlib functions"""
 
 import time
 import sys
 import os
 
-# Add parent directory to path to import ClaudeLang modules
+# Add parent directory to path to import FluentAI modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 
 # Import the core primitives which contains stdlib functions
@@ -151,7 +151,7 @@ def benchmark_type_checking():
 
 def main():
     """Run all benchmarks"""
-    print("ClaudeLang Python Standard Library Benchmarks")
+    print("FluentAI Python Standard Library Benchmarks")
     print("=" * 50)
     
     benchmark_list_operations()

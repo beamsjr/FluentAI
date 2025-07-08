@@ -1,6 +1,6 @@
-# ML-Driven Optimization in ClaudeLang
+# ML-Driven Optimization in FluentAI
 
-ClaudeLang includes an advanced machine learning system that learns optimization patterns from program execution and applies them automatically to improve performance.
+FluentAI includes an advanced machine learning system that learns optimization patterns from program execution and applies them automatically to improve performance.
 
 ## Overview
 
@@ -63,16 +63,16 @@ The system can learn to apply these optimizations:
 
 ```bash
 # Train models on benchmark programs
-./tools/claudelang-ml-optimize train benchmarks/
+./tools/fluentai-ml-optimize train benchmarks/
 
 # Optimize a single program
-./tools/claudelang-ml-optimize optimize program.cl -o optimized.cl
+./tools/fluentai-ml-optimize optimize program.ai -o optimized.ai
 
 # Generate optimization report
-./tools/claudelang-ml-optimize report
+./tools/fluentai-ml-optimize report
 
 # Run demo
-./tools/claudelang-ml-optimize demo
+./tools/fluentai-ml-optimize demo
 ```
 
 ### Programmatic API
@@ -97,7 +97,7 @@ print(f"Speedup: {experiment.speedup:.2f}x")
 
 ### Required
 - Python 3.8+
-- ClaudeLang core libraries
+- FluentAI core libraries
 
 ### Optional (for full ML features)
 - **numpy**: Array operations and feature vectors

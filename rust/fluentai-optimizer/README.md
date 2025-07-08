@@ -52,16 +52,16 @@ The optimizer is integrated with the FluentAi CLI:
 
 ```bash
 # No optimization (default)
-fluentai run program.cl
+fluentai run program.ai
 
 # Basic optimization (O1)
-fluentai run -O1 program.cl
+fluentai run -O1 program.ai
 
 # Standard optimization (O2)
-fluentai run -O2 program.cl
+fluentai run -O2 program.ai
 
 # Aggressive optimization (O3)
-fluentai run -O3 program.cl
+fluentai run -O3 program.ai
 ```
 
 ### Programmatic Usage

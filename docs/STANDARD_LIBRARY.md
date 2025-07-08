@@ -1,6 +1,6 @@
-# ClaudeLang Standard Library
+# FluentAI Standard Library
 
-The ClaudeLang standard library provides a comprehensive set of functions for common programming tasks. All functions are designed to be pure when possible, with effects explicitly marked.
+The FluentAI standard library provides a comprehensive set of functions for common programming tasks. All functions are designed to be pure when possible, with effects explicitly marked.
 
 ## Core Functions (`core`)
 

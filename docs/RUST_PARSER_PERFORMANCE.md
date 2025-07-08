@@ -96,4 +96,4 @@ The parser shows excellent linear scaling with input size:
 
 ## Conclusion
 
-The Rust parser has exceeded performance targets by achieving 106x average speedup over Python. This validates our approach and provides a strong foundation for the rest of the Rust migration. With sub-microsecond parsing times, ClaudeLang can now offer an exceptional development experience with instant feedback and no perceptible compilation delays.
+The Rust parser has exceeded performance targets by achieving 106x average speedup over Python. This validates our approach and provides a strong foundation for the rest of the Rust migration. With sub-microsecond parsing times, FluentAI can now offer an exceptional development experience with instant feedback and no perceptible compilation delays.

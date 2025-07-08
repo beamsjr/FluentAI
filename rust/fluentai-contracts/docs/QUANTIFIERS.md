@@ -1,4 +1,4 @@
-# Quantifiers in ClaudeLang Contracts
+# Quantifiers in FluentAI Contracts
 
 This document explains how to use universal (∀) and existential (∃) quantifiers in contract specifications.
 

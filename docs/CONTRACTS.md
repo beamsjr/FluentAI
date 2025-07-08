@@ -1,6 +1,6 @@
-# Contract Specifications in ClaudeLang
+# Contract Specifications in FluentAI
 
-ClaudeLang supports formal contract specifications that define preconditions, postconditions, and invariants for functions. These contracts serve multiple purposes:
+FluentAI supports formal contract specifications that define preconditions, postconditions, and invariants for functions. These contracts serve multiple purposes:
 
 1. **Documentation** - Formally specify function behavior
 2. **Verification** - Runtime checking and static proof generation

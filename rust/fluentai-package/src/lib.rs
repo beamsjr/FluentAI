@@ -1,7 +1,7 @@
 //! FluentAi Package Manager
 //! 
 //! This crate provides package management functionality for FluentAi, including:
-//! - Package manifest (claude.json) handling
+//! - Package manifest (fluentai.json) handling
 //! - Dependency resolution with semantic versioning
 //! - Package registry operations (local and remote)
 //! - Package installation and management

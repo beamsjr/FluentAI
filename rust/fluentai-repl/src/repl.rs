@@ -39,7 +39,7 @@ impl Default for ReplConfig {
             max_history: 10000,
             highlighting: true,
             completion: true,
-            prompt: "claudelang> ".to_string(),
+            prompt: "fluentai> ".to_string(),
             continuation_prompt: "        ... ".to_string(),
             exit_on_eof: true,
             show_banner: true,

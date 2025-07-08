@@ -92,10 +92,10 @@ Benefits:
   :invariant [invariants...])
 ```
 
-### Integration with ClaudeLang
+### Integration with FluentAI
 
 ```rust
-use claudelang_contracts::{GhostStateBuilder, GhostStateManager};
+use fluentai_contracts::{GhostStateBuilder, GhostStateManager};
 
 // Build ghost state expressions
 let mut builder = GhostStateBuilder::new(&mut graph);

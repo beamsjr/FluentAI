@@ -1,10 +1,10 @@
-# Running ClaudeLang UI Examples
+# Running FluentAI UI Examples
 
-This guide explains how to run ClaudeLang UI applications.
+This guide explains how to run FluentAI UI applications.
 
 ## Quick Start - Demo HTML
 
-The easiest way to see ClaudeLang UI in action is to open the pre-built demo:
+The easiest way to see FluentAI UI in action is to open the pre-built demo:
 
 ```bash
 # Open in your default browser
@@ -16,49 +16,49 @@ python3 -m http.server 8000
 # Then visit http://localhost:8000/ui_demo.html
 ```
 
-This demonstrates a fully functional todo application built with ClaudeLang's UI system.
+This demonstrates a fully functional todo application built with FluentAI's UI system.
 
-## Compiling ClaudeLang UI Code
+## Compiling FluentAI UI Code
 
-To compile your own ClaudeLang UI files to JavaScript:
+To compile your own FluentAI UI files to JavaScript:
 
 ```bash
 # Compile to vanilla JavaScript
-python scripts/compile_ui.py examples/ui_demo.cl output.js
+python scripts/compile_ui.py examples/ui_demo.ai output.js
 
 # Compile to React
-python scripts/compile_ui.py examples/ui_demo.cl output.js --format=react
+python scripts/compile_ui.py examples/ui_demo.ai output.js --format=react
 
 # Compile to Vue
-python scripts/compile_ui.py examples/ui_demo.cl output.js --format=vue
+python scripts/compile_ui.py examples/ui_demo.ai output.js --format=vue
 ```
 
 ## Running in Development
 
-### Option 1: Using the ClaudeLang REPL
+### Option 1: Using the FluentAI REPL
 
 ```bash
 # Start the REPL
-python -m claudelang repl
+python -m fluentai repl
 
 # Load and run UI code
-> (load "examples/ui_demo.cl")
+> (load "examples/ui_demo.ai")
 > (main)
 ```
 
 ### Option 2: Direct Execution
 
 ```bash
-# Run a ClaudeLang UI file
-python -m claudelang run examples/ui_demo.cl
+# Run a FluentAI UI file
+python -m fluentai run examples/ui_demo.ai
 ```
 
 ## Creating Your Own UI App
 
-1. **Create a new .cl file:**
+1. **Create a new .ai file:**
 
 ```lisp
-; my-app.cl
+; my-app.ai
 (module my-app
   (export [create-app]))
 
@@ -85,11 +85,11 @@ python -m claudelang run examples/ui_demo.cl
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My ClaudeLang App</title>
+    <title>My FluentAI App</title>
 </head>
 <body>
     <div id="app"></div>
-    <script src="claudelang-runtime.js"></script>
+    <script src="fluentai-runtime.js"></script>
     <script src="my-app.js"></script>
 </body>
 </html>
@@ -98,7 +98,7 @@ python -m claudelang run examples/ui_demo.cl
 3. **Compile and run:**
 
 ```bash
-python scripts/compile_ui.py my-app.cl my-app.js
+python scripts/compile_ui.py my-app.ai my-app.js
 open my-app.html
 ```
 
@@ -112,8 +112,8 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.cl$/,
-        use: 'claudelang-loader'
+        test: /\.ai$/,
+        use: 'fluentai-loader'
       }
     ]
   }
@@ -124,31 +124,31 @@ module.exports = {
 
 ```javascript
 // vite.config.js
-import claudelang from 'vite-plugin-claudelang';
+import fluentai from 'vite-plugin-fluentai';
 
 export default {
-  plugins: [claudelang()]
+  plugins: [fluentai()]
 };
 ```
 
 ## Browser DevTools Integration
 
-ClaudeLang UI apps work with browser DevTools:
+FluentAI UI apps work with browser DevTools:
 
 - **React DevTools**: When compiled with `--format=react`
 - **Vue DevTools**: When compiled with `--format=vue`
-- **Redux DevTools**: For state debugging with ClaudeLang's reactive system
+- **Redux DevTools**: For state debugging with FluentAI's reactive system
 
 ## Performance Tips
 
 1. **Use production builds:**
    ```bash
-   python scripts/compile_ui.py app.cl app.js --minify
+   python scripts/compile_ui.py app.ai app.js --minify
    ```
 
 2. **Enable code splitting:**
    ```lisp
-   (import-lazy "./heavy-component.cl")
+   (import-lazy "./heavy-component.ai")
    ```
 
 3. **Memoize expensive computations:**
@@ -162,7 +162,7 @@ ClaudeLang UI apps work with browser DevTools:
 
 1. **Enable source maps:**
    ```bash
-   python scripts/compile_ui.py app.cl app.js --source-maps
+   python scripts/compile_ui.py app.ai app.js --source-maps
    ```
 
 2. **Use browser console:**
@@ -174,7 +174,7 @@ ClaudeLang UI apps work with browser DevTools:
 
 ## Example Apps
 
-- `ui_demo.cl` - Todo application with reactive state
+- `ui_demo.ai` - Todo application with reactive state
 - `ui_demo.html` - Pre-built HTML demo
 - More examples coming soon!
 

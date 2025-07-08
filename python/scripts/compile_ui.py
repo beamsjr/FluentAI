@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Compile ClaudeLang UI files to JavaScript
+Compile FluentAI UI files to JavaScript
 
 Usage:
-    python compile_ui.py input.cl output.js [--format=react|vue|vanilla]
+    python compile_ui.py input.ai output.js [--format=react|vue|vanilla]
 """
 
 import sys
@@ -17,8 +17,8 @@ from src.compiler.ui_compiler import UICompiler, CompilerOptions, OutputFormat
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Compile ClaudeLang UI to JavaScript')
-    parser.add_argument('input', help='Input .cl file')
+    parser = argparse.ArgumentParser(description='Compile FluentAI UI to JavaScript')
+    parser.add_argument('input', help='Input .ai file')
     parser.add_argument('output', help='Output .js file')
     parser.add_argument('--format', choices=['vanilla', 'react', 'vue'], 
                        default='vanilla', help='Output format')

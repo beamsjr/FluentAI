@@ -24,7 +24,7 @@ This document summarizes the updates made to the documentation after moving file
 The following paths were verified to be correct:
 - `../examples/` - Points to the examples directory one level up
 - `../src/` - Points to the source directory one level up
-- Repository URL: https://github.com/beamsjr/ClaudeLang (correct)
+- Repository URL: https://github.com/beamsjr/FluentAI (correct)
 
 ## Implementation Status Summary
 

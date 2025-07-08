@@ -1,6 +1,6 @@
 # Python Interface for FluentAi
 
-This directory contains the Python interface layer for FluentAi (formerly ClaudeLang), which provides access to the Rust implementation through PyO3 bindings.
+This directory contains the Python interface layer for FluentAI, which provides access to the Rust implementation through PyO3 bindings.
 
 ## Directory Structure
 
@@ -8,7 +8,7 @@ This directory contains the Python interface layer for FluentAi (formerly Claude
 python/
 ├── fluentai/          # Python package (currently empty, for future Python modules)
 ├── scripts/           # Command-line interface scripts
-│   ├── run_claudelang.py  # Main CLI runner for executing FluentAi programs
+│   ├── run_fluentai.py    # Main CLI runner for executing FluentAI programs
 │   └── run_example.py     # Simple example demonstrating basic FluentAi features
 └── tests/             # Test files
     ├── run_tests.py           # Main test runner
@@ -30,10 +30,10 @@ FluentAi uses a hybrid Python-Rust architecture:
 
 ### Scripts
 
-- **`run_claudelang.py`**: The main entry point for running FluentAi programs
+- **`run_fluentai.py`**: The main entry point for running FluentAI programs
   - Handles command-line arguments
   - Supports file execution, REPL mode, and testing
-  - Calls into the Rust implementation via `claudelang_rust` module
+  - Calls into the Rust implementation via `fluentai_rust` module
 
 - **`run_example.py`**: A simple example script showing basic FluentAi usage
   - Demonstrates parsing and executing FluentAi code
@@ -65,7 +65,7 @@ FluentAi uses a hybrid Python-Rust architecture:
 
 2. **Run FluentAi programs**:
    ```bash
-   python python/scripts/run_claudelang.py examples/hello.fl
+   python python/scripts/run_fluentai.py examples/hello.ai
    ```
 
 3. **Run tests**:
@@ -81,4 +81,3 @@ FluentAi uses a hybrid Python-Rust architecture:
 
 ## Note on Naming
 
-These files still reference "ClaudeLang" in various places. They need to be updated to use "FluentAi" as part of the ongoing renaming effort.

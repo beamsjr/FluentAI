@@ -7,39 +7,39 @@ Welcome to the FluentAi examples directory! This contains demonstrations and tut
 If you're new to FluentAi, start with these examples in order:
 
 1. **Basic Language Features**
-   - `hello.cl` - Simple hello world
-   - `fibonacci.cl` - Basic recursion
-   - `list_operations.cl` - Working with lists
+   - `hello.ai` - Simple hello world
+   - `fibonacci.ai` - Basic recursion
+   - `list_operations.ai` - Working with lists
 
 2. **Pattern Matching**
-   - `simple_pattern_test.cl` - Basic pattern matching
-   - `pattern_matching_demo.cl` - Advanced patterns
-   - `minimal_pattern_test.cl` - Pattern matching edge cases
+   - `simple_pattern_test.ai` - Basic pattern matching
+   - `pattern_matching_demo.ai` - Advanced patterns
+   - `minimal_pattern_test.ai` - Pattern matching edge cases
 
 3. **Module System**
-   - `simple_module_test.cl` - Basic module usage
-   - `module_demo.cl` - Advanced module features
+   - `simple_module_test.ai` - Basic module usage
+   - `module_demo.ai` - Advanced module features
 
 ## Advanced Features
 
 ### Effects System
-- `effects_demo.cl` - Introduction to effects
-- `advanced_effects.cl` - Complex effect handling
-- `logger_demo.cl` - Practical effect example
+- `effects_demo.ai` - Introduction to effects
+- `advanced_effects.ai` - Complex effect handling
+- `logger_demo.ai` - Practical effect example
 
 ### Contracts & Verification
-- `contracts_demo.cl` - Basic contracts
-- `contract_verification_demo.cl` - Contract verification
-- `contract_proof_demo.cl` - Mathematical proofs
+- `contracts_demo.ai` - Basic contracts
+- `contract_verification_demo.ai` - Contract verification
+- `contract_proof_demo.ai` - Mathematical proofs
 
 ### Async Programming
-- `async_await_demo.cl` - Async/await basics
-- `concurrency_demo.cl` - Concurrent programming
+- `async_await_demo.ai` - Async/await basics
+- `concurrency_demo.ai` - Concurrent programming
 
 ### AI-First Features
-- `ai_first_demo.cl` - AI integration features
-- `ml_optimization_demo.cl` - ML-guided optimization
-- `network_effects_demo.cl` - Network effect analysis
+- `ai_first_demo.ai` - AI integration features
+- `ml_optimization_demo.ai` - ML-guided optimization
+- `network_effects_demo.ai` - Network effect analysis
 
 ## Complete Applications
 
@@ -48,29 +48,29 @@ A comprehensive network security analyzer demonstrating real-world FluentAi usag
 - `claudescope/` - Full application with documentation
 
 ### Web Applications
-- `counter_app.cl` - Simple counter application
-- `todo_app_components.cl` - Todo list with components
+- `counter_app.ai` - Simple counter application
+- `todo_app_components.ai` - Todo list with components
 - Various `counter_*.html` files - Different UI implementations
 
 ## Running Examples
 
 ```bash
 # Run a simple example
-python python/scripts/run_claudelang.py examples/hello.cl
+python python/scripts/run_fluentai.py examples/hello.ai
 
 # Run with the REPL
-python python/scripts/run_claudelang.py --repl
+python python/scripts/run_fluentai.py --repl
 
 # Run a specific example
-python python/scripts/run_claudelang.py examples/fibonacci.cl
+python python/scripts/run_fluentai.py examples/fibonacci.ai
 ```
 
 ## UI Components
 
 FluentAi includes experimental UI component support:
-- `ui_demo.cl` - UI component basics
-- `simple_button.cl` - Button component
-- `component_demo.cl` - Component composition
+- `ui_demo.ai` - UI component basics
+- `simple_button.ai` - Button component
+- `component_demo.ai` - Component composition
 - HTML files demonstrate compiled output
 
 ## Note for Developers

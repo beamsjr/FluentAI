@@ -1,10 +1,10 @@
-# ClaudeLang Documentation Specification
+# FluentAI Documentation Specification
 
-This document defines the documentation format for ClaudeLang, designed to be machine-readable first while maintaining human accessibility.
+This document defines the documentation format for FluentAI, designed to be machine-readable first while maintaining human accessibility.
 
 ## Documentation Structure
 
-All ClaudeLang documentation follows a structured JSON format with human-readable projections.
+All FluentAI documentation follows a structured JSON format with human-readable projections.
 
 ### Function Documentation Format
 
@@ -164,7 +164,7 @@ Where applicable, include formal properties:
 
 ### From Code to Documentation
 
-ClaudeLang code can generate documentation:
+FluentAI code can generate documentation:
 
 ```clojure
 (define-function add

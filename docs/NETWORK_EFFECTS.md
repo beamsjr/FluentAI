@@ -1,10 +1,10 @@
-# Network Effects in ClaudeLang
+# Network Effects in FluentAI
 
-ClaudeLang provides comprehensive network effect handlers for building networked applications. All network operations are performed through the effect system, ensuring they are explicit, composable, and testable.
+FluentAI provides comprehensive network effect handlers for building networked applications. All network operations are performed through the effect system, ensuring they are explicit, composable, and testable.
 
 ## Overview
 
-Network effects in ClaudeLang cover:
+Network effects in FluentAI cover:
 - HTTP/HTTPS requests (GET, POST, PUT, DELETE, etc.)
 - WebSocket connections
 - TCP/UDP socket programming
@@ -28,7 +28,7 @@ Network effects in ClaudeLang cover:
 
 ; Custom headers
 (let ((headers {"Authorization" "Bearer token123"
-                "User-Agent" "ClaudeLang/1.0"})
+                "User-Agent" "FluentAI/1.0"})
       (response (effect network:http-get "https://api.example.com/protected" headers)))
   (print response))
 

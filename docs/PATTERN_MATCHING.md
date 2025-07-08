@@ -1,6 +1,6 @@
-# ClaudeLang Pattern Matching
+# FluentAI Pattern Matching
 
-ClaudeLang provides powerful pattern matching capabilities for destructuring and control flow.
+FluentAI provides powerful pattern matching capabilities for destructuring and control flow.
 
 ## Basic Syntax
 

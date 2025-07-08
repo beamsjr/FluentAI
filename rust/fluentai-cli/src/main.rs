@@ -11,7 +11,7 @@ mod runner;
 use commands::{package, repl, run};
 
 #[derive(Parser)]
-#[command(name = "claudelang")]
+#[command(name = "fluentai")]
 #[command(about = "FluentAi interpreter and tools", long_about = None)]
 #[command(version)]
 struct Cli {
@@ -162,7 +162,7 @@ enum PackageCommands {
     /// Publish a package
     Publish {
         /// Authentication token
-        #[arg(long, env = "CLAUDELANG_TOKEN")]
+        #[arg(long, env = "FLUENTAI_TOKEN")]
         token: String,
     },
     

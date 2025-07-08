@@ -1,4 +1,4 @@
-//! Package manifest (claude.json) handling
+//! Package manifest (fluentai.json) handling
 
 use crate::{PackageError, Result};
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Package manifest structure (claude.json)
+/// Package manifest structure (fluentai.json)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Manifest {
@@ -179,7 +179,7 @@ fn default_test_dir() -> String {
 }
 
 fn default_test_pattern() -> String {
-    "**/*_test.cl".to_string()
+    "**/*_test.ai".to_string()
 }
 
 impl Manifest {
@@ -311,7 +311,7 @@ impl Default for Manifest {
             homepage: None,
             repository: None,
             keywords: Vec::new(),
-            main: Some("src/main.cl".to_string()),
+            main: Some("src/main.ai".to_string()),
             dependencies: HashMap::new(),
             dev_dependencies: HashMap::new(),
             scripts: HashMap::new(),

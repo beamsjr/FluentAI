@@ -1,10 +1,10 @@
-# ClaudeLang Effect System
+# FluentAI Effect System
 
-ClaudeLang features a comprehensive effect system that makes side effects explicit and manageable. This enables powerful optimizations while maintaining correctness.
+FluentAI features a comprehensive effect system that makes side effects explicit and manageable. This enables powerful optimizations while maintaining correctness.
 
 ## Overview
 
-Effects in ClaudeLang are first-class values that represent computations with side effects. The effect system:
+Effects in FluentAI are first-class values that represent computations with side effects. The effect system:
 
 - Makes all side effects explicit in the type system
 - Enables effect handlers for custom effect interpretation
@@ -13,7 +13,7 @@ Effects in ClaudeLang are first-class values that represent computations with si
 
 ## Effect Types
 
-ClaudeLang defines seven core effect types:
+FluentAI defines seven core effect types:
 
 ### 1. PURE
 No side effects - can be evaluated at any time, memoized, or eliminated if unused.
@@ -198,7 +198,7 @@ Effects are implemented through:
 
 ## Examples
 
-See `examples/advanced_effects.cl` for comprehensive examples of the effect system in action.
+See `examples/advanced_effects.ai` for comprehensive examples of the effect system in action.
 
 ## Future Extensions
 

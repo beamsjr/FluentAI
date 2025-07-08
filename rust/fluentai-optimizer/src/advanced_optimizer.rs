@@ -298,6 +298,12 @@ impl AdvancedOptimizer {
                                 stack.push(WorkItem::Process(*inv));
                             }
                         }
+                        Node::Handler { handlers, body } => {
+                            stack.push(WorkItem::Process(*body));
+                            for (_, _, handler_fn) in handlers {
+                                stack.push(WorkItem::Process(*handler_fn));
+                            }
+                        }
                     }
                 }
                 WorkItem::Complete(node_id, placeholder_id) => {
@@ -789,6 +795,23 @@ impl AdvancedOptimizer {
                     args: opt_args,
                 }
             }
+            Node::Handler { handlers, body } => {
+                let mut opt_handlers = Vec::new();
+                for (effect_type, op_filter, handler_fn) in handlers {
+                    if let Some(opt_handler) = self.optimize_node(handler_fn)? {
+                        opt_handlers.push((effect_type, op_filter.clone(), opt_handler));
+                    }
+                }
+                
+                if let Some(opt_body) = self.optimize_node(body)? {
+                    Node::Handler {
+                        handlers: opt_handlers,
+                        body: opt_body,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
             _ => node.clone(),
         };
 
@@ -846,6 +869,12 @@ impl AdvancedOptimizer {
                         queue.push(*expr);
                         for (_, branch) in branches {
                             queue.push(*branch);
+                        }
+                    }
+                    Node::Handler { handlers, body } => {
+                        queue.push(*body);
+                        for (_, _, handler_fn) in handlers {
+                            queue.push(*handler_fn);
                         }
                     }
                     _ => {}
@@ -1005,6 +1034,21 @@ impl AdvancedOptimizer {
                     let new_body = self.deep_copy_with_substitution(body, &new_substitutions)?;
                     let new_node = Node::Letrec {
                         bindings: new_bindings,
+                        body: new_body,
+                    };
+                    Some(self.optimized.add_node(new_node).ok()?)
+                }
+                Node::Handler { handlers, body } => {
+                    let mut new_handlers = Vec::new();
+                    for (effect_type, op_filter, handler_fn) in handlers {
+                        if let Some(new_handler) = self.deep_copy_with_substitution(handler_fn, substitutions) {
+                            new_handlers.push((effect_type, op_filter, new_handler));
+                        }
+                    }
+                    
+                    let new_body = self.deep_copy_with_substitution(body, substitutions)?;
+                    let new_node = Node::Handler {
+                        handlers: new_handlers,
                         body: new_body,
                     };
                     Some(self.optimized.add_node(new_node).ok()?)
@@ -1450,6 +1494,12 @@ impl AdvancedOptimizer {
                 Node::Effect { args, .. } => {
                     stack.extend(args);
                 }
+                Node::Handler { handlers, body } => {
+                    stack.push(*body);
+                    for (_, _, handler_fn) in handlers {
+                        stack.push(*handler_fn);
+                    }
+                }
                 _ => {}
             }
         }
@@ -1510,6 +1560,12 @@ impl AdvancedOptimizer {
                         work_stack.push(*expr);
                         for (_, branch_body) in branches {
                             work_stack.push(*branch_body);
+                        }
+                    }
+                    Node::Handler { handlers, body } => {
+                        work_stack.push(*body);
+                        for (_, _, handler_fn) in handlers {
+                            work_stack.push(*handler_fn);
                         }
                     }
                     _ => {}

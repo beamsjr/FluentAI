@@ -16,7 +16,7 @@
 3. **Python Bindings** ✓
    - Fixed PyO3 linking errors on macOS
    - Bindings compile and work correctly
-   - Can parse ClaudeLang code from Python
+   - Can parse FluentAI code from Python
 
 ## Current Limitations
 

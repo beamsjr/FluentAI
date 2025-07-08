@@ -1,6 +1,6 @@
-# ClaudeLang Package Manager
+# FluentAI Package Manager
 
-The ClaudeLang package manager provides dependency management, versioning, and distribution capabilities for ClaudeLang projects.
+The FluentAI package manager provides dependency management, versioning, and distribution capabilities for FluentAI projects.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -26,7 +26,7 @@ The package manager allows you to:
 ### Initialize a New Package
 
 ```bash
-claudelang-package init
+fluentai-package init
 ```
 
 This creates a `claude.json` manifest file in your project.
@@ -34,7 +34,7 @@ This creates a `claude.json` manifest file in your project.
 ### Install Dependencies
 
 ```bash
-claudelang-package install
+fluentai-package install
 ```
 
 Installs all dependencies listed in `claude.json`.
@@ -47,10 +47,10 @@ The `claude.json` file describes your package:
 {
   "name": "my-awesome-lib",
   "version": "1.0.0",
-  "description": "An awesome ClaudeLang library",
+  "description": "An awesome FluentAI library",
   "author": "Your Name <you@example.com>",
   "license": "MIT",
-  "main": "src/main.cl",
+  "main": "src/main.ai",
   "dependencies": {
     "math-utils": "^2.0.0",
     "string-helpers": "~1.5.0"
@@ -59,8 +59,8 @@ The `claude.json` file describes your package:
     "test-framework": "^3.0.0"
   },
   "scripts": {
-    "test": "claudelang test/*.cl",
-    "build": "claudelang compile src/"
+    "test": "fluentai test/*.ai",
+    "build": "fluentai compile src/"
   },
   "repository": {
     "type": "git",
@@ -91,7 +91,7 @@ The `claude.json` file describes your package:
 Initialize a new package:
 
 ```bash
-claudelang-package init [--name <name>] [--version <version>]
+fluentai-package init [--name <name>] [--version <version>]
 ```
 
 ### install
@@ -100,16 +100,16 @@ Install dependencies:
 
 ```bash
 # Install all dependencies
-claudelang-package install
+fluentai-package install
 
 # Install and add to dependencies
-claudelang-package install math-utils
+fluentai-package install math-utils
 
 # Install and add to devDependencies
-claudelang-package install --dev test-framework
+fluentai-package install --dev test-framework
 
 # Install specific version
-claudelang-package install math-utils@2.1.0
+fluentai-package install math-utils@2.1.0
 ```
 
 ### publish
@@ -117,7 +117,7 @@ claudelang-package install math-utils@2.1.0
 Publish package to registry:
 
 ```bash
-claudelang-package publish [--registry <url>]
+fluentai-package publish [--registry <url>]
 ```
 
 ### search
@@ -125,8 +125,8 @@ claudelang-package publish [--registry <url>]
 Search for packages:
 
 ```bash
-claudelang-package search math
-claudelang-package search --author "Jane Doe"
+fluentai-package search math
+fluentai-package search --author "Jane Doe"
 ```
 
 ## Dependency Management
@@ -153,7 +153,7 @@ The `claude-lock.json` file ensures reproducible installations:
     "math-utils@2.1.0": {
       "name": "math-utils",
       "version": "2.1.0",
-      "registry": "https://registry.claudelang.org",
+      "registry": "https://registry.fluentai.org",
       "checksum": "sha256:abc123...",
       "dependencies": {
         "base-math": "1.0.0"
@@ -185,13 +185,13 @@ The resolver uses a deterministic algorithm:
 
 ```bash
 # Login to registry (if required)
-claudelang-package login
+fluentai-package login
 
 # Publish
-claudelang-package publish
+fluentai-package publish
 
 # Publish with specific tag
-claudelang-package publish --tag beta
+fluentai-package publish --tag beta
 ```
 
 ### Package Structure
@@ -205,7 +205,7 @@ my-package/
 ├── README.md           # Documentation
 ├── LICENSE             # License file
 ├── src/                # Source code
-│   ├── main.cl        # Entry point
+│   ├── main.ai        # Entry point
 │   └── lib/           # Library modules
 ├── test/              # Tests
 ├── examples/          # Usage examples
@@ -219,9 +219,9 @@ my-package/
 The default registry is configured in the package manager:
 
 ```toml
-# ~/.claudelang/config.toml
+# ~/.fluentai/config.toml
 [package]
-registry = "https://registry.claudelang.org"
+registry = "https://registry.fluentai.org"
 ```
 
 ### Custom Registries
@@ -229,7 +229,7 @@ registry = "https://registry.claudelang.org"
 Add custom registries:
 
 ```bash
-claudelang-package config add-registry company https://registry.company.com
+fluentai-package config add-registry company https://registry.company.com
 ```
 
 Use in manifest:
@@ -251,10 +251,10 @@ For development or private packages:
 
 ```bash
 # Set up local registry
-claudelang-package config set registry file:///path/to/local/registry
+fluentai-package config set registry file:///path/to/local/registry
 
 # Publish to local registry
-claudelang-package publish --registry file:///path/to/local/registry
+fluentai-package publish --registry file:///path/to/local/registry
 ```
 
 ## Package Discovery
@@ -263,29 +263,29 @@ claudelang-package publish --registry file:///path/to/local/registry
 
 ```bash
 # Search by name
-claudelang-package search json
+fluentai-package search json
 
 # Search by keyword
-claudelang-package search --keyword parsing
+fluentai-package search --keyword parsing
 
 # Search by author
-claudelang-package search --author "John Doe"
+fluentai-package search --author "John Doe"
 
 # Combined search
-claudelang-package search --keyword math --keyword statistics
+fluentai-package search --keyword math --keyword statistics
 ```
 
 ### Package Information
 
 ```bash
 # Show package details
-claudelang-package info math-utils
+fluentai-package info math-utils
 
 # Show specific version
-claudelang-package info math-utils@2.0.0
+fluentai-package info math-utils@2.0.0
 
 # Show versions
-claudelang-package versions math-utils
+fluentai-package versions math-utils
 ```
 
 ## Best Practices
@@ -299,9 +299,9 @@ Follow [semver](https://semver.org/):
 
 ```bash
 # Bump version
-claudelang-package version patch  # 1.0.0 -> 1.0.1
-claudelang-package version minor  # 1.0.1 -> 1.1.0
-claudelang-package version major  # 1.1.0 -> 2.0.0
+fluentai-package version patch  # 1.0.0 -> 1.0.1
+fluentai-package version minor  # 1.0.1 -> 1.1.0
+fluentai-package version major  # 1.1.0 -> 2.0.0
 ```
 
 ### 2. Minimal Dependencies
@@ -325,7 +325,7 @@ Use descriptive, unique names:
 
 ```
 Good:
-- claudelang-http-client
+- fluentai-http-client
 - math-matrix-operations
 - json-parser
 
@@ -380,7 +380,7 @@ All packages include SHA-256 checksums:
 Regularly audit for vulnerabilities:
 
 ```bash
-claudelang-package audit
+fluentai-package audit
 ```
 
 ### Registry Authentication
@@ -389,10 +389,10 @@ For private registries:
 
 ```bash
 # Login
-claudelang-package login --registry https://private.registry.com
+fluentai-package login --registry https://private.registry.com
 
 # Logout
-claudelang-package logout --registry https://private.registry.com
+fluentai-package logout --registry https://private.registry.com
 ```
 
 ## Troubleshooting
@@ -402,14 +402,14 @@ claudelang-package logout --registry https://private.registry.com
 **Dependency conflicts:**
 ```bash
 # Clear cache and reinstall
-claudelang-package cache clean
-claudelang-package install --force
+fluentai-package cache clean
+fluentai-package install --force
 ```
 
 **Network issues:**
 ```bash
 # Use offline mode
-claudelang-package install --offline
+fluentai-package install --offline
 
 # Configure proxy
 export HTTPS_PROXY=http://proxy.company.com:8080
@@ -418,10 +418,10 @@ export HTTPS_PROXY=http://proxy.company.com:8080
 **Corrupted downloads:**
 ```bash
 # Verify checksums
-claudelang-package verify
+fluentai-package verify
 
 # Re-download
-claudelang-package install --force
+fluentai-package install --force
 ```
 
 ## Advanced Usage
@@ -445,10 +445,10 @@ Link local packages:
 
 ```bash
 # In package directory
-claudelang-package link
+fluentai-package link
 
 # In consuming project
-claudelang-package link my-local-package
+fluentai-package link my-local-package
 ```
 
 ### Custom Scripts
@@ -458,16 +458,16 @@ Define custom commands:
 ```json
 {
   "scripts": {
-    "test": "claudelang test/*.cl",
-    "build": "claudelang compile src/",
-    "fmt": "claudelang fmt src/**/*.cl"
+    "test": "fluentai test/*.ai",
+    "build": "fluentai compile src/",
+    "fmt": "fluentai fmt src/**/*.ai"
   }
 }
 ```
 
 Run with:
 ```bash
-claudelang-package run test
+fluentai-package run test
 ```
 
 ## Integration with Build Tools
@@ -477,22 +477,22 @@ claudelang-package run test
 ```yaml
 # .github/workflows/ci.yml
 - name: Install dependencies
-  run: claudelang-package install
+  run: fluentai-package install
   
 - name: Run tests
-  run: claudelang-package run test
+  run: fluentai-package run test
   
 - name: Build
-  run: claudelang-package run build
+  run: fluentai-package run build
 ```
 
 ### Docker
 
 ```dockerfile
-FROM claudelang:latest
+FROM fluentai:latest
 WORKDIR /app
 COPY claude.json claude-lock.json ./
-RUN claudelang-package install --production
+RUN fluentai-package install --production
 COPY . .
-CMD ["claudelang", "src/main.cl"]
+CMD ["fluentai", "src/main.ai"]
 ```

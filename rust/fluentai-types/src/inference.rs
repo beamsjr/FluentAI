@@ -151,6 +151,10 @@ impl TypeInferencer {
                 // Contracts are metadata, not runtime values
                 TypedValue::primitive(PrimitiveType::unit())
             }
+            Node::Handler { handlers: _, body } => {
+                // Handler has the same type as its body expression
+                self.infer_node(graph, *body)?
+            }
         };
 
         // Store the inferred type

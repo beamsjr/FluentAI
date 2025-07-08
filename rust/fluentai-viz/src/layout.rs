@@ -251,6 +251,10 @@ impl ASTLayouter {
             Node::Send { .. } => "send!".to_string(),
             Node::Receive { .. } => "recv!".to_string(),
             Node::Contract { function_name, .. } => format!("contract {}", function_name),
+            Node::Handler { handlers, .. } => {
+                let handler_count = handlers.len();
+                format!("handler ({})", handler_count)
+            }
         }
     }
     
@@ -278,6 +282,7 @@ impl ASTLayouter {
             Node::Send { .. } => "send",
             Node::Receive { .. } => "receive",
             Node::Contract { .. } => "contract",
+            Node::Handler { .. } => "handler",
         }.to_string()
     }
 }

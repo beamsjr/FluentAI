@@ -1,6 +1,6 @@
-# ClaudeLang Tutorial
+# FluentAI Tutorial
 
-Welcome to ClaudeLang, an AI-first programming language designed for clarity, explicitness, and machine understanding.
+Welcome to FluentAI, an AI-first programming language designed for clarity, explicitness, and machine understanding.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ Welcome to ClaudeLang, an AI-first programming language designed for clarity, ex
 
 ## Introduction
 
-ClaudeLang prioritizes:
+FluentAI prioritizes:
 - **Unambiguous syntax**: One way to express each concept
 - **Explicit effects**: All side effects are visible in the code
 - **Graph-based representation**: Code as data structures
@@ -25,7 +25,7 @@ ClaudeLang prioritizes:
 
 ### Everything is an Expression
 
-In ClaudeLang, everything evaluates to a value:
+In FluentAI, everything evaluates to a value:
 
 ```clojure
 (+ 1 2)           ; => 3
@@ -287,22 +287,22 @@ Explicit error handling:
         [:ok (/ x y)])))
 ```
 
-## Running ClaudeLang
+## Running FluentAI
 
 ### REPL
 
 Start the interactive interpreter:
 
 ```bash
-python -m claudelang.repl
+python -m fluentai.repl
 ```
 
 ### Running Files
 
-Execute a ClaudeLang file:
+Execute a FluentAI file:
 
 ```bash
-python -m claudelang.run examples/hello.cl
+python -m fluentai.run examples/hello.ai
 ```
 
 ### Compilation (Future)
@@ -310,7 +310,7 @@ python -m claudelang.run examples/hello.cl
 Compile to efficient targets:
 
 ```bash
-claudelang compile program.cl --target wasm
+fluentai compile program.ai --target wasm
 ```
 
 ## Next Steps
@@ -320,4 +320,4 @@ claudelang compile program.cl --target wasm
 3. Learn about [AI integration](./ai_integration.md)
 4. Contribute to the [standard library](../src/stdlib/)
 
-Remember: ClaudeLang is designed for clarity and machine understanding. When in doubt, be explicit!
+Remember: FluentAI is designed for clarity and machine understanding. When in doubt, be explicit!

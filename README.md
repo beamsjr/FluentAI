@@ -1,9 +1,9 @@
-# FluentAi: An AI-First Programming Language
+# FluentAI: An AI-First Programming Language
 
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-FluentAi is an experimental programming language designed for AI systems rather than humans. It features a graph-based AST, effect-aware execution, and explicit, verifiable semantics tailored for static analysis and transformation. Powered by advanced optimization and reasoning passes—including data flow, control flow, type, and effect analysis—FluentAi enables AI agents to understand, manipulate, and optimize code safely. Fully implemented in Rust, it offers production-grade performance, safety, and runtime extensibility.
+FluentAI is an experimental programming language designed for AI systems rather than humans. It features a graph-based AST, effect-aware execution, and explicit, verifiable semantics tailored for static analysis and transformation. Powered by advanced optimization and reasoning passes—including data flow, control flow, type, and effect analysis—FluentAI enables AI agents to understand, manipulate, and optimize code safely. Fully implemented in Rust, it offers production-grade performance, safety, and runtime extensibility.
 
 ## Table of Contents
 
@@ -43,12 +43,12 @@ FluentAi is an experimental programming language designed for AI systems rather 
 - **JavaScript Compilation**: Compile to optimized JavaScript for browsers
 
 ### 🔧 Core Language Features
-- **Pattern matching**: ML-style with list destructuring (Cons/Nil patterns) ([see examples](rust/examples/pattern_matching.cl))
+- **Pattern matching**: ML-style with list destructuring (Cons/Nil patterns) ([see examples](rust/examples/pattern_matching.ai))
   - Literal, variable, wildcard, and constructor patterns
   - Special support for list pattern matching
   - Efficient compilation to bytecode
 - **Algebraic data types**: Sum and product types with pattern matching
-- **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling ([see demo](rust/examples/effects_demo.cl))
+- **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling ([see demo](rust/examples/effects_demo.ai))
 - **Module system**: Full namespace support with imports, exports, and qualified references
 - **Type annotations**: Optional type ascription for clarity and optimization
 
@@ -79,7 +79,7 @@ FluentAi is an experimental programming language designed for AI systems rather 
   - Thread-safe reactive computations with fine-grained updates
   - Computed values with automatic memoization
   - Effect integration for reactive side effects
-- **UI Compilation to JavaScript**: Transform FluentAi UI code to multiple targets
+- **UI Compilation to JavaScript**: Transform FluentAI UI code to multiple targets
   - Vanilla JavaScript with no dependencies
   - React components with hooks and state management
   - Vue.js 3 components with Composition API
@@ -135,7 +135,7 @@ FluentAi is an experimental programming language designed for AI systems rather 
 
 ## Quick Example
 
-> **See also**: [Pattern matching examples](rust/examples/pattern_matching.cl) | [Effects demo](rust/examples/effects_demo.cl) | [All examples](rust/examples/)
+> **See also**: [Pattern matching examples](rust/examples/pattern_matching.ai) | [Effects demo](rust/examples/effects_demo.ai) | [All examples](rust/examples/)
 
 ```lisp
 ;; Import modules
@@ -286,8 +286,8 @@ FluentAi is an experimental programming language designed for AI systems rather 
 ### Building from Source
 ```bash
 # Clone the repository
-git clone https://github.com/beamsjr/FluentAi.git
-cd FluentAi/rust
+git clone https://github.com/beamsjr/FluentAI.git
+cd FluentAI/rust
 
 # Build the entire project
 cargo build --release
@@ -315,9 +315,9 @@ cargo run -p fluentai-repl
 ```bash
 # Run language feature examples
 cd rust
-cargo run -p fluentai-cli -- run examples/hello.cl
-cargo run -p fluentai-cli -- run examples/pattern_matching.cl
-cargo run -p fluentai-cli -- run examples/effects_demo.cl
+cargo run -p fluentai-cli -- run examples/hello.ai
+cargo run -p fluentai-cli -- run examples/pattern_matching.ai
+cargo run -p fluentai-cli -- run examples/effects_demo.ai
 
 # Run performance benchmarks
 cargo run --release --example throughput_benchmark
@@ -333,11 +333,11 @@ ls examples/
 #### From Command Line
 ```bash
 # Run with optimization
-claudelang run -O2 program.cl    # Standard optimization
-claudelang run -O3 program.cl    # Aggressive optimization
+fluentai run -O2 program.ai    # Standard optimization
+fluentai run -O3 program.ai    # Aggressive optimization
 
 # Compile with optimization
-claudelang compile -O3 program.cl -o program
+fluentai compile -O3 program.ai -o program
 ```
 
 #### From Rust Code
@@ -393,7 +393,7 @@ cargo run --example symbolic_verification --features static
 
 # Generate test cases from contracts
 cargo run --bin fluentai-verify -- \
-  --input program.cl \
+  --input program.ai \
   --contracts contracts.spec \
   --generate-tests output_tests.rs
 ```
@@ -1185,7 +1185,7 @@ Example optimization results:
 ## Project Structure
 
 ```
-FluentAi/
+FluentAI/
 ├── rust/               # Complete Rust implementation
 │   ├── fluentai-core/    # Core types and AST (enhanced Value system)
 │   ├── fluentai-parser/  # Zero-copy parser (258,808x faster)
@@ -1217,9 +1217,9 @@ FluentAi/
 │   └── MULTITHREADING_IMPROVEMENTS.md # Concurrent features
 ├── tests/              # Test suite
 ├── examples/           # Example programs
-│   ├── *.cl           # FluentAi examples
+│   ├── *.ai           # FluentAI examples
 │   ├── *.html         # UI framework demos
-│   └── *_demo.cl      # Feature demonstrations
+│   └── *_demo.ai      # Feature demonstrations
 ├── docs/               # Documentation
 └── tools/              # Development tools
 ```
@@ -1275,7 +1275,7 @@ FluentAi/
   - Generates concrete test cases from symbolic paths
   - Z3-based and heuristic generation strategies
   - Parameter bounds inference from constraints
-  - Multi-language output (FluentAi, Rust)
+  - Multi-language output (FluentAI, Rust)
   - Coverage-guided test generation
 - **Incremental Z3 solving**:
   - Push/pop mechanism for efficient constraint checking
@@ -1453,7 +1453,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-FluentAi explores ideas from:
+FluentAI explores ideas from:
 - **Scheme/Lisp**: S-expressions, functional programming
 - **ML/Haskell**: Type system, pattern matching, ADTs
 - **Koka/Frank**: Effect system design

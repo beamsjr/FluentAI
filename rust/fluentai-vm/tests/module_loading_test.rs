@@ -7,7 +7,7 @@ use tempfile::TempDir;
 
 /// Helper to create a test module file
 fn create_test_module(dir: &Path, name: &str, content: &str) -> PathBuf {
-    let file_path = dir.join(format!("{}.cl", name));
+    let file_path = dir.join(format!("{}.ai", name));
     fs::write(&file_path, content).unwrap();
     file_path
 }

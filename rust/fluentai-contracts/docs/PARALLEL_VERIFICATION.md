@@ -46,7 +46,7 @@ Parallel verification provides significant performance improvements by:
 ### Basic Parallel Verification
 
 ```rust
-use claudelang_contracts::ParallelVerifier;
+use fluentai_contracts::ParallelVerifier;
 
 let verifier = ParallelVerifier::new(&graph);
 let results = verifier.verify_contracts_parallel(&contracts)?;
@@ -57,7 +57,7 @@ println!("Verified {} contracts", results.len());
 ### Custom Configuration
 
 ```rust
-use claudelang_contracts::ParallelVerificationConfig;
+use fluentai_contracts::ParallelVerificationConfig;
 
 let config = ParallelVerificationConfig {
     num_threads: 8,                    // Use 8 threads
@@ -75,7 +75,7 @@ let verifier = ParallelVerifier::new(&graph)
 ### Progress Monitoring
 
 ```rust
-use claudelang_contracts::ParallelCoordinator;
+use fluentai_contracts::ParallelCoordinator;
 
 let coordinator = ParallelCoordinator::new(&graph);
 
