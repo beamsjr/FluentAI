@@ -26,7 +26,6 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **JIT Compiler**: Native code generation with Cranelift (x86_64)
 - **Memory Efficient**: 5-10x less memory usage through zero-cost abstractions
 - **Throughput**: 19.2 million operations/second average, up to 35.8M ops/sec ([see benchmark](rust/benchmarks/throughput_benchmark.rs))
-- **Production Ready**: Safe, concurrent, and reliable
 - **Packet Processing Optimizations**: Tail calls, unboxed types, memory pools, lock-free queues
 
 ### 🧠 AI-First Design
