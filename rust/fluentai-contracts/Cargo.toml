@@ -9,7 +9,7 @@ repository.workspace = true
 [dependencies]
 fluentai-core = { path = "../fluentai-core" }
 fluentai-types = { path = "../fluentai-types" }
-z3 = { version = "0.12", features = ["static-link-z3"], optional = true }
+z3 = { version = "0.12", optional = true }
 thiserror = "1.0"
 anyhow = "1.0"
 tracing = "0.1"

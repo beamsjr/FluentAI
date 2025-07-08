@@ -5,19 +5,31 @@ all: build test
 
 # Build all crates
 build:
-	cargo build --all-features
+	cargo build --workspace --exclude fluentai-contracts
+	cargo build -p fluentai-contracts
 
 # Build release version
 release:
-	cargo build --release --all-features
+	cargo build --release --workspace --exclude fluentai-contracts
+	cargo build --release -p fluentai-contracts
 
 # Run all tests
 test:
-	cargo test --all-features
+	cargo test --workspace --exclude fluentai-contracts
+	cargo test -p fluentai-contracts --no-default-features --features runtime
 
 # Run tests in release mode
 test-release:
-	cargo test --release --all-features
+	cargo test --release --workspace --exclude fluentai-contracts
+	cargo test --release -p fluentai-contracts --no-default-features --features runtime
+
+# Build with Z3 support (requires Z3 installed via homebrew)
+build-z3:
+	cargo build --workspace --all-features
+
+# Test with Z3 support (requires Z3 installed via homebrew)
+test-z3:
+	cargo test --workspace --all-features
 
 # Run quick benchmarks (for development)
 bench-quick:

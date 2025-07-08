@@ -1,2 +1,5 @@
 [env]
 PYO3_PYTHON = "/opt/homebrew/bin/python3"
+Z3_SYS_Z3_HEADER = "/opt/homebrew/include/z3.h"
+CPATH = "/opt/homebrew/include"
+LIBRARY_PATH = "/opt/homebrew/lib"
