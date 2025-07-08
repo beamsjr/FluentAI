@@ -339,10 +339,7 @@ let optimized = pipeline.optimize(&graph).unwrap();
 
 ### Development Setup
 ```bash
-# Install all development dependencies
-pip install -r requirements-dev.txt
-
-# Build Rust components with all features
+# Build all components with all features
 cd rust
 cargo build --release --all-features
 
@@ -354,6 +351,10 @@ cargo run --example packet_processing_demo --release
 
 # Run packet processing benchmarks
 cargo bench --bench packet_processing_bench
+
+# Optional: Build Python bindings
+cd fluentai-py
+maturin develop  # Requires: pip install maturin
 ```
 
 ### Running Contract Verification Examples
