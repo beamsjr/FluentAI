@@ -45,6 +45,7 @@ parking_lot = "0.12"
 rustc-hash = "1.1"
 ahash = "0.8"
 crossbeam = "0.8"
+libc = "0.2"
 
 # Memory management
 bumpalo = "3.13"
