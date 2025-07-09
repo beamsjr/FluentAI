@@ -50,12 +50,13 @@ jobs:
           # assignee_trigger: "claude-bot"
           
           # Optional: Allow Claude to run specific commands
-          # allowed_tools: "Bash(npm install),Bash(npm run build),Bash(npm run test:*),Bash(npm run lint:*)"
+          allowed_tools: "Bash(cd rust),Bash(cargo build),Bash(cargo test --workflow),Bash(cargo clean),Bash(cd rust && make test)"
           
           # Optional: Add custom instructions for Claude to customize its behavior for your project
-          # custom_instructions: |
-          #   Follow our coding standards
-          #   Ensure all new code has tests
+          custom_instructions: |
+             Ensure all new code has tests
+             Make sure all tests work
+             Update documentation and at very least update the main readme where necessary
           #   Use TypeScript for new files
           
           # Optional: Custom environment variables for Claude
