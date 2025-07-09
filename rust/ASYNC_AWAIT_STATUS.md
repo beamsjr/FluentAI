@@ -1,87 +1,47 @@
-# FluentAI Async/Await Implementation Status
+# Async/Await Implementation Status
 
-## Summary
+## What Was Done
 
-I tested the async/await functionality in FluentAI and found the following:
+### 1. Fixed Await to Properly Block
+Modified the Await opcode implementation in fluentai-vm/src/vm.rs:
 
-### What Works ✅
+- Changed from non-blocking try_recv() to properly blocking behavior
+- First attempts a non-blocking check if promise is ready
+- If not ready and an effect runtime is available, uses try_block_on to wait
+- Falls back to error if no runtime is available and promise not ready
 
-1. **Channels**
-   - `(chan)` creates a channel and returns `#<channel:id>`
-   - Channel IDs are properly tracked
+### 2. Issues Encountered
 
-2. **Send/Receive**
-   - `(send! channel value)` sends a value to a channel
-   - `(recv! channel)` receives a value from a channel
-   - Basic channel communication works synchronously
+1. **Runtime Context**: The tests fail because:
+   - #[tokio::test] already provides a runtime context
+   - EffectRuntime::new() tries to create a new runtime, causing 'Cannot start a runtime from within a runtime' error
+   - Using EffectRuntime::from_current() fixes this but the promise still isn't ready
 
-3. **Spawn**
-   - `(spawn expr)` creates a goroutine
-   - Returns a promise ID as `#<promise:id>`
-   - The spawned code executes asynchronously
+2. **Race Condition**: The await happens immediately after spawn, and the spawned task hasn't had a chance to execute yet
 
-4. **Async blocks**
-   - `(async expr)` syntax is recognized
-   - Currently executes the body immediately (not truly async)
-   - Does NOT return a promise
+3. **Test Infrastructure**: The existing spawn_integration_test.rs was also failing with the same runtime issue
 
-### What Doesn't Work ❌
+## Recommendations
 
-1. **Await**
-   - `(await promise)` has a bug - tries to resolve "promise:promise:1"
-   - Cannot properly wait for spawned tasks to complete
+### Option 1: Keep Non-Blocking Behavior (Original Design)
+The original implementation was non-blocking - if a promise wasn't ready, it would return the promise back. This suggests:
+- Await might need to be called in a loop
+- Or there's a higher-level construct that handles the retry logic
 
-2. **True Async/Await**
-   - `async` doesn't create promises
-   - No proper async context or continuation support
-   - Cannot chain async operations
+### Option 2: Fix Blocking Behavior
+To make blocking await work properly:
+1. Ensure spawned tasks get a chance to run before await
+2. Use proper async context management
+3. Consider using tokio::task::yield_now() to give other tasks a chance to run
 
-3. **Complex Async Patterns**
-   - No async function definitions
-   - No proper error handling for async operations
-   - Limited concurrent programming patterns
+### Option 3: Hybrid Approach
+- Use non-blocking in synchronous contexts
+- Use blocking when an async runtime is available
+- This is what the current implementation attempts but needs refinement
 
-### Code Examples
+## Next Steps
 
-Working example:
-```lisp
-;; Create and use a channel
-(let ((ch (chan)))
-  (begin
-    (send! ch "Hello")
-    (recv! ch)))  ; Returns "Hello"
-
-;; Spawn a task
-(spawn (lambda () (print-line "Running async")))  ; Returns #<promise:1>
-```
-
-Not working:
-```lisp
-;; Await doesn't work properly
-(await (spawn (lambda () 42)))  ; Error: Unknown identifier: 'promise:promise:1'
-
-;; Async doesn't create promises
-(await (async 42))  ; Error: expected promise, got int
-```
-
-### Implementation Notes
-
-From examining the code:
-
-1. The compiler's `compile_async` method just compiles the body directly without creating async context
-2. The VM has promise and channel support, but await has a bug in identifier handling
-3. The parser recognizes all async/await syntax correctly
-4. The effect system has async effect types defined but not fully integrated
-
-### Conclusion
-
-FluentAI has **partial async support**:
-- Basic concurrency primitives (channels, spawn) work
-- True async/await with promises is not fully implemented
-- The infrastructure is in place but needs completion
-
-To have full async/await support, the following would need to be implemented:
-1. Fix the await identifier bug
-2. Make `async` create actual promises
-3. Implement proper async function definitions
-4. Add async/await continuation support in the VM
+1. Understand the intended semantics of await in FluentAI
+2. Fix the test infrastructure to properly handle async contexts
+3. Consider implementing a proper event loop or executor for the VM
+4. Add comprehensive tests for various async scenarios

@@ -1664,14 +1664,38 @@ impl VM {
 
                 // Check if we have this promise
                 if let Some(mut rx) = self.promises.remove(&promise_id) {
-                    // Try to receive the result non-blocking
+                    // First check if promise is already resolved (non-blocking)
                     match rx.try_recv() {
-                        Ok(Ok(value)) => self.push(value)?,
-                        Ok(Err(e)) => return Err(e),
+                        Ok(result) => {
+                            // Promise was already resolved
+                            match result {
+                                Ok(value) => self.push(value)?,
+                                Err(e) => return Err(e),
+                            }
+                        }
                         Err(oneshot::error::TryRecvError::Empty) => {
-                            // Not ready yet, put it back and return the promise
-                            self.promises.insert(promise_id, rx);
-                            self.push(Value::Promise(promise_id.0))?;
+                            // Promise not ready yet - try to use runtime to wait
+                            if let Some(recv_result) = self.effect_runtime.try_block_on(Box::pin(async move {
+                                rx.await
+                            })) {
+                                // Successfully waited for promise with runtime
+                                match recv_result {
+                                    Ok(Ok(value)) => self.push(value)?,
+                                    Ok(Err(e)) => return Err(e),
+                                    Err(_) => {
+                                        return Err(VMError::AsyncError {
+                                            message: "Promise channel closed".to_string(),
+                                            stack_trace: None,
+                                        });
+                                    }
+                                }
+                            } else {
+                                // No runtime available and promise not ready
+                                return Err(VMError::AsyncError {
+                                    message: "Cannot await promise - no async runtime available and promise not ready".to_string(),
+                                    stack_trace: None,
+                                });
+                            }
                         }
                         Err(oneshot::error::TryRecvError::Closed) => {
                             return Err(VMError::AsyncError {
