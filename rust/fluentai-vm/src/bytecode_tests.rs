@@ -3,10 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::bytecode::*;
-    use crate::gc::GcHandle;
-    use crate::safety::{PromiseId, ChannelId};
     use rustc_hash::FxHashMap;
-    use std::sync::Arc;
     
     mod instruction_tests {
         use super::*;
@@ -94,6 +91,7 @@ mod tests {
     
     mod value_tests {
         use super::*;
+        use fluentai_core::value::Value;
         
         #[test]
         fn test_value_nil() {
@@ -106,19 +104,19 @@ mod tests {
         
         #[test]
         fn test_value_bool() {
-            let val_true = Value::Bool(true);
-            assert_eq!(format!("{}", val_true), "true");
+            let val_true = Value::Boolean(true);
+            assert_eq!(format!("{}", val_true), "#t");
             
-            let val_false = Value::Bool(false);
-            assert_eq!(format!("{}", val_false), "false");
+            let val_false = Value::Boolean(false);
+            assert_eq!(format!("{}", val_false), "#f");
         }
         
         #[test]
         fn test_value_int() {
-            let val = Value::Int(42);
+            let val = Value::Integer(42);
             assert_eq!(format!("{}", val), "42");
             
-            let val_neg = Value::Int(-123);
+            let val_neg = Value::Integer(-123);
             assert_eq!(format!("{}", val_neg), "-123");
         }
         
@@ -143,67 +141,64 @@ mod tests {
         #[test]
         fn test_value_list() {
             let val = Value::List(vec![
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
             ]);
-            assert_eq!(format!("{}", val), "[1, 2, 3]");
+            assert_eq!(format!("{}", val), "(1 2 3)");
             
             let val_empty = Value::List(vec![]);
-            assert_eq!(format!("{}", val_empty), "[]");
+            assert_eq!(format!("{}", val_empty), "()");
             
             let val_nested = Value::List(vec![
-                Value::Int(1),
-                Value::List(vec![Value::Int(2), Value::Int(3)]),
+                Value::Integer(1),
+                Value::List(vec![Value::Integer(2), Value::Integer(3)]),
             ]);
-            assert_eq!(format!("{}", val_nested), "[1, [2, 3]]");
+            assert_eq!(format!("{}", val_nested), "(1 (2 3))");
         }
         
         #[test]
         fn test_value_map() {
             let mut map = FxHashMap::default();
-            map.insert("a".to_string(), Value::Int(1));
-            map.insert("b".to_string(), Value::Int(2));
+            map.insert("a".to_string(), Value::Integer(1));
+            map.insert("b".to_string(), Value::Integer(2));
             let val = Value::Map(map);
             let formatted = format!("{}", val);
-            assert!(formatted.starts_with('{'));
-            assert!(formatted.ends_with('}'));
-            assert!(formatted.contains("\"a\": 1"));
-            assert!(formatted.contains("\"b\": 2"));
+            assert_eq!(formatted, "#<hashmap>");
         }
         
         #[test]
         fn test_value_function() {
             let val = Value::Function {
                 chunk_id: 5,
-                env: vec![Value::Int(42)],
+                env: vec![Value::Integer(42)],
             };
-            assert_eq!(format!("{}", val), "<function>");
+            assert_eq!(format!("{}", val), "#<function>");
         }
         
         #[test]
         fn test_value_promise() {
-            let val = Value::Promise(PromiseId(123));
-            assert_eq!(format!("{}", val), "<promise:123>");
+            let val = Value::Promise(123);
+            assert_eq!(format!("{}", val), "#<promise:123>");
         }
         
         #[test]
         fn test_value_channel() {
-            let val = Value::Channel(ChannelId(456));
-            assert_eq!(format!("{}", val), "<channel:456>");
+            let val = Value::Channel(456);
+            assert_eq!(format!("{}", val), "#<channel:456>");
         }
         
         #[test]
         fn test_value_cell() {
             let val = Value::Cell(789);
-            assert_eq!(format!("{}", val), "<cell:789>");
+            assert_eq!(format!("{}", val), "#<cell:789>");
         }
         
         #[test]
         fn test_value_tagged() {
             let val = Value::Tagged {
                 tag: "Some".to_string(),
-                values: vec![Value::Int(42)],
+                values: vec![Value::Integer(42)],
             };
             assert_eq!(format!("{}", val), "Some(42)");
             
@@ -211,26 +206,26 @@ mod tests {
                 tag: "None".to_string(),
                 values: vec![],
             };
-            assert_eq!(format!("{}", val_empty), "None");
+            assert_eq!(format!("{}", val_empty), "None()");
             
             let val_multi = Value::Tagged {
                 tag: "Pair".to_string(),
-                values: vec![Value::Int(1), Value::Int(2)],
+                values: vec![Value::Integer(1), Value::Integer(2)],
             };
-            assert_eq!(format!("{}", val_multi), "Pair(1, 2)");
+            assert_eq!(format!("{}", val_multi), "Pair(1 2)");
         }
         
         #[test]
         fn test_value_module() {
             let mut exports = FxHashMap::default();
-            exports.insert("x".to_string(), Value::Int(42));
+            exports.insert("x".to_string(), Value::Integer(42));
             exports.insert("y".to_string(), Value::String("test".to_string()));
             
             let val = Value::Module {
                 name: "TestModule".to_string(),
                 exports,
             };
-            assert_eq!(format!("{}", val), "<module TestModule with 2 exports>");
+            assert_eq!(format!("{}", val), "#<module TestModule with 2 exports>");
         }
         
         #[test]
@@ -244,14 +239,14 @@ mod tests {
         fn test_value_equality() {
             // Test that equal values are equal
             assert_eq!(Value::Nil, Value::Nil);
-            assert_eq!(Value::Bool(true), Value::Bool(true));
-            assert_eq!(Value::Int(42), Value::Int(42));
+            assert_eq!(Value::Boolean(true), Value::Boolean(true));
+            assert_eq!(Value::Integer(42), Value::Integer(42));
             assert_eq!(Value::Float(3.14), Value::Float(3.14));
             assert_eq!(Value::String("test".to_string()), Value::String("test".to_string()));
             
             // Test that different values are not equal
-            assert_ne!(Value::Int(42), Value::Int(43));
-            assert_ne!(Value::Bool(true), Value::Bool(false));
+            assert_ne!(Value::Integer(42), Value::Integer(43));
+            assert_ne!(Value::Boolean(true), Value::Boolean(false));
             assert_ne!(Value::String("a".to_string()), Value::String("b".to_string()));
         }
         
@@ -259,14 +254,14 @@ mod tests {
         fn test_value_clone() {
             let values = vec![
                 Value::Nil,
-                Value::Bool(true),
-                Value::Int(42),
+                Value::Boolean(true),
+                Value::Integer(42),
                 Value::Float(3.14),
                 Value::String("test".to_string()),
-                Value::List(vec![Value::Int(1), Value::Int(2)]),
+                Value::List(vec![Value::Integer(1), Value::Integer(2)]),
                 Value::Tagged {
                     tag: "Test".to_string(),
-                    values: vec![Value::Int(42)],
+                    values: vec![Value::Integer(42)],
                 },
             ];
             
@@ -279,6 +274,7 @@ mod tests {
     
     mod chunk_tests {
         use super::*;
+        use fluentai_core::value::Value;
         
         #[test]
         fn test_chunk_creation() {
@@ -314,19 +310,19 @@ mod tests {
         fn test_add_constant() {
             let mut chunk = BytecodeChunk::new(None);
             
-            let idx1 = chunk.add_constant(Value::Int(42));
+            let idx1 = chunk.add_constant(Value::Integer(42));
             assert_eq!(idx1, 0);
             
             let idx2 = chunk.add_constant(Value::String("hello".to_string()));
             assert_eq!(idx2, 1);
             
-            let idx3 = chunk.add_constant(Value::Bool(true));
+            let idx3 = chunk.add_constant(Value::Boolean(true));
             assert_eq!(idx3, 2);
             
             assert_eq!(chunk.constants.len(), 3);
-            assert_eq!(chunk.constants[0], Value::Int(42));
+            assert_eq!(chunk.constants[0], Value::Integer(42));
             assert_eq!(chunk.constants[1], Value::String("hello".to_string()));
-            assert_eq!(chunk.constants[2], Value::Bool(true));
+            assert_eq!(chunk.constants[2], Value::Boolean(true));
         }
         
         #[test]
@@ -376,8 +372,8 @@ mod tests {
             let mut chunk = BytecodeChunk::new(Some("factorial".to_string()));
             
             // Add constants
-            let one_idx = chunk.add_constant(Value::Int(1));
-            let two_idx = chunk.add_constant(Value::Int(2));
+            let one_idx = chunk.add_constant(Value::Integer(1));
+            let two_idx = chunk.add_constant(Value::Integer(2));
             
             // Build a simple factorial-like program structure
             chunk.add_instruction(Instruction::with_arg(Opcode::Load, 0)); // Load n
@@ -411,6 +407,7 @@ mod tests {
     
     mod bytecode_tests {
         use super::*;
+        use fluentai_core::value::Value;
         
         #[test]
         fn test_bytecode_creation() {
@@ -450,7 +447,7 @@ mod tests {
             
             // Main chunk
             let mut main_chunk = BytecodeChunk::new(Some("main".to_string()));
-            let five_idx = main_chunk.add_constant(Value::Int(5));
+            let five_idx = main_chunk.add_constant(Value::Integer(5));
             main_chunk.add_instruction(Instruction::with_arg(Opcode::MakeFunc, helper_idx as u32));
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Push, five_idx));
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Call, 1));
@@ -472,7 +469,7 @@ mod tests {
             let mut bytecode = Bytecode::new();
             
             let mut chunk = BytecodeChunk::new(Some("test".to_string()));
-            chunk.add_constant(Value::Int(42));
+            chunk.add_constant(Value::Integer(42));
             chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
             chunk.add_instruction(Instruction::new(Opcode::Halt));
             bytecode.add_chunk(chunk);
@@ -488,6 +485,7 @@ mod tests {
     
     mod serialization_tests {
         use super::*;
+        use fluentai_core::value::Value;
         
         #[test]
         fn test_opcode_representation() {

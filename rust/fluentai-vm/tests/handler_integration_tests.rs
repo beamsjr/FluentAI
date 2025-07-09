@@ -23,7 +23,7 @@ fn test_basic_handler_syntax() {
     
     // Body should execute normally without effects
     match result {
-        Value::Int(42) => {},
+        Value::Integer(42) => {},
         _ => panic!("Expected 42, got {:?}", result),
     }
 }
@@ -45,7 +45,7 @@ fn test_handler_with_effect_invocation() {
     
     // Handler should intercept the effect
     match result {
-        Value::Int(99) => {},
+        Value::Integer(99) => {},
         _ => panic!("Expected 99, got {:?}", result),
     }
 }
@@ -69,7 +69,7 @@ fn test_nested_handlers() {
     
     // Inner handler should win
     match result {
-        Value::Int(2) => {},
+        Value::Integer(2) => {},
         _ => panic!("Expected 2, got {:?}", result),
     }
 }
@@ -92,7 +92,7 @@ fn test_handler_with_multiple_handlers() {
     
     // Both effects should be handled
     match result {
-        Value::Int(30) => {}, // 10 + 20
+        Value::Integer(30) => {}, // 10 + 20
         _ => panic!("Expected 30, got {:?}", result),
     }
 }
@@ -116,7 +116,7 @@ fn test_handler_passes_through_unhandled() {
     
     // Error should pass through inner handler to outer handler
     match result {
-        Value::Int(5) => {},
+        Value::Integer(5) => {},
         _ => panic!("Expected 5, got {:?}", result),
     }
 }
@@ -139,7 +139,7 @@ fn test_handler_with_lexical_scope() {
     
     // Handler should access x from lexical scope
     match result {
-        Value::Int(15) => {},
+        Value::Integer(15) => {},
         _ => panic!("Expected 15, got {:?}", result),
     }
 }
@@ -183,7 +183,7 @@ fn test_handler_with_conditional() {
     
     // Should return handler result
     match result {
-        Value::Int(100) => {},
+        Value::Integer(100) => {},
         _ => panic!("Expected 100, got {:?}", result),
     }
 }
@@ -229,7 +229,7 @@ fn test_handler_removes_after_body() {
     
     // Result should be from handler
     match result {
-        Value::Int(42) => {},
+        Value::Integer(42) => {},
         _ => panic!("Expected 42, got {:?}", result),
     }
 }

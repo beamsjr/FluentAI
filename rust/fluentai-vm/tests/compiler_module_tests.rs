@@ -1,9 +1,10 @@
 //! Module system tests for FluentAI compiler
 
 use fluentai_core::ast::{Graph, Node, Literal, ImportItem, ExportItem};
+use fluentai_core::value::Value;
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::{Opcode, Value},
+    bytecode::Opcode,
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;

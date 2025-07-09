@@ -25,22 +25,22 @@ impl DbConnection {
     }
     
     /// Execute a parameterized query safely
-    pub async fn execute(&self, query: &str, params: Vec<fluentai_vm::bytecode::Value>) -> DbResult<u64> {
+    pub async fn execute(&self, query: &str, params: Vec<fluentai_vm::Value>) -> DbResult<u64> {
         let mut q = sqlx::query(query);
         
         // Bind all parameters safely
         for param in params {
             q = match param {
-                fluentai_vm::bytecode::Value::Nil => q.bind(None::<i32>),
-                fluentai_vm::bytecode::Value::Bool(b) => q.bind(b),
-                fluentai_vm::bytecode::Value::Int(i) => q.bind(i),
-                fluentai_vm::bytecode::Value::Float(f) => q.bind(f),
-                fluentai_vm::bytecode::Value::String(s) => q.bind(s),
+                fluentai_vm::Value::Nil => q.bind(None::<i32>),
+                fluentai_vm::Value::Boolean(b) => q.bind(b),
+                fluentai_vm::Value::Integer(i) => q.bind(i),
+                fluentai_vm::Value::Float(f) => q.bind(f),
+                fluentai_vm::Value::String(s) => q.bind(s),
                 // For binary data, we can use a List of integers and convert
-                fluentai_vm::bytecode::Value::List(bytes) => {
+                fluentai_vm::Value::List(bytes) => {
                     let byte_vec: Result<Vec<u8>, _> = bytes.iter()
                         .map(|v| match v {
-                            fluentai_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                            fluentai_vm::Value::Integer(i) => Ok(*i as u8),
                             _ => Err(DbError::Query("Binary data must be a list of integers".into())),
                         })
                         .collect();
@@ -55,22 +55,22 @@ impl DbConnection {
     }
     
     /// Fetch one row with parameterized query
-    pub async fn fetch_one(&self, query: &str, params: Vec<fluentai_vm::bytecode::Value>) -> DbResult<sqlx::any::AnyRow> {
+    pub async fn fetch_one(&self, query: &str, params: Vec<fluentai_vm::Value>) -> DbResult<sqlx::any::AnyRow> {
         let mut q = sqlx::query(query);
         
         // Bind all parameters safely
         for param in params {
             q = match param {
-                fluentai_vm::bytecode::Value::Nil => q.bind(None::<i32>),
-                fluentai_vm::bytecode::Value::Bool(b) => q.bind(b),
-                fluentai_vm::bytecode::Value::Int(i) => q.bind(i),
-                fluentai_vm::bytecode::Value::Float(f) => q.bind(f),
-                fluentai_vm::bytecode::Value::String(s) => q.bind(s),
+                fluentai_vm::Value::Nil => q.bind(None::<i32>),
+                fluentai_vm::Value::Boolean(b) => q.bind(b),
+                fluentai_vm::Value::Integer(i) => q.bind(i),
+                fluentai_vm::Value::Float(f) => q.bind(f),
+                fluentai_vm::Value::String(s) => q.bind(s),
                 // For binary data, we can use a List of integers and convert
-                fluentai_vm::bytecode::Value::List(bytes) => {
+                fluentai_vm::Value::List(bytes) => {
                     let byte_vec: Result<Vec<u8>, _> = bytes.iter()
                         .map(|v| match v {
-                            fluentai_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                            fluentai_vm::Value::Integer(i) => Ok(*i as u8),
                             _ => Err(DbError::Query("Binary data must be a list of integers".into())),
                         })
                         .collect();
@@ -85,22 +85,22 @@ impl DbConnection {
     }
     
     /// Fetch all rows with parameterized query
-    pub async fn fetch_all(&self, query: &str, params: Vec<fluentai_vm::bytecode::Value>) -> DbResult<Vec<sqlx::any::AnyRow>> {
+    pub async fn fetch_all(&self, query: &str, params: Vec<fluentai_vm::Value>) -> DbResult<Vec<sqlx::any::AnyRow>> {
         let mut q = sqlx::query(query);
         
         // Bind all parameters safely
         for param in params {
             q = match param {
-                fluentai_vm::bytecode::Value::Nil => q.bind(None::<i32>),
-                fluentai_vm::bytecode::Value::Bool(b) => q.bind(b),
-                fluentai_vm::bytecode::Value::Int(i) => q.bind(i),
-                fluentai_vm::bytecode::Value::Float(f) => q.bind(f),
-                fluentai_vm::bytecode::Value::String(s) => q.bind(s),
+                fluentai_vm::Value::Nil => q.bind(None::<i32>),
+                fluentai_vm::Value::Boolean(b) => q.bind(b),
+                fluentai_vm::Value::Integer(i) => q.bind(i),
+                fluentai_vm::Value::Float(f) => q.bind(f),
+                fluentai_vm::Value::String(s) => q.bind(s),
                 // For binary data, we can use a List of integers and convert
-                fluentai_vm::bytecode::Value::List(bytes) => {
+                fluentai_vm::Value::List(bytes) => {
                     let byte_vec: Result<Vec<u8>, _> = bytes.iter()
                         .map(|v| match v {
-                            fluentai_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                            fluentai_vm::Value::Integer(i) => Ok(*i as u8),
                             _ => Err(DbError::Query("Binary data must be a list of integers".into())),
                         })
                         .collect();
@@ -253,23 +253,23 @@ impl<'a> Transaction<'a> {
     }
     
     /// Execute a parameterized query within the transaction
-    pub async fn execute(&mut self, query: &str, params: Vec<fluentai_vm::bytecode::Value>) -> DbResult<u64> {
+    pub async fn execute(&mut self, query: &str, params: Vec<fluentai_vm::Value>) -> DbResult<u64> {
         if let Some(tx) = &mut self.tx {
             let mut q = sqlx::query(query);
             
             // Bind parameters safely
             for param in params {
                 q = match param {
-                    fluentai_vm::bytecode::Value::Nil => q.bind(None::<i32>),
-                    fluentai_vm::bytecode::Value::Bool(b) => q.bind(b),
-                    fluentai_vm::bytecode::Value::Int(i) => q.bind(i),
-                    fluentai_vm::bytecode::Value::Float(f) => q.bind(f),
-                    fluentai_vm::bytecode::Value::String(s) => q.bind(s),
+                    fluentai_vm::Value::Nil => q.bind(None::<i32>),
+                    fluentai_vm::Value::Boolean(b) => q.bind(b),
+                    fluentai_vm::Value::Integer(i) => q.bind(i),
+                    fluentai_vm::Value::Float(f) => q.bind(f),
+                    fluentai_vm::Value::String(s) => q.bind(s),
                     // For binary data, we can use a List of integers and convert
-                    fluentai_vm::bytecode::Value::List(bytes) => {
+                    fluentai_vm::Value::List(bytes) => {
                         let byte_vec: Result<Vec<u8>, _> = bytes.iter()
                             .map(|v| match v {
-                                fluentai_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                                fluentai_vm::Value::Integer(i) => Ok(*i as u8),
                                 _ => Err(DbError::Transaction("Binary data must be a list of integers".into())),
                             })
                             .collect();

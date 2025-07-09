@@ -3,11 +3,12 @@
 //! This test suite covers all VMError variants and error propagation paths
 
 use fluentai_vm::{VM, Bytecode};
-use fluentai_vm::bytecode::{BytecodeChunk, Instruction, Opcode, Value};
+use fluentai_vm::bytecode::{BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::error::{VMError, value_type_name};
 use fluentai_vm::compiler::{Compiler, CompilerOptions};
 use fluentai_vm::safety::ResourceLimits;
 use fluentai_core::ast::{Graph, Node, Literal};
+use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
 use anyhow::Result;
 
@@ -171,7 +172,7 @@ fn test_type_error_add() {
     
     // Try to add string and number
     let str_idx = chunk.add_constant(Value::String("hello".to_string()));
-    let num_idx = chunk.add_constant(Value::Int(42));
+    let num_idx = chunk.add_constant(Value::Integer(42));
     
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, str_idx));
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, num_idx));
@@ -248,8 +249,8 @@ fn test_integer_overflow() {
     let mut chunk = BytecodeChunk::new(Some("test".to_string()));
     
     // Try to overflow with MAX + 1
-    let max_idx = chunk.add_constant(Value::Int(i64::MAX));
-    let one_idx = chunk.add_constant(Value::Int(1));
+    let max_idx = chunk.add_constant(Value::Integer(i64::MAX));
+    let one_idx = chunk.add_constant(Value::Integer(1));
     
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, max_idx));
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, one_idx));
@@ -511,8 +512,8 @@ fn test_error_propagation_through_calls() {
 #[test]
 fn test_value_type_name() {
     assert_eq!(value_type_name(&Value::Nil), "nil");
-    assert_eq!(value_type_name(&Value::Bool(true)), "bool");
-    assert_eq!(value_type_name(&Value::Int(42)), "int");
+    assert_eq!(value_type_name(&Value::Boolean(true)), "bool");
+    assert_eq!(value_type_name(&Value::Integer(42)), "int");
     assert_eq!(value_type_name(&Value::Float(3.14)), "float");
     assert_eq!(value_type_name(&Value::String("test".to_string())), "string");
     assert_eq!(value_type_name(&Value::List(vec![])), "list");

@@ -1,9 +1,10 @@
 //! Comprehensive tests for the FluentAI compiler
 
 use fluentai_core::ast::{Graph, Node, NodeId, Literal, Pattern};
+use fluentai_core::value::Value;
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::{Bytecode, Opcode, Value},
+    bytecode::{Bytecode, Opcode},
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;
@@ -43,11 +44,11 @@ fn test_compile_literal_nil() -> Result<()> {
 fn test_compile_literal_bool() -> Result<()> {
     let graph = create_simple_graph(Node::Literal(Literal::Boolean(true)));
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Bool(true));
+    assert_eq!(result, Value::Boolean(true));
     
     let graph = create_simple_graph(Node::Literal(Literal::Boolean(false)));
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Bool(false));
+    assert_eq!(result, Value::Boolean(false));
     Ok(())
 }
 
@@ -55,12 +56,12 @@ fn test_compile_literal_bool() -> Result<()> {
 fn test_compile_literal_integer() -> Result<()> {
     let graph = create_simple_graph(Node::Literal(Literal::Integer(42)));
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(42));
+    assert_eq!(result, Value::Integer(42));
     
     // Test negative integer
     let graph = create_simple_graph(Node::Literal(Literal::Integer(-100)));
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(-100));
+    assert_eq!(result, Value::Integer(-100));
     Ok(())
 }
 
@@ -122,9 +123,9 @@ fn test_compile_list_with_literals() -> Result<()> {
     let mut vm = VM::new(bytecode);
     let result = vm.run()?;
     assert_eq!(result, Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
     ]));
     Ok(())
 }
@@ -177,7 +178,7 @@ fn test_compile_simple_application() -> Result<()> {
     graph.root_id = Some(app_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(42));
+    assert_eq!(result, Value::Integer(42));
     Ok(())
 }
 
@@ -196,7 +197,7 @@ fn test_compile_let_binding() -> Result<()> {
     graph.root_id = Some(let_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(10));
+    assert_eq!(result, Value::Integer(10));
     Ok(())
 }
 
@@ -251,7 +252,7 @@ fn test_compile_if_expression() -> Result<()> {
     graph.root_id = Some(if_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(1));
+    assert_eq!(result, Value::Integer(1));
     Ok(())
 }
 
@@ -300,7 +301,7 @@ fn test_compile_nested_let() -> Result<()> {
     graph.root_id = Some(outer_let);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(20));
+    assert_eq!(result, Value::Integer(20));
     Ok(())
 }
 
@@ -352,9 +353,9 @@ fn test_compile_list_with_variables() -> Result<()> {
     // First test with optimization disabled to ensure basic functionality
     let result = compile_and_run(&graph)?;
     assert_eq!(result, Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
     ]));
     
     // Now test with optimization enabled
@@ -368,9 +369,9 @@ fn test_compile_list_with_variables() -> Result<()> {
     let result = vm.run()?;
     
     assert_eq!(result, Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
     ]));
     Ok(())
 }
@@ -406,7 +407,7 @@ fn test_compile_closure_with_capture() -> Result<()> {
     match result {
         Value::Function { env, .. } => {
             assert_eq!(env.len(), 1); // Should capture x
-            assert_eq!(env[0], Value::Int(10));
+            assert_eq!(env[0], Value::Integer(10));
         }
         _ => panic!("Expected function with captured environment"),
     }

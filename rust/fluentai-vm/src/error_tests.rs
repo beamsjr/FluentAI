@@ -4,7 +4,7 @@
 mod tests {
     use super::super::*;
     use crate::error::{VMError, StackTrace, StackFrame, SourceLocation, value_type_name};
-    use crate::bytecode::Value;
+    use fluentai_core::value::Value;
     
     #[test]
     fn test_stack_overflow_error() {
@@ -342,8 +342,8 @@ mod tests {
     #[test]
     fn test_value_type_names() {
         assert_eq!(value_type_name(&Value::Nil), "nil");
-        assert_eq!(value_type_name(&Value::Bool(true)), "bool");
-        assert_eq!(value_type_name(&Value::Int(42)), "int");
+        assert_eq!(value_type_name(&Value::Boolean(true)), "bool");
+        assert_eq!(value_type_name(&Value::Integer(42)), "int");
         assert_eq!(value_type_name(&Value::Float(3.14)), "float");
         assert_eq!(value_type_name(&Value::String("test".into())), "string");
         assert_eq!(value_type_name(&Value::List(vec![])), "list");

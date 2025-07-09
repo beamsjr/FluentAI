@@ -256,6 +256,7 @@ impl ASTLayouter {
                 format!("handler ({})", handler_count)
             }
             Node::Define { name, .. } => format!("define {}", name),
+            Node::Begin { .. } => "begin".to_string(),
         }
     }
     
@@ -285,6 +286,7 @@ impl ASTLayouter {
             Node::Contract { .. } => "contract",
             Node::Handler { .. } => "handler",
             Node::Define { .. } => "define",
+            Node::Begin { .. } => "begin",
         }.to_string()
     }
 }

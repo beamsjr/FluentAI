@@ -58,7 +58,7 @@ DivInt => self.binary_int_op(|x, y| checked_ops::div_i64(x, y))?,
 
 // Replace Mod operation:
 Mod => self.binary_op(|a, b| match (a, b) {
-    (Value::Int(x), Value::Int(y)) => {
+    (Value::Integer(x), Value::Integer(y)) => {
         checked_ops::mod_i64(x, y).map(Value::Int)
     }
     _ => Err(anyhow!("Type error in mod")),
@@ -68,9 +68,9 @@ Mod => self.binary_op(|a, b| match (a, b) {
 Neg => {
     let value = self.pop()?;
     match value {
-        Value::Int(x) => {
+        Value::Integer(x) => {
             let negated = checked_ops::neg_i64(x)?;
-            self.push(Value::Int(negated))?
+            self.push(Value::Integer(negated))?
         }
         Value::Float(x) => self.push(Value::Float(-x))?,
         _ => return Err(anyhow!("Type error in neg")),
@@ -79,7 +79,7 @@ Neg => {
 
 // Update Add operation to use checked arithmetic:
 Add => self.binary_op(|a, b| match (a, b) {
-    (Value::Int(x), Value::Int(y)) => checked_ops::add_i64(x, y).map(Value::Int),
+    (Value::Integer(x), Value::Integer(y)) => checked_ops::add_i64(x, y).map(Value::Int),
     (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x + y)),
     (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
     _ => Err(anyhow!("Type error in add")),
@@ -87,21 +87,21 @@ Add => self.binary_op(|a, b| match (a, b) {
 
 // Update Sub operation:
 Sub => self.binary_op(|a, b| match (a, b) {
-    (Value::Int(x), Value::Int(y)) => checked_ops::sub_i64(x, y).map(Value::Int),
+    (Value::Integer(x), Value::Integer(y)) => checked_ops::sub_i64(x, y).map(Value::Int),
     (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x - y)),
     _ => Err(anyhow!("Type error in sub")),
 })?,
 
 // Update Mul operation:
 Mul => self.binary_op(|a, b| match (a, b) {
-    (Value::Int(x), Value::Int(y)) => checked_ops::mul_i64(x, y).map(Value::Int),
+    (Value::Integer(x), Value::Integer(y)) => checked_ops::mul_i64(x, y).map(Value::Int),
     (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x * y)),
     _ => Err(anyhow!("Type error in mul")),
 })?,
 
 // Update Div operation:
 Div => self.binary_op(|a, b| match (a, b) {
-    (Value::Int(x), Value::Int(y)) => checked_ops::div_i64(x, y).map(Value::Int),
+    (Value::Integer(x), Value::Integer(y)) => checked_ops::div_i64(x, y).map(Value::Int),
     (Value::Float(x), Value::Float(y)) => Ok(Value::Float(x / y)),
     _ => Err(anyhow!("Type error in div")),
 })?,

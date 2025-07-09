@@ -59,42 +59,42 @@ fn get_char(value: &Value, func_name: &str) -> Result<char> {
 
 fn char_alphabetic(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-alphabetic?")?;
-    Ok(Value::Bool(c.is_alphabetic()))
+    Ok(Value::Boolean(c.is_alphabetic()))
 }
 
 fn char_numeric(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-numeric?")?;
-    Ok(Value::Bool(c.is_numeric()))
+    Ok(Value::Boolean(c.is_numeric()))
 }
 
 fn char_alphanumeric(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-alphanumeric?")?;
-    Ok(Value::Bool(c.is_alphanumeric()))
+    Ok(Value::Boolean(c.is_alphanumeric()))
 }
 
 fn char_whitespace(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-whitespace?")?;
-    Ok(Value::Bool(c.is_whitespace()))
+    Ok(Value::Boolean(c.is_whitespace()))
 }
 
 fn char_upper_case(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-upper-case?")?;
-    Ok(Value::Bool(c.is_uppercase()))
+    Ok(Value::Boolean(c.is_uppercase()))
 }
 
 fn char_lower_case(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-lower-case?")?;
-    Ok(Value::Bool(c.is_lowercase()))
+    Ok(Value::Boolean(c.is_lowercase()))
 }
 
 fn char_control(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-control?")?;
-    Ok(Value::Bool(c.is_control()))
+    Ok(Value::Boolean(c.is_control()))
 }
 
 fn char_ascii(args: &[Value]) -> Result<Value> {
     let c = get_char(&args[0], "char-ascii?")?;
-    Ok(Value::Bool(c.is_ascii()))
+    Ok(Value::Boolean(c.is_ascii()))
 }
 
 // Character case conversion
@@ -118,31 +118,31 @@ fn char_downcase(args: &[Value]) -> Result<Value> {
 fn char_equal(args: &[Value]) -> Result<Value> {
     let c1 = get_char(&args[0], "char=?")?;
     let c2 = get_char(&args[1], "char=?")?;
-    Ok(Value::Bool(c1 == c2))
+    Ok(Value::Boolean(c1 == c2))
 }
 
 fn char_less_than(args: &[Value]) -> Result<Value> {
     let c1 = get_char(&args[0], "char<?")?;
     let c2 = get_char(&args[1], "char<?")?;
-    Ok(Value::Bool(c1 < c2))
+    Ok(Value::Boolean(c1 < c2))
 }
 
 fn char_greater_than(args: &[Value]) -> Result<Value> {
     let c1 = get_char(&args[0], "char>?")?;
     let c2 = get_char(&args[1], "char>?")?;
-    Ok(Value::Bool(c1 > c2))
+    Ok(Value::Boolean(c1 > c2))
 }
 
 fn char_less_equal(args: &[Value]) -> Result<Value> {
     let c1 = get_char(&args[0], "char<=?")?;
     let c2 = get_char(&args[1], "char<=?")?;
-    Ok(Value::Bool(c1 <= c2))
+    Ok(Value::Boolean(c1 <= c2))
 }
 
 fn char_greater_equal(args: &[Value]) -> Result<Value> {
     let c1 = get_char(&args[0], "char>=?")?;
     let c2 = get_char(&args[1], "char>=?")?;
-    Ok(Value::Bool(c1 >= c2))
+    Ok(Value::Boolean(c1 >= c2))
 }
 
 // Case-insensitive comparisons
@@ -155,7 +155,7 @@ fn char_equal_ci(args: &[Value]) -> Result<Value> {
     let c1_lower: String = c1.to_lowercase().collect();
     let c2_lower: String = c2.to_lowercase().collect();
     
-    Ok(Value::Bool(c1_lower == c2_lower))
+    Ok(Value::Boolean(c1_lower == c2_lower))
 }
 
 fn char_less_than_ci(args: &[Value]) -> Result<Value> {
@@ -165,7 +165,7 @@ fn char_less_than_ci(args: &[Value]) -> Result<Value> {
     let c1_lower: String = c1.to_lowercase().collect();
     let c2_lower: String = c2.to_lowercase().collect();
     
-    Ok(Value::Bool(c1_lower < c2_lower))
+    Ok(Value::Boolean(c1_lower < c2_lower))
 }
 
 fn char_greater_than_ci(args: &[Value]) -> Result<Value> {
@@ -175,7 +175,7 @@ fn char_greater_than_ci(args: &[Value]) -> Result<Value> {
     let c1_lower: String = c1.to_lowercase().collect();
     let c2_lower: String = c2.to_lowercase().collect();
     
-    Ok(Value::Bool(c1_lower > c2_lower))
+    Ok(Value::Boolean(c1_lower > c2_lower))
 }
 
 fn char_less_equal_ci(args: &[Value]) -> Result<Value> {
@@ -185,7 +185,7 @@ fn char_less_equal_ci(args: &[Value]) -> Result<Value> {
     let c1_lower: String = c1.to_lowercase().collect();
     let c2_lower: String = c2.to_lowercase().collect();
     
-    Ok(Value::Bool(c1_lower <= c2_lower))
+    Ok(Value::Boolean(c1_lower <= c2_lower))
 }
 
 fn char_greater_equal_ci(args: &[Value]) -> Result<Value> {
@@ -195,7 +195,7 @@ fn char_greater_equal_ci(args: &[Value]) -> Result<Value> {
     let c1_lower: String = c1.to_lowercase().collect();
     let c2_lower: String = c2.to_lowercase().collect();
     
-    Ok(Value::Bool(c1_lower >= c2_lower))
+    Ok(Value::Boolean(c1_lower >= c2_lower))
 }
 
 #[cfg(test)]
@@ -207,87 +207,87 @@ mod tests {
         // Test alphabetic
         assert_eq!(
             char_alphabetic(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_alphabetic(&[Value::String("5".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         
         // Test numeric
         assert_eq!(
             char_numeric(&[Value::String("5".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_numeric(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         
         // Test alphanumeric
         assert_eq!(
             char_alphanumeric(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_alphanumeric(&[Value::String("5".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_alphanumeric(&[Value::String("!".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         
         // Test whitespace
         assert_eq!(
             char_whitespace(&[Value::String(" ".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_whitespace(&[Value::String("\t".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_whitespace(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         
         // Test case predicates
         assert_eq!(
             char_upper_case(&[Value::String("A".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_upper_case(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         assert_eq!(
             char_lower_case(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_lower_case(&[Value::String("A".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         
         // Test control characters
         assert_eq!(
             char_control(&[Value::String("\n".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_control(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         
         // Test ASCII
         assert_eq!(
             char_ascii(&[Value::String("a".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_ascii(&[Value::String("€".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
     }
     
@@ -314,30 +314,30 @@ mod tests {
         // Basic comparisons
         assert_eq!(
             char_equal(&[Value::String("a".to_string()), Value::String("a".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_equal(&[Value::String("a".to_string()), Value::String("b".to_string())]).unwrap(),
-            Value::Bool(false)
+            Value::Boolean(false)
         );
         
         assert_eq!(
             char_less_than(&[Value::String("a".to_string()), Value::String("b".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_greater_than(&[Value::String("b".to_string()), Value::String("a".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         
         // Case-insensitive comparisons
         assert_eq!(
             char_equal_ci(&[Value::String("a".to_string()), Value::String("A".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
         assert_eq!(
             char_less_than_ci(&[Value::String("a".to_string()), Value::String("B".to_string())]).unwrap(),
-            Value::Bool(true)
+            Value::Boolean(true)
         );
     }
     
@@ -350,6 +350,6 @@ mod tests {
         assert!(char_alphabetic(&[Value::String("ab".to_string())]).is_err());
         
         // Non-string value
-        assert!(char_alphabetic(&[Value::Int(42)]).is_err());
+        assert!(char_alphabetic(&[Value::Integer(42)]).is_err());
     }
 }

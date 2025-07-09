@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use fluentai_parser::parse;
-use fluentai_vm::{Compiler, CompilerOptions, VM, bytecode::Value};
+use fluentai_vm::{Compiler, CompilerOptions, VM, Value};
 use fluentai_optimizer::OptimizationLevel;
 use std::path::Path;
 

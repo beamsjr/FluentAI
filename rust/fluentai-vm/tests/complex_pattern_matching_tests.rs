@@ -2,7 +2,7 @@
 
 // Complex pattern matching tests
 use fluentai_parser::parse;
-use fluentai_vm::{VM, Compiler, CompilerOptions, bytecode::Value};
+use fluentai_vm::{VM, Compiler, CompilerOptions, Value};
 use fluentai_optimizer::OptimizationLevel;
 use anyhow::Result;
 
@@ -53,7 +53,7 @@ fn test_as_pattern_execution() -> Result<()> {
     "#;
     
     let result = compile_and_run(source)?;
-    assert_eq!(result, Value::Int(42));
+    assert_eq!(result, Value::Integer(42));
     
     Ok(())
 }
@@ -237,9 +237,9 @@ fn test_as_pattern_bindings() -> Result<()> {
     let result = compile_and_run(source)?;
     // Should return the original list
     assert_eq!(result, Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
     ]));
     
     Ok(())

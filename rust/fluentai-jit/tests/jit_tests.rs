@@ -2,7 +2,7 @@
 
 use fluentai_parser::parse;
 use fluentai_vm::compiler::Compiler;
-use fluentai_vm::bytecode::Value;
+use fluentai_vm::Value;
 use fluentai_jit::JitCompiler;
 
 #[test]
@@ -30,7 +30,7 @@ fn test_simple_arithmetic() {
         
         let result = jit.compile_and_run(&bytecode).unwrap();
         match result {
-            Value::Int(n) => assert_eq!(n, expected, "Failed for: {}", source),
+            Value::Integer(n) => assert_eq!(n, expected, "Failed for: {}", source),
             _ => panic!("Expected integer result for: {}", source),
         }
     }
@@ -53,7 +53,7 @@ fn test_local_variables() {
     
     let result = jit.compile_and_run(&bytecode).unwrap();
     match result {
-        Value::Int(n) => assert_eq!(n, 8),
+        Value::Integer(n) => assert_eq!(n, 8),
         _ => panic!("Expected integer result"),
     }
 }

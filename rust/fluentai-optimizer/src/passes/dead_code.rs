@@ -186,6 +186,10 @@ impl DeadCodeEliminationPass {
                 Node::Channel => false, // Channel creation is considered pure
                 Node::Contract { .. } => false, // Contracts themselves don't have side effects
                 Node::Define { value, .. } => self.has_side_effects(graph, *value), // Define has side effects if its value does
+                Node::Begin { exprs } => {
+                    // Begin has side effects if any of its expressions do
+                    exprs.iter().any(|expr| self.has_side_effects(graph, *expr))
+                }
             }
         } else {
             false

@@ -10,23 +10,23 @@ fn test_basic_arithmetic() {
     // Test add
     let add = stdlib.get("+").unwrap();
     assert_eq!(
-        add.call(&[Value::Int(5), Value::Int(3)]).unwrap(),
-        Value::Int(8)
+        add.call(&[Value::Integer(5), Value::Integer(3)]).unwrap(),
+        Value::Integer(8)
     );
     assert_eq!(
         add.call(&[Value::Float(2.5), Value::Float(1.5)]).unwrap(),
         Value::Float(4.0)
     );
     assert_eq!(
-        add.call(&[Value::Int(5), Value::Float(2.5)]).unwrap(),
+        add.call(&[Value::Integer(5), Value::Float(2.5)]).unwrap(),
         Value::Float(7.5)
     );
     
     // Test subtract
     let sub = stdlib.get("-").unwrap();
     assert_eq!(
-        sub.call(&[Value::Int(10), Value::Int(3)]).unwrap(),
-        Value::Int(7)
+        sub.call(&[Value::Integer(10), Value::Integer(3)]).unwrap(),
+        Value::Integer(7)
     );
     assert_eq!(
         sub.call(&[Value::Float(5.5), Value::Float(2.5)]).unwrap(),
@@ -36,8 +36,8 @@ fn test_basic_arithmetic() {
     // Test multiply
     let mul = stdlib.get("*").unwrap();
     assert_eq!(
-        mul.call(&[Value::Int(4), Value::Int(5)]).unwrap(),
-        Value::Int(20)
+        mul.call(&[Value::Integer(4), Value::Integer(5)]).unwrap(),
+        Value::Integer(20)
     );
     assert_eq!(
         mul.call(&[Value::Float(2.5), Value::Float(4.0)]).unwrap(),
@@ -47,20 +47,20 @@ fn test_basic_arithmetic() {
     // Test divide
     let div = stdlib.get("/").unwrap();
     assert_eq!(
-        div.call(&[Value::Int(20), Value::Int(4)]).unwrap(),
-        Value::Int(5)
+        div.call(&[Value::Integer(20), Value::Integer(4)]).unwrap(),
+        Value::Integer(5)
     );
     assert_eq!(
         div.call(&[Value::Float(10.0), Value::Float(4.0)]).unwrap(),
         Value::Float(2.5)
     );
     assert_eq!(
-        div.call(&[Value::Int(7), Value::Int(2)]).unwrap(),
-        Value::Int(3) // Integer division
+        div.call(&[Value::Integer(7), Value::Integer(2)]).unwrap(),
+        Value::Integer(3) // Integer division
     );
     
     // Test division by zero
-    assert!(div.call(&[Value::Int(10), Value::Int(0)]).is_err());
+    assert!(div.call(&[Value::Integer(10), Value::Integer(0)]).is_err());
     assert!(div.call(&[Value::Float(10.0), Value::Float(0.0)]).is_err());
 }
 
@@ -71,26 +71,26 @@ fn test_power_functions() {
     // Test pow
     let pow = stdlib.get("pow").unwrap();
     assert_eq!(
-        pow.call(&[Value::Int(2), Value::Int(3)]).unwrap(),
-        Value::Int(8)
+        pow.call(&[Value::Integer(2), Value::Integer(3)]).unwrap(),
+        Value::Integer(8)
     );
     assert_eq!(
         pow.call(&[Value::Float(2.0), Value::Float(3.0)]).unwrap(),
         Value::Float(8.0)
     );
     assert_eq!(
-        pow.call(&[Value::Int(5), Value::Int(0)]).unwrap(),
-        Value::Int(1)
+        pow.call(&[Value::Integer(5), Value::Integer(0)]).unwrap(),
+        Value::Integer(1)
     );
     assert_eq!(
-        pow.call(&[Value::Int(10), Value::Int(-1)]).unwrap(),
+        pow.call(&[Value::Integer(10), Value::Integer(-1)]).unwrap(),
         Value::Float(0.1)
     );
     
     // Test sqrt
     let sqrt = stdlib.get("sqrt").unwrap();
     assert_eq!(
-        sqrt.call(&[Value::Int(16)]).unwrap(),
+        sqrt.call(&[Value::Integer(16)]).unwrap(),
         Value::Float(4.0)
     );
     assert_eq!(
@@ -103,7 +103,7 @@ fn test_power_functions() {
     );
     
     // Test sqrt of negative number returns NaN
-    let sqrt_neg = sqrt.call(&[Value::Int(-1)]).unwrap();
+    let sqrt_neg = sqrt.call(&[Value::Integer(-1)]).unwrap();
     match sqrt_neg {
         Value::Float(f) => assert!(f.is_nan()),
         _ => panic!("Expected float"),
@@ -116,14 +116,14 @@ fn test_exponential_logarithm() {
     
     // Test exp
     let exp = stdlib.get("exp").unwrap();
-    let exp_1 = exp.call(&[Value::Int(1)]).unwrap();
+    let exp_1 = exp.call(&[Value::Integer(1)]).unwrap();
     match exp_1 {
         Value::Float(f) => assert!((f - 2.718281828459045).abs() < 1e-10),
         _ => panic!("Expected float"),
     }
     
     assert_eq!(
-        exp.call(&[Value::Int(0)]).unwrap(),
+        exp.call(&[Value::Integer(0)]).unwrap(),
         Value::Float(1.0)
     );
     
@@ -134,22 +134,22 @@ fn test_exponential_logarithm() {
         Value::Float(1.0)
     );
     assert_eq!(
-        ln.call(&[Value::Int(1)]).unwrap(),
+        ln.call(&[Value::Integer(1)]).unwrap(),
         Value::Float(0.0)
     );
     
     // Test ln of non-positive
-    assert!(ln.call(&[Value::Int(0)]).is_err());
-    assert!(ln.call(&[Value::Int(-1)]).is_err());
+    assert!(ln.call(&[Value::Integer(0)]).is_err());
+    assert!(ln.call(&[Value::Integer(-1)]).is_err());
     
     // Test log
     let log = stdlib.get("log").unwrap();
     assert_eq!(
-        log.call(&[Value::Int(100), Value::Int(10)]).unwrap(),
+        log.call(&[Value::Integer(100), Value::Integer(10)]).unwrap(),
         Value::Float(2.0)
     );
     assert_eq!(
-        log.call(&[Value::Int(8), Value::Int(2)]).unwrap(),
+        log.call(&[Value::Integer(8), Value::Integer(2)]).unwrap(),
         Value::Float(3.0)
     );
 }
@@ -294,7 +294,7 @@ fn test_rounding_functions() {
         Value::Float(-3.0)
     );
     assert_eq!(
-        floor.call(&[Value::Int(5)]).unwrap(),
+        floor.call(&[Value::Integer(5)]).unwrap(),
         Value::Float(5.0)
     );
     
@@ -309,7 +309,7 @@ fn test_rounding_functions() {
         Value::Float(-2.0)
     );
     assert_eq!(
-        ceil.call(&[Value::Int(5)]).unwrap(),
+        ceil.call(&[Value::Integer(5)]).unwrap(),
         Value::Float(5.0)
     );
     
@@ -340,62 +340,62 @@ fn test_sign_and_even_odd() {
     // Test sign
     let sign = stdlib.get("sign").unwrap();
     assert_eq!(
-        sign.call(&[Value::Int(42)]).unwrap(),
-        Value::Int(1)
+        sign.call(&[Value::Integer(42)]).unwrap(),
+        Value::Integer(1)
     );
     assert_eq!(
-        sign.call(&[Value::Int(-42)]).unwrap(),
-        Value::Int(-1)
+        sign.call(&[Value::Integer(-42)]).unwrap(),
+        Value::Integer(-1)
     );
     assert_eq!(
-        sign.call(&[Value::Int(0)]).unwrap(),
-        Value::Int(0)
+        sign.call(&[Value::Integer(0)]).unwrap(),
+        Value::Integer(0)
     );
     assert_eq!(
         sign.call(&[Value::Float(3.14)]).unwrap(),
-        Value::Int(1)
+        Value::Integer(1)
     );
     assert_eq!(
         sign.call(&[Value::Float(-3.14)]).unwrap(),
-        Value::Int(-1)
+        Value::Integer(-1)
     );
     
     // Test even?
     let even = stdlib.get("even?").unwrap();
     assert_eq!(
-        even.call(&[Value::Int(4)]).unwrap(),
-        Value::Bool(true)
+        even.call(&[Value::Integer(4)]).unwrap(),
+        Value::Boolean(true)
     );
     assert_eq!(
-        even.call(&[Value::Int(5)]).unwrap(),
-        Value::Bool(false)
+        even.call(&[Value::Integer(5)]).unwrap(),
+        Value::Boolean(false)
     );
     assert_eq!(
-        even.call(&[Value::Int(0)]).unwrap(),
-        Value::Bool(true)
+        even.call(&[Value::Integer(0)]).unwrap(),
+        Value::Boolean(true)
     );
     assert_eq!(
-        even.call(&[Value::Int(-4)]).unwrap(),
-        Value::Bool(true)
+        even.call(&[Value::Integer(-4)]).unwrap(),
+        Value::Boolean(true)
     );
     
     // Test odd?
     let odd = stdlib.get("odd?").unwrap();
     assert_eq!(
-        odd.call(&[Value::Int(4)]).unwrap(),
-        Value::Bool(false)
+        odd.call(&[Value::Integer(4)]).unwrap(),
+        Value::Boolean(false)
     );
     assert_eq!(
-        odd.call(&[Value::Int(5)]).unwrap(),
-        Value::Bool(true)
+        odd.call(&[Value::Integer(5)]).unwrap(),
+        Value::Boolean(true)
     );
     assert_eq!(
-        odd.call(&[Value::Int(0)]).unwrap(),
-        Value::Bool(false)
+        odd.call(&[Value::Integer(0)]).unwrap(),
+        Value::Boolean(false)
     );
     assert_eq!(
-        odd.call(&[Value::Int(-3)]).unwrap(),
-        Value::Bool(true)
+        odd.call(&[Value::Integer(-3)]).unwrap(),
+        Value::Boolean(true)
     );
 }
 
@@ -426,23 +426,23 @@ fn test_zero_predicate() {
     let zero = stdlib.get("zero?").unwrap();
     
     assert_eq!(
-        zero.call(&[Value::Int(0)]).unwrap(),
-        Value::Bool(true)
+        zero.call(&[Value::Integer(0)]).unwrap(),
+        Value::Boolean(true)
     );
     assert_eq!(
-        zero.call(&[Value::Int(1)]).unwrap(),
-        Value::Bool(false)
+        zero.call(&[Value::Integer(1)]).unwrap(),
+        Value::Boolean(false)
     );
     assert_eq!(
-        zero.call(&[Value::Int(-1)]).unwrap(),
-        Value::Bool(false)
+        zero.call(&[Value::Integer(-1)]).unwrap(),
+        Value::Boolean(false)
     );
     assert_eq!(
         zero.call(&[Value::Float(0.0)]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         zero.call(&[Value::Float(0.1)]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
 }

@@ -366,6 +366,12 @@ impl Graph {
                     Node::Module { body, .. } => {
                         stack.push(*body);
                     }
+                    Node::Begin { exprs } => {
+                        // Push in reverse order so they're visited in correct order
+                        for expr in exprs.iter().rev() {
+                            stack.push(*expr);
+                        }
+                    }
                     _ => {} // Leaf nodes
                 }
             }
@@ -436,6 +442,11 @@ impl Graph {
                         self.dfs_helper(*handler_fn, visited, visitor);
                     }
                 }
+                Node::Begin { exprs } => {
+                    for expr in exprs {
+                        self.dfs_helper(*expr, visited, visitor);
+                    }
+                }
                 _ => {} // Leaf nodes
             }
         }
@@ -491,6 +502,9 @@ impl Graph {
                 }
                 Node::Module { body, .. } => {
                     children.push(*body);
+                }
+                Node::Begin { exprs } => {
+                    children.extend(exprs);
                 }
                 _ => {} // Leaf nodes have no children
             }
@@ -728,6 +742,11 @@ pub enum Node {
     Define {
         name: String,
         value: NodeId,
+    },
+    
+    // Sequencing
+    Begin {
+        exprs: Vec<NodeId>,
     },
     
     // Async/concurrent constructs
@@ -1267,6 +1286,18 @@ impl Node {
                 ],
                 category: DocumentationCategory::Variable,
                 see_also: vec!["Let".to_string(), "Lambda".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Begin { .. } => Documentation {
+                name: "Begin".to_string(),
+                syntax: "(begin <expr1> <expr2> ... <exprN>)".to_string(),
+                description: "Evaluates multiple expressions in sequence, returning the value of the last expression.".to_string(),
+                examples: vec![
+                    "(begin (print \"Hello\") (print \"World\") 42)".to_string(),
+                    "(begin (set! x 10) (set! y 20) (+ x y))".to_string()
+                ],
+                category: DocumentationCategory::ControlFlow,
+                see_also: vec!["Let".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Async { .. } => Documentation {

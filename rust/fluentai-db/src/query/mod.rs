@@ -1,6 +1,6 @@
 //! Functional query DSL for FluentAi
 
-use fluentai_vm::bytecode::Value;
+use fluentai_vm::Value;
 use crate::error::DbResult;
 
 /// Parameter value for safe query building
@@ -463,11 +463,11 @@ pub fn safe_user_query(age_threshold: i64, active: bool) -> Query {
             and(
                 gt(col("age"), QueryExpr::Parameter(Parameter {
                     index: 0,
-                    value: Value::Int(age_threshold),
+                    value: Value::Integer(age_threshold),
                 })),
                 eq(col("active"), QueryExpr::Parameter(Parameter {
                     index: 1,
-                    value: Value::Bool(active),
+                    value: Value::Boolean(active),
                 }))
             )
         )

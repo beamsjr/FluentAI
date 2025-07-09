@@ -1,0 +1,2 @@
+;; Test just printing
+(effect io:print "Hello from FluentAI!")

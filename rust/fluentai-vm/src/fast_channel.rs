@@ -1,7 +1,7 @@
 //! High-performance channel implementation using lock-free queues
 
 use crate::concurrent::{BoundedQueue, LockFreeQueue};
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use parking_lot::{Mutex, Condvar};
@@ -419,10 +419,10 @@ mod tests {
         let (tx, rx) = channel(ChannelMode::Sync);
         
         thread::spawn(move || {
-            tx.send(Value::Int(42)).unwrap();
+            tx.send(Value::Integer(42)).unwrap();
         });
         
-        assert_eq!(rx.recv().unwrap(), Value::Int(42));
+        assert_eq!(rx.recv().unwrap(), Value::Integer(42));
     }
     
     #[test]
@@ -431,15 +431,15 @@ mod tests {
         
         // Fill buffer
         for i in 0..4 {
-            tx.send(Value::Int(i)).unwrap();
+            tx.send(Value::Integer(i)).unwrap();
         }
         
         // Should block on 5th
-        assert!(tx.try_send(Value::Int(5)).is_err());
+        assert!(tx.try_send(Value::Integer(5)).is_err());
         
         // Receive all
         for i in 0..4 {
-            assert_eq!(rx.recv().unwrap(), Value::Int(i));
+            assert_eq!(rx.recv().unwrap(), Value::Integer(i));
         }
     }
     
@@ -449,12 +449,12 @@ mod tests {
         
         // Send many values
         for i in 0..1000 {
-            tx.send(Value::Int(i)).unwrap();
+            tx.send(Value::Integer(i)).unwrap();
         }
         
         // Receive all
         for i in 0..1000 {
-            assert_eq!(rx.recv().unwrap(), Value::Int(i));
+            assert_eq!(rx.recv().unwrap(), Value::Integer(i));
         }
     }
 }

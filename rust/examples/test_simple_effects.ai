@@ -1,0 +1,10 @@
+;; Simple test of effects
+(effect io:print "Hello from FluentAI!")
+(effect io:print "Testing effects...")
+
+;; Test state
+(effect state:set "counter" 0)
+(effect io:print (effect state:get "counter"))
+
+;; Test arithmetic
+(+ 1 2)

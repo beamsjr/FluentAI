@@ -91,7 +91,7 @@ mod tests {
     // Mock tests for parameter binding
     #[test]
     fn test_value_binding_nil() {
-        use fluentai_vm::bytecode::Value;
+        use fluentai_vm::Value;
         
         let val = Value::Nil;
         // In actual implementation, this would bind None::<i32>
@@ -103,20 +103,20 @@ mod tests {
     
     #[test]
     fn test_value_binding_primitives() {
-        use fluentai_vm::bytecode::Value;
+        use fluentai_vm::Value;
         
-        let bool_val = Value::Bool(true);
-        let int_val = Value::Int(42);
+        let bool_val = Value::Boolean(true);
+        let int_val = Value::Integer(42);
         let float_val = Value::Float(3.14);
         let string_val = Value::String("hello".to_string());
         
         match bool_val {
-            Value::Bool(b) => assert_eq!(b, true),
+            Value::Boolean(b) => assert_eq!(b, true),
             _ => panic!("Expected Bool"),
         }
         
         match int_val {
-            Value::Int(i) => assert_eq!(i, 42),
+            Value::Integer(i) => assert_eq!(i, 42),
             _ => panic!("Expected Int"),
         }
         
@@ -133,14 +133,14 @@ mod tests {
     
     #[test]
     fn test_value_binding_binary() {
-        use fluentai_vm::bytecode::Value;
+        use fluentai_vm::Value;
         
         let binary_data = vec![
-            Value::Int(0x48),  // 'H'
-            Value::Int(0x65),  // 'e'
-            Value::Int(0x6c),  // 'l'
-            Value::Int(0x6c),  // 'l'
-            Value::Int(0x6f),  // 'o'
+            Value::Integer(0x48),  // 'H'
+            Value::Integer(0x65),  // 'e'
+            Value::Integer(0x6c),  // 'l'
+            Value::Integer(0x6c),  // 'l'
+            Value::Integer(0x6f),  // 'o'
         ];
         
         let binary_val = Value::List(binary_data);
@@ -149,7 +149,7 @@ mod tests {
             Value::List(bytes) => {
                 let byte_vec: Result<Vec<u8>, _> = bytes.iter()
                     .map(|v| match v {
-                        Value::Int(i) => Ok(*i as u8),
+                        Value::Integer(i) => Ok(*i as u8),
                         _ => Err("Binary data must be a list of integers"),
                     })
                     .collect();
@@ -165,13 +165,13 @@ mod tests {
     
     #[test]
     fn test_value_binding_invalid_binary() {
-        use fluentai_vm::bytecode::Value;
+        use fluentai_vm::Value;
         use crate::error::DbError;
         
         let invalid_binary = vec![
-            Value::Int(0x48),
+            Value::Integer(0x48),
             Value::String("not a byte".to_string()), // Invalid
-            Value::Int(0x6c),
+            Value::Integer(0x6c),
         ];
         
         let binary_val = Value::List(invalid_binary);
@@ -180,7 +180,7 @@ mod tests {
             Value::List(bytes) => {
                 let byte_vec: Result<Vec<u8>, DbError> = bytes.iter()
                     .map(|v| match v {
-                        Value::Int(i) => Ok(*i as u8),
+                        Value::Integer(i) => Ok(*i as u8),
                         _ => Err(DbError::Query("Binary data must be a list of integers".into())),
                     })
                     .collect();

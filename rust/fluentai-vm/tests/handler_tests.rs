@@ -20,7 +20,7 @@ fn test_handler_parsing_and_compilation() {
     
     // The body should execute normally
     match result {
-        Value::Int(3) => {}, // Expected
+        Value::Integer(3) => {}, // Expected
         _ => panic!("Expected 3, got {:?}", result),
     }
 }
@@ -43,7 +43,7 @@ fn test_handler_without_actual_effects() {
     
     // The body should execute normally even with handler installed
     match result {
-        Value::Int(30) => {}, // Expected
+        Value::Integer(30) => {}, // Expected
         _ => panic!("Expected 30, got {:?}", result),
     }
 }
@@ -67,7 +67,7 @@ fn test_nested_handlers() {
     
     // Body should return 42
     match result {
-        Value::Int(42) => {}, // Expected
+        Value::Integer(42) => {}, // Expected
         _ => panic!("Expected 42, got {:?}", result),
     }
 }

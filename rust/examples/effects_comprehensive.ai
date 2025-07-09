@@ -1,0 +1,237 @@
+;; Comprehensive Effect System Example
+;; Demonstrates the working effect handlers in FluentAI
+
+;; === IO Effects ===
+(effect io print "=== IO Effects ===")
+(effect io print "Basic printing works!")
+
+;; Reading input (if supported)
+; (effect io print "Enter your name: ")
+; (define name (effect io read-line))
+; (effect io print (str "Hello, " name "!"))
+
+;; === State Effects ===
+(effect io print "\n=== State Effects ===")
+
+;; Initialize state
+(effect state set "counter" 0)
+(effect state set "name" "FluentAI")
+
+;; Get and display state
+(effect io print (str "Counter: " (effect state get "counter")))
+(effect io print (str "Name: " (effect state get "name")))
+
+;; Update state
+(effect state set "counter" (+ (effect state get "counter") 1))
+(effect io print (str "Counter after increment: " (effect state get "counter")))
+
+;; State with complex values
+(effect state set "user" {:name "Alice" :age 30 :active true})
+(effect io print (str "User data: " (effect state get "user")))
+
+;; === Error Effects ===
+(effect io print "\n=== Error Effects ===")
+
+;; Safe division function using error effects
+(define safe-divide
+  (lambda (x y)
+    (if (= y 0)
+        (effect error raise "divide-by-zero" 
+          {:message "Cannot divide by zero"
+           :numerator x
+           :denominator y})
+        (/ x y))))
+
+;; Using default error handler (prints error and continues)
+(effect io print "Testing division by zero with default handler:")
+(safe-divide 10 0)
+(effect io print "Program continues after error...")
+
+;; === Time Effects ===
+(effect io print "\n=== Time Effects ===")
+
+;; Get current timestamp
+(define start-time (effect time now))
+(effect io print (str "Current timestamp: " start-time))
+
+;; Measure elapsed time
+(define compute-something
+  (lambda ()
+    (let ((sum 0))
+      (dotimes (i 1000)
+        (set! sum (+ sum i)))
+      sum)))
+
+(define t1 (effect time now))
+(define result (compute-something))
+(define t2 (effect time now))
+(effect io print (str "Computation result: " result))
+(effect io print (str "Time elapsed: " (- t2 t1) " milliseconds"))
+
+;; === Random Effects ===
+(effect io print "\n=== Random Effects ===")
+
+;; Generate random numbers
+(effect io print "Random floats (0.0 to 1.0):")
+(dotimes (i 5)
+  (effect io print (str "  " (effect random float))))
+
+(effect io print "\nRandom integers (1 to 100):")
+(dotimes (i 5)
+  (effect io print (str "  " (effect random int 1 100))))
+
+;; Simulate dice rolls
+(define roll-dice
+  (lambda ()
+    (effect random int 1 6)))
+
+(effect io print "\nRolling dice 10 times:")
+(dotimes (i 10)
+  (effect io print (str "Roll " (+ i 1) ": " (roll-dice))))
+
+;; === Combining Multiple Effects ===
+(effect io print "\n=== Combining Multiple Effects ===")
+
+;; A game simulation using multiple effects
+(define play-guessing-game
+  (lambda ()
+    (effect io print "Welcome to the Guessing Game!")
+    (effect io print "I'm thinking of a number between 1 and 100...")
+    
+    ;; Generate secret number
+    (define secret (effect random int 1 100))
+    
+    ;; Initialize game state
+    (effect state set "attempts" 0)
+    (effect state set "game-over" false)
+    
+    ;; Game loop simulation
+    (define check-guess
+      (lambda (guess)
+        (effect state set "attempts" (+ (effect state get "attempts") 1))
+        (if (= guess secret)
+            (do
+              (effect io print (str "Correct! You got it in " 
+                                   (effect state get "attempts") " attempts!"))
+              (effect state set "game-over" true))
+            (if (< guess secret)
+                (effect io print "Too low! Try again...")
+                (effect io print "Too high! Try again...")))))
+    
+    ;; Simulate some guesses
+    (effect io print "\nSimulating game with random guesses...")
+    (check-guess 50)
+    (check-guess 75)
+    (check-guess 62)
+    (check-guess secret)  ; Cheat to end the game
+    
+    (effect io print (str "Game ended at time: " (effect time now)))))
+
+(play-guessing-game)
+
+;; === Effect Handler Patterns ===
+(effect io print "\n=== Effect Handler Patterns (Using Default Handlers) ===")
+
+;; Logging with timestamps
+(define log
+  (lambda (level message)
+    (let ((timestamp (effect time now)))
+      (effect io print (str "[" timestamp "] " level ": " message)))))
+
+(log "INFO" "Application started")
+(log "DEBUG" "Processing data...")
+(log "WARN" "Low memory warning")
+(log "ERROR" "Connection failed")
+
+;; Retry logic with error effects
+(define with-retry
+  (lambda (f max-attempts)
+    (define attempt
+      (lambda (n)
+        (if (> n max-attempts)
+            (effect error raise "max-retries-exceeded" 
+              {:message "Maximum retry attempts exceeded"
+               :attempts max-attempts})
+            (do
+              (effect io print (str "Attempt " n " of " max-attempts))
+              ;; In real code, we'd catch the error and retry
+              ;; For now, just simulate success on 3rd attempt
+              (if (= n 3)
+                  (f)
+                  (do
+                    (effect io print "  Failed, retrying...")
+                    (attempt (+ n 1))))))))
+    (attempt 1)))
+
+(define flaky-operation
+  (lambda ()
+    (effect io print "  Performing operation...")
+    "Success!"))
+
+(effect io print "\nRetry example:")
+(define result (with-retry flaky-operation 5))
+(effect io print (str "Final result: " result))
+
+;; === State Management Patterns ===
+(effect io print "\n=== State Management Patterns ===")
+
+;; Counter with state effects
+(define make-counter
+  (lambda (name initial)
+    (effect state set name initial)
+    {:increment (lambda () 
+                  (effect state set name (+ (effect state get name) 1)))
+     :decrement (lambda ()
+                  (effect state set name (- (effect state get name) 1)))
+     :get (lambda ()
+            (effect state get name))
+     :reset (lambda ()
+              (effect state set name initial))}))
+
+(define counter1 (make-counter "counter1" 0))
+(define counter2 (make-counter "counter2" 100))
+
+(effect io print "Working with counters:")
+((get counter1 :increment))
+((get counter1 :increment))
+(effect io print (str "Counter 1: " ((get counter1 :get))))
+
+((get counter2 :decrement))
+((get counter2 :decrement))
+(effect io print (str "Counter 2: " ((get counter2 :get))))
+
+;; === Performance Monitoring ===
+(effect io print "\n=== Performance Monitoring with Effects ===")
+
+(define measure-time
+  (lambda (name f)
+    (let ((start (effect time now)))
+      (let ((result (f)))
+        (let ((end (effect time now)))
+          (effect io print (str name " took " (- end start) "ms"))
+          result)))))
+
+;; Measure different operations
+(measure-time "List creation"
+  (lambda () (list 1 2 3 4 5 6 7 8 9 10)))
+
+(measure-time "List sum"
+  (lambda ()
+    (fold + 0 (list 1 2 3 4 5 6 7 8 9 10))))
+
+(measure-time "Factorial 10"
+  (lambda ()
+    (letrec ((fact (lambda (n)
+                     (if (= n 0) 1 (* n (fact (- n 1)))))))
+      (fact 10))))
+
+;; === Summary ===
+(effect io print "\n=== Effect System Summary ===")
+(effect io print "FluentAI's effect system provides:")
+(effect io print "- IO effects for printing output")
+(effect io print "- State effects for mutable state management")
+(effect io print "- Error effects for error handling")
+(effect io print "- Time effects for timestamps and timing")
+(effect io print "- Random effects for random number generation")
+(effect io print "\nAll effects use default handlers that work out of the box!")
+(effect io print "Custom handlers can be defined but may have runtime issues in current implementation.")

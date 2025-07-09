@@ -158,7 +158,7 @@ impl ContractDebugger {
         let expression = format!("{:?}", predicate);
         let result = match predicate {
             ContractPredicate::Bool(b) => {
-                EvalResult::Success(Value::Bool(*b))
+                EvalResult::Success(Value::Boolean(*b))
             }
             ContractPredicate::Comparison { left, op, right } => {
                 // Trace left side
@@ -170,7 +170,7 @@ impl ContractDebugger {
                 match (self.eval_predicate(left, context), self.eval_predicate(right, context)) {
                     (Ok(l), Ok(r)) => {
                         let result = self.compare_values(&l, op, &r);
-                        EvalResult::Success(Value::Bool(result))
+                        EvalResult::Success(Value::Boolean(result))
                     }
                     (Err(e), _) | (_, Err(e)) => EvalResult::Error(e),
                 }
@@ -180,7 +180,7 @@ impl ContractDebugger {
                 for p in predicates {
                     self.trace_predicate(p, context, trace, depth + 1);
                     match self.eval_predicate(p, context) {
-                        Ok(Value::Bool(false)) => {
+                        Ok(Value::Boolean(false)) => {
                             all_true = false;
                             // Short circuit - remaining predicates are skipped
                             break;
@@ -197,14 +197,14 @@ impl ContractDebugger {
                         _ => {}
                     }
                 }
-                EvalResult::Success(Value::Bool(all_true))
+                EvalResult::Success(Value::Boolean(all_true))
             }
             ContractPredicate::Or(predicates) => {
                 let mut any_true = false;
                 for p in predicates {
                     self.trace_predicate(p, context, trace, depth + 1);
                     match self.eval_predicate(p, context) {
-                        Ok(Value::Bool(true)) => {
+                        Ok(Value::Boolean(true)) => {
                             any_true = true;
                             // Short circuit - remaining predicates are skipped
                             break;
@@ -221,7 +221,7 @@ impl ContractDebugger {
                         _ => {}
                     }
                 }
-                EvalResult::Success(Value::Bool(any_true))
+                EvalResult::Success(Value::Boolean(any_true))
             }
             _ => {
                 match self.eval_predicate(predicate, context) {
@@ -243,17 +243,17 @@ impl ContractDebugger {
     fn eval_predicate(&self, predicate: &ContractPredicate, context: &EvaluationContext) -> Result<Value, String> {
         // This would use the actual evaluation logic from runtime.rs
         // Simplified for demonstration
-        Ok(Value::Bool(true))
+        Ok(Value::Boolean(true))
     }
 
     /// Compare values based on operator
     fn compare_values(&self, left: &Value, op: &str, right: &Value) -> bool {
         match (left, op, right) {
-            (Value::Int(l), "=", Value::Int(r)) => l == r,
-            (Value::Int(l), "<", Value::Int(r)) => l < r,
-            (Value::Int(l), ">", Value::Int(r)) => l > r,
-            (Value::Int(l), "<=", Value::Int(r)) => l <= r,
-            (Value::Int(l), ">=", Value::Int(r)) => l >= r,
+            (Value::Integer(l), "=", Value::Integer(r)) => l == r,
+            (Value::Integer(l), "<", Value::Integer(r)) => l < r,
+            (Value::Integer(l), ">", Value::Integer(r)) => l > r,
+            (Value::Integer(l), "<=", Value::Integer(r)) => l <= r,
+            (Value::Integer(l), ">=", Value::Integer(r)) => l >= r,
             _ => false,
         }
     }
@@ -350,8 +350,8 @@ impl ContractDebugger {
             let indent = "  ".repeat(step.depth);
             let prefix = if i == trace.len() - 1 { "└─" } else { "├─" };
             let status_icon = match &step.result {
-                EvalResult::Success(Value::Bool(true)) => "✓",
-                EvalResult::Success(Value::Bool(false)) => "✗",
+                EvalResult::Success(Value::Boolean(true)) => "✓",
+                EvalResult::Success(Value::Boolean(false)) => "✗",
                 EvalResult::Error(_) => "⚠",
                 EvalResult::Skipped(_) => "⊘",
                 _ => "•",
@@ -566,7 +566,7 @@ mod tests {
                     predicate: ContractPredicate::Comparison {
                         left: Box::new(ContractPredicate::Variable("x".to_string())),
                         op: ">".to_string(),
-                        right: Box::new(ContractPredicate::Value(Value::Int(0))),
+                        right: Box::new(ContractPredicate::Value(Value::Integer(0))),
                     },
                     message: Some("x must be positive".to_string()),
                 }

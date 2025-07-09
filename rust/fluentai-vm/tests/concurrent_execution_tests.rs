@@ -1,10 +1,11 @@
 //! Comprehensive tests for concurrent execution in FluentAI VM
 
 use fluentai_vm::{
-    bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value},
+    bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode},
     concurrent::{LockFreeStack, LockFreeQueue, BoundedQueue, WorkStealingDeque},
     concurrent_gc::{ConcurrentGc, ConcurrentGcConfig},
 };
+use fluentai_core::value::Value;
 use std::sync::{Arc, Barrier, atomic::{AtomicUsize, Ordering}};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -258,9 +259,9 @@ fn test_concurrent_gc_stress() {
             s.spawn(move |_| {
                 for i in 0..1000 {
                     let value = match tid % 3 {
-                        0 => Value::Int(i as i64),
+                        0 => Value::Integer(i as i64),
                         1 => Value::String(format!("thread-{}-item-{}", tid, i)),
-                        _ => Value::List(vec![Value::Int(i as i64); 10]),
+                        _ => Value::List(vec![Value::Integer(i as i64); 10]),
                     };
                     
                     if let Ok(_handle) = gc_clone.allocate(value) {
@@ -289,21 +290,21 @@ fn test_concurrent_vm_execution() {
     let mut chunk = BytecodeChunk::new(Some("test".to_string()));
     
     // Simple counter increment
-    let counter_idx = chunk.add_constant(Value::Int(0));
+    let counter_idx = chunk.add_constant(Value::Integer(0));
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, counter_idx as u32));
     chunk.add_instruction(Instruction::with_arg(Opcode::StoreGlobal, 0));
     
     // Loop to increment counter
     let loop_start = chunk.instructions.len();
     chunk.add_instruction(Instruction::with_arg(Opcode::LoadGlobal, 0));
-    let one_idx = chunk.add_constant(Value::Int(1)) as u32;
+    let one_idx = chunk.add_constant(Value::Integer(1)) as u32;
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, one_idx));
     chunk.add_instruction(Instruction::new(Opcode::Add));
     chunk.add_instruction(Instruction::with_arg(Opcode::StoreGlobal, 0));
     
     // Check if we should continue
     chunk.add_instruction(Instruction::with_arg(Opcode::LoadGlobal, 0));
-    let hundred_idx = chunk.add_constant(Value::Int(100)) as u32;
+    let hundred_idx = chunk.add_constant(Value::Integer(100)) as u32;
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, hundred_idx));
     chunk.add_instruction(Instruction::new(Opcode::Lt));
     let jump_offset = (chunk.instructions.len() - loop_start) as u32;
@@ -370,7 +371,7 @@ fn test_concurrent_gc_generations() {
     
     // Allocate objects that will survive multiple GCs
     for _ in 0..100 {
-        let value = Value::List(vec![Value::Int(42); 100]); // Large object
+        let value = Value::List(vec![Value::Integer(42); 100]); // Large object
         if let Ok(handle) = gc.allocate(value) {
             handles.lock().push(handle);
         }

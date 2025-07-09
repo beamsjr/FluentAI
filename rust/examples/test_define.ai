@@ -1,0 +1,3 @@
+;; Test define
+(define x 10)
+(effect io:print x)

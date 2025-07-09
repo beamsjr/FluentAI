@@ -4,7 +4,8 @@
 mod tests {
     use super::super::*;
     use crate::builder::{VMBuilder, VMConfig, DevelopmentConfig, ProductionConfig, TestingConfig, SandboxConfig};
-    use crate::bytecode::{Bytecode, BytecodeChunk, Value, Instruction, Opcode};
+    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_core::value::Value;
     use crate::security::{SecurityPolicy, SecurityManager};
     use crate::gc::GcConfig;
     use fluentai_effects::{EffectContext, EffectRuntime};
@@ -104,15 +105,15 @@ mod tests {
             .with_bytecode(bytecode)
             .with_global("app_name", Value::String("TestApp".to_string()))
             .with_global("version", Value::String("1.2.3".to_string()))
-            .with_global("debug", Value::Bool(true))
-            .with_global("max_retries", Value::Int(5))
+            .with_global("debug", Value::Boolean(true))
+            .with_global("max_retries", Value::Integer(5))
             .build()
             .unwrap();
         
         assert_eq!(vm.get_global("app_name"), Some(&Value::String("TestApp".to_string())));
         assert_eq!(vm.get_global("version"), Some(&Value::String("1.2.3".to_string())));
-        assert_eq!(vm.get_global("debug"), Some(&Value::Bool(true)));
-        assert_eq!(vm.get_global("max_retries"), Some(&Value::Int(5)));
+        assert_eq!(vm.get_global("debug"), Some(&Value::Boolean(true)));
+        assert_eq!(vm.get_global("max_retries"), Some(&Value::Integer(5)));
     }
     
     #[test]
@@ -351,7 +352,7 @@ mod tests {
         
         let mut globals = FxHashMap::default();
         for i in 0..10 {
-            globals.insert(format!("var_{}", i), Value::Int(i as i64));
+            globals.insert(format!("var_{}", i), Value::Integer(i as i64));
         }
         
         let mut builder = VMBuilder::new().with_bytecode(bytecode);
@@ -402,7 +403,7 @@ mod tests {
             .with_effect_runtime(effect_runtime)
             .with_stdlib_registry(stdlib_registry)
             .with_module_config(module_config)
-            .with_global("test", Value::Bool(true))
+            .with_global("test", Value::Boolean(true))
             .with_stack_size(1024 * 1024)
             .with_trace_mode(true)
             .with_sandbox_mode()
@@ -410,7 +411,7 @@ mod tests {
             .build()
             .unwrap();
         
-        assert_eq!(vm.get_global("test"), Some(&Value::Bool(true)));
+        assert_eq!(vm.get_global("test"), Some(&Value::Boolean(true)));
         assert!(vm.run().is_ok());
     }
     
@@ -431,7 +432,7 @@ mod tests {
         let bytecode = create_test_bytecode();
         let config = CustomConfig {
             globals: vec![
-                ("custom1".to_string(), Value::Int(42)),
+                ("custom1".to_string(), Value::Integer(42)),
                 ("custom2".to_string(), Value::String("test".to_string())),
             ],
         };
@@ -439,12 +440,12 @@ mod tests {
         let mut vm = VMBuilder::new()
             .with_bytecode(bytecode)
             .with_config(config)
-            .with_global("custom1", Value::Int(42))
+            .with_global("custom1", Value::Integer(42))
             .with_global("custom2", Value::String("test".to_string()))
             .build()
             .unwrap();
         
-        assert_eq!(vm.get_global("custom1"), Some(&Value::Int(42)));
+        assert_eq!(vm.get_global("custom1"), Some(&Value::Integer(42)));
         assert_eq!(vm.get_global("custom2"), Some(&Value::String("test".to_string())));
     }
     
@@ -457,12 +458,12 @@ mod tests {
             .with_bytecode(bytecode)
             .with_trace_mode(true)
             .with_trace_mode(false) // Should override to false
-            .with_global("test", Value::Int(1))
-            .with_global("test", Value::Int(2)) // Should override to 2
+            .with_global("test", Value::Integer(1))
+            .with_global("test", Value::Integer(2)) // Should override to 2
             .build()
             .unwrap();
         
-        assert_eq!(vm.get_global("test"), Some(&Value::Int(2)));
+        assert_eq!(vm.get_global("test"), Some(&Value::Integer(2)));
     }
     
     #[test]

@@ -1,10 +1,11 @@
 //! Tests for VM safety improvements
 
 use fluentai_vm::{VM, Bytecode, Opcode};
-use fluentai_vm::bytecode::{BytecodeChunk, Instruction, Value};
+use fluentai_vm::bytecode::{BytecodeChunk, Instruction};
 use fluentai_vm::compiler::Compiler;
 use fluentai_vm::safety::{ResourceLimits, checked_ops};
 use fluentai_parser::parse;
+use fluentai_core::value::Value;
 
 #[test]
 fn test_integer_overflow_protection() {
@@ -42,9 +43,9 @@ fn test_vm_arithmetic_overflow() {
     
     // Test integer overflow in VM
     // Push MAX and 1, then add
-    let max_idx = chunk.add_constant(Value::Int(i64::MAX));
+    let max_idx = chunk.add_constant(Value::Integer(i64::MAX));
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, max_idx));
-    let one_idx = chunk.add_constant(Value::Int(1));
+    let one_idx = chunk.add_constant(Value::Integer(1));
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, one_idx));
     chunk.add_instruction(Instruction::new(Opcode::AddInt));
     chunk.add_instruction(Instruction::new(Opcode::Halt));
@@ -67,13 +68,13 @@ fn test_resource_limits() {
     let mut chunk = BytecodeChunk::new(Some("main".to_string()));
     
     // Try to create many cells
-    let val_idx = chunk.add_constant(Value::Int(42));
+    let val_idx = chunk.add_constant(Value::Integer(42));
     for _ in 0..10 {
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, val_idx));
         chunk.add_instruction(Instruction::new(Opcode::MakeCell));
         chunk.add_instruction(Instruction::new(Opcode::Pop)); // Pop the cell
     }
-    let zero_idx = chunk.add_constant(Value::Int(0));
+    let zero_idx = chunk.add_constant(Value::Integer(0));
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, zero_idx));
     chunk.add_instruction(Instruction::new(Opcode::Halt));
     
@@ -105,7 +106,7 @@ fn test_channel_limits() {
         chunk.add_instruction(Instruction::new(Opcode::Channel));
         chunk.add_instruction(Instruction::new(Opcode::Pop)); // Pop the channel
     }
-    let zero_idx = chunk.add_constant(Value::Int(0));
+    let zero_idx = chunk.add_constant(Value::Integer(0));
     chunk.add_instruction(Instruction::with_arg(Opcode::Push, zero_idx));
     chunk.add_instruction(Instruction::new(Opcode::Halt));
     
@@ -138,7 +139,7 @@ fn test_stack_overflow_protection() {
     // Pre-create constants to avoid multiple mutable borrows
     let mut const_indices = Vec::new();
     for i in 0..20000 {
-        const_indices.push(chunk.add_constant(Value::Int(i)));
+        const_indices.push(chunk.add_constant(Value::Integer(i)));
     }
     for idx in const_indices {
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, idx));
@@ -174,8 +175,8 @@ fn test_typed_ids() {
     // Check that the channel ID has the expected format
     match result {
         Value::Channel(id) => {
-            // ChannelId is a tuple struct with a u64
-            assert!(id.0 > 0); // Just verify it's a valid ID
+            // Channel ID is now a u64
+            assert!(id > 0); // Just verify it's a valid ID
         }
         _ => panic!("Expected channel value"),
     }

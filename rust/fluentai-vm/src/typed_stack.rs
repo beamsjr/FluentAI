@@ -1,6 +1,6 @@
 //! Type-specialized stack frames for efficient unboxed value storage
 
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use anyhow::{anyhow, Result};
 
 /// Type tags for stack values
@@ -50,7 +50,7 @@ impl TypedStack {
         }
         
         match value {
-            Value::Int(i) => {
+            Value::Integer(i) => {
                 self.values.push(StackValue::Int(i));
                 self.type_tags.push(TypeTag::Int);
             }
@@ -58,7 +58,7 @@ impl TypedStack {
                 self.values.push(StackValue::Float(f));
                 self.type_tags.push(TypeTag::Float);
             }
-            Value::Bool(b) => {
+            Value::Boolean(b) => {
                 self.values.push(StackValue::Bool(b));
                 self.type_tags.push(TypeTag::Bool);
             }
@@ -180,7 +180,7 @@ impl TypedStack {
         }
         
         match value {
-            Value::Int(i) => {
+            Value::Integer(i) => {
                 self.values[index] = StackValue::Int(i);
                 self.type_tags[index] = TypeTag::Int;
             }
@@ -188,7 +188,7 @@ impl TypedStack {
                 self.values[index] = StackValue::Float(f);
                 self.type_tags[index] = TypeTag::Float;
             }
-            Value::Bool(b) => {
+            Value::Boolean(b) => {
                 self.values[index] = StackValue::Bool(b);
                 self.type_tags[index] = TypeTag::Bool;
             }
@@ -207,9 +207,9 @@ impl TypedStack {
     /// Convert stack value to regular value
     fn stack_value_to_value(&self, stack_val: StackValue) -> Value {
         match stack_val {
-            StackValue::Int(i) => Value::Int(i),
+            StackValue::Int(i) => Value::Integer(i),
             StackValue::Float(f) => Value::Float(f),
-            StackValue::Bool(b) => Value::Bool(b),
+            StackValue::Bool(b) => Value::Boolean(b),
             StackValue::Nil => Value::Nil,
             StackValue::Boxed(boxed) => *boxed,
         }
@@ -278,7 +278,7 @@ mod tests {
         stack.add_int().unwrap();
         
         let result = stack.pop().unwrap();
-        assert_eq!(result, Value::Int(30));
+        assert_eq!(result, Value::Integer(30));
         
         // Test float operations
         stack.push_float(1.5).unwrap();

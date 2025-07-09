@@ -10,17 +10,17 @@ fn test_string_length() {
     
     assert_eq!(
         string_length.call(&[Value::String("hello".to_string())]).unwrap(),
-        Value::Int(5)
+        Value::Integer(5)
     );
     
     assert_eq!(
         string_length.call(&[Value::String("".to_string())]).unwrap(),
-        Value::Int(0)
+        Value::Integer(0)
     );
     
     assert_eq!(
         string_length.call(&[Value::String("こんにちは".to_string())]).unwrap(),
-        Value::Int(5) // 5 characters, not bytes
+        Value::Integer(5) // 5 characters, not bytes
     );
 }
 
@@ -181,7 +181,7 @@ fn test_string_contains() {
             Value::String("hello world".to_string()),
             Value::String("world".to_string()),
         ]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     
     assert_eq!(
@@ -189,7 +189,7 @@ fn test_string_contains() {
             Value::String("hello world".to_string()),
             Value::String("foo".to_string()),
         ]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
 }
 
@@ -204,7 +204,7 @@ fn test_string_starts_ends_with() {
             Value::String("hello world".to_string()),
             Value::String("hello".to_string()),
         ]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     
     assert_eq!(
@@ -212,7 +212,7 @@ fn test_string_starts_ends_with() {
             Value::String("hello world".to_string()),
             Value::String("world".to_string()),
         ]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     assert_eq!(
@@ -220,7 +220,7 @@ fn test_string_starts_ends_with() {
             Value::String("hello world".to_string()),
             Value::String("world".to_string()),
         ]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     
     assert_eq!(
@@ -228,7 +228,7 @@ fn test_string_starts_ends_with() {
             Value::String("hello world".to_string()),
             Value::String("hello".to_string()),
         ]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
 }
 
@@ -265,7 +265,7 @@ fn test_substring() {
     assert_eq!(
         substring.call(&[
             Value::String("hello world".to_string()),
-            Value::Int(6),
+            Value::Integer(6),
         ]).unwrap(),
         Value::String("world".to_string())
     );
@@ -274,8 +274,8 @@ fn test_substring() {
     assert_eq!(
         substring.call(&[
             Value::String("hello world".to_string()),
-            Value::Int(0),
-            Value::Int(5),
+            Value::Integer(0),
+            Value::Integer(5),
         ]).unwrap(),
         Value::String("hello".to_string())
     );
@@ -283,8 +283,8 @@ fn test_substring() {
     assert_eq!(
         substring.call(&[
             Value::String("hello world".to_string()),
-            Value::Int(6),
-            Value::Int(11),
+            Value::Integer(6),
+            Value::Integer(11),
         ]).unwrap(),
         Value::String("world".to_string())
     );
@@ -298,7 +298,7 @@ fn test_string_ref() {
     assert_eq!(
         string_ref.call(&[
             Value::String("hello".to_string()),
-            Value::Int(0),
+            Value::Integer(0),
         ]).unwrap(),
         Value::String("h".to_string())
     );
@@ -306,7 +306,7 @@ fn test_string_ref() {
     assert_eq!(
         string_ref.call(&[
             Value::String("hello".to_string()),
-            Value::Int(4),
+            Value::Integer(4),
         ]).unwrap(),
         Value::String("o".to_string())
     );
@@ -314,7 +314,7 @@ fn test_string_ref() {
     // Test out of bounds
     assert!(string_ref.call(&[
         Value::String("hello".to_string()),
-        Value::Int(5),
+        Value::Integer(5),
     ]).is_err());
 }
 
@@ -349,7 +349,7 @@ fn test_string_conversions() {
     // Test string->number
     assert_eq!(
         string_to_number.call(&[Value::String("42".to_string())]).unwrap(),
-        Value::Int(42)
+        Value::Integer(42)
     );
     
     assert_eq!(
@@ -361,7 +361,7 @@ fn test_string_conversions() {
     
     // Test number->string
     assert_eq!(
-        number_to_string.call(&[Value::Int(42)]).unwrap(),
+        number_to_string.call(&[Value::Integer(42)]).unwrap(),
         Value::String("42".to_string())
     );
     
@@ -380,36 +380,36 @@ fn test_char_conversions() {
     // Test char->int
     assert_eq!(
         char_to_int.call(&[Value::String("A".to_string())]).unwrap(),
-        Value::Int(65)
+        Value::Integer(65)
     );
     
     assert_eq!(
         char_to_int.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Int(97)
+        Value::Integer(97)
     );
     
     assert_eq!(
         char_to_int.call(&[Value::String("0".to_string())]).unwrap(),
-        Value::Int(48)
+        Value::Integer(48)
     );
     
     // Test int->char
     assert_eq!(
-        int_to_char.call(&[Value::Int(65)]).unwrap(),
+        int_to_char.call(&[Value::Integer(65)]).unwrap(),
         Value::String("A".to_string())
     );
     
     assert_eq!(
-        int_to_char.call(&[Value::Int(97)]).unwrap(),
+        int_to_char.call(&[Value::Integer(97)]).unwrap(),
         Value::String("a".to_string())
     );
     
     assert_eq!(
-        int_to_char.call(&[Value::Int(48)]).unwrap(),
+        int_to_char.call(&[Value::Integer(48)]).unwrap(),
         Value::String("0".to_string())
     );
     
     // Test invalid unicode code point
-    assert!(int_to_char.call(&[Value::Int(-1)]).is_err());
-    assert!(int_to_char.call(&[Value::Int(0x110000)]).is_err());
+    assert!(int_to_char.call(&[Value::Integer(-1)]).is_err());
+    assert!(int_to_char.call(&[Value::Integer(0x110000)]).is_err());
 }

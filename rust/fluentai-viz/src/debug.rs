@@ -2,7 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use fluentai_vm::bytecode::{Instruction, Value};
+use fluentai_vm::bytecode::Instruction;
+use fluentai_vm::Value;
 
 /// Debug events emitted by the VM during execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,8 +124,8 @@ pub fn debug_channel() -> (DebugEventSender, DebugEventReceiver) {
 pub fn serialize_value(value: &Value) -> String {
     match value {
         Value::Nil => "nil".to_string(),
-        Value::Bool(b) => b.to_string(),
-        Value::Int(i) => i.to_string(),
+        Value::Boolean(b) => b.to_string(),
+        Value::Integer(i) => i.to_string(),
         Value::Float(f) => f.to_string(),
         Value::String(s) => format!("\"{}\"", s),
         Value::List(items) => {
@@ -157,6 +158,17 @@ pub fn serialize_value(value: &Value) -> String {
         Value::Promise(id) => format!("<promise:{}>", id),
         Value::Channel(id) => format!("<channel:{}>", id),
         Value::GcHandle(_) => "<gc-handle>".to_string(),
+        Value::Symbol(s) => format!(":{}", s),
+        Value::Procedure(_) => "<procedure>".to_string(),
+        Value::Vector(items) => {
+            let items_str: Vec<String> = items.iter()
+                .take(5) // Limit to first 5 items
+                .map(serialize_value)
+                .collect();
+            let suffix = if items.len() > 5 { ", ..." } else { "" };
+            format!("#[{}{}]", items_str.join(", "), suffix)
+        }
+        Value::NativeFunction { name, .. } => format!("<native-function:{}>", name),
     }
 }
 

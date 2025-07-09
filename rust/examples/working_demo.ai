@@ -1,0 +1,41 @@
+;; Working FluentAI Demo
+;; This example demonstrates features that are tested and working
+
+;; 1. Basic operations
+(let ((x 10) (y 20))
+  (+ x y))  ; Returns 30
+
+;; 2. Lambda functions  
+(let ((double (lambda (x) (* x 2)))
+      (nums (list 1 2 3 4 5)))
+  (map double nums))  ; Returns (2 4 6 8 10)
+
+;; 3. Filter even numbers
+(let ((nums (range 1 10)))
+  (filter (lambda (x) (= (mod x 2) 0)) nums))  ; Returns (2 4 6 8 10)
+
+;; 4. Sum with fold
+(let ((nums (list 1 2 3 4 5)))
+  (fold (lambda (acc x) (+ acc x)) 0 nums))  ; Returns 15
+
+;; 5. Pattern matching
+(let ((check-number 
+        (lambda (n)
+          (match n
+            (0 "zero")
+            (1 "one")
+            (2 "two")
+            (_ "many")))))
+  (check-number 2))  ; Returns "two"
+
+;; 6. List operations
+(let ((lst (list 10 20 30)))
+  (list
+    (head lst)        ; 10
+    (tail lst)        ; (20 30)
+    (cons 5 lst)      ; (5 10 20 30)
+    (length lst)      ; 3
+    (empty? lst)      ; false
+    (reverse lst)))   ; (30 20 10)
+
+;; Final expression returns the last value

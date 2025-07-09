@@ -1,0 +1,5 @@
+;; Test let and effects
+(let ((x 10)
+      (y 20))
+  (effect io:print "Testing let bindings...")
+  (effect io:print (+ x y)))

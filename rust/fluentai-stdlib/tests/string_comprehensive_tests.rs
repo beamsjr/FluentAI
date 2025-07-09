@@ -65,45 +65,45 @@ fn test_string_padding() {
     // Test string-pad-left
     let pad_left = stdlib.get("string-pad-left").unwrap();
     assert_eq!(
-        pad_left.call(&[Value::String("test".to_string()), Value::Int(8)]).unwrap(),
+        pad_left.call(&[Value::String("test".to_string()), Value::Integer(8)]).unwrap(),
         Value::String("    test".to_string())
     );
     assert_eq!(
-        pad_left.call(&[Value::String("test".to_string()), Value::Int(4)]).unwrap(),
+        pad_left.call(&[Value::String("test".to_string()), Value::Integer(4)]).unwrap(),
         Value::String("test".to_string())  // No padding needed
     );
     assert_eq!(
-        pad_left.call(&[Value::String("test".to_string()), Value::Int(2)]).unwrap(),
+        pad_left.call(&[Value::String("test".to_string()), Value::Integer(2)]).unwrap(),
         Value::String("test".to_string())  // String already longer
     );
     assert_eq!(
-        pad_left.call(&[Value::String("".to_string()), Value::Int(3)]).unwrap(),
+        pad_left.call(&[Value::String("".to_string()), Value::Integer(3)]).unwrap(),
         Value::String("   ".to_string())
     );
     
     // Test string-pad-right
     let pad_right = stdlib.get("string-pad-right").unwrap();
     assert_eq!(
-        pad_right.call(&[Value::String("test".to_string()), Value::Int(8)]).unwrap(),
+        pad_right.call(&[Value::String("test".to_string()), Value::Integer(8)]).unwrap(),
         Value::String("test    ".to_string())
     );
     assert_eq!(
-        pad_right.call(&[Value::String("test".to_string()), Value::Int(4)]).unwrap(),
+        pad_right.call(&[Value::String("test".to_string()), Value::Integer(4)]).unwrap(),
         Value::String("test".to_string())  // No padding needed
     );
     
     // Test string-pad-center
     let pad_center = stdlib.get("string-pad-center").unwrap();
     assert_eq!(
-        pad_center.call(&[Value::String("test".to_string()), Value::Int(8)]).unwrap(),
+        pad_center.call(&[Value::String("test".to_string()), Value::Integer(8)]).unwrap(),
         Value::String("  test  ".to_string())
     );
     assert_eq!(
-        pad_center.call(&[Value::String("test".to_string()), Value::Int(9)]).unwrap(),
+        pad_center.call(&[Value::String("test".to_string()), Value::Integer(9)]).unwrap(),
         Value::String("  test   ".to_string())  // Odd padding goes to the right
     );
     assert_eq!(
-        pad_center.call(&[Value::String("test".to_string()), Value::Int(4)]).unwrap(),
+        pad_center.call(&[Value::String("test".to_string()), Value::Integer(4)]).unwrap(),
         Value::String("test".to_string())  // No padding needed
     );
 }
@@ -115,19 +115,19 @@ fn test_string_repeat() {
     
     let repeat = stdlib.get("string-repeat").unwrap();
     assert_eq!(
-        repeat.call(&[Value::String("ab".to_string()), Value::Int(3)]).unwrap(),
+        repeat.call(&[Value::String("ab".to_string()), Value::Integer(3)]).unwrap(),
         Value::String("ababab".to_string())
     );
     assert_eq!(
-        repeat.call(&[Value::String("test".to_string()), Value::Int(0)]).unwrap(),
+        repeat.call(&[Value::String("test".to_string()), Value::Integer(0)]).unwrap(),
         Value::String("".to_string())
     );
     assert_eq!(
-        repeat.call(&[Value::String("x".to_string()), Value::Int(5)]).unwrap(),
+        repeat.call(&[Value::String("x".to_string()), Value::Integer(5)]).unwrap(),
         Value::String("xxxxx".to_string())
     );
     assert_eq!(
-        repeat.call(&[Value::String("".to_string()), Value::Int(10)]).unwrap(),
+        repeat.call(&[Value::String("".to_string()), Value::Integer(10)]).unwrap(),
         Value::String("".to_string())
     );
 }
@@ -174,7 +174,7 @@ fn test_string_index_of() {
             Value::String("hello world".to_string()),
             Value::String("world".to_string())
         ]).unwrap(),
-        Value::Int(6)
+        Value::Integer(6)
     );
     
     // Search at beginning
@@ -183,7 +183,7 @@ fn test_string_index_of() {
             Value::String("hello world".to_string()),
             Value::String("hello".to_string())
         ]).unwrap(),
-        Value::Int(0)
+        Value::Integer(0)
     );
     
     // Not found
@@ -192,7 +192,7 @@ fn test_string_index_of() {
             Value::String("hello world".to_string()),
             Value::String("xyz".to_string())
         ]).unwrap(),
-        Value::Int(-1)
+        Value::Integer(-1)
     );
     
     // Empty needle
@@ -201,7 +201,7 @@ fn test_string_index_of() {
             Value::String("hello".to_string()),
             Value::String("".to_string())
         ]).unwrap(),
-        Value::Int(0)
+        Value::Integer(0)
     );
     
     // Empty haystack
@@ -210,7 +210,7 @@ fn test_string_index_of() {
             Value::String("".to_string()),
             Value::String("test".to_string())
         ]).unwrap(),
-        Value::Int(-1)
+        Value::Integer(-1)
     );
     
     // Multiple occurrences (finds first)
@@ -219,7 +219,7 @@ fn test_string_index_of() {
             Value::String("abcabc".to_string()),
             Value::String("abc".to_string())
         ]).unwrap(),
-        Value::Int(0)
+        Value::Integer(0)
     );
 }
 
@@ -243,9 +243,9 @@ fn test_string_format() {
     assert_eq!(
         format.call(&[
             Value::String("{} + {} = {}".to_string()),
-            Value::Int(2),
-            Value::Int(3),
-            Value::Int(5)
+            Value::Integer(2),
+            Value::Integer(3),
+            Value::Integer(5)
         ]).unwrap(),
         Value::String("2 + 3 = 5".to_string())
     );
@@ -287,7 +287,7 @@ fn test_string_conversion_functions() {
     // Test number->string
     let num_to_str = stdlib.get("number->string").unwrap();
     assert_eq!(
-        num_to_str.call(&[Value::Int(42)]).unwrap(),
+        num_to_str.call(&[Value::Integer(42)]).unwrap(),
         Value::String("42".to_string())
     );
     assert_eq!(
@@ -348,53 +348,53 @@ fn test_char_predicates() {
     let alphabetic = stdlib.get("char-alphabetic?").unwrap();
     assert_eq!(
         alphabetic.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         alphabetic.call(&[Value::String("Z".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         alphabetic.call(&[Value::String("5".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     assert_eq!(
         alphabetic.call(&[Value::String(" ".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test char-numeric?
     let numeric = stdlib.get("char-numeric?").unwrap();
     assert_eq!(
         numeric.call(&[Value::String("0".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         numeric.call(&[Value::String("9".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         numeric.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test char-whitespace?
     let whitespace = stdlib.get("char-whitespace?").unwrap();
     assert_eq!(
         whitespace.call(&[Value::String(" ".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         whitespace.call(&[Value::String("\t".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         whitespace.call(&[Value::String("\n".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         whitespace.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test char-upper-case? and char-lower-case?
@@ -403,19 +403,19 @@ fn test_char_predicates() {
     
     assert_eq!(
         upper.call(&[Value::String("A".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         upper.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     assert_eq!(
         lower.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         lower.call(&[Value::String("A".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
 }
 
@@ -426,7 +426,7 @@ fn test_error_handling() {
     
     // Test functions with wrong argument types
     let upcase = stdlib.get("string-upcase").unwrap();
-    assert!(upcase.call(&[Value::Int(42)]).is_err());
+    assert!(upcase.call(&[Value::Integer(42)]).is_err());
     
     // Test functions with wrong number of arguments
     assert!(upcase.call(&[]).is_err());
@@ -439,5 +439,5 @@ fn test_error_handling() {
     
     // Test negative repeat count
     let repeat = stdlib.get("string-repeat").unwrap();
-    assert!(repeat.call(&[Value::String("x".to_string()), Value::Int(-1)]).is_err());
+    assert!(repeat.call(&[Value::String("x".to_string()), Value::Integer(-1)]).is_err());
 }

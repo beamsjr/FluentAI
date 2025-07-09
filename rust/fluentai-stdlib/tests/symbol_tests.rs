@@ -29,8 +29,8 @@ fn test_symbol_to_string_errors() {
     let symbol_to_string = registry.get("symbol->string").unwrap();
     
     // Non-string values should error
-    assert!(symbol_to_string.call(&[Value::Int(42)]).is_err());
-    assert!(symbol_to_string.call(&[Value::Bool(true)]).is_err());
+    assert!(symbol_to_string.call(&[Value::Integer(42)]).is_err());
+    assert!(symbol_to_string.call(&[Value::Boolean(true)]).is_err());
     assert!(symbol_to_string.call(&[Value::List(vec![])]).is_err());
     
     // Wrong number of arguments

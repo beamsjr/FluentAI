@@ -67,7 +67,7 @@ fn test_file_exists() {
     // Check non-existent file
     let result = file_exists_with_effects(&[Value::String(file_path_str.to_string())]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Bool(false));
+    assert_eq!(result.unwrap(), Value::Boolean(false));
     
     // Create file
     file_write_with_effects(&[
@@ -78,7 +78,7 @@ fn test_file_exists() {
     // Check existing file
     let result = file_exists_with_effects(&[Value::String(file_path_str.to_string())]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Bool(true));
+    assert_eq!(result.unwrap(), Value::Boolean(true));
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn test_error_handling() {
     assert!(result.is_err());
     
     // Test invalid arguments
-    let result = file_read_with_effects(&[Value::Int(42)]);
+    let result = file_read_with_effects(&[Value::Integer(42)]);
     assert!(result.is_err());
     
     let result = file_write_with_effects(&[Value::String("file.txt".to_string())]);
@@ -176,11 +176,11 @@ fn test_print_operations() {
     // Test print with various value types
     let test_values = vec![
         Value::String("Hello".to_string()),
-        Value::Int(42),
+        Value::Integer(42),
         Value::Float(3.14),
-        Value::Bool(true),
+        Value::Boolean(true),
         Value::Nil,
-        Value::List(vec![Value::Int(1), Value::Int(2)]),
+        Value::List(vec![Value::Integer(1), Value::Integer(2)]),
     ];
     
     for value in test_values {

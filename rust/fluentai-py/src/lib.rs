@@ -5,7 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::types::{PyList, PyDict};
 use fluentai_parser::parse as rust_parse;
 use fluentai_core::ast::{Graph, Node, Literal};
-use fluentai_vm::{compiler::Compiler, vm::VM, bytecode::Value};
+use fluentai_vm::{compiler::Compiler, vm::VM, Value};
 use std::collections::HashMap;
 
 /// Python wrapper for AST Graph
@@ -204,6 +204,11 @@ impl PyNode {
                     data.insert("value_id".to_string(), value.to_string().to_object(py));
                     "Define"
                 }
+                Node::Begin { exprs } => {
+                    data.insert("expression_ids".to_string(), 
+                        exprs.iter().map(|id| id.to_string()).collect::<Vec<_>>().to_object(py));
+                    "Begin"
+                }
             };
             
             Self {
@@ -288,10 +293,10 @@ fn compile(source: &str) -> PyResult<Vec<u8>> {
 /// Convert Rust Value to Python object
 fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
     match value {
-        Value::Int(n) => Ok(n.to_object(py)),
+        Value::Integer(n) => Ok(n.to_object(py)),
         Value::Float(f) => Ok(f.to_object(py)),
         Value::String(s) => Ok(s.to_object(py)),
-        Value::Bool(b) => Ok(b.to_object(py)),
+        Value::Boolean(b) => Ok(b.to_object(py)),
         Value::Nil => Ok(py.None()),
         Value::List(elements) => {
             let py_list = PyList::empty(py);
@@ -332,6 +337,16 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
             Ok(py_dict.to_object(py))
         }
         Value::GcHandle(_) => Ok("<gc-handle>".to_object(py)),
+        Value::Symbol(s) => Ok(format!(":{}", s).to_object(py)),
+        Value::Procedure(_) => Ok("<procedure>".to_object(py)),
+        Value::Vector(elements) => {
+            let py_list = PyList::empty(py);
+            for elem in elements {
+                py_list.append(value_to_python(py, elem)?)?;
+            }
+            Ok(py_list.to_object(py))
+        }
+        Value::NativeFunction { name, .. } => Ok(format!("<native-function:{}>", name).to_object(py)),
     }
 }
 

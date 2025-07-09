@@ -8,15 +8,15 @@ fn benchmark_list_operations(c: &mut Criterion) {
     
     c.bench_function("list_append_small", |b| {
         let append = stdlib.get("append").unwrap();
-        let list = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+        let list = Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]);
         b.iter(|| {
-            append.call(&[black_box(list.clone()), black_box(Value::Int(4))]).unwrap()
+            append.call(&[black_box(list.clone()), black_box(Value::Integer(4))]).unwrap()
         });
     });
     
     c.bench_function("list_reverse_100", |b| {
         let reverse = stdlib.get("reverse").unwrap();
-        let list = Value::List((0..100).map(|i| Value::Int(i)).collect());
+        let list = Value::List((0..100).map(|i| Value::Integer(i)).collect());
         b.iter(|| {
             reverse.call(&[black_box(list.clone())]).unwrap()
         });
@@ -24,7 +24,7 @@ fn benchmark_list_operations(c: &mut Criterion) {
     
     c.bench_function("list_length_1000", |b| {
         let length = stdlib.get("length").unwrap();
-        let list = Value::List((0..1000).map(|i| Value::Int(i)).collect());
+        let list = Value::List((0..1000).map(|i| Value::Integer(i)).collect());
         b.iter(|| {
             length.call(&[black_box(list.clone())]).unwrap()
         });
@@ -33,7 +33,7 @@ fn benchmark_list_operations(c: &mut Criterion) {
     c.bench_function("range_1000", |b| {
         let range = stdlib.get("range").unwrap();
         b.iter(|| {
-            range.call(&[black_box(Value::Int(1000))]).unwrap()
+            range.call(&[black_box(Value::Integer(1000))]).unwrap()
         });
     });
 }
@@ -74,7 +74,7 @@ fn benchmark_math_operations(c: &mut Criterion) {
     
     c.bench_function("math_add_100_ints", |b| {
         let add = stdlib.get("+").unwrap();
-        let numbers: Vec<Value> = (0..100).map(|i| Value::Int(i)).collect();
+        let numbers: Vec<Value> = (0..100).map(|i| Value::Integer(i)).collect();
         b.iter(|| {
             add.call(&black_box(numbers.clone())).unwrap()
         });
@@ -114,7 +114,7 @@ fn benchmark_collection_operations(c: &mut Criterion) {
             // Set 100 key-value pairs
             for i in 0..100 {
                 let key = Value::String(format!("key{}", i));
-                let val = Value::Int(i);
+                let val = Value::Integer(i);
                 map = map_set.call(&[map, key, val]).unwrap();
             }
             // Get all values
@@ -131,7 +131,7 @@ fn benchmark_collection_operations(c: &mut Criterion) {
         // Create deeply nested list [[1,2],[3,4],[5,6],...] 
         let nested = Value::List(
             (0..50).map(|i| {
-                Value::List(vec![Value::Int(i*2), Value::Int(i*2+1)])
+                Value::List(vec![Value::Integer(i*2), Value::Integer(i*2+1)])
             }).collect()
         );
         b.iter(|| {
@@ -150,7 +150,7 @@ fn benchmark_type_checking(c: &mut Criterion) {
         let is_nil = stdlib.get("nil?").unwrap();
         
         let values = vec![
-            Value::Int(42),
+            Value::Integer(42),
             Value::String("hello".to_string()),
             Value::List(vec![]),
             Value::Nil,

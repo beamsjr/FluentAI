@@ -1,0 +1,33 @@
+;; Working List Operations Example
+;; Demonstrates list operations that actually work in FluentAI
+
+;; Create and manipulate a list
+(let ((nums (list 1 2 3 4 5))
+      (square (lambda (x) (* x x)))
+      (is-even (lambda (x) (= (mod x 2) 0))))
+  
+  ;; Map - transform each element
+  (let ((squared (map square nums)))
+    
+    ;; Filter - select even numbers
+    (let ((evens (filter is-even (list 1 2 3 4 5 6 7 8 9 10))))
+      
+      ;; Fold - sum all numbers
+      (let ((sum (fold + 0 nums)))
+        
+        ;; Return a list of results to see them all
+        (list 
+          (list "original" nums)
+          (list "squared" squared)
+          (list "evens" evens)
+          (list "sum" sum)
+          (list "head" (head nums))
+          (list "tail" (tail nums))
+          (list "length" (length nums))
+          (list "empty?" (empty? nums))
+          (list "cons" (cons 0 nums))
+          (list "reverse" (reverse nums))
+          (list "append" (append nums (list 6 7 8)))
+          (list "take" (take 3 nums))
+          (list "drop" (drop 2 nums))
+          (list "range" (range 1 10)))))))

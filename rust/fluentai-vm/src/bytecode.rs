@@ -1,9 +1,6 @@
 //! Bytecode representation for FluentAi VM
 
-use std::fmt;
-use rustc_hash::FxHashMap;
-use crate::safety::{PromiseId, ChannelId};
-use crate::gc::GcHandle;
+use fluentai_core::value::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
@@ -176,88 +173,10 @@ impl Instruction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Nil,
-    Bool(bool),
-    Int(i64),
-    Float(f64),
-    String(String),
-    List(Vec<Value>),
-    Map(FxHashMap<String, Value>),
-    Function {
-        chunk_id: usize,
-        env: Vec<Value>,
-    },
-    Promise(PromiseId), // Promise ID
-    Channel(ChannelId), // Channel ID
-    Cell(usize),     // Index into VM's cell storage
-    Tagged {
-        tag: String,
-        values: Vec<Value>,
-    },
-    Module {
-        name: String,
-        exports: FxHashMap<String, Value>,
-    },
-    GcHandle(Box<GcHandle>),
-}
+// Value type is now imported from fluentai_core::value::Value
+// The core Value type includes all the variants needed by the VM
 
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::Nil => write!(f, "nil"),
-            Value::Bool(b) => write!(f, "{}", b),
-            Value::Int(i) => write!(f, "{}", i),
-            Value::Float(fl) => write!(f, "{}", fl),
-            Value::String(s) => write!(f, "\"{}\"", s),
-            Value::List(items) => {
-                write!(f, "[")?;
-                for (i, item) in items.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", item)?;
-                }
-                write!(f, "]")
-            }
-            Value::Map(map) => {
-                write!(f, "{{")?;
-                let mut first = true;
-                for (k, v) in map.iter() {
-                    if !first {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "\"{}\": {}", k, v)?;
-                    first = false;
-                }
-                write!(f, "}}")
-            }
-            Value::Function { .. } => write!(f, "<function>"),
-            Value::Promise(id) => write!(f, "<{}>", id),
-            Value::Channel(id) => write!(f, "<{}>", id),
-            Value::Cell(idx) => write!(f, "<cell:{}>", idx),
-            Value::Tagged { tag, values } => {
-                write!(f, "{}", tag)?;
-                if !values.is_empty() {
-                    write!(f, "(")?;
-                    for (i, val) in values.iter().enumerate() {
-                        if i > 0 {
-                            write!(f, ", ")?;
-                        }
-                        write!(f, "{}", val)?;
-                    }
-                    write!(f, ")")?;
-                }
-                Ok(())
-            }
-            Value::Module { name, exports } => {
-                write!(f, "<module {} with {} exports>", name, exports.len())
-            }
-            Value::GcHandle(_) => write!(f, "<gc-handle>"),
-        }
-    }
-}
+// Display implementation is provided by fluentai_core::value::Value
 
 #[derive(Debug, Clone)]
 pub struct BytecodeChunk {

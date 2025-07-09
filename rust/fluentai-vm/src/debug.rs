@@ -1,6 +1,7 @@
 //! Debug support for VM execution
 
-use crate::bytecode::{Instruction, Value};
+use crate::bytecode::Instruction;
+use fluentai_core::value::Value;
 use tokio::sync::mpsc;
 
 /// Debug event types

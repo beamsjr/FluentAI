@@ -72,10 +72,10 @@ fn format_log_message(level: LogLevel, message: &str, data: Option<&Value>) -> S
 /// Convert FluentAi Value to serde_json::Value
 fn value_to_json(value: &Value) -> serde_json::Value {
     match value {
-        Value::Int(i) => json!(i),
+        Value::Integer(i) => json!(i),
         Value::Float(f) => json!(f),
         Value::String(s) => json!(s),
-        Value::Bool(b) => json!(b),
+        Value::Boolean(b) => json!(b),
         Value::Nil => json!(null),
         Value::List(list) => {
             let json_list: Vec<serde_json::Value> = list.iter().map(value_to_json).collect();
@@ -99,7 +99,7 @@ pub fn log(args: &[Value]) -> Result<Value> {
     }
     
     let level = match &args[0] {
-        Value::Int(i) => LogLevel::from_i64(*i)?,
+        Value::Integer(i) => LogLevel::from_i64(*i)?,
         _ => return Err(anyhow!("Log level must be an integer")),
     };
     
@@ -122,28 +122,28 @@ pub fn log(args: &[Value]) -> Result<Value> {
 
 /// Debug log
 pub fn debug(args: &[Value]) -> Result<Value> {
-    let mut new_args = vec![Value::Int(LogLevel::Debug as i64)];
+    let mut new_args = vec![Value::Integer(LogLevel::Debug as i64)];
     new_args.extend_from_slice(args);
     log(&new_args)
 }
 
 /// Info log
 pub fn info(args: &[Value]) -> Result<Value> {
-    let mut new_args = vec![Value::Int(LogLevel::Info as i64)];
+    let mut new_args = vec![Value::Integer(LogLevel::Info as i64)];
     new_args.extend_from_slice(args);
     log(&new_args)
 }
 
 /// Warn log
 pub fn warn(args: &[Value]) -> Result<Value> {
-    let mut new_args = vec![Value::Int(LogLevel::Warn as i64)];
+    let mut new_args = vec![Value::Integer(LogLevel::Warn as i64)];
     new_args.extend_from_slice(args);
     log(&new_args)
 }
 
 /// Error log
 pub fn error(args: &[Value]) -> Result<Value> {
-    let mut new_args = vec![Value::Int(LogLevel::Error as i64)];
+    let mut new_args = vec![Value::Integer(LogLevel::Error as i64)];
     new_args.extend_from_slice(args);
     log(&new_args)
 }
@@ -155,7 +155,7 @@ pub fn set_log_level(args: &[Value]) -> Result<Value> {
     }
     
     let level = match &args[0] {
-        Value::Int(i) => LogLevel::from_i64(*i)?,
+        Value::Integer(i) => LogLevel::from_i64(*i)?,
         _ => return Err(anyhow!("Log level must be an integer")),
     };
     
@@ -168,24 +168,24 @@ pub fn set_log_level(args: &[Value]) -> Result<Value> {
 /// Get current log level
 pub fn get_log_level(_args: &[Value]) -> Result<Value> {
     let level = CURRENT_LOG_LEVEL.read().unwrap();
-    Ok(Value::Int(*level as i64))
+    Ok(Value::Integer(*level as i64))
 }
 
 /// Log level constants
 pub fn log_level_debug(_args: &[Value]) -> Result<Value> {
-    Ok(Value::Int(LogLevel::Debug as i64))
+    Ok(Value::Integer(LogLevel::Debug as i64))
 }
 
 pub fn log_level_info(_args: &[Value]) -> Result<Value> {
-    Ok(Value::Int(LogLevel::Info as i64))
+    Ok(Value::Integer(LogLevel::Info as i64))
 }
 
 pub fn log_level_warn(_args: &[Value]) -> Result<Value> {
-    Ok(Value::Int(LogLevel::Warn as i64))
+    Ok(Value::Integer(LogLevel::Warn as i64))
 }
 
 pub fn log_level_error(_args: &[Value]) -> Result<Value> {
-    Ok(Value::Int(LogLevel::Error as i64))
+    Ok(Value::Integer(LogLevel::Error as i64))
 }
 
 /// Register all logger functions
@@ -301,7 +301,7 @@ mod tests {
         
         let data = Value::Map(vec![
             ("key".to_string(), Value::String("value".to_string())),
-            ("count".to_string(), Value::Int(42)),
+            ("count".to_string(), Value::Integer(42)),
         ].into_iter().collect());
         
         let message_with_data = format_log_message(LogLevel::Error, "Error occurred", Some(&data));

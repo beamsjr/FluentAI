@@ -90,7 +90,8 @@ fn test_compile_qualified_variable() -> Result<()> {
 
 #[test]
 fn test_vm_module_value_type() -> Result<()> {
-    use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+    use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_core::value::Value;
     
     // Create a simple bytecode that creates a module value
     let mut bytecode = Bytecode::new();
@@ -133,7 +134,7 @@ fn test_vm_export_binding() -> Result<()> {
     
     // The result should be 42
     match result {
-        fluentai_vm::bytecode::Value::Int(n) => assert_eq!(n, 42),
+        fluentai_vm::Value::Integer(n) => assert_eq!(n, 42),
         _ => panic!("Expected Int(42)"),
     }
     
@@ -154,7 +155,7 @@ fn test_module_isolation() -> Result<()> {
     
     // The result should be 10 (from the outer let binding)
     match result {
-        fluentai_vm::bytecode::Value::Int(n) => assert_eq!(n, 10),
+        fluentai_vm::Value::Integer(n) => assert_eq!(n, 10),
         _ => panic!("Expected Int(10)"),
     }
     

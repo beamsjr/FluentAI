@@ -3,7 +3,8 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value as VMValue};
+    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_core::value::Value as VMValue;
     use crate::stdlib_bridge::{VMStdlibBridge, VMStdlibExt};
     use crate::vm::VM;
     // Note: These tests assume VM has methods for stdlib value conversion
@@ -25,7 +26,7 @@ mod tests {
         
         // Create a simple function that doubles its input
         let mut func_chunk = BytecodeChunk::new(Some("double".to_string()));
-        func_chunk.add_constant(VMValue::Int(2));
+        func_chunk.add_constant(VMValue::Integer(2));
         func_chunk.add_instruction(Instruction::with_arg(Opcode::Load, 0)); // Load argument
         func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push 2
         func_chunk.add_instruction(Instruction::new(Opcode::Mul)); // Multiply
@@ -54,14 +55,14 @@ mod tests {
             assert_eq!(vm_nil, VMValue::Nil);
             
             // Test bool conversion
-            let stdlib_bool = StdlibValue::Bool(true);
+            let stdlib_bool = StdlibValue::Boolean(true);
             let vm_bool = vm.stdlib_value_to_vm_value(&stdlib_bool);
-            assert_eq!(vm_bool, VMValue::Bool(true));
+            assert_eq!(vm_bool, VMValue::Boolean(true));
             
             // Test int conversion
-            let stdlib_int = StdlibValue::Int(42);
+            let stdlib_int = StdlibValue::Integer(42);
             let vm_int = vm.stdlib_value_to_vm_value(&stdlib_int);
-            assert_eq!(vm_int, VMValue::Int(42));
+            assert_eq!(vm_int, VMValue::Integer(42));
             
             // Test float conversion
             let stdlib_float = StdlibValue::Float(3.14);
@@ -75,17 +76,17 @@ mod tests {
             
             // Test list conversion
             let stdlib_list = StdlibValue::List(vec![
-                StdlibValue::Int(1),
-                StdlibValue::Int(2),
-                StdlibValue::Int(3),
+                StdlibValue::Integer(1),
+                StdlibValue::Integer(2),
+                StdlibValue::Integer(3),
             ]);
             let vm_list = vm.stdlib_value_to_vm_value(&stdlib_list);
             match vm_list {
                 VMValue::List(items) => {
                     assert_eq!(items.len(), 3);
-                    assert_eq!(items[0], VMValue::Int(1));
-                    assert_eq!(items[1], VMValue::Int(2));
-                    assert_eq!(items[2], VMValue::Int(3));
+                    assert_eq!(items[0], VMValue::Integer(1));
+                    assert_eq!(items[1], VMValue::Integer(2));
+                    assert_eq!(items[2], VMValue::Integer(3));
                 },
                 _ => panic!("Expected list"),
             }
@@ -101,14 +102,14 @@ mod tests {
             assert_eq!(stdlib_nil, StdlibValue::Nil);
             
             // Test bool conversion
-            let vm_bool = VMValue::Bool(false);
+            let vm_bool = VMValue::Boolean(false);
             let stdlib_bool = vm.vm_value_to_stdlib_value(&vm_bool);
-            assert_eq!(stdlib_bool, StdlibValue::Bool(false));
+            assert_eq!(stdlib_bool, StdlibValue::Boolean(false));
             
             // Test int conversion
-            let vm_int = VMValue::Int(-123);
+            let vm_int = VMValue::Integer(-123);
             let stdlib_int = vm.vm_value_to_stdlib_value(&vm_int);
-            assert_eq!(stdlib_int, StdlibValue::Int(-123));
+            assert_eq!(stdlib_int, StdlibValue::Integer(-123));
             
             // Test float conversion
             let vm_float = VMValue::Float(2.718);
@@ -122,14 +123,14 @@ mod tests {
             
             // Test list conversion
             let vm_list = VMValue::List(vec![
-                VMValue::Bool(true),
+                VMValue::Boolean(true),
                 VMValue::String("test".to_string()),
             ]);
             let stdlib_list = vm.vm_value_to_stdlib_value(&vm_list);
             match stdlib_list {
                 StdlibValue::List(items) => {
                     assert_eq!(items.len(), 2);
-                    assert_eq!(items[0], StdlibValue::Bool(true));
+                    assert_eq!(items[0], StdlibValue::Boolean(true));
                     assert_eq!(items[1], StdlibValue::String("test".to_string()));
                 },
                 _ => panic!("Expected list"),
@@ -142,12 +143,12 @@ mod tests {
             
             let values = vec![
                 StdlibValue::Nil,
-                StdlibValue::Bool(true),
-                StdlibValue::Int(42),
+                StdlibValue::Boolean(true),
+                StdlibValue::Integer(42),
                 StdlibValue::Float(3.14),
                 StdlibValue::String("test".to_string()),
                 StdlibValue::List(vec![
-                    StdlibValue::Int(1),
+                    StdlibValue::Integer(1),
                     StdlibValue::String("nested".to_string()),
                 ]),
             ];
@@ -174,13 +175,13 @@ mod tests {
                 env: vec![],
             };
             
-            let args = vec![StdlibValue::Int(21)];
+            let args = vec![StdlibValue::Integer(21)];
             let result = bridge.call_function(&func, &args);
             
             // Note: This test assumes VM has proper function value conversion
             // In practice, we'd need to ensure the VM can handle stdlib Function values
             match result {
-                Ok(StdlibValue::Int(42)) => {}, // Expected
+                Ok(StdlibValue::Integer(42)) => {}, // Expected
                 Ok(other) => panic!("Expected Int(42), got {:?}", other),
                 Err(e) => panic!("Function call failed: {}", e),
             }
@@ -215,14 +216,14 @@ mod tests {
             };
             
             let args = vec![
-                StdlibValue::Int(10),
-                StdlibValue::Int(20),
-                StdlibValue::Int(12),
+                StdlibValue::Integer(10),
+                StdlibValue::Integer(20),
+                StdlibValue::Integer(12),
             ];
             
             let result = bridge.call_function(&func, &args);
             match result {
-                Ok(StdlibValue::Int(42)) => {}, // Expected
+                Ok(StdlibValue::Integer(42)) => {}, // Expected
                 Ok(other) => panic!("Expected Int(42), got {:?}", other),
                 Err(e) => panic!("Function call failed: {}", e),
             }
@@ -242,9 +243,9 @@ mod tests {
             };
             
             let list = StdlibValue::List(vec![
-                StdlibValue::Int(1),
-                StdlibValue::Int(2),
-                StdlibValue::Int(3),
+                StdlibValue::Integer(1),
+                StdlibValue::Integer(2),
+                StdlibValue::Integer(3),
             ]);
             
             let args = vec![double_func, list];
@@ -253,9 +254,9 @@ mod tests {
             match result {
                 Ok(StdlibValue::List(items)) => {
                     assert_eq!(items.len(), 3);
-                    assert_eq!(items[0], StdlibValue::Int(2));
-                    assert_eq!(items[1], StdlibValue::Int(4));
-                    assert_eq!(items[2], StdlibValue::Int(6));
+                    assert_eq!(items[0], StdlibValue::Integer(2));
+                    assert_eq!(items[1], StdlibValue::Integer(4));
+                    assert_eq!(items[2], StdlibValue::Integer(6));
                 },
                 Ok(other) => panic!("Expected list result, got {:?}", other),
                 Err(e) => panic!("Map failed: {}", e),
@@ -290,7 +291,7 @@ mod tests {
             
             // Create a function that checks if number is even
             let mut func_chunk = BytecodeChunk::new(Some("is_even".to_string()));
-            func_chunk.add_constant(VMValue::Int(2));
+            func_chunk.add_constant(VMValue::Integer(2));
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Load, 0)); // Load argument
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push 2
             func_chunk.add_instruction(Instruction::new(Opcode::Mod)); // n % 2
@@ -313,12 +314,12 @@ mod tests {
             };
             
             let list = StdlibValue::List(vec![
-                StdlibValue::Int(1),
-                StdlibValue::Int(2),
-                StdlibValue::Int(3),
-                StdlibValue::Int(4),
-                StdlibValue::Int(5),
-                StdlibValue::Int(6),
+                StdlibValue::Integer(1),
+                StdlibValue::Integer(2),
+                StdlibValue::Integer(3),
+                StdlibValue::Integer(4),
+                StdlibValue::Integer(5),
+                StdlibValue::Integer(6),
             ]);
             
             let args = vec![is_even_func, list];
@@ -327,9 +328,9 @@ mod tests {
             match result {
                 Ok(StdlibValue::List(items)) => {
                     assert_eq!(items.len(), 3);
-                    assert_eq!(items[0], StdlibValue::Int(2));
-                    assert_eq!(items[1], StdlibValue::Int(4));
-                    assert_eq!(items[2], StdlibValue::Int(6));
+                    assert_eq!(items[0], StdlibValue::Integer(2));
+                    assert_eq!(items[1], StdlibValue::Integer(4));
+                    assert_eq!(items[2], StdlibValue::Integer(6));
                 },
                 Ok(other) => panic!("Expected filtered list, got {:?}", other),
                 Err(e) => panic!("Filter failed: {}", e),
@@ -361,19 +362,19 @@ mod tests {
                 env: vec![],
             };
             
-            let initial = StdlibValue::Int(0);
+            let initial = StdlibValue::Integer(0);
             let list = StdlibValue::List(vec![
-                StdlibValue::Int(1),
-                StdlibValue::Int(2),
-                StdlibValue::Int(3),
-                StdlibValue::Int(4),
+                StdlibValue::Integer(1),
+                StdlibValue::Integer(2),
+                StdlibValue::Integer(3),
+                StdlibValue::Integer(4),
             ]);
             
             let args = vec![add_func, initial, list];
             let result = vm.call_higher_order_stdlib("fold", &args);
             
             match result {
-                Ok(StdlibValue::Int(10)) => {}, // 1+2+3+4 = 10
+                Ok(StdlibValue::Integer(10)) => {}, // 1+2+3+4 = 10
                 Ok(other) => panic!("Expected Int(10), got {:?}", other),
                 Err(e) => panic!("Fold failed: {}", e),
             }
@@ -434,7 +435,7 @@ mod tests {
             let result = vm.call_higher_order_stdlib("map", &[]);
             assert!(result.is_err());
             
-            let result = vm.call_higher_order_stdlib("map", &[StdlibValue::Int(42)]);
+            let result = vm.call_higher_order_stdlib("map", &[StdlibValue::Integer(42)]);
             assert!(result.is_err());
         }
         
@@ -447,7 +448,7 @@ mod tests {
                 env: vec![],
             };
             
-            let not_a_list = StdlibValue::Int(42);
+            let not_a_list = StdlibValue::Integer(42);
             let args = vec![func, not_a_list];
             let result = vm.call_higher_order_stdlib("map", &args);
             
@@ -481,7 +482,7 @@ mod tests {
                 env: vec![],
             };
             
-            let list = StdlibValue::List(vec![StdlibValue::Int(42)]);
+            let list = StdlibValue::List(vec![StdlibValue::Integer(42)]);
             let args = vec![bad_pred, list];
             let result = vm.call_higher_order_stdlib("filter", &args);
             

@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use fluentai_vm::bytecode::Value;
+    use fluentai_vm::Value;
     
     #[test]
     fn test_query_builder_basic() {
@@ -25,8 +25,8 @@ mod tests {
         let mut builder = QueryBuilder::new();
         
         // Create parameter expressions
-        let age_param = builder.next_param(Value::Int(18));
-        let active_param = builder.next_param(Value::Bool(true));
+        let age_param = builder.next_param(Value::Integer(18));
+        let active_param = builder.next_param(Value::Boolean(true));
         
         let mut query = builder
             .from("users")
@@ -42,8 +42,8 @@ mod tests {
         assert!(sql.contains("age"));
         assert!(sql.contains("active"));
         assert_eq!(params.len(), 2);
-        assert_eq!(params[0], Value::Int(18));
-        assert_eq!(params[1], Value::Bool(true));
+        assert_eq!(params[0], Value::Integer(18));
+        assert_eq!(params[1], Value::Boolean(true));
     }
     
     #[test]
@@ -76,9 +76,9 @@ mod tests {
     fn test_complex_where_clause() {
         let mut builder = QueryBuilder::new();
         
-        let age_param = builder.next_param(Value::Int(21));
+        let age_param = builder.next_param(Value::Integer(21));
         let city_param = builder.next_param(Value::String("NYC".to_string()));
-        let vip_param = builder.next_param(Value::Bool(true));
+        let vip_param = builder.next_param(Value::Boolean(true));
         
         // (age >= 21 AND city = 'NYC') OR vip = true
         let where_expr = QueryExpr::BinOp {
@@ -176,11 +176,11 @@ mod tests {
         let case_expr = QueryExpr::Case {
             conditions: vec![
                 (
-                    gt(col("age"), QueryExpr::Parameter(Parameter { index: 0, value: Value::Int(65) })),
+                    gt(col("age"), QueryExpr::Parameter(Parameter { index: 0, value: Value::Integer(65) })),
                     QueryExpr::Parameter(Parameter { index: 1, value: Value::String("Senior".to_string()) })
                 ),
                 (
-                    gt(col("age"), QueryExpr::Parameter(Parameter { index: 2, value: Value::Int(18) })),
+                    gt(col("age"), QueryExpr::Parameter(Parameter { index: 2, value: Value::Integer(18) })),
                     QueryExpr::Parameter(Parameter { index: 3, value: Value::String("Adult".to_string()) })
                 ),
             ],

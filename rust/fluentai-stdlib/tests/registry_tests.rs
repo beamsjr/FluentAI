@@ -8,7 +8,7 @@ use anyhow::Result;
 // Test function implementations
 fn test_add(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
+        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
         _ => anyhow::bail!("add: expected two integers"),
     }
 }
@@ -19,7 +19,7 @@ fn test_print(_args: &[Value]) -> Result<Value> {
 }
 
 fn test_variadic(args: &[Value]) -> Result<Value> {
-    Ok(Value::Int(args.len() as i64))
+    Ok(Value::Integer(args.len() as i64))
 }
 
 #[test]
@@ -81,17 +81,17 @@ fn test_function_call() {
     let add_func = StdlibFunction::pure("add", test_add, 2, Some(2), "Add two integers");
     
     // Valid call
-    let result = add_func.call(&[Value::Int(5), Value::Int(3)]);
+    let result = add_func.call(&[Value::Integer(5), Value::Integer(3)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(8));
+    assert_eq!(result.unwrap(), Value::Integer(8));
     
     // Invalid argument count
-    let result = add_func.call(&[Value::Int(5)]);
+    let result = add_func.call(&[Value::Integer(5)]);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("expected at least 2 arguments"));
     
     // Invalid argument types
-    let result = add_func.call(&[Value::String("5".to_string()), Value::Int(3)]);
+    let result = add_func.call(&[Value::String("5".to_string()), Value::Integer(3)]);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("expected two integers"));
 }

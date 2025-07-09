@@ -1,0 +1,296 @@
+;; Higher-Order Functions Comprehensive Example
+;; Demonstrates functions that take or return other functions
+
+;; === Functions as First-Class Values ===
+(effect io print "=== Functions as First-Class Values ===")
+
+;; Store functions in variables
+(define add (lambda (x y) (+ x y)))
+(define multiply (lambda (x y) (* x y)))
+(define subtract (lambda (x y) (- x y)))
+
+;; Use functions stored in variables
+(effect io print (str "add(5, 3) = " (add 5 3)))
+(effect io print (str "multiply(5, 3) = " (multiply 5 3)))
+
+;; Store functions in a list
+(define operations (list add multiply subtract))
+(effect io print (str "Functions can be stored in lists: " operations))
+
+;; === Functions that Take Functions ===
+(effect io print "\n=== Functions Taking Functions as Arguments ===")
+
+;; Apply a function twice
+(define apply-twice
+  (lambda (f x)
+    (f (f x))))
+
+(define double (lambda (x) (* x 2)))
+(define increment (lambda (x) (+ x 1)))
+
+(effect io print (str "apply-twice(double, 5) = " (apply-twice double 5)))      ; 20
+(effect io print (str "apply-twice(increment, 5) = " (apply-twice increment 5))) ; 7
+
+;; Apply a function n times
+(define apply-n-times
+  (lambda (f n x)
+    (if (= n 0)
+        x
+        (apply-n-times f (- n 1) (f x)))))
+
+(effect io print (str "apply-n-times(double, 3, 2) = " (apply-n-times double 3 2))) ; 16
+(effect io print (str "apply-n-times(increment, 10, 0) = " (apply-n-times increment 10 0))) ; 10
+
+;; === Function Composition ===
+(effect io print "\n=== Function Composition ===")
+
+;; Compose two functions
+(define compose
+  (lambda (f g)
+    (lambda (x) (f (g x)))))
+
+(define square (lambda (x) (* x x)))
+(define add-one (lambda (x) (+ x 1)))
+
+(define square-then-add-one (compose add-one square))
+(define add-one-then-square (compose square add-one))
+
+(effect io print (str "square-then-add-one(5) = " (square-then-add-one 5))) ; 26
+(effect io print (str "add-one-then-square(5) = " (add-one-then-square 5))) ; 36
+
+;; Compose multiple functions
+(define compose-all
+  (lambda (functions)
+    (fold compose (lambda (x) x) functions)))
+
+(define triple (lambda (x) (* x 3)))
+(define combined (compose-all (list add-one square triple)))
+(effect io print (str "triple, square, then add-one of 2 = " (combined 2))) ; 37
+
+;; === Functions that Return Functions ===
+(effect io print "\n=== Functions Returning Functions ===")
+
+;; Create adder functions
+(define make-adder
+  (lambda (n)
+    (lambda (x) (+ x n))))
+
+(define add5 (make-adder 5))
+(define add10 (make-adder 10))
+
+(effect io print (str "add5(3) = " (add5 3)))
+(effect io print (str "add10(3) = " (add10 3)))
+
+;; Create multiplier functions
+(define make-multiplier
+  (lambda (n)
+    (lambda (x) (* x n))))
+
+(define times2 (make-multiplier 2))
+(define times10 (make-multiplier 10))
+
+(effect io print (str "times2(7) = " (times2 7)))
+(effect io print (str "times10(7) = " (times10 7)))
+
+;; === Currying ===
+(effect io print "\n=== Currying ===")
+
+;; Manual currying
+(define curry-add
+  (lambda (x)
+    (lambda (y) (+ x y))))
+
+(define add-to-5 (curry-add 5))
+(effect io print (str "curry-add(5)(3) = " ((curry-add 5) 3)))
+(effect io print (str "add-to-5(3) = " (add-to-5 3)))
+
+;; Generic curry function for 2-argument functions
+(define curry2
+  (lambda (f)
+    (lambda (x)
+      (lambda (y)
+        (f x y)))))
+
+(define curried-multiply (curry2 multiply))
+(define times5 (curried-multiply 5))
+(effect io print (str "times5(4) = " (times5 4)))
+
+;; === Partial Application ===
+(effect io print "\n=== Partial Application ===")
+
+;; Partial application helper
+(define partial
+  (lambda (f . args1)
+    (lambda args2
+      (apply f (append args1 args2)))))
+
+(define add3 (lambda (x y z) (+ x y z)))
+(define add-1-and-2 (partial add3 1 2))
+(effect io print (str "add-1-and-2(3) = " (add-1-and-2 3))) ; 6
+
+;; === Map, Filter, and Fold ===
+(effect io print "\n=== Classic Higher-Order Functions ===")
+
+(define numbers (list 1 2 3 4 5))
+
+;; Map examples
+(effect io print (str "Original: " numbers))
+(effect io print (str "Squared: " (map square numbers)))
+(effect io print (str "Doubled: " (map (make-multiplier 2) numbers)))
+(effect io print (str "As strings: " (map (lambda (x) (str "num:" x)) numbers)))
+
+;; Filter examples
+(define even? (lambda (x) (= (mod x 2) 0)))
+(define positive? (lambda (x) (> x 0)))
+(define less-than-4? (lambda (x) (< x 4)))
+
+(effect io print (str "Even numbers: " (filter even? numbers)))
+(effect io print (str "Less than 4: " (filter less-than-4? numbers)))
+
+;; Fold examples
+(effect io print (str "Sum: " (fold + 0 numbers)))
+(effect io print (str "Product: " (fold * 1 numbers)))
+(effect io print (str "Concatenated: " (fold str "" numbers)))
+
+;; === Custom Higher-Order Functions ===
+(effect io print "\n=== Custom Higher-Order Functions ===")
+
+;; Find first element matching predicate
+(define find-first
+  (lambda (pred lst)
+    (if (empty? lst)
+        nil
+        (if (pred (head lst))
+            (head lst)
+            (find-first pred (tail lst))))))
+
+(effect io print (str "First even: " (find-first even? numbers)))
+(effect io print (str "First > 3: " (find-first (lambda (x) (> x 3)) numbers)))
+
+;; Count elements matching predicate
+(define count-if
+  (lambda (pred lst)
+    (fold (lambda (acc x) (if (pred x) (+ acc 1) acc)) 0 lst)))
+
+(effect io print (str "Count of evens: " (count-if even? (range 1 10))))
+
+;; Partition list by predicate
+(define partition
+  (lambda (pred lst)
+    (list (filter pred lst)
+          (filter (lambda (x) (not (pred x))) lst))))
+
+(define result (partition even? (range 1 10)))
+(effect io print (str "Partition by even: " result))
+
+;; === Function Pipelines ===
+(effect io print "\n=== Function Pipelines ===")
+
+;; Pipe functions left to right
+(define pipe
+  (lambda (. functions)
+    (lambda (x)
+      (fold (lambda (acc f) (f acc)) x functions))))
+
+(define process-number
+  (pipe add-one
+        square
+        (make-multiplier 2)
+        (lambda (x) (- x 10))))
+
+(effect io print (str "Pipeline result for 5: " (process-number 5))) ; 62
+
+;; === Memoization ===
+(effect io print "\n=== Memoization (Simple) ===")
+
+;; Create a memoized version of a function
+(define memoize
+  (lambda (f)
+    (let ((cache (list)))
+      (lambda (x)
+        (let ((cached (find-first (lambda (pair) (= (head pair) x)) cache)))
+          (if (nil? cached)
+              (let ((result (f x)))
+                (set! cache (cons (list x result) cache))
+                result)
+              (head (tail cached))))))))
+
+;; Expensive computation
+(define slow-square
+  (lambda (x)
+    (effect io print (str "  Computing square of " x "..."))
+    (* x x)))
+
+(define fast-square (memoize slow-square))
+
+(effect io print "First calls (computed):")
+(effect io print (str "fast-square(5) = " (fast-square 5)))
+(effect io print (str "fast-square(7) = " (fast-square 7)))
+(effect io print "\nRepeated calls (cached):")
+(effect io print (str "fast-square(5) = " (fast-square 5)))
+(effect io print (str "fast-square(7) = " (fast-square 7)))
+
+;; === Predicates and Combinators ===
+(effect io print "\n=== Predicate Combinators ===")
+
+;; Combine predicates with AND
+(define and-pred
+  (lambda (p1 p2)
+    (lambda (x) (and (p1 x) (p2 x)))))
+
+;; Combine predicates with OR
+(define or-pred
+  (lambda (p1 p2)
+    (lambda (x) (or (p1 x) (p2 x)))))
+
+;; Negate a predicate
+(define not-pred
+  (lambda (p)
+    (lambda (x) (not (p x)))))
+
+(define greater-than-2? (lambda (x) (> x 2)))
+(define less-than-8? (lambda (x) (< x 8)))
+(define between-2-and-8? (and-pred greater-than-2? less-than-8?))
+(define outside-2-to-8? (not-pred between-2-and-8?))
+
+(define test-range (range 0 10))
+(effect io print (str "Between 2 and 8: " (filter between-2-and-8? test-range)))
+(effect io print (str "Outside 2 to 8: " (filter outside-2-to-8? test-range)))
+
+;; === Functional Utilities ===
+(effect io print "\n=== Functional Utilities ===")
+
+;; Identity function
+(define identity (lambda (x) x))
+
+;; Constant function
+(define const
+  (lambda (value)
+    (lambda (_) value)))
+
+(define always-42 (const 42))
+(effect io print (str "always-42('ignored') = " (always-42 "ignored")))
+
+;; Flip arguments
+(define flip
+  (lambda (f)
+    (lambda (x y) (f y x))))
+
+(define divide (lambda (x y) (/ x y)))
+(define flip-divide (flip divide))
+(effect io print (str "divide(10, 2) = " (divide 10 2)))
+(effect io print (str "flip-divide(10, 2) = " (flip-divide 10 2)))
+
+;; === Summary ===
+(effect io print "\n=== Higher-Order Functions Summary ===")
+(effect io print "FluentAI supports powerful functional programming:")
+(effect io print "- Functions as first-class values")
+(effect io print "- Functions taking functions as arguments")
+(effect io print "- Functions returning functions")
+(effect io print "- Function composition and pipelines")
+(effect io print "- Currying and partial application")
+(effect io print "- Classic map, filter, fold operations")
+(effect io print "- Custom higher-order utilities")
+(effect io print "- Memoization for performance")
+(effect io print "- Predicate combinators")
+(effect io print "\nHigher-order functions enable expressive, reusable code!")

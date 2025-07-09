@@ -1,0 +1,5 @@
+;; Test multiple expressions with state effects
+(effect state:set "x" 10)
+(effect state:set "y" 20)
+(effect state:set "sum" (+ (effect state:get "x") (effect state:get "y")))
+(effect state:get "sum")

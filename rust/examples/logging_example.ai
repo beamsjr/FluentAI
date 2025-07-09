@@ -1,0 +1,245 @@
+;; Logging System Example
+;; Demonstrates how to implement a logging system using FluentAI's effect system
+
+;; === Basic Logging Implementation ===
+
+;; Define log levels
+(define LOG_DEBUG 0)
+(define LOG_INFO 1)
+(define LOG_WARN 2)
+(define LOG_ERROR 3)
+
+;; Global log level (using state effect)
+(effect state set "log-level" LOG_INFO)
+
+;; Convert log level to string
+(define level-to-string
+  (lambda (level)
+    (match level
+      (0 "DEBUG")
+      (1 "INFO")
+      (2 "WARN")
+      (3 "ERROR")
+      (_ "UNKNOWN"))))
+
+;; Basic logging function
+(define log
+  (lambda (level message)
+    (if (>= level (effect state get "log-level"))
+        (let ((timestamp (effect time now))
+              (level-str (level-to-string level)))
+          (effect io print (str "[" timestamp "] " level-str ": " message)))
+        nil)))
+
+;; Convenience functions for each log level
+(define log-debug (lambda (msg) (log LOG_DEBUG msg)))
+(define log-info (lambda (msg) (log LOG_INFO msg)))
+(define log-warn (lambda (msg) (log LOG_WARN msg)))
+(define log-error (lambda (msg) (log LOG_ERROR msg)))
+
+;; === Basic Usage ===
+(effect io print "=== Basic Logging ===")
+(log-info "Application started")
+(log-debug "This debug message won't show (level too low)")
+(log-warn "This is a warning")
+(log-error "This is an error")
+
+;; Change log level
+(effect io print "\n=== Changing Log Level to DEBUG ===")
+(effect state set "log-level" LOG_DEBUG)
+(log-debug "Now debug messages appear!")
+(log-info "Info message")
+
+;; === Structured Logging ===
+(effect io print "\n=== Structured Logging ===")
+
+;; Log with structured data
+(define log-structured
+  (lambda (level message data)
+    (if (>= level (effect state get "log-level"))
+        (let ((timestamp (effect time now))
+              (level-str (level-to-string level)))
+          (effect io print (str "[" timestamp "] " level-str ": " message))
+          (if (not (nil? data))
+              (effect io print (str "  Data: " data))
+              nil))
+        nil)))
+
+;; Structured logging convenience functions
+(define log-info-data 
+  (lambda (msg data) (log-structured LOG_INFO msg data)))
+(define log-error-data 
+  (lambda (msg data) (log-structured LOG_ERROR msg data)))
+
+;; Example usage
+(log-info-data "User logged in" {:user-id 123 :ip "192.168.1.1"})
+(log-error-data "Database connection failed" 
+  {:host "db.example.com" :port 5432 :retry-count 3})
+
+;; === Logger with Context ===
+(effect io print "\n=== Logger with Context ===")
+
+;; Create a logger with context
+(define make-logger
+  (lambda (context)
+    {:debug (lambda (msg) 
+              (log-debug (str "[" context "] " msg)))
+     :info (lambda (msg) 
+             (log-info (str "[" context "] " msg)))
+     :warn (lambda (msg) 
+             (log-warn (str "[" context "] " msg)))
+     :error (lambda (msg) 
+              (log-error (str "[" context "] " msg)))}))
+
+;; Create loggers for different components
+(define db-logger (make-logger "DATABASE"))
+(define api-logger (make-logger "API"))
+(define auth-logger (make-logger "AUTH"))
+
+;; Use contextual loggers
+((get db-logger :info) "Connected to database")
+((get api-logger :info) "API server started on port 8080")
+((get auth-logger :warn) "Invalid login attempt")
+((get db-logger :error) "Query timeout after 30s")
+
+;; === Performance Logging ===
+(effect io print "\n=== Performance Logging ===")
+
+;; Log function execution time
+(define log-execution-time
+  (lambda (name f)
+    (let ((start (effect time now)))
+      (let ((result (f)))
+        (let ((duration (- (effect time now) start)))
+          (log-info (str "Performance: " name " took " duration "ms"))
+          result)))))
+
+;; Example operations to measure
+(define slow-operation
+  (lambda ()
+    (let ((sum 0))
+      (dotimes (i 10000)
+        (set! sum (+ sum i)))
+      sum)))
+
+(define fast-operation
+  (lambda ()
+    (+ 1 2 3 4 5)))
+
+(log-execution-time "Slow operation" slow-operation)
+(log-execution-time "Fast operation" fast-operation)
+
+;; === Request Logging ===
+(effect io print "\n=== Request Logging Pattern ===")
+
+;; Simulate HTTP request logging
+(define log-request
+  (lambda (method path status duration)
+    (let ((level (if (>= status 400) LOG_ERROR LOG_INFO))
+          (message (str method " " path " " status " " duration "ms")))
+      (log-structured level message
+        {:method method :path path :status status :duration duration}))))
+
+;; Simulate some requests
+(log-request "GET" "/api/users" 200 45)
+(log-request "POST" "/api/users" 201 123)
+(log-request "GET" "/api/users/999" 404 12)
+(log-request "POST" "/api/auth/login" 401 67)
+(log-request "GET" "/api/internal" 500 234)
+
+;; === Error Logging with Stack Context ===
+(effect io print "\n=== Error Logging with Context ===")
+
+;; Function that logs errors with context
+(define with-error-logging
+  (lambda (operation-name f)
+    ;; In a real implementation, this would catch errors
+    ;; For now, we'll simulate error scenarios
+    (log-info (str "Starting operation: " operation-name))
+    (let ((result (f)))
+      (if (nil? result)
+          (log-error-data (str "Operation failed: " operation-name)
+            {:operation operation-name
+             :timestamp (effect time now)
+             :context "Check previous logs for details"})
+          (do
+            (log-info (str "Operation completed: " operation-name))
+            result)))))
+
+;; Example operations
+(with-error-logging "user-registration"
+  (lambda () 
+    (log-debug "Validating user data...")
+    (log-debug "Checking username availability...")
+    (log-info "User registered successfully")
+    {:user-id 456}))
+
+(with-error-logging "payment-processing"
+  (lambda ()
+    (log-debug "Validating payment details...")
+    (log-warn "Payment gateway slow to respond")
+    (log-error "Payment failed: Insufficient funds")
+    nil))  ; Simulate failure
+
+;; === Log Filtering and Formatting ===
+(effect io print "\n=== Advanced Logging Features ===")
+
+;; Create a filtered logger
+(define make-filtered-logger
+  (lambda (context filter-fn)
+    (let ((logger (make-logger context)))
+      {:debug (lambda (msg) 
+                (if (filter-fn LOG_DEBUG msg)
+                    ((get logger :debug) msg)
+                    nil))
+       :info (lambda (msg)
+               (if (filter-fn LOG_INFO msg)
+                   ((get logger :info) msg)
+                   nil))
+       :warn (lambda (msg)
+               (if (filter-fn LOG_WARN msg)
+                   ((get logger :warn) msg)
+                   nil))
+       :error (lambda (msg)
+                (if (filter-fn LOG_ERROR msg)
+                    ((get logger :error) msg)
+                    nil))})))
+
+;; Filter that excludes messages containing "sensitive"
+(define security-filter
+  (lambda (level msg)
+    (not (contains? msg "sensitive"))))
+
+;; Create a filtered logger
+(define secure-logger (make-filtered-logger "SECURE" security-filter))
+
+;; Test filtering
+((get secure-logger :info) "Normal message appears")
+((get secure-logger :info) "This sensitive data is filtered")  ; Won't appear
+((get secure-logger :error) "Error with sensitive info")       ; Won't appear
+
+;; Note: contains? is not in stdlib, so let's define a simple version
+(define contains?
+  (lambda (str substring)
+    ;; Simple implementation - in real code would be more robust
+    (>= (index-of str substring) 0)))
+
+(define index-of
+  (lambda (str substring)
+    ;; Simplified - returns -1 if not found, 0 if found at start
+    ;; In real implementation would search entire string
+    (if (= (take (length substring) str) substring)
+        0
+        -1)))
+
+;; === Summary ===
+(effect io print "\n=== Logging System Summary ===")
+(log-info "FluentAI logging features demonstrated:")
+(log-info "- Basic logging with levels (DEBUG, INFO, WARN, ERROR)")
+(log-info "- Structured logging with data objects")
+(log-info "- Contextual loggers for different components")
+(log-info "- Performance measurement logging")
+(log-info "- Request/response logging patterns")
+(log-info "- Error logging with context")
+(log-info "- Log filtering capabilities")
+(log-info "All implemented using FluentAI's built-in effect system!")

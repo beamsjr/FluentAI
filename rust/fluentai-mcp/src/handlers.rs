@@ -6,7 +6,7 @@ use tracing::debug;
 
 use fluentai_parser::Parser;
 use fluentai_vm::{VM, Compiler, Bytecode, VMBuilder};
-use fluentai_vm::bytecode::Value;
+use fluentai_vm::Value;
 use fluentai_vm::security::SecurityPolicy;
 
 use crate::server::ServerState;
@@ -220,10 +220,10 @@ pub async fn handle_reset_interpreter(state: &mut ServerState, _args: Option<&Js
 /// Format a FluentAi value for display
 fn format_value(value: &Value) -> String {
     match value {
-        Value::Int(n) => n.to_string(),
+        Value::Integer(n) => n.to_string(),
         Value::Float(f) => f.to_string(),
         Value::String(s) => format!("\"{}\"", s),
-        Value::Bool(b) => b.to_string(),
+        Value::Boolean(b) => b.to_string(),
         Value::Nil => "nil".to_string(),
         Value::List(items) => {
             let items_str: Vec<_> = items.iter().map(format_value).collect();
@@ -249,5 +249,12 @@ fn format_value(value: &Value) -> String {
         }
         Value::Module { name, .. } => format!("<module:{}>", name),
         Value::GcHandle(_) => "<gc-handle>".to_string(),
+        Value::Symbol(s) => format!(":{}", s),
+        Value::Procedure(_) => "<procedure>".to_string(),
+        Value::Vector(items) => {
+            let items_str: Vec<_> = items.iter().map(format_value).collect();
+            format!("#[{}]", items_str.join(" "))
+        }
+        Value::NativeFunction { name, .. } => format!("<native-function:{}>", name),
     }
 }

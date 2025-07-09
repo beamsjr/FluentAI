@@ -1,0 +1,2 @@
+;; Test fold function
+(fold + 0 (list 1 2 3 4 5))

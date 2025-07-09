@@ -16,6 +16,8 @@ fluentai-parser = { path = "../fluentai-parser" }
 fluentai-vm = { path = "../fluentai-vm" }
 fluentai-package = { path = "../fluentai-package" }
 fluentai-optimizer = { path = "../fluentai-optimizer" }
+fluentai-runtime = { path = "../fluentai-runtime" }
+fluentai-sdk = { path = "../fluentai-sdk" }
 
 # Optional visualization
 fluentai-viz = { path = "../fluentai-viz", optional = true }
@@ -36,6 +38,11 @@ toml = "0.8"
 serde.workspace = true
 serde_json.workspace = true
 webbrowser = "1.0"
+colored = "2.0"
+indicatif = "0.17"
+zip = "0.6"
+chrono = "0.4"
+tempfile = "3.8"
 
 [features]
 default = ["visualization"]

@@ -184,7 +184,7 @@ impl MigrationRepository {
         // This is database-specific, using a generic approach
         let result = self.connection.fetch_all(
             "SELECT 1 FROM information_schema.tables WHERE table_name = ?",
-            vec![fluentai_vm::bytecode::Value::String(self.table_name.clone())]
+            vec![fluentai_vm::Value::String(self.table_name.clone())]
         ).await;
         
         match result {
@@ -241,7 +241,7 @@ impl MigrationRepository {
         
         let rows = self.connection.fetch_all(
             &query,
-            vec![fluentai_vm::bytecode::Value::String(version.to_string())]
+            vec![fluentai_vm::Value::String(version.to_string())]
         ).await?;
         
         Ok(!rows.is_empty())
@@ -262,18 +262,18 @@ impl MigrationRepository {
         );
         
         let params = vec![
-            fluentai_vm::bytecode::Value::String(metadata.version.clone()),
-            fluentai_vm::bytecode::Value::String(metadata.name.clone()),
+            fluentai_vm::Value::String(metadata.version.clone()),
+            fluentai_vm::Value::String(metadata.name.clone()),
             metadata.description.as_ref()
-                .map(|d| fluentai_vm::bytecode::Value::String(d.clone()))
-                .unwrap_or(fluentai_vm::bytecode::Value::Nil),
-            fluentai_vm::bytecode::Value::String(metadata.checksum.clone()),
-            fluentai_vm::bytecode::Value::String(
+                .map(|d| fluentai_vm::Value::String(d.clone()))
+                .unwrap_or(fluentai_vm::Value::Nil),
+            fluentai_vm::Value::String(metadata.checksum.clone()),
+            fluentai_vm::Value::String(
                 metadata.applied_at.unwrap_or_else(Utc::now).to_rfc3339()
             ),
             metadata.execution_time_ms
-                .map(|ms| fluentai_vm::bytecode::Value::Int(ms as i64))
-                .unwrap_or(fluentai_vm::bytecode::Value::Nil),
+                .map(|ms| fluentai_vm::Value::Integer(ms as i64))
+                .unwrap_or(fluentai_vm::Value::Nil),
         ];
         
         tx.execute(&query, params).await?;
@@ -293,7 +293,7 @@ impl MigrationRepository {
         
         tx.execute(
             &query,
-            vec![fluentai_vm::bytecode::Value::String(version.to_string())]
+            vec![fluentai_vm::Value::String(version.to_string())]
         ).await?;
         Ok(())
     }

@@ -50,13 +50,13 @@ fn list_slice(args: &[Value]) -> Result<Value> {
     };
     
     let start = match &args[1] {
-        Value::Int(i) => *i as usize,
+        Value::Integer(i) => *i as usize,
         _ => return Err(anyhow!("list-slice: expected integer start index")),
     };
     
     let end = if args.len() > 2 {
         match &args[2] {
-            Value::Int(i) => *i as usize,
+            Value::Integer(i) => *i as usize,
             _ => return Err(anyhow!("list-slice: expected integer end index")),
         }
     } else {
@@ -130,7 +130,7 @@ fn list_sort(args: &[Value]) -> Result<Value> {
             // Basic sorting for numbers and strings
             sorted.sort_by(|a, b| {
                 match (a, b) {
-                    (Value::Int(x), Value::Int(y)) => x.cmp(y),
+                    (Value::Integer(x), Value::Integer(y)) => x.cmp(y),
                     (Value::Float(x), Value::Float(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
                     (Value::String(x), Value::String(y)) => x.cmp(y),
                     _ => std::cmp::Ordering::Equal,
@@ -220,7 +220,7 @@ fn set_contains(args: &[Value]) -> Result<Value> {
         Value::List(items) => {
             let search_key = format!("{:?}", &args[1]);
             let exists = items.iter().any(|item| format!("{:?}", item) == search_key);
-            Ok(Value::Bool(exists))
+            Ok(Value::Boolean(exists))
         }
         _ => Err(anyhow!("set-contains?: expected set (list)")),
     }
@@ -399,7 +399,7 @@ fn dict_contains(args: &[Value]) -> Result<Value> {
         _ => return Err(anyhow!("dict-contains?: expected string key")),
     };
     
-    Ok(Value::Bool(dict.contains_key(key)))
+    Ok(Value::Boolean(dict.contains_key(key)))
 }
 
 fn dict_keys(args: &[Value]) -> Result<Value> {

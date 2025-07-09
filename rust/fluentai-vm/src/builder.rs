@@ -6,10 +6,10 @@ use anyhow::Result;
 
 use crate::vm::VM;
 use crate::bytecode::Bytecode;
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use crate::security::{SecurityManager, SecurityPolicy};
 use crate::gc::GcConfig;
-use fluentai_effects::{EffectContext, EffectRuntime};
+use fluentai_effects::{EffectContext, EffectRuntime, provider::EffectHandlerProvider};
 use fluentai_stdlib::StdlibRegistry;
 use fluentai_modules::{ModuleLoader, ModuleConfig};
 
@@ -28,6 +28,8 @@ pub struct VMBuilder {
     effect_context: Option<Arc<EffectContext>>,
     /// Optional custom effect runtime
     effect_runtime: Option<Arc<EffectRuntime>>,
+    /// Optional effect handler provider
+    effect_handler_provider: Option<Arc<EffectHandlerProvider>>,
     /// Optional custom stdlib registry
     stdlib_registry: Option<StdlibRegistry>,
     /// Module configuration
@@ -55,6 +57,7 @@ impl VMBuilder {
             bytecode: None,
             effect_context: None,
             effect_runtime: None,
+            effect_handler_provider: None,
             stdlib_registry: None,
             module_config: None,
             initial_globals: FxHashMap::default(),
@@ -82,6 +85,12 @@ impl VMBuilder {
     /// Set a custom effect runtime
     pub fn with_effect_runtime(mut self, runtime: Arc<EffectRuntime>) -> Self {
         self.effect_runtime = Some(runtime);
+        self
+    }
+    
+    /// Set an effect handler provider
+    pub fn with_effect_handler_provider(mut self, provider: Arc<EffectHandlerProvider>) -> Self {
+        self.effect_handler_provider = Some(provider);
         self
     }
     
@@ -164,7 +173,14 @@ impl VMBuilder {
         let mut vm = VM::new(bytecode);
         
         // Apply custom dependencies if provided
-        if let Some(context) = self.effect_context {
+        // If we have an effect handler provider but no context, create one from the provider
+        let effect_context = match (self.effect_context, self.effect_handler_provider) {
+            (Some(context), _) => Some(context),
+            (None, Some(provider)) => provider.create_context().ok().map(Arc::new),
+            (None, None) => None,
+        };
+        
+        if let Some(context) = effect_context {
             vm.set_effect_context(context);
         }
         

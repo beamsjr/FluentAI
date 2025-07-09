@@ -2,7 +2,7 @@
 
 use fluentai_vm::{
     simd::{SimdOps, SimdOp, PortableSimd},
-    bytecode::Value,
+    Value,
 };
 use std::f64;
 
@@ -156,16 +156,16 @@ fn test_simd_with_values_float_lists() {
 #[test]
 fn test_simd_with_values_int_lists() {
     let a = Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
-        Value::Int(4),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
+        Value::Integer(4),
     ]);
     let b = Value::List(vec![
-        Value::Int(10),
-        Value::Int(20),
-        Value::Int(30),
-        Value::Int(40),
+        Value::Integer(10),
+        Value::Integer(20),
+        Value::Integer(30),
+        Value::Integer(40),
     ]);
     
     // Test addition (should work for integers)
@@ -173,10 +173,10 @@ fn test_simd_with_values_int_lists() {
     match result {
         Value::List(list) => {
             assert_eq!(list.len(), 4);
-            assert_eq!(list[0], Value::Int(11));
-            assert_eq!(list[1], Value::Int(22));
-            assert_eq!(list[2], Value::Int(33));
-            assert_eq!(list[3], Value::Int(44));
+            assert_eq!(list[0], Value::Integer(11));
+            assert_eq!(list[1], Value::Integer(22));
+            assert_eq!(list[2], Value::Integer(33));
+            assert_eq!(list[3], Value::Integer(44));
         }
         _ => panic!("Expected list result"),
     }
@@ -192,16 +192,16 @@ fn test_simd_with_values_int_lists() {
 #[test]
 fn test_simd_mixed_numeric_lists() {
     let a = Value::List(vec![
-        Value::Int(1),
+        Value::Integer(1),
         Value::Float(2.0),
-        Value::Int(3),
+        Value::Integer(3),
         Value::Float(4.0),
     ]);
     let b = Value::List(vec![
         Value::Float(5.0),
-        Value::Int(6),
+        Value::Integer(6),
         Value::Float(7.0),
-        Value::Int(8),
+        Value::Integer(8),
     ]);
     
     // Mixed lists should fail

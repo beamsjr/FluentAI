@@ -1,0 +1,203 @@
+;; Pattern Matching Comprehensive Example
+;; Demonstrates various pattern matching capabilities in FluentAI
+
+;; Basic literal pattern matching
+(define match-literal
+  (lambda (x)
+    (match x
+      (1 "one")
+      (2 "two")
+      (3 "three")
+      (_ "other"))))
+
+;; Test literal matching
+(effect io print "=== Literal Pattern Matching ===")
+(effect io print (match-literal 1))     ; "one"
+(effect io print (match-literal 2))     ; "two"
+(effect io print (match-literal 3))     ; "three"
+(effect io print (match-literal 42))    ; "other"
+
+;; Pattern matching with lists (using conditional approach since Cons patterns have issues)
+(define list-length
+  (lambda (lst)
+    (if (empty? lst)
+        0
+        (+ 1 (list-length (tail lst))))))
+
+;; Pattern matching on list structure using conditionals
+(define describe-list
+  (lambda (lst)
+    (if (empty? lst)
+        "empty list"
+        (if (= (length lst) 1)
+            "single element list"
+            (if (= (length lst) 2)
+                "two element list"
+                "list with many elements")))))
+
+(effect io print "\n=== List Pattern Matching (Conditional) ===")
+(effect io print (describe-list (list)))                ; "empty list"
+(effect io print (describe-list (list 1)))              ; "single element list"
+(effect io print (describe-list (list 1 2)))            ; "two element list"
+(effect io print (describe-list (list 1 2 3 4 5)))      ; "list with many elements"
+
+;; Working with list head and tail
+(define sum-list
+  (lambda (lst)
+    (if (empty? lst)
+        0
+        (+ (head lst) (sum-list (tail lst))))))
+
+(define product-list
+  (lambda (lst)
+    (if (empty? lst)
+        1
+        (* (head lst) (product-list (tail lst))))))
+
+(effect io print "\n=== List Operations with Recursion ===")
+(define numbers (list 1 2 3 4 5))
+(effect io print (str "Sum of " numbers " = " (sum-list numbers)))         ; 15
+(effect io print (str "Product of " numbers " = " (product-list numbers))) ; 120
+
+;; Finding elements in lists
+(define find-first
+  (lambda (pred lst)
+    (if (empty? lst)
+        nil
+        (if (pred (head lst))
+            (head lst)
+            (find-first pred (tail lst))))))
+
+(define is-even (lambda (x) (= (mod x 2) 0)))
+(define is-odd (lambda (x) (= (mod x 2) 1)))
+
+(effect io print "\n=== Finding Elements ===")
+(effect io print (str "First even in " numbers ": " (find-first is-even numbers))) ; 2
+(effect io print (str "First odd in " numbers ": " (find-first is-odd numbers)))   ; 1
+
+;; List transformation
+(define map-list
+  (lambda (f lst)
+    (if (empty? lst)
+        (list)
+        (cons (f (head lst)) (map-list f (tail lst))))))
+
+(define square (lambda (x) (* x x)))
+(define double (lambda (x) (* x 2)))
+
+(effect io print "\n=== List Transformations ===")
+(effect io print (str "Original: " numbers))
+(effect io print (str "Squared: " (map-list square numbers)))  ; (1 4 9 16 25)
+(effect io print (str "Doubled: " (map-list double numbers)))  ; (2 4 6 8 10)
+
+;; Filtering lists
+(define filter-list
+  (lambda (pred lst)
+    (if (empty? lst)
+        (list)
+        (if (pred (head lst))
+            (cons (head lst) (filter-list pred (tail lst)))
+            (filter-list pred (tail lst))))))
+
+(effect io print "\n=== List Filtering ===")
+(define mixed (list 1 2 3 4 5 6 7 8 9 10))
+(effect io print (str "All numbers: " mixed))
+(effect io print (str "Even numbers: " (filter-list is-even mixed)))  ; (2 4 6 8 10)
+(effect io print (str "Odd numbers: " (filter-list is-odd mixed)))    ; (1 3 5 7 9)
+
+;; Folding/Reducing lists
+(define fold-left
+  (lambda (f init lst)
+    (if (empty? lst)
+        init
+        (fold-left f (f init (head lst)) (tail lst)))))
+
+(define fold-right
+  (lambda (f init lst)
+    (if (empty? lst)
+        init
+        (f (head lst) (fold-right f init (tail lst))))))
+
+(effect io print "\n=== List Folding ===")
+(effect io print (str "Sum using fold-left: " (fold-left + 0 numbers)))      ; 15
+(effect io print (str "Product using fold-left: " (fold-left * 1 numbers))) ; 120
+
+;; List predicates
+(define all?
+  (lambda (pred lst)
+    (if (empty? lst)
+        true
+        (if (pred (head lst))
+            (all? pred (tail lst))
+            false))))
+
+(define any?
+  (lambda (pred lst)
+    (if (empty? lst)
+        false
+        (if (pred (head lst))
+            true
+            (any? pred (tail lst))))))
+
+(define positive? (lambda (x) (> x 0)))
+(define negative? (lambda (x) (< x 0)))
+
+(effect io print "\n=== List Predicates ===")
+(effect io print (str "All positive in " numbers "? " (all? positive? numbers)))  ; true
+(effect io print (str "Any negative in " numbers "? " (any? negative? numbers)))  ; false
+(define mixed-nums (list -2 -1 0 1 2))
+(effect io print (str "All positive in " mixed-nums "? " (all? positive? mixed-nums)))  ; false
+(effect io print (str "Any negative in " mixed-nums "? " (any? negative? mixed-nums)))  ; true
+
+;; List utilities
+(define reverse-list
+  (lambda (lst)
+    (fold-left (lambda (acc x) (cons x acc)) (list) lst)))
+
+(define take
+  (lambda (n lst)
+    (if (or (= n 0) (empty? lst))
+        (list)
+        (cons (head lst) (take (- n 1) (tail lst))))))
+
+(define drop
+  (lambda (n lst)
+    (if (or (= n 0) (empty? lst))
+        lst
+        (drop (- n 1) (tail lst)))))
+
+(effect io print "\n=== List Utilities ===")
+(effect io print (str "Original: " numbers))
+(effect io print (str "Reversed: " (reverse-list numbers)))          ; (5 4 3 2 1)
+(effect io print (str "Take 3: " (take 3 numbers)))                  ; (1 2 3)
+(effect io print (str "Drop 2: " (drop 2 numbers)))                  ; (3 4 5)
+
+;; Nested list operations
+(define flatten
+  (lambda (lst)
+    (if (empty? lst)
+        (list)
+        (let ((h (head lst)))
+          (if (list? h)
+              (append (flatten h) (flatten (tail lst)))
+              (cons h (flatten (tail lst))))))))
+
+;; Note: append is not in stdlib, so let's define it
+(define append
+  (lambda (lst1 lst2)
+    (if (empty? lst1)
+        lst2
+        (cons (head lst1) (append (tail lst1) lst2)))))
+
+(effect io print "\n=== Nested List Operations ===")
+(define nested (list 1 (list 2 3) (list 4 (list 5 6)) 7))
+(effect io print (str "Nested list: " nested))
+(effect io print (str "Flattened: " (flatten nested)))  ; (1 2 3 4 5 6 7)
+
+(effect io print "\n=== Pattern Matching Summary ===")
+(effect io print "FluentAI supports:")
+(effect io print "- Literal pattern matching with match expressions")
+(effect io print "- List operations using conditional logic")
+(effect io print "- Recursive list processing")
+(effect io print "- Higher-order list functions (map, filter, fold)")
+(effect io print "- Complex list transformations")

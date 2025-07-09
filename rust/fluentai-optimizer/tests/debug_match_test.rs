@@ -3,7 +3,7 @@
 use fluentai_core::ast::{Graph, Node, Literal, Pattern};
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::Value,
+    Value,
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;
@@ -71,13 +71,13 @@ fn test_debug_match_optimization() -> Result<()> {
     // Test without optimization first
     println!("\nTesting without optimization...");
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::None)?;
-    assert_eq!(result, Value::Int(99));
+    assert_eq!(result, Value::Integer(99));
     println!("✓ Success without optimization");
     
     // Test with standard optimization
     println!("\nTesting with standard optimization...");
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::Standard)?;
-    assert_eq!(result, Value::Int(99));
+    assert_eq!(result, Value::Integer(99));
     println!("✓ Success with standard optimization");
     
     Ok(())

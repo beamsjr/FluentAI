@@ -21,7 +21,7 @@ fn test_handler_in_let_binding() {
     // The handler should catch the error and return 42
     match result {
         Ok(value) => {
-            assert_eq!(value, fluentai_vm::bytecode::Value::Int(42));
+            assert_eq!(value, fluentai_vm::Value::Integer(42));
         }
         Err(e) => {
             panic!("Unexpected error: {:?}", e);

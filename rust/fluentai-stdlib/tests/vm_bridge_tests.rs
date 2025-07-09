@@ -3,7 +3,8 @@
 use fluentai_stdlib::vm_bridge::*;
 use fluentai_stdlib::value::Value;
 use anyhow::Result;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use fluentai_effects::EffectContext;
 
 // Mock VM callback for testing
 struct MockVMCallback {
@@ -30,6 +31,10 @@ impl VMCallback for MockVMCallback {
         self.call_log.lock().unwrap().push((func.clone(), args.to_vec()));
         Ok(self.return_value.clone())
     }
+    
+    fn effect_context(&self) -> Arc<EffectContext> {
+        Arc::new(EffectContext::default())
+    }
 }
 
 #[test]
@@ -37,7 +42,7 @@ fn test_noop_vm_callback() {
     let mut callback = NoOpVMCallback;
     
     let func = Value::String("test-func".to_string());
-    let args = vec![Value::Int(42)];
+    let args = vec![Value::Integer(42)];
     
     let result = callback.call_function(&func, &args);
     assert!(result.is_err());
@@ -52,18 +57,18 @@ fn test_stdlib_context_default() {
 
 #[test]
 fn test_stdlib_context_with_callback() {
-    let callback = Box::new(MockVMCallback::new(Value::Int(100)));
+    let callback = Box::new(MockVMCallback::new(Value::Integer(100)));
     let mut context = StdlibContext::with_callback(callback);
     
     assert!(context.vm_callback.is_some());
     
     // Test calling a function
     let func = Value::String("add".to_string());
-    let args = vec![Value::Int(1), Value::Int(2)];
+    let args = vec![Value::Integer(1), Value::Integer(2)];
     
     let result = context.call_function(&func, &args);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(100));
+    assert_eq!(result.unwrap(), Value::Integer(100));
 }
 
 #[test]
@@ -88,8 +93,8 @@ fn test_mock_vm_callback_logging() {
     let mut context = StdlibContext::with_callback(callback);
     
     // Make multiple calls
-    context.call_function(&Value::String("func1".to_string()), &[Value::Int(1)]).unwrap();
-    context.call_function(&Value::String("func2".to_string()), &[Value::Int(2), Value::Int(3)]).unwrap();
+    context.call_function(&Value::String("func1".to_string()), &[Value::Integer(1)]).unwrap();
+    context.call_function(&Value::String("func2".to_string()), &[Value::Integer(2), Value::Integer(3)]).unwrap();
     
     // The call log is inside the moved callback, so we can't access it here
     // In a real scenario, you'd use Arc<Mutex<>> or similar for shared state
@@ -110,11 +115,11 @@ fn test_vm_callback_trait_object() {
 fn test_different_value_types() {
     let test_values = vec![
         Value::Nil,
-        Value::Bool(true),
-        Value::Int(42),
+        Value::Boolean(true),
+        Value::Integer(42),
         Value::Float(3.14),
         Value::String("test".to_string()),
-        Value::List(vec![Value::Int(1), Value::Int(2)]),
+        Value::List(vec![Value::Integer(1), Value::Integer(2)]),
     ];
     
     for value in test_values {
@@ -129,18 +134,22 @@ fn test_different_value_types() {
 #[test]
 fn test_higher_order_function_scenario() {
     // Simulate a map operation where we need to call a VM function for each element
-    let list = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
+    let list = vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)];
     let mapper_func = Value::String("double".to_string()); // Pretend this is a VM function
     
     // Create a callback that doubles the input
     struct DoubleCallback;
     impl VMCallback for DoubleCallback {
         fn call_function(&mut self, _func: &Value, args: &[Value]) -> Result<Value> {
-            if let Some(Value::Int(n)) = args.first() {
-                Ok(Value::Int(n * 2))
+            if let Some(Value::Integer(n)) = args.first() {
+                Ok(Value::Integer(n * 2))
             } else {
                 Err(anyhow::anyhow!("Expected integer argument"))
             }
+        }
+        
+        fn effect_context(&self) -> Arc<EffectContext> {
+            Arc::new(EffectContext::default())
         }
     }
     
@@ -153,5 +162,5 @@ fn test_higher_order_function_scenario() {
         results.push(result);
     }
     
-    assert_eq!(results, vec![Value::Int(2), Value::Int(4), Value::Int(6)]);
+    assert_eq!(results, vec![Value::Integer(2), Value::Integer(4), Value::Integer(6)]);
 }

@@ -1,7 +1,7 @@
 //! Unboxed value representation for high-performance numeric operations
 
 use std::fmt;
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use crate::safety::{PromiseId, ChannelId};
 use rustc_hash::FxHashMap;
 
@@ -68,11 +68,21 @@ impl UnboxedValue {
     pub fn from_value(value: Value) -> Self {
         match value {
             Value::Nil => UnboxedValue::Nil,
-            Value::Bool(b) => UnboxedValue::Bool(b),
-            Value::Int(i) => UnboxedValue::Int(i),
+            Value::Boolean(b) => UnboxedValue::Bool(b),
+            Value::Integer(i) => UnboxedValue::Int(i),
             Value::Float(f) => UnboxedValue::Float(f),
             Value::String(s) => UnboxedValue::Boxed(Box::new(BoxedValue::String(s))),
+            Value::Symbol(s) => UnboxedValue::Boxed(Box::new(BoxedValue::String(s))), // Treat symbols as strings
             Value::List(items) => {
+                let unboxed_items = items.into_iter().map(UnboxedValue::from_value).collect();
+                UnboxedValue::Boxed(Box::new(BoxedValue::List(unboxed_items)))
+            }
+            Value::Procedure(_) => {
+                // Procedures are not yet supported in unboxed representation
+                UnboxedValue::Boxed(Box::new(BoxedValue::String("<procedure>".to_string())))
+            }
+            Value::Vector(items) => {
+                // Convert vectors to lists in unboxed representation
                 let unboxed_items = items.into_iter().map(UnboxedValue::from_value).collect();
                 UnboxedValue::Boxed(Box::new(BoxedValue::List(unboxed_items)))
             }
@@ -80,6 +90,10 @@ impl UnboxedValue {
                 // Maps are not yet supported in unboxed representation
                 // For now, convert to a string representation
                 UnboxedValue::Boxed(Box::new(BoxedValue::String("<map>".to_string())))
+            }
+            Value::NativeFunction { name, .. } => {
+                // Native functions are not supported in unboxed representation
+                UnboxedValue::Boxed(Box::new(BoxedValue::String(format!("<native-function: {}>", name))))
             }
             Value::Function { chunk_id, env } => {
                 let unboxed_env = env.into_iter().map(UnboxedValue::from_value).collect();
@@ -90,8 +104,8 @@ impl UnboxedValue {
                 }))
             }
             Value::Cell(idx) => UnboxedValue::Boxed(Box::new(BoxedValue::Cell(idx))),
-            Value::Promise(id) => UnboxedValue::Boxed(Box::new(BoxedValue::Promise(id))),
-            Value::Channel(id) => UnboxedValue::Boxed(Box::new(BoxedValue::Channel(id))),
+            Value::Promise(id) => UnboxedValue::Boxed(Box::new(BoxedValue::Promise(PromiseId(id)))),
+            Value::Channel(id) => UnboxedValue::Boxed(Box::new(BoxedValue::Channel(ChannelId(id)))),
             Value::Tagged { tag, values } => {
                 let unboxed_values = values.into_iter().map(UnboxedValue::from_value).collect();
                 UnboxedValue::Boxed(Box::new(BoxedValue::Tagged {
@@ -120,8 +134,8 @@ impl UnboxedValue {
     pub fn to_value(self) -> Value {
         match self {
             UnboxedValue::Nil => Value::Nil,
-            UnboxedValue::Bool(b) => Value::Bool(b),
-            UnboxedValue::Int(i) => Value::Int(i),
+            UnboxedValue::Bool(b) => Value::Boolean(b),
+            UnboxedValue::Int(i) => Value::Integer(i),
             UnboxedValue::Float(f) => Value::Float(f),
             UnboxedValue::Boxed(boxed) => match *boxed {
                 BoxedValue::String(s) => Value::String(s),
@@ -134,8 +148,8 @@ impl UnboxedValue {
                     Value::Function { chunk_id, env }
                 }
                 BoxedValue::Cell(idx) => Value::Cell(idx),
-                BoxedValue::Promise(id) => Value::Promise(id),
-                BoxedValue::Channel(id) => Value::Channel(id),
+                BoxedValue::Promise(id) => Value::Promise(id.0),
+                BoxedValue::Channel(id) => Value::Channel(id.0),
                 BoxedValue::Tagged { tag, values } => {
                     let vals = values.into_iter().map(|v| v.to_value()).collect();
                     Value::Tagged { tag, values: vals }

@@ -81,7 +81,7 @@ nil
     
     // Should return 10 (double of 5)
     match result {
-        Value::Int(n) => assert_eq!(n, 10),
+        Value::Integer(n) => assert_eq!(n, 10),
         _ => panic!("Expected integer result, got {:?}", result),
     }
 }
@@ -151,7 +151,7 @@ fn test_module_import_all() {
     
     // Should return 11 (10 + 1)
     match result {
-        Value::Int(n) => assert_eq!(n, 11),
+        Value::Integer(n) => assert_eq!(n, 11),
         _ => panic!("Expected integer result, got {:?}", result),
     }
 }

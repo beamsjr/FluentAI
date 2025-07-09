@@ -3,8 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::unboxed::*;
-    use crate::bytecode::Value;
-    use crate::safety::{PromiseId, ChannelId};
+    use fluentai_core::value::Value;
     use rustc_hash::FxHashMap;
     
     mod basic_unboxed_values {
@@ -123,14 +122,14 @@ mod tests {
         
         #[test]
         fn test_promise_boxed() {
-            let val = UnboxedValue::Boxed(Box::new(BoxedValue::Promise(PromiseId(456))));
+            let val = UnboxedValue::Boxed(Box::new(BoxedValue::Promise(crate::safety::PromiseId(456))));
             assert!(val.is_truthy());
             assert_eq!(format!("{}", val), "<promise:456>");
         }
         
         #[test]
         fn test_channel_boxed() {
-            let val = UnboxedValue::Boxed(Box::new(BoxedValue::Channel(ChannelId(789))));
+            let val = UnboxedValue::Boxed(Box::new(BoxedValue::Channel(crate::safety::ChannelId(789))));
             assert!(val.is_truthy());
             assert_eq!(format!("{}", val), "<channel:789>");
         }
@@ -173,8 +172,8 @@ mod tests {
         #[test]
         fn test_from_value_primitives() {
             assert!(matches!(UnboxedValue::from_value(Value::Nil), UnboxedValue::Nil));
-            assert!(matches!(UnboxedValue::from_value(Value::Bool(true)), UnboxedValue::Bool(true)));
-            assert!(matches!(UnboxedValue::from_value(Value::Int(42)), UnboxedValue::Int(42)));
+            assert!(matches!(UnboxedValue::from_value(Value::Boolean(true)), UnboxedValue::Bool(true)));
+            assert!(matches!(UnboxedValue::from_value(Value::Integer(42)), UnboxedValue::Int(42)));
             assert!(matches!(UnboxedValue::from_value(Value::Float(3.14)), UnboxedValue::Float(f) if f == 3.14));
         }
         
@@ -193,8 +192,8 @@ mod tests {
         #[test]
         fn test_from_value_list() {
             let val = UnboxedValue::from_value(Value::List(vec![
-                Value::Int(1),
-                Value::Int(2),
+                Value::Integer(1),
+                Value::Integer(2),
             ]));
             match val {
                 UnboxedValue::Boxed(boxed) => match &*boxed {
@@ -213,7 +212,7 @@ mod tests {
         fn test_from_value_function() {
             let val = UnboxedValue::from_value(Value::Function {
                 chunk_id: 5,
-                env: vec![Value::Int(42)],
+                env: vec![Value::Integer(42)],
             });
             match val {
                 UnboxedValue::Boxed(boxed) => match &*boxed {
@@ -231,7 +230,7 @@ mod tests {
         #[test]
         fn test_from_value_map() {
             let mut map = FxHashMap::default();
-            map.insert("test".to_string(), Value::Int(42));
+            map.insert("test".to_string(), Value::Integer(42));
             let val = UnboxedValue::from_value(Value::Map(map));
             // Maps are not yet supported, converted to string
             match val {
@@ -246,8 +245,8 @@ mod tests {
         #[test]
         fn test_to_value_primitives() {
             assert_eq!(UnboxedValue::Nil.to_value(), Value::Nil);
-            assert_eq!(UnboxedValue::Bool(false).to_value(), Value::Bool(false));
-            assert_eq!(UnboxedValue::Int(-42).to_value(), Value::Int(-42));
+            assert_eq!(UnboxedValue::Bool(false).to_value(), Value::Boolean(false));
+            assert_eq!(UnboxedValue::Int(-42).to_value(), Value::Integer(-42));
             assert_eq!(UnboxedValue::Float(2.718).to_value(), Value::Float(2.718));
         }
         
@@ -267,8 +266,8 @@ mod tests {
             match value {
                 Value::List(items) => {
                     assert_eq!(items.len(), 2);
-                    assert_eq!(items[0], Value::Int(1));
-                    assert_eq!(items[1], Value::Bool(true));
+                    assert_eq!(items[0], Value::Integer(1));
+                    assert_eq!(items[1], Value::Boolean(true));
                 },
                 _ => panic!("Expected List"),
             }
@@ -278,17 +277,17 @@ mod tests {
         fn test_round_trip_conversion() {
             let values = vec![
                 Value::Nil,
-                Value::Bool(true),
-                Value::Int(42),
+                Value::Boolean(true),
+                Value::Integer(42),
                 Value::Float(3.14),
                 Value::String("test".to_string()),
-                Value::List(vec![Value::Int(1), Value::Int(2)]),
+                Value::List(vec![Value::Integer(1), Value::Integer(2)]),
                 Value::Cell(123),
-                Value::Promise(PromiseId(456)),
-                Value::Channel(ChannelId(789)),
+                Value::Promise(456),
+                Value::Channel(789),
                 Value::Tagged {
                     tag: "Test".to_string(),
-                    values: vec![Value::Int(42)],
+                    values: vec![Value::Integer(42)],
                 },
             ];
             

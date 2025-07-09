@@ -10,40 +10,40 @@ fn test_variadic_arithmetic() {
     // Test add with multiple arguments
     let add = stdlib.get("+").unwrap();
     assert_eq!(
-        add.call(&[Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(4)]).unwrap(),
-        Value::Int(10)
+        add.call(&[Value::Integer(1), Value::Integer(2), Value::Integer(3), Value::Integer(4)]).unwrap(),
+        Value::Integer(10)
     );
     // Add with no args - might not be supported
     // assert_eq!(
     //     add.call(&[]).unwrap(),
-    //     Value::Int(0)  // Empty sum is 0
+    //     Value::Integer(0)  // Empty sum is 0
     // );
     assert_eq!(
-        add.call(&[Value::Int(42)]).unwrap(),
-        Value::Int(42)  // Single arg
+        add.call(&[Value::Integer(42)]).unwrap(),
+        Value::Integer(42)  // Single arg
     );
     
     // Test multiply with multiple arguments
     let mul = stdlib.get("*").unwrap();
     assert_eq!(
-        mul.call(&[Value::Int(2), Value::Int(3), Value::Int(4)]).unwrap(),
-        Value::Int(24)
+        mul.call(&[Value::Integer(2), Value::Integer(3), Value::Integer(4)]).unwrap(),
+        Value::Integer(24)
     );
     // Multiply with no args - might not be supported
     // assert_eq!(
     //     mul.call(&[]).unwrap(),
-    //     Value::Int(1)  // Empty product is 1
+    //     Value::Integer(1)  // Empty product is 1
     // );
     assert_eq!(
-        mul.call(&[Value::Int(42)]).unwrap(),
-        Value::Int(42)  // Single arg
+        mul.call(&[Value::Integer(42)]).unwrap(),
+        Value::Integer(42)  // Single arg
     );
     
     // Test max with multiple arguments
     let max = stdlib.get("max").unwrap();
     assert_eq!(
-        max.call(&[Value::Int(3), Value::Int(7), Value::Int(2), Value::Int(9), Value::Int(5)]).unwrap(),
-        Value::Int(9)
+        max.call(&[Value::Integer(3), Value::Integer(7), Value::Integer(2), Value::Integer(9), Value::Integer(5)]).unwrap(),
+        Value::Integer(9)
     );
     assert_eq!(
         max.call(&[Value::Float(3.5), Value::Float(7.2), Value::Float(2.1)]).unwrap(),
@@ -53,8 +53,8 @@ fn test_variadic_arithmetic() {
     // Test min with multiple arguments
     let min = stdlib.get("min").unwrap();
     assert_eq!(
-        min.call(&[Value::Int(3), Value::Int(7), Value::Int(2), Value::Int(9), Value::Int(5)]).unwrap(),
-        Value::Int(2)
+        min.call(&[Value::Integer(3), Value::Integer(7), Value::Integer(2), Value::Integer(9), Value::Integer(5)]).unwrap(),
+        Value::Integer(2)
     );
     assert_eq!(
         min.call(&[Value::Float(3.5), Value::Float(7.2), Value::Float(2.1)]).unwrap(),
@@ -69,42 +69,42 @@ fn test_advanced_math_functions() {
     // Test gcd
     let gcd = stdlib.get("gcd").unwrap();
     assert_eq!(
-        gcd.call(&[Value::Int(48), Value::Int(18)]).unwrap(),
-        Value::Int(6)
+        gcd.call(&[Value::Integer(48), Value::Integer(18)]).unwrap(),
+        Value::Integer(6)
     );
     assert_eq!(
-        gcd.call(&[Value::Int(17), Value::Int(19)]).unwrap(),
-        Value::Int(1)  // Coprime
+        gcd.call(&[Value::Integer(17), Value::Integer(19)]).unwrap(),
+        Value::Integer(1)  // Coprime
     );
     assert_eq!(
-        gcd.call(&[Value::Int(0), Value::Int(5)]).unwrap(),
-        Value::Int(5)
+        gcd.call(&[Value::Integer(0), Value::Integer(5)]).unwrap(),
+        Value::Integer(5)
     );
     
     // Test lcm
     let lcm = stdlib.get("lcm").unwrap();
     assert_eq!(
-        lcm.call(&[Value::Int(12), Value::Int(18)]).unwrap(),
-        Value::Int(36)
+        lcm.call(&[Value::Integer(12), Value::Integer(18)]).unwrap(),
+        Value::Integer(36)
     );
     assert_eq!(
-        lcm.call(&[Value::Int(7), Value::Int(5)]).unwrap(),
-        Value::Int(35)
+        lcm.call(&[Value::Integer(7), Value::Integer(5)]).unwrap(),
+        Value::Integer(35)
     );
     
     // Test factorial
     let factorial = stdlib.get("factorial").unwrap();
     assert_eq!(
-        factorial.call(&[Value::Int(5)]).unwrap(),
-        Value::Int(120)
+        factorial.call(&[Value::Integer(5)]).unwrap(),
+        Value::Integer(120)
     );
     assert_eq!(
-        factorial.call(&[Value::Int(0)]).unwrap(),
-        Value::Int(1)
+        factorial.call(&[Value::Integer(0)]).unwrap(),
+        Value::Integer(1)
     );
     assert_eq!(
-        factorial.call(&[Value::Int(1)]).unwrap(),
-        Value::Int(1)
+        factorial.call(&[Value::Integer(1)]).unwrap(),
+        Value::Integer(1)
     );
 }
 
@@ -214,44 +214,44 @@ fn test_hyperbolic_edge_cases() {
 //     let infinite = stdlib.get("infinite?").unwrap();
 //     assert_eq!(
 //         infinite.call(&[Value::Float(f64::INFINITY)]).unwrap(),
-//         Value::Bool(true)
+//         Value::Boolean(true)
 //     );
 //     assert_eq!(
 //         infinite.call(&[Value::Float(f64::NEG_INFINITY)]).unwrap(),
-//         Value::Bool(true)
+//         Value::Boolean(true)
 //     );
 //     assert_eq!(
 //         infinite.call(&[Value::Float(42.0)]).unwrap(),
-//         Value::Bool(false)
+//         Value::Boolean(false)
 //     );
 //     assert_eq!(
 //         infinite.call(&[Value::Float(f64::NAN)]).unwrap(),
-//         Value::Bool(false)
+//         Value::Boolean(false)
 //     );
 //     
 //     // Test nan?
 //     let nan = stdlib.get("nan?").unwrap();
 //     assert_eq!(
 //         nan.call(&[Value::Float(f64::NAN)]).unwrap(),
-//         Value::Bool(true)
+//         Value::Boolean(true)
 //     );
 //     assert_eq!(
 //         nan.call(&[Value::Float(42.0)]).unwrap(),
-//         Value::Bool(false)
+//         Value::Boolean(false)
 //     );
 //     assert_eq!(
 //         nan.call(&[Value::Float(f64::INFINITY)]).unwrap(),
-//         Value::Bool(false)
+//         Value::Boolean(false)
 //     );
 //     
 //     // Test on non-float values
 //     assert_eq!(
-//         infinite.call(&[Value::Int(42)]).unwrap(),
-//         Value::Bool(false)
+//         infinite.call(&[Value::Integer(42)]).unwrap(),
+//         Value::Boolean(false)
 //     );
 //     assert_eq!(
-//         nan.call(&[Value::Int(42)]).unwrap(),
-//         Value::Bool(false)
+//         nan.call(&[Value::Integer(42)]).unwrap(),
+//         Value::Boolean(false)
 //     );
 // }
 
@@ -261,7 +261,7 @@ fn test_error_cases() {
     
     // Test division by zero
     let div = stdlib.get("/").unwrap();
-    assert!(div.call(&[Value::Int(5), Value::Int(0)]).is_err());
+    assert!(div.call(&[Value::Integer(5), Value::Integer(0)]).is_err());
     
     // Test log of negative number - should return an error or NaN
     let log = stdlib.get("log").unwrap();
@@ -288,13 +288,13 @@ fn test_error_cases() {
     
     // Test modulo/quotient/remainder functions - may not exist
     // let modulo = stdlib.get("modulo").unwrap();
-    // assert!(modulo.call(&[Value::Int(5), Value::Int(0)]).is_err());
+    // assert!(modulo.call(&[Value::Integer(5), Value::Integer(0)]).is_err());
     // 
     // let quotient = stdlib.get("quotient").unwrap();
-    // assert!(quotient.call(&[Value::Int(5), Value::Int(0)]).is_err());
+    // assert!(quotient.call(&[Value::Integer(5), Value::Integer(0)]).is_err());
     // 
     // let remainder = stdlib.get("remainder").unwrap();
-    // assert!(remainder.call(&[Value::Int(5), Value::Int(0)]).is_err());
+    // assert!(remainder.call(&[Value::Integer(5), Value::Integer(0)]).is_err());
 }
 
 #[test]
@@ -306,12 +306,12 @@ fn test_mixed_numeric_operations() {
     
     // int^int -> int when possible
     assert_eq!(
-        pow.call(&[Value::Int(2), Value::Int(3)]).unwrap(),
-        Value::Int(8)
+        pow.call(&[Value::Integer(2), Value::Integer(3)]).unwrap(),
+        Value::Integer(8)
     );
     
     // int^float -> float
-    let result = pow.call(&[Value::Int(2), Value::Float(3.5)]).unwrap();
+    let result = pow.call(&[Value::Integer(2), Value::Float(3.5)]).unwrap();
     match result {
         Value::Float(f) => assert!((f - 11.313708498984761).abs() < 0.0001),
         _ => panic!("Expected float"),
@@ -319,13 +319,13 @@ fn test_mixed_numeric_operations() {
     
     // float^int -> float
     assert_eq!(
-        pow.call(&[Value::Float(2.5), Value::Int(2)]).unwrap(),
+        pow.call(&[Value::Float(2.5), Value::Integer(2)]).unwrap(),
         Value::Float(6.25)
     );
     
     // Test negative powers
     assert_eq!(
-        pow.call(&[Value::Float(2.0), Value::Int(-2)]).unwrap(),
+        pow.call(&[Value::Float(2.0), Value::Integer(-2)]).unwrap(),
         Value::Float(0.25)
     );
 }

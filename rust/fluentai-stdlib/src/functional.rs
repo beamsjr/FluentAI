@@ -2,6 +2,7 @@
 
 use crate::registry::{StdlibFunction, StdlibRegistry};
 use crate::value::Value;
+use crate::vm_bridge::StdlibContext;
 use anyhow::{anyhow, Result};
 
 /// Register all functional programming functions
@@ -29,18 +30,18 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("memoize", memoize, 1, Some(1), "Create memoized version of function"),
         
         // List operations
-        StdlibFunction::pure("map-indexed", map_indexed, 2, Some(2), "Map with index"),
-        StdlibFunction::pure("filter-map", filter_map, 2, Some(2), "Filter and map in one pass"),
-        StdlibFunction::pure("flat-map", flat_map, 2, Some(2), "Map and flatten"),
+        StdlibFunction::effectful_with_context("map-indexed", map_indexed_ctx, 2, Some(2), vec![], "Map with index"),
+        StdlibFunction::effectful_with_context("filter-map", filter_map_ctx, 2, Some(2), vec![], "Filter and map in one pass"),
+        StdlibFunction::effectful_with_context("flat-map", flat_map_ctx, 2, Some(2), vec![], "Map and flatten"),
         
         // Fold variants
         StdlibFunction::pure("fold-right", fold_right, 3, Some(3), "Fold from right"),
         StdlibFunction::pure("scan", scan, 3, Some(3), "Fold with intermediate results"),
         
         // Predicates
-        StdlibFunction::pure("all?", all_pred, 2, Some(2), "Check if all elements satisfy predicate"),
-        StdlibFunction::pure("any?", any_pred, 2, Some(2), "Check if any element satisfies predicate"),
-        StdlibFunction::pure("none?", none_pred, 2, Some(2), "Check if no elements satisfy predicate"),
+        StdlibFunction::effectful_with_context("all?", all_pred_ctx, 2, Some(2), vec![], "Check if all elements satisfy predicate"),
+        StdlibFunction::effectful_with_context("any?", any_pred_ctx, 2, Some(2), vec![], "Check if any element satisfies predicate"),
+        StdlibFunction::effectful_with_context("none?", none_pred_ctx, 2, Some(2), vec![], "Check if no elements satisfy predicate"),
         
         // Iteration
         StdlibFunction::pure("iterate", iterate, 3, Some(3), "Generate list by iterating function"),
@@ -121,19 +122,80 @@ fn memoize(_args: &[Value]) -> Result<Value> {
 
 // List operations
 
-fn map_indexed(_args: &[Value]) -> Result<Value> {
-    // This would need VM integration to call the mapping function
-    Err(anyhow!("map-indexed: VM integration required for function application"))
+fn map_indexed_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let func = match &args[0] {
+        Value::Function { .. } => &args[0],
+        _ => return Err(anyhow!("map-indexed: expected function")),
+    };
+    
+    match &args[1] {
+        Value::List(items) => {
+            let mut result = Vec::with_capacity(items.len());
+            
+            for (index, item) in items.iter().enumerate() {
+                // Call the function with index and item
+                match context.call_function_with_effects(func, &[Value::Integer(index as i64), item.clone()]) {
+                    Ok(mapped_value) => result.push(mapped_value),
+                    Err(e) => return Err(anyhow!("map-indexed: error applying function: {}", e)),
+                }
+            }
+            
+            Ok(Value::List(result))
+        }
+        _ => Err(anyhow!("map-indexed: expected list")),
+    }
 }
 
-fn filter_map(_args: &[Value]) -> Result<Value> {
-    // This would need VM integration to call the predicate/mapping function
-    Err(anyhow!("filter-map: VM integration required for function application"))
+fn filter_map_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let func = match &args[0] {
+        Value::Function { .. } => &args[0],
+        _ => return Err(anyhow!("filter-map: expected function")),
+    };
+    
+    match &args[1] {
+        Value::List(items) => {
+            let mut result = Vec::new();
+            
+            for item in items {
+                // Call the function which should return nil for filtered out items
+                match context.call_function_with_effects(func, &[item.clone()]) {
+                    Ok(Value::Nil) => {}, // Skip nil values
+                    Ok(mapped_value) => result.push(mapped_value),
+                    Err(e) => return Err(anyhow!("filter-map: error applying function: {}", e)),
+                }
+            }
+            
+            Ok(Value::List(result))
+        }
+        _ => Err(anyhow!("filter-map: expected list")),
+    }
 }
 
-fn flat_map(_args: &[Value]) -> Result<Value> {
-    // This would need VM integration to call the mapping function
-    Err(anyhow!("flat-map: VM integration required for function application"))
+fn flat_map_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let func = match &args[0] {
+        Value::Function { .. } => &args[0],
+        _ => return Err(anyhow!("flat-map: expected function")),
+    };
+    
+    match &args[1] {
+        Value::List(items) => {
+            let mut result = Vec::new();
+            
+            for item in items {
+                // Call the function which should return a list
+                match context.call_function_with_effects(func, &[item.clone()]) {
+                    Ok(Value::List(mapped_items)) => {
+                        result.extend(mapped_items);
+                    }
+                    Ok(_) => return Err(anyhow!("flat-map: function must return a list")),
+                    Err(e) => return Err(anyhow!("flat-map: error applying function: {}", e)),
+                }
+            }
+            
+            Ok(Value::List(result))
+        }
+        _ => Err(anyhow!("flat-map: expected list")),
+    }
 }
 
 // Fold variants
@@ -150,19 +212,70 @@ fn scan(_args: &[Value]) -> Result<Value> {
 
 // Predicates
 
-fn all_pred(_args: &[Value]) -> Result<Value> {
-    // This would need VM integration to call the predicate
-    Err(anyhow!("all?: VM integration required for predicate evaluation"))
+fn all_pred_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let pred = match &args[0] {
+        Value::Function { .. } => &args[0],
+        _ => return Err(anyhow!("all?: expected predicate function")),
+    };
+    
+    match &args[1] {
+        Value::List(items) => {
+            for item in items {
+                match context.call_function_with_effects(pred, &[item.clone()]) {
+                    Ok(Value::Boolean(false)) => return Ok(Value::Boolean(false)),
+                    Ok(Value::Boolean(true)) => {},
+                    Ok(_) => return Err(anyhow!("all?: predicate must return boolean")),
+                    Err(e) => return Err(anyhow!("all?: error evaluating predicate: {}", e)),
+                }
+            }
+            Ok(Value::Boolean(true))
+        }
+        _ => Err(anyhow!("all?: expected list")),
+    }
 }
 
-fn any_pred(_args: &[Value]) -> Result<Value> {
-    // This would need VM integration to call the predicate
-    Err(anyhow!("any?: VM integration required for predicate evaluation"))
+fn any_pred_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let pred = match &args[0] {
+        Value::Function { .. } => &args[0],
+        _ => return Err(anyhow!("any?: expected predicate function")),
+    };
+    
+    match &args[1] {
+        Value::List(items) => {
+            for item in items {
+                match context.call_function_with_effects(pred, &[item.clone()]) {
+                    Ok(Value::Boolean(true)) => return Ok(Value::Boolean(true)),
+                    Ok(Value::Boolean(false)) => {},
+                    Ok(_) => return Err(anyhow!("any?: predicate must return boolean")),
+                    Err(e) => return Err(anyhow!("any?: error evaluating predicate: {}", e)),
+                }
+            }
+            Ok(Value::Boolean(false))
+        }
+        _ => Err(anyhow!("any?: expected list")),
+    }
 }
 
-fn none_pred(_args: &[Value]) -> Result<Value> {
-    // This would need VM integration to call the predicate
-    Err(anyhow!("none?: VM integration required for predicate evaluation"))
+fn none_pred_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let pred = match &args[0] {
+        Value::Function { .. } => &args[0],
+        _ => return Err(anyhow!("none?: expected predicate function")),
+    };
+    
+    match &args[1] {
+        Value::List(items) => {
+            for item in items {
+                match context.call_function_with_effects(pred, &[item.clone()]) {
+                    Ok(Value::Boolean(true)) => return Ok(Value::Boolean(false)),
+                    Ok(Value::Boolean(false)) => {},
+                    Ok(_) => return Err(anyhow!("none?: predicate must return boolean")),
+                    Err(e) => return Err(anyhow!("none?: error evaluating predicate: {}", e)),
+                }
+            }
+            Ok(Value::Boolean(true))
+        }
+        _ => Err(anyhow!("none?: expected list")),
+    }
 }
 
 // Iteration
@@ -175,7 +288,7 @@ fn iterate(_args: &[Value]) -> Result<Value> {
 fn repeat(args: &[Value]) -> Result<Value> {
     let value = &args[0];
     let count = match &args[1] {
-        Value::Int(n) => *n as usize,
+        Value::Integer(n) => *n as usize,
         _ => return Err(anyhow!("repeat: expected integer count")),
     };
     
@@ -206,7 +319,7 @@ fn chunk(args: &[Value]) -> Result<Value> {
     };
     
     let size = match &args[1] {
-        Value::Int(n) => *n as usize,
+        Value::Integer(n) => *n as usize,
         _ => return Err(anyhow!("chunk: expected integer chunk size")),
     };
     
@@ -239,7 +352,7 @@ fn sliding_window(args: &[Value]) -> Result<Value> {
     };
     
     let size = match &args[1] {
-        Value::Int(n) => *n as usize,
+        Value::Integer(n) => *n as usize,
         _ => return Err(anyhow!("sliding-window: expected integer window size")),
     };
     

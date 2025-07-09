@@ -3,7 +3,7 @@
 use fluentai_core::ast::{Graph, Node, Literal, Pattern};
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::Value,
+    Value,
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;
@@ -136,7 +136,7 @@ fn test_match_variable_binding() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(100));
+    assert_eq!(result, Value::Integer(100));
     Ok(())
 }
 
@@ -192,7 +192,7 @@ fn test_match_non_empty_list_with_cons() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(1)); // First element
+    assert_eq!(result, Value::Integer(1)); // First element
     Ok(())
 }
 
@@ -224,7 +224,7 @@ fn test_match_list_tail() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::List(vec![Value::Int(2), Value::Int(3)]));
+    assert_eq!(result, Value::List(vec![Value::Integer(2), Value::Integer(3)]));
     Ok(())
 }
 
@@ -358,7 +358,7 @@ fn test_pattern_matching_with_standard_optimization() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run_optimized(&graph, OptimizationLevel::Standard)?;
-    assert_eq!(result, Value::Int(1));
+    assert_eq!(result, Value::Integer(1));
     Ok(())
 }
 

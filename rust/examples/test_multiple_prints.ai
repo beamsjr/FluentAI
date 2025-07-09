@@ -1,0 +1,8 @@
+;; Test that all expressions execute, not just the last
+(let ((x (effect io:print "Setting x")))
+  10)
+(let ((y (effect io:print "Setting y")))
+  20)
+(let ((sum (+ 10 20)))
+  (effect io:print (str "Sum is: " sum))
+  sum)

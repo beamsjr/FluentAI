@@ -52,6 +52,30 @@ pub enum Value {
         tag: String,
         values: Vec<Value>,
     },
+    
+    /// VM function (bytecode chunk with environment)
+    Function {
+        chunk_id: usize,
+        env: Vec<Value>,
+    },
+    
+    /// Promise for async operations
+    Promise(u64),
+    
+    /// Channel for concurrent communication
+    Channel(u64),
+    
+    /// Mutable cell reference
+    Cell(usize),
+    
+    /// Module with exports
+    Module {
+        name: String,
+        exports: FxHashMap<String, Value>,
+    },
+    
+    /// Garbage collected handle (VM internal use)
+    GcHandle(Arc<dyn std::any::Any + Send + Sync>),
 }
 
 /// Procedure representation
@@ -117,11 +141,35 @@ impl Value {
     }
     
     pub fn is_callable(&self) -> bool {
-        matches!(self, Value::Procedure(_) | Value::NativeFunction { .. })
+        matches!(self, Value::Procedure(_) | Value::NativeFunction { .. } | Value::Function { .. })
     }
     
     pub fn is_tagged(&self) -> bool {
         matches!(self, Value::Tagged { .. })
+    }
+    
+    pub fn is_function(&self) -> bool {
+        matches!(self, Value::Function { .. })
+    }
+    
+    pub fn is_promise(&self) -> bool {
+        matches!(self, Value::Promise(_))
+    }
+    
+    pub fn is_channel(&self) -> bool {
+        matches!(self, Value::Channel(_))
+    }
+    
+    pub fn is_cell(&self) -> bool {
+        matches!(self, Value::Cell(_))
+    }
+    
+    pub fn is_module(&self) -> bool {
+        matches!(self, Value::Module { .. })
+    }
+    
+    pub fn is_gc_handle(&self) -> bool {
+        matches!(self, Value::GcHandle(_))
     }
     
     /// Type conversion helpers
@@ -236,6 +284,56 @@ impl Value {
         }
     }
     
+    pub fn as_function(&self) -> ValueResult<(usize, &[Value])> {
+        match self {
+            Value::Function { chunk_id, env } => Ok((*chunk_id, env)),
+            _ => Err(ValueError::TypeError {
+                expected: "function",
+                actual: self.type_name(),
+            }),
+        }
+    }
+    
+    pub fn as_promise(&self) -> ValueResult<u64> {
+        match self {
+            Value::Promise(id) => Ok(*id),
+            _ => Err(ValueError::TypeError {
+                expected: "promise",
+                actual: self.type_name(),
+            }),
+        }
+    }
+    
+    pub fn as_channel(&self) -> ValueResult<u64> {
+        match self {
+            Value::Channel(id) => Ok(*id),
+            _ => Err(ValueError::TypeError {
+                expected: "channel",
+                actual: self.type_name(),
+            }),
+        }
+    }
+    
+    pub fn as_cell(&self) -> ValueResult<usize> {
+        match self {
+            Value::Cell(idx) => Ok(*idx),
+            _ => Err(ValueError::TypeError {
+                expected: "cell",
+                actual: self.type_name(),
+            }),
+        }
+    }
+    
+    pub fn as_module(&self) -> ValueResult<(&str, &FxHashMap<String, Value>)> {
+        match self {
+            Value::Module { name, exports } => Ok((name, exports)),
+            _ => Err(ValueError::TypeError {
+                expected: "module",
+                actual: self.type_name(),
+            }),
+        }
+    }
+    
     /// Get type name for error messages
     pub fn type_name(&self) -> &'static str {
         match self {
@@ -251,6 +349,12 @@ impl Value {
             Value::Map(_) => "map",
             Value::NativeFunction { .. } => "native-function",
             Value::Tagged { .. } => "tagged",
+            Value::Function { .. } => "function",
+            Value::Promise(_) => "promise",
+            Value::Channel(_) => "channel",
+            Value::Cell(_) => "cell",
+            Value::Module { .. } => "module",
+            Value::GcHandle(_) => "gc-handle",
         }
     }
     
@@ -300,6 +404,25 @@ impl Value {
                 tag_a == tag_b && 
                 vals_a.len() == vals_b.len() && 
                 vals_a.iter().zip(vals_b.iter()).all(|(x, y)| x.deep_eq(y))
+            }
+            (Value::Function { chunk_id: id_a, env: env_a },
+             Value::Function { chunk_id: id_b, env: env_b }) => {
+                id_a == id_b &&
+                env_a.len() == env_b.len() &&
+                env_a.iter().zip(env_b.iter()).all(|(x, y)| x.deep_eq(y))
+            }
+            (Value::Promise(a), Value::Promise(b)) => a == b,
+            (Value::Channel(a), Value::Channel(b)) => a == b,
+            (Value::Cell(a), Value::Cell(b)) => a == b,
+            (Value::Module { name: name_a, exports: exp_a },
+             Value::Module { name: name_b, exports: exp_b }) => {
+                name_a == name_b &&
+                exp_a.len() == exp_b.len() &&
+                exp_a.iter().all(|(k, v)| exp_b.get(k).map_or(false, |v2| v.deep_eq(v2)))
+            }
+            (Value::GcHandle(a), Value::GcHandle(b)) => {
+                // GcHandles are compared by Arc pointer equality
+                Arc::ptr_eq(a, b)
             }
             _ => false,
         }
@@ -372,6 +495,22 @@ impl std::fmt::Debug for Value {
                     .field("values", values)
                     .finish()
             }
+            Value::Function { chunk_id, env } => {
+                f.debug_struct("Function")
+                    .field("chunk_id", chunk_id)
+                    .field("env", env)
+                    .finish()
+            }
+            Value::Promise(id) => write!(f, "Promise({})", id),
+            Value::Channel(id) => write!(f, "Channel({})", id),
+            Value::Cell(idx) => write!(f, "Cell({})", idx),
+            Value::Module { name, exports } => {
+                f.debug_struct("Module")
+                    .field("name", name)
+                    .field("exports", exports)
+                    .finish()
+            }
+            Value::GcHandle(_) => write!(f, "GcHandle(..)"),
         }
     }
 }
@@ -393,6 +532,16 @@ impl PartialEq for Value {
              Value::NativeFunction { name: n2, arity: a2, .. }) => n1 == n2 && a1 == a2,
             (Value::Tagged { tag: t1, values: v1 }, 
              Value::Tagged { tag: t2, values: v2 }) => t1 == t2 && v1 == v2,
+            (Value::Function { chunk_id: id1, env: env1 },
+             Value::Function { chunk_id: id2, env: env2 }) => id1 == id2 && env1 == env2,
+            (Value::Promise(a), Value::Promise(b)) => a == b,
+            (Value::Channel(a), Value::Channel(b)) => a == b,
+            (Value::Cell(a), Value::Cell(b)) => a == b,
+            (Value::Module { name: n1, exports: e1 },
+             Value::Module { name: n2, exports: e2 }) => n1 == n2 && e1 == e2,
+            (Value::GcHandle(a), Value::GcHandle(b)) => {
+                Arc::ptr_eq(a, b)
+            }
             _ => false,
         }
     }
@@ -440,6 +589,14 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, ")")
             }
+            Value::Function { .. } => write!(f, "#<function>"),
+            Value::Promise(id) => write!(f, "#<promise:{}>", id),
+            Value::Channel(id) => write!(f, "#<channel:{}>", id),
+            Value::Cell(idx) => write!(f, "#<cell:{}>", idx),
+            Value::Module { name, exports } => {
+                write!(f, "#<module {} with {} exports>", name, exports.len())
+            }
+            Value::GcHandle(_) => write!(f, "#<gc-handle>"),
         }
     }
 }

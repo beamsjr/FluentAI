@@ -1,0 +1,221 @@
+;; Tail Recursion Example
+;; Demonstrates tail-recursive functions in FluentAI
+
+;; === Understanding Tail Recursion ===
+(effect io print "=== Tail Recursion in FluentAI ===")
+(effect io print "Tail recursion occurs when the recursive call is the last operation.")
+(effect io print "This allows for optimization where the stack frame can be reused.\n")
+
+;; === Non-Tail-Recursive Factorial ===
+(effect io print "=== Non-Tail-Recursive Factorial ===")
+
+(define factorial-naive
+  (lambda (n)
+    (if (= n 0)
+        1
+        (* n (factorial-naive (- n 1))))))  ; NOT tail recursive - multiplication happens after
+
+(effect io print "Non-tail-recursive factorial:")
+(effect io print (str "5! = " (factorial-naive 5)))
+(effect io print (str "10! = " (factorial-naive 10)))
+;; Note: Large values may cause stack overflow in non-optimized implementations
+
+;; === Tail-Recursive Factorial ===
+(effect io print "\n=== Tail-Recursive Factorial ===")
+
+(define factorial-tail
+  (lambda (n)
+    (define fact-helper
+      (lambda (n acc)
+        (if (= n 0)
+            acc
+            (fact-helper (- n 1) (* n acc)))))  ; Tail recursive - recursive call is last
+    (fact-helper n 1)))
+
+(effect io print "Tail-recursive factorial:")
+(effect io print (str "5! = " (factorial-tail 5)))
+(effect io print (str "10! = " (factorial-tail 10)))
+(effect io print (str "20! = " (factorial-tail 20)))
+
+;; === Tail-Recursive Sum ===
+(effect io print "\n=== Tail-Recursive Sum ===")
+
+;; Non-tail-recursive sum
+(define sum-naive
+  (lambda (lst)
+    (if (empty? lst)
+        0
+        (+ (head lst) (sum-naive (tail lst))))))  ; NOT tail recursive
+
+;; Tail-recursive sum
+(define sum-tail
+  (lambda (lst)
+    (define sum-helper
+      (lambda (lst acc)
+        (if (empty? lst)
+            acc
+            (sum-helper (tail lst) (+ acc (head lst))))))  ; Tail recursive
+    (sum-helper lst 0)))
+
+(define numbers (list 1 2 3 4 5 6 7 8 9 10))
+(effect io print (str "Sum of " numbers ":"))
+(effect io print (str "  Non-tail-recursive: " (sum-naive numbers)))
+(effect io print (str "  Tail-recursive: " (sum-tail numbers)))
+
+;; === Tail-Recursive List Length ===
+(effect io print "\n=== Tail-Recursive List Length ===")
+
+(define length-tail
+  (lambda (lst)
+    (define length-helper
+      (lambda (lst acc)
+        (if (empty? lst)
+            acc
+            (length-helper (tail lst) (+ acc 1)))))
+    (length-helper lst 0)))
+
+(effect io print (str "Length of " numbers ": " (length-tail numbers)))
+(effect io print (str "Length of empty list: " (length-tail (list))))
+
+;; === Tail-Recursive Reverse ===
+(effect io print "\n=== Tail-Recursive Reverse ===")
+
+(define reverse-tail
+  (lambda (lst)
+    (define reverse-helper
+      (lambda (lst acc)
+        (if (empty? lst)
+            acc
+            (reverse-helper (tail lst) (cons (head lst) acc)))))
+    (reverse-helper lst (list))))
+
+(effect io print (str "Original: " numbers))
+(effect io print (str "Reversed: " (reverse-tail numbers)))
+
+;; === Tail-Recursive Fibonacci ===
+(effect io print "\n=== Tail-Recursive Fibonacci ===")
+
+;; Non-tail-recursive (very inefficient)
+(define fib-naive
+  (lambda (n)
+    (if (< n 2)
+        n
+        (+ (fib-naive (- n 1)) (fib-naive (- n 2))))))  ; NOT tail recursive
+
+;; Tail-recursive with accumulator
+(define fib-tail
+  (lambda (n)
+    (define fib-helper
+      (lambda (n a b)
+        (if (= n 0)
+            a
+            (fib-helper (- n 1) b (+ a b)))))  ; Tail recursive
+    (fib-helper n 0 1)))
+
+(effect io print "Fibonacci numbers (tail-recursive):")
+(dotimes (i 15)
+  (effect io print (str "fib(" i ") = " (fib-tail i))))
+
+;; === Tail-Recursive Map ===
+(effect io print "\n=== Tail-Recursive Map ===")
+
+(define map-tail
+  (lambda (f lst)
+    (define map-helper
+      (lambda (lst acc)
+        (if (empty? lst)
+            (reverse-tail acc)  ; Need to reverse accumulated result
+            (map-helper (tail lst) (cons (f (head lst)) acc)))))
+    (map-helper lst (list))))
+
+(define square (lambda (x) (* x x)))
+(effect io print (str "Original: " numbers))
+(effect io print (str "Squared: " (map-tail square numbers)))
+
+;; === Tail-Recursive Filter ===
+(effect io print "\n=== Tail-Recursive Filter ===")
+
+(define filter-tail
+  (lambda (pred lst)
+    (define filter-helper
+      (lambda (lst acc)
+        (if (empty? lst)
+            (reverse-tail acc)
+            (if (pred (head lst))
+                (filter-helper (tail lst) (cons (head lst) acc))
+                (filter-helper (tail lst) acc)))))
+    (filter-helper lst (list))))
+
+(define even? (lambda (x) (= (mod x 2) 0)))
+(effect io print (str "Even numbers from " numbers ": " (filter-tail even? numbers)))
+
+;; === Tail-Recursive Range ===
+(effect io print "\n=== Tail-Recursive Range ===")
+
+(define range-tail
+  (lambda (start end)
+    (define range-helper
+      (lambda (current acc)
+        (if (> current end)
+            (reverse-tail acc)
+            (range-helper (+ current 1) (cons current acc)))))
+    (range-helper start (list))))
+
+(effect io print (str "Range 1-20: " (range-tail 1 20)))
+
+;; === Mutual Tail Recursion ===
+(effect io print "\n=== Mutual Tail Recursion ===")
+
+;; Even/odd using mutual recursion
+(define is-even?
+  (lambda (n)
+    (if (= n 0)
+        true
+        (is-odd? (- n 1)))))
+
+(define is-odd?
+  (lambda (n)
+    (if (= n 0)
+        false
+        (is-even? (- n 1)))))
+
+(effect io print "Testing even/odd with mutual recursion:")
+(effect io print (str "Is 10 even? " (is-even? 10)))
+(effect io print (str "Is 10 odd? " (is-odd? 10)))
+(effect io print (str "Is 7 even? " (is-even? 7)))
+(effect io print (str "Is 7 odd? " (is-odd? 7)))
+
+;; === Continuation-Passing Style (CPS) ===
+(effect io print "\n=== Continuation-Passing Style ===")
+
+;; CPS factorial - another form of tail recursion
+(define factorial-cps
+  (lambda (n)
+    (define fact-cps-helper
+      (lambda (n cont)
+        (if (= n 0)
+            (cont 1)
+            (fact-cps-helper (- n 1) 
+                           (lambda (result) (cont (* n result)))))))
+    (fact-cps-helper n (lambda (x) x))))
+
+(effect io print "CPS factorial:")
+(effect io print (str "5! = " (factorial-cps 5)))
+
+;; === Performance Comparison ===
+(effect io print "\n=== Performance Notes ===")
+(effect io print "Tail recursion benefits:")
+(effect io print "- Constant stack space (no stack overflow)")
+(effect io print "- Can be optimized to loops by the compiler")
+(effect io print "- Better performance for large inputs")
+(effect io print "\nFluentAI's VM includes tail call optimization!")
+
+;; === Summary ===
+(effect io print "\n=== Tail Recursion Summary ===")
+(effect io print "Key patterns for tail recursion:")
+(effect io print "1. Use accumulator parameters")
+(effect io print "2. Make recursive call the last operation")
+(effect io print "3. Build results incrementally")
+(effect io print "4. Often need to reverse accumulated results")
+(effect io print "\nTail recursion enables efficient recursive algorithms")
+(effect io print "without stack overflow concerns!")

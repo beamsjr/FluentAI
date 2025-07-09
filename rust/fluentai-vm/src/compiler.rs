@@ -1,6 +1,7 @@
 //! Compiler from AST to bytecode
 
-use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use fluentai_core::value::Value;
 use fluentai_core::ast::{Graph as ASTGraph, Node, NodeId, Literal, Pattern};
 use fluentai_optimizer::{OptimizationPipeline, OptimizationConfig, OptimizationLevel};
 use anyhow::{anyhow, Result};
@@ -166,6 +167,9 @@ impl Compiler {
                 // Define returns nil
                 self.emit(Instruction::new(Opcode::PushNil));
             }
+            Node::Begin { exprs } => {
+                self.compile_begin(graph, exprs)?;
+            }
         }
         
         Ok(())
@@ -183,7 +187,7 @@ impl Compiler {
                         self.emit(Instruction::with_arg(Opcode::PushIntSmall, n as u32));
                     }
                     _ => {
-                        let idx = self.add_constant(Value::Int(*n));
+                        let idx = self.add_constant(Value::Integer(*n));
                         self.emit(Instruction::with_arg(Opcode::Push, idx));
                     }
                 }
@@ -579,6 +583,28 @@ impl Compiler {
         self.scope_bases.pop();
         self.cell_vars.pop();
         
+        Ok(())
+    }
+    
+    fn compile_begin(&mut self, graph: &ASTGraph, exprs: &[NodeId]) -> Result<()> {
+        if exprs.is_empty() {
+            // Empty begin returns nil
+            self.emit(Instruction::new(Opcode::PushNil));
+            return Ok(());
+        }
+        
+        // Compile each expression
+        for (i, expr) in exprs.iter().enumerate() {
+            self.compile_node(graph, *expr)?;
+            
+            // Pop intermediate results (except the last one)
+            if i < exprs.len() - 1 {
+                self.emit(Instruction::new(Opcode::Pop));
+                self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
+        }
+        
+        // The last expression's value remains on the stack as the result
         Ok(())
     }
     

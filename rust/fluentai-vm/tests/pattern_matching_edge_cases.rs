@@ -3,7 +3,7 @@
 use fluentai_core::ast::{Graph, Node, Literal, Pattern};
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::Value,
+    Value,
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;
@@ -54,7 +54,7 @@ fn test_match_deeply_nested_lists() -> Result<()> {
     
     let result = compile_and_run(&graph)?;
     // Should return the first element, which is [1, 2]
-    assert_eq!(result, Value::List(vec![Value::Int(1), Value::Int(2)]));
+    assert_eq!(result, Value::List(vec![Value::Integer(1), Value::Integer(2)]));
     Ok(())
 }
 
@@ -85,7 +85,7 @@ fn test_match_list_of_different_types() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(42)); // First element
+    assert_eq!(result, Value::Integer(42)); // First element
     Ok(())
 }
 
@@ -120,8 +120,8 @@ fn test_match_very_long_list() -> Result<()> {
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 99); // Tail has 99 elements
-            assert_eq!(items[0], Value::Int(1)); // First element of tail
-            assert_eq!(items[98], Value::Int(99)); // Last element of tail
+            assert_eq!(items[0], Value::Integer(1)); // First element of tail
+            assert_eq!(items[98], Value::Integer(99)); // Last element of tail
         }
         _ => panic!("Expected list"),
     }
@@ -163,7 +163,7 @@ fn test_match_with_shadowed_variables() -> Result<()> {
     
     let result = compile_and_run(&graph)?;
     // The pattern-bound x should shadow the outer x, returning 1
-    assert_eq!(result, Value::Int(1)); // Pattern-bound x shadows outer x
+    assert_eq!(result, Value::Integer(1)); // Pattern-bound x shadows outer x
     Ok(())
 }
 
@@ -284,7 +284,7 @@ fn test_match_multiple_variable_bindings() -> Result<()> {
     graph.root_id = Some(match_simple);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(10)); // x is bound correctly
+    assert_eq!(result, Value::Integer(10)); // x is bound correctly
     Ok(())
 }
 

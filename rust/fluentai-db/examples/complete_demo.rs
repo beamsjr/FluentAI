@@ -46,8 +46,8 @@ fn query_builder_demo() {
     
     // Complex query with parameters
     let mut builder = QueryBuilder::new();
-    let age_param = builder.next_param(fluentai_vm::bytecode::Value::Int(18));
-    let status_param = builder.next_param(fluentai_vm::bytecode::Value::String("active".to_string()));
+    let age_param = builder.next_param(fluentai_vm::Value::Integer(18));
+    let status_param = builder.next_param(fluentai_vm::Value::String("active".to_string()));
     
     let mut complex_query = builder
         .from("users")

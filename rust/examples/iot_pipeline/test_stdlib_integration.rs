@@ -1,5 +1,6 @@
 use fluentai_vm::VM;
-use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use fluentai_vm::Value;
 use fluentai_vm::compiler::Compiler;
 use fluentai_parser::parser::Parser;
 use fluentai_stdlib::init_stdlib;
@@ -98,7 +99,7 @@ fn test_direct_vm() {
     // Push a list [1, 2, 3]
     chunk.add_instruction(Instruction::with_arg(Opcode::PushInt1, 0));
     chunk.add_instruction(Instruction::with_arg(Opcode::PushInt2, 0));
-    let three_idx = chunk.add_constant(Value::Int(3));
+    let three_idx = chunk.add_constant(Value::Integer(3));
     chunk.add_instruction(Instruction::with_arg(Opcode::PushConst, three_idx as u32));
     chunk.add_instruction(Instruction::with_arg(Opcode::MakeList, 3));
     

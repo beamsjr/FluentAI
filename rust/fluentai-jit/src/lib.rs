@@ -7,7 +7,8 @@ use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{Module, Linkage};
 
-use fluentai_vm::bytecode::{Bytecode, Value};
+use fluentai_vm::bytecode::Bytecode;
+use fluentai_vm::Value;
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::mem;
@@ -112,7 +113,7 @@ impl JitCompiler {
     /// Execute a compiled function
     pub fn execute(&self, func: fn() -> i64) -> Result<Value> {
         let result = func();
-        Ok(Value::Int(result))
+        Ok(Value::Integer(result))
     }
     
     /// Compile and execute bytecode in one step

@@ -79,7 +79,7 @@ fn main() {
     // Empty hashmap creation
     let t = Instant::now();
     for _ in 0..1000 {
-        let _map = rustc_hash::FxHashMap::<String, fluentai_vm::bytecode::Value>::default();
+        let _map = rustc_hash::FxHashMap::<String, fluentai_vm::Value>::default();
     }
     let hashmap_time = t.elapsed().as_nanos() as f64 / 1000.0;
     println!("   FxHashMap creation: {:.0} ns", hashmap_time);
@@ -87,7 +87,7 @@ fn main() {
     // Vec with capacity
     let t = Instant::now();
     for _ in 0..1000 {
-        let _vec = Vec::<fluentai_vm::bytecode::Value>::with_capacity(10_000);
+        let _vec = Vec::<fluentai_vm::Value>::with_capacity(10_000);
     }
     let vec_time = t.elapsed().as_nanos() as f64 / 1000.0;
     println!("   Vec::with_capacity(10_000): {:.0} ns", vec_time);

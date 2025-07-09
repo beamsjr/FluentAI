@@ -1,0 +1,31 @@
+;; Test working patterns based on WORKING_FEATURES.md
+
+;; Basic arithmetic
+(effect io:print "=== Arithmetic ===")
+(effect io:print (+ 10 20))
+(effect io:print (* 5 6))
+
+;; Pattern matching
+(effect io:print "=== Pattern Matching ===")
+(effect io:print (match 42
+  (0 "zero")
+  (42 "forty-two")
+  (_ "other")))
+
+;; Lambda
+(effect io:print "=== Lambda ===")
+(let ((square (lambda (x) (* x x))))
+  (effect io:print (square 5)))
+
+;; Lists
+(effect io:print "=== Lists ===")
+(effect io:print (cons 1 (list 2 3 4)))
+(effect io:print (head (list 10 20 30)))
+(effect io:print (tail (list 10 20 30)))
+
+;; Effects
+(effect io:print "=== Effects ===")
+(effect state:set "x" 100)
+(effect io:print (effect state:get "x"))
+(effect io:print (effect time:now))
+(effect io:print (effect random:int 1 10))

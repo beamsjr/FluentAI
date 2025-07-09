@@ -101,10 +101,10 @@ async fn method2_services_builder() -> Result<()> {
             tx.execute(
                 "INSERT INTO products (name, price) VALUES (?, ?), (?, ?)",
                 vec![
-                    fluentai_vm::bytecode::Value::String("Widget".to_string()),
-                    fluentai_vm::bytecode::Value::Float(9.99),
-                    fluentai_vm::bytecode::Value::String("Gadget".to_string()),
-                    fluentai_vm::bytecode::Value::Float(19.99),
+                    fluentai_vm::Value::String("Widget".to_string()),
+                    fluentai_vm::Value::Float(9.99),
+                    fluentai_vm::Value::String("Gadget".to_string()),
+                    fluentai_vm::Value::Float(19.99),
                 ]
             ).await?;
             
@@ -220,11 +220,11 @@ impl ApplicationService {
         conn.execute(
             "INSERT INTO user_preferences (user_id, theme, language, notifications_enabled, updated_at) VALUES (?, ?, ?, ?, ?)",
             vec![
-                fluentai_vm::bytecode::Value::Int(1),
-                fluentai_vm::bytecode::Value::String("dark".to_string()),
-                fluentai_vm::bytecode::Value::String("en".to_string()),
-                fluentai_vm::bytecode::Value::Bool(true),
-                fluentai_vm::bytecode::Value::String("2024-01-01".to_string()),
+                fluentai_vm::Value::Integer(1),
+                fluentai_vm::Value::String("dark".to_string()),
+                fluentai_vm::Value::String("en".to_string()),
+                fluentai_vm::Value::Boolean(true),
+                fluentai_vm::Value::String("2024-01-01".to_string()),
             ]
         ).await?;
         
@@ -233,7 +233,7 @@ impl ApplicationService {
         // Query data
         let rows = conn.fetch_all(
             "SELECT * FROM user_preferences WHERE user_id = ?",
-            vec![fluentai_vm::bytecode::Value::Int(1)]
+            vec![fluentai_vm::Value::Integer(1)]
         ).await?;
         
         println!("  ✓ Retrieved {} user preferences", rows.len());

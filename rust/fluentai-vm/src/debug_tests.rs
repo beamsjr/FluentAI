@@ -3,7 +3,8 @@
 #[cfg(test)]
 mod tests {
     use super::super::debug::*;
-    use crate::bytecode::{Instruction, Opcode, Value};
+    use crate::bytecode::{Instruction, Opcode};
+use fluentai_core::value::Value;
     use tokio::sync::mpsc;
     
     mod debug_config {
@@ -81,7 +82,7 @@ mod tests {
             let config = DebugConfig::with_events(tx);
             
             let event = VMDebugEvent::StackPush {
-                value: Value::Int(42),
+                value: Value::Integer(42),
             };
             config.send_event(event.clone());
             
@@ -89,7 +90,7 @@ mod tests {
             let received = rx.try_recv().unwrap();
             match received {
                 VMDebugEvent::StackPush { value } => {
-                    assert_eq!(value, Value::Int(42));
+                    assert_eq!(value, Value::Integer(42));
                 },
                 _ => panic!("Wrong event type"),
             }
@@ -101,7 +102,7 @@ mod tests {
             
             // Should not panic even without sender
             config.send_event(VMDebugEvent::StackPush {
-                value: Value::Int(42),
+                value: Value::Integer(42),
             });
         }
     }
@@ -154,14 +155,14 @@ mod tests {
             let event = VMDebugEvent::PostInstruction {
                 pc: 43,
                 stack_size: 4,
-                stack_top: Some(Value::Int(100)),
+                stack_top: Some(Value::Integer(100)),
             };
             
             match event {
                 VMDebugEvent::PostInstruction { pc, stack_size, stack_top } => {
                     assert_eq!(pc, 43);
                     assert_eq!(stack_size, 4);
-                    assert_eq!(stack_top, Some(Value::Int(100)));
+                    assert_eq!(stack_top, Some(Value::Integer(100)));
                 },
                 _ => panic!("Wrong event type"),
             }
@@ -188,13 +189,13 @@ mod tests {
         #[test]
         fn test_function_return_event() {
             let event = VMDebugEvent::FunctionReturn {
-                value: Value::Int(120),
+                value: Value::Integer(120),
                 call_depth: 2,
             };
             
             match event {
                 VMDebugEvent::FunctionReturn { value, call_depth } => {
-                    assert_eq!(value, Value::Int(120));
+                    assert_eq!(value, Value::Integer(120));
                     assert_eq!(call_depth, 2);
                 },
                 _ => panic!("Wrong event type"),
@@ -222,7 +223,7 @@ mod tests {
         #[test]
         fn test_stack_push_event() {
             let event = VMDebugEvent::StackPush {
-                value: Value::List(vec![Value::Int(1), Value::Int(2)]),
+                value: Value::List(vec![Value::Integer(1), Value::Integer(2)]),
             };
             
             match event {
@@ -230,8 +231,8 @@ mod tests {
                     match value {
                         Value::List(items) => {
                             assert_eq!(items.len(), 2);
-                            assert_eq!(items[0], Value::Int(1));
-                            assert_eq!(items[1], Value::Int(2));
+                            assert_eq!(items[0], Value::Integer(1));
+                            assert_eq!(items[1], Value::Integer(2));
                         },
                         _ => panic!("Expected list value"),
                     }
@@ -243,12 +244,12 @@ mod tests {
         #[test]
         fn test_stack_pop_event() {
             let event = VMDebugEvent::StackPop {
-                value: Value::Bool(true),
+                value: Value::Boolean(true),
             };
             
             match event {
                 VMDebugEvent::StackPop { value } => {
-                    assert_eq!(value, Value::Bool(true));
+                    assert_eq!(value, Value::Boolean(true));
                 },
                 _ => panic!("Wrong event type"),
             }
@@ -293,7 +294,7 @@ mod tests {
                     stack_size: 0,
                 },
                 VMDebugEvent::StackPush {
-                    value: Value::Int(42),
+                    value: Value::Integer(42),
                 },
                 VMDebugEvent::Error {
                     message: "test error".to_string(),
@@ -338,12 +339,12 @@ mod tests {
                 stack_size: 0,
             },
             VMDebugEvent::StackPush {
-                value: Value::Int(42),
+                value: Value::Integer(42),
             },
             VMDebugEvent::PostInstruction {
                 pc: 0,
                 stack_size: 1,
-                stack_top: Some(Value::Int(42)),
+                stack_top: Some(Value::Integer(42)),
             },
         ];
         

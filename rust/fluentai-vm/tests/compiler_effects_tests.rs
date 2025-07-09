@@ -3,11 +3,13 @@
 use fluentai_core::ast::{Graph, Node, Literal, EffectType};
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::{Opcode, Value},
+    bytecode::Opcode,
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;
 use anyhow::Result;
+
+use fluentai_core::value::Value;
 
 fn compile_and_run(graph: &Graph) -> Result<Value> {
     let options = CompilerOptions {

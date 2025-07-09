@@ -30,7 +30,7 @@ fn test_simple_handler() {
     
     // Handler should intercept the effect
     match result {
-        Value::Int(99) => {},
+        Value::Integer(99) => {},
         _ => panic!("Expected 99, got {:?}", result),
     }
 }

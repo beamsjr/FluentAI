@@ -1,8 +1,9 @@
 use fluentai_vm::{VM, VMBuilder};
-use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::compiler::Compiler;
 use fluentai_parser::parser::Parser;
 use fluentai_core::ast::{Graph, Node, Literal};
+use fluentai_core::value::Value;
 use anyhow::Result;
 
 #[test]
@@ -63,9 +64,9 @@ fn test_stdlib_map_function() -> Result<()> {
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 3);
-            assert_eq!(items[0], Value::Int(2));
-            assert_eq!(items[1], Value::Int(4));
-            assert_eq!(items[2], Value::Int(6));
+            assert_eq!(items[0], Value::Integer(2));
+            assert_eq!(items[1], Value::Integer(4));
+            assert_eq!(items[2], Value::Integer(6));
         }
         _ => panic!("Expected list result from map, got: {:?}", result),
     }
@@ -154,9 +155,9 @@ fn test_direct_stdlib_call() -> Result<()> {
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 3);
-            assert_eq!(items[0], Value::Int(2));
-            assert_eq!(items[1], Value::Int(4));
-            assert_eq!(items[2], Value::Int(6));
+            assert_eq!(items[0], Value::Integer(2));
+            assert_eq!(items[1], Value::Integer(4));
+            assert_eq!(items[2], Value::Integer(6));
         }
         _ => panic!("Expected list result from map, got: {:?}", result),
     }

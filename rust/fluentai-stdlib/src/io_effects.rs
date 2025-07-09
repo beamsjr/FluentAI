@@ -285,10 +285,10 @@ pub fn file_exists_with_effects(args: &[Value]) -> Result<Value> {
     with_io_context(|ctx| {
         if let Some(handler) = &ctx.io_handler {
             let exists = handler.file_exists(path)?;
-            Ok(Value::Bool(exists))
+            Ok(Value::Boolean(exists))
         } else {
             // Default implementation
-            Ok(Value::Bool(std::path::Path::new(path).exists()))
+            Ok(Value::Boolean(std::path::Path::new(path).exists()))
         }
     })
 }

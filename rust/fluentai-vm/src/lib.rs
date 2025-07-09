@@ -26,7 +26,8 @@ pub mod usage_tracker;
 
 pub use vm::VM;
 pub use vm_builder::VMBuilder;
-pub use bytecode::{Bytecode, Opcode, Value};
+pub use bytecode::{Bytecode, Opcode};
+pub use fluentai_core::value::Value;
 pub use compiler::{Compiler, CompilerOptions};
 pub use fluentai_optimizer::OptimizationLevel;
 pub use builder::{VMBuilder as VMBuilderLegacy, VMConfig};

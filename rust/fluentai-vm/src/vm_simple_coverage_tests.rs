@@ -3,7 +3,8 @@
 #[cfg(test)]
 mod tests {
     use crate::vm::VM;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use fluentai_core::value::Value;
     use crate::gc::GcConfig;
     use crate::security::{SecurityManager, SecurityPolicy};
     use crate::debug::{DebugConfig, StepMode};
@@ -75,12 +76,12 @@ mod tests {
         let mut vm = create_test_vm();
         
         // Test without GC
-        let result1 = vm.gc_alloc(Value::Int(42));
+        let result1 = vm.gc_alloc(Value::Integer(42));
         assert!(result1.is_ok());
         
         // Enable GC and test again
         vm.with_gc();
-        let result2 = vm.gc_alloc(Value::Int(42));
+        let result2 = vm.gc_alloc(Value::Integer(42));
         assert!(result2.is_ok());
         
         // Test gc_collect
@@ -113,12 +114,12 @@ mod tests {
         let mut vm = create_test_vm();
         
         // Test stack
-        vm.push(Value::Int(42)).unwrap();
+        vm.push(Value::Integer(42)).unwrap();
         let stack = vm.get_stack();
         assert_eq!(stack.len(), 1);
         
         // Test globals
-        vm.set_global("x".to_string(), Value::Int(10));
+        vm.set_global("x".to_string(), Value::Integer(10));
         let globals = vm.get_globals();
         assert!(globals.contains_key("x"));
         
@@ -153,8 +154,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Push two constants and add them
-        chunk.add_constant(Value::Int(10));
-        chunk.add_constant(Value::Int(32));
+        chunk.add_constant(Value::Integer(10));
+        chunk.add_constant(Value::Integer(32));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -175,8 +176,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Push two constants and compare
-        chunk.add_constant(Value::Int(5));
-        chunk.add_constant(Value::Int(10));
+        chunk.add_constant(Value::Integer(5));
+        chunk.add_constant(Value::Integer(10));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -217,8 +218,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Create list
-        chunk.add_constant(Value::Int(1));
-        chunk.add_constant(Value::Int(2));
+        chunk.add_constant(Value::Integer(1));
+        chunk.add_constant(Value::Integer(2));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -239,8 +240,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Simple conditional
-        chunk.add_constant(Value::Bool(true));
-        chunk.add_constant(Value::Int(42));
+        chunk.add_constant(Value::Boolean(true));
+        chunk.add_constant(Value::Integer(42));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::JumpIfNot, 5));
@@ -257,12 +258,12 @@ mod tests {
     #[test]
     fn test_get_global() {
         let mut vm = create_test_vm();
-        vm.set_global("test_var".to_string(), Value::Int(123));
+        vm.set_global("test_var".to_string(), Value::Integer(123));
         
         let value = vm.get_global("test_var");
         assert!(value.is_some());
         match value {
-            Some(Value::Int(123)) => {},
+            Some(Value::Integer(123)) => {},
             _ => panic!("Expected Int(123)"),
         }
         
@@ -276,17 +277,17 @@ mod tests {
         let mut vm = create_test_vm();
         
         // Push multiple values
-        vm.push(Value::Int(1)).unwrap();
-        vm.push(Value::Int(2)).unwrap();
-        vm.push(Value::Int(3)).unwrap();
+        vm.push(Value::Integer(1)).unwrap();
+        vm.push(Value::Integer(2)).unwrap();
+        vm.push(Value::Integer(3)).unwrap();
         
         // Check stack size
         assert_eq!(vm.get_stack().len(), 3);
         
         // Pop values
-        assert!(matches!(vm.pop(), Ok(Value::Int(3))));
-        assert!(matches!(vm.pop(), Ok(Value::Int(2))));
-        assert!(matches!(vm.pop(), Ok(Value::Int(1))));
+        assert!(matches!(vm.pop(), Ok(Value::Integer(3))));
+        assert!(matches!(vm.pop(), Ok(Value::Integer(2))));
+        assert!(matches!(vm.pop(), Ok(Value::Integer(1))));
         
         // Pop from empty stack should error
         assert!(vm.pop().is_err());
@@ -337,8 +338,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Test subtraction, multiplication, division
-        chunk.add_constant(Value::Int(20));
-        chunk.add_constant(Value::Int(5));
+        chunk.add_constant(Value::Integer(20));
+        chunk.add_constant(Value::Integer(5));
         
         // 20 - 5 = 15
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
@@ -346,12 +347,12 @@ mod tests {
         chunk.add_instruction(Instruction::new(Opcode::Sub));
         
         // 15 * 2 = 30
-        chunk.add_constant(Value::Int(2));
+        chunk.add_constant(Value::Integer(2));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 2));
         chunk.add_instruction(Instruction::new(Opcode::Mul));
         
         // 30 / 3 = 10
-        chunk.add_constant(Value::Int(3));
+        chunk.add_constant(Value::Integer(3));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 3));
         chunk.add_instruction(Instruction::new(Opcode::Div));
         
@@ -371,11 +372,11 @@ mod tests {
         
         // Add some global state
         vm.set_global("test".to_string(), Value::String("hello".to_string()));
-        vm.set_global("number".to_string(), Value::Int(42));
+        vm.set_global("number".to_string(), Value::Integer(42));
         
         // Check we can retrieve globals
         assert!(matches!(vm.get_global("test"), Some(Value::String(s)) if s == "hello"));
-        assert!(matches!(vm.get_global("number"), Some(Value::Int(42))));
+        assert!(matches!(vm.get_global("number"), Some(Value::Integer(42))));
         assert!(vm.get_global("nonexistent").is_none());
     }
     
@@ -385,8 +386,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Test logical AND
-        chunk.add_constant(Value::Bool(true));
-        chunk.add_constant(Value::Bool(false));
+        chunk.add_constant(Value::Boolean(true));
+        chunk.add_constant(Value::Boolean(false));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -406,7 +407,7 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Test integer negation
-        chunk.add_constant(Value::Int(42));
+        chunk.add_constant(Value::Integer(42));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::new(Opcode::Neg));
@@ -425,8 +426,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Test equality
-        chunk.add_constant(Value::Int(42));
-        chunk.add_constant(Value::Int(42));
+        chunk.add_constant(Value::Integer(42));
+        chunk.add_constant(Value::Integer(42));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -461,7 +462,7 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Push a value, dup it, then halt
-        chunk.add_constant(Value::Int(42));
+        chunk.add_constant(Value::Integer(42));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::new(Opcode::Dup));
         chunk.add_instruction(Instruction::new(Opcode::Halt));
@@ -480,8 +481,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Test AddInt (specialized integer addition)
-        chunk.add_constant(Value::Int(10));
-        chunk.add_constant(Value::Int(20));
+        chunk.add_constant(Value::Integer(10));
+        chunk.add_constant(Value::Integer(20));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -501,8 +502,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
         
         // Test LtInt (specialized integer comparison)
-        chunk.add_constant(Value::Int(10));
-        chunk.add_constant(Value::Int(20));
+        chunk.add_constant(Value::Integer(10));
+        chunk.add_constant(Value::Integer(20));
         
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));

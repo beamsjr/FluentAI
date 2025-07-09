@@ -36,7 +36,7 @@ fn string_pad_left(args: &[Value]) -> Result<Value> {
     };
     
     let width = match &args[1] {
-        Value::Int(w) => *w as usize,
+        Value::Integer(w) => *w as usize,
         _ => return Err(anyhow!("string-pad-left: expected integer width")),
     };
     
@@ -71,7 +71,7 @@ fn string_pad_right(args: &[Value]) -> Result<Value> {
     };
     
     let width = match &args[1] {
-        Value::Int(w) => *w as usize,
+        Value::Integer(w) => *w as usize,
         _ => return Err(anyhow!("string-pad-right: expected integer width")),
     };
     
@@ -106,7 +106,7 @@ fn string_pad_center(args: &[Value]) -> Result<Value> {
     };
     
     let width = match &args[1] {
-        Value::Int(w) => *w as usize,
+        Value::Integer(w) => *w as usize,
         _ => return Err(anyhow!("string-pad-center: expected integer width")),
     };
     
@@ -149,7 +149,7 @@ fn string_repeat(args: &[Value]) -> Result<Value> {
     };
     
     let count = match &args[1] {
-        Value::Int(n) => {
+        Value::Integer(n) => {
             if *n < 0 {
                 return Err(anyhow!("string-repeat: count must be non-negative"));
             }
@@ -184,7 +184,7 @@ fn string_index_of(args: &[Value]) -> Result<Value> {
     
     let start_index = if args.len() > 2 {
         match &args[2] {
-            Value::Int(i) => {
+            Value::Integer(i) => {
                 if *i < 0 {
                     return Err(anyhow!("string-index-of: start index must be non-negative"));
                 }
@@ -202,21 +202,21 @@ fn string_index_of(args: &[Value]) -> Result<Value> {
     
     if needle_chars.is_empty() {
         // Empty string is found at the start position
-        return Ok(Value::Int(start_index as i64));
+        return Ok(Value::Integer(start_index as i64));
     }
     
     if start_index >= haystack_chars.len() {
-        return Ok(Value::Int(-1)); // Not found
+        return Ok(Value::Integer(-1)); // Not found
     }
     
     // Search for the needle starting from start_index
     for i in start_index..=(haystack_chars.len().saturating_sub(needle_chars.len())) {
         if haystack_chars[i..].starts_with(&needle_chars) {
-            return Ok(Value::Int(i as i64));
+            return Ok(Value::Integer(i as i64));
         }
     }
     
-    Ok(Value::Int(-1)) // Not found
+    Ok(Value::Integer(-1)) // Not found
 }
 
 fn string_format(args: &[Value]) -> Result<Value> {
@@ -260,7 +260,7 @@ fn string_format(args: &[Value]) -> Result<Value> {
                         // ~d or ~D - decimal integer
                         if arg_index < args.len() {
                             match &args[arg_index] {
-                                Value::Int(i) => result.push_str(&i.to_string()),
+                                Value::Integer(i) => result.push_str(&i.to_string()),
                                 _ => return Err(anyhow!("string-format: ~d expects integer")),
                             }
                             arg_index += 1;
@@ -273,7 +273,7 @@ fn string_format(args: &[Value]) -> Result<Value> {
                         if arg_index < args.len() {
                             match &args[arg_index] {
                                 Value::Float(f) => result.push_str(&f.to_string()),
-                                Value::Int(i) => result.push_str(&(*i as f64).to_string()),
+                                Value::Integer(i) => result.push_str(&(*i as f64).to_string()),
                                 _ => return Err(anyhow!("string-format: ~f expects number")),
                             }
                             arg_index += 1;
@@ -315,9 +315,9 @@ fn format_value(value: &Value, machine_readable: bool) -> String {
                 s.clone()
             }
         }
-        Value::Int(i) => i.to_string(),
+        Value::Integer(i) => i.to_string(),
         Value::Float(f) => f.to_string(),
-        Value::Bool(b) => b.to_string(),
+        Value::Boolean(b) => b.to_string(),
         Value::List(items) => {
             let formatted: Vec<String> = items.iter()
                 .map(|v| format_value(v, machine_readable))
@@ -348,30 +348,30 @@ mod tests {
     #[test]
     fn test_string_pad_left() {
         // Basic padding
-        let result = string_pad_left(&[Value::String("hi".to_string()), Value::Int(5)]).unwrap();
+        let result = string_pad_left(&[Value::String("hi".to_string()), Value::Integer(5)]).unwrap();
         assert_eq!(result, Value::String("   hi".to_string()));
         
         // Custom pad character
         let result = string_pad_left(&[
             Value::String("hi".to_string()), 
-            Value::Int(5), 
+            Value::Integer(5), 
             Value::String("*".to_string())
         ]).unwrap();
         assert_eq!(result, Value::String("***hi".to_string()));
         
         // String already long enough
-        let result = string_pad_left(&[Value::String("hello".to_string()), Value::Int(3)]).unwrap();
+        let result = string_pad_left(&[Value::String("hello".to_string()), Value::Integer(3)]).unwrap();
         assert_eq!(result, Value::String("hello".to_string()));
     }
     
     #[test]
     fn test_string_pad_right() {
-        let result = string_pad_right(&[Value::String("hi".to_string()), Value::Int(5)]).unwrap();
+        let result = string_pad_right(&[Value::String("hi".to_string()), Value::Integer(5)]).unwrap();
         assert_eq!(result, Value::String("hi   ".to_string()));
         
         let result = string_pad_right(&[
             Value::String("hi".to_string()), 
-            Value::Int(5), 
+            Value::Integer(5), 
             Value::String("-".to_string())
         ]).unwrap();
         assert_eq!(result, Value::String("hi---".to_string()));
@@ -379,12 +379,12 @@ mod tests {
     
     #[test]
     fn test_string_pad_center() {
-        let result = string_pad_center(&[Value::String("hi".to_string()), Value::Int(5)]).unwrap();
+        let result = string_pad_center(&[Value::String("hi".to_string()), Value::Integer(5)]).unwrap();
         assert_eq!(result, Value::String(" hi  ".to_string()));
         
         let result = string_pad_center(&[
             Value::String("hi".to_string()), 
-            Value::Int(6), 
+            Value::Integer(6), 
             Value::String("*".to_string())
         ]).unwrap();
         assert_eq!(result, Value::String("**hi**".to_string()));
@@ -392,10 +392,10 @@ mod tests {
     
     #[test]
     fn test_string_repeat() {
-        let result = string_repeat(&[Value::String("ha".to_string()), Value::Int(3)]).unwrap();
+        let result = string_repeat(&[Value::String("ha".to_string()), Value::Integer(3)]).unwrap();
         assert_eq!(result, Value::String("hahaha".to_string()));
         
-        let result = string_repeat(&[Value::String("x".to_string()), Value::Int(0)]).unwrap();
+        let result = string_repeat(&[Value::String("x".to_string()), Value::Integer(0)]).unwrap();
         assert_eq!(result, Value::String("".to_string()));
     }
     
@@ -415,21 +415,21 @@ mod tests {
             Value::String("hello world".to_string()), 
             Value::String("world".to_string())
         ]).unwrap();
-        assert_eq!(result, Value::Int(6));
+        assert_eq!(result, Value::Integer(6));
         
         let result = string_index_of(&[
             Value::String("hello world".to_string()), 
             Value::String("xyz".to_string())
         ]).unwrap();
-        assert_eq!(result, Value::Int(-1));
+        assert_eq!(result, Value::Integer(-1));
         
         // With start index
         let result = string_index_of(&[
             Value::String("hello hello".to_string()), 
             Value::String("hello".to_string()),
-            Value::Int(1)
+            Value::Integer(1)
         ]).unwrap();
-        assert_eq!(result, Value::Int(6));
+        assert_eq!(result, Value::Integer(6));
     }
     
     #[test]
@@ -443,7 +443,7 @@ mod tests {
         let result = string_format(&[
             Value::String("~s + ~d = ~f".to_string()),
             Value::String("PI".to_string()),
-            Value::Int(1),
+            Value::Integer(1),
             Value::Float(4.14159)
         ]).unwrap();
         assert_eq!(result, Value::String("\"PI\" + 1 = 4.14159".to_string()));

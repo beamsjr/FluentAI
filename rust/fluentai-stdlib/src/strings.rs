@@ -60,7 +60,7 @@ fn string_concat(args: &[Value]) -> Result<Value> {
 
 fn string_length(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::String(s) => Ok(Value::Int(s.chars().count() as i64)),
+        Value::String(s) => Ok(Value::Integer(s.chars().count() as i64)),
         _ => Err(anyhow!("string-length: expected string")),
     }
 }
@@ -72,7 +72,7 @@ fn substring(args: &[Value]) -> Result<Value> {
     };
     
     let start = match &args[1] {
-        Value::Int(i) => *i as usize,
+        Value::Integer(i) => *i as usize,
         _ => return Err(anyhow!("substring: expected integer start index")),
     };
     
@@ -80,7 +80,7 @@ fn substring(args: &[Value]) -> Result<Value> {
     
     let end = if args.len() > 2 {
         match &args[2] {
-            Value::Int(i) => *i as usize,
+            Value::Integer(i) => *i as usize,
             _ => return Err(anyhow!("substring: expected integer end index")),
         }
     } else {
@@ -102,7 +102,7 @@ fn string_ref(args: &[Value]) -> Result<Value> {
     };
     
     let index = match &args[1] {
-        Value::Int(i) => *i as usize,
+        Value::Integer(i) => *i as usize,
         _ => return Err(anyhow!("string-ref: expected integer index")),
     };
     
@@ -211,7 +211,7 @@ fn string_contains(args: &[Value]) -> Result<Value> {
         _ => return Err(anyhow!("string-contains?: expected string pattern")),
     };
     
-    Ok(Value::Bool(haystack.contains(needle)))
+    Ok(Value::Boolean(haystack.contains(needle)))
 }
 
 fn string_starts_with(args: &[Value]) -> Result<Value> {
@@ -225,7 +225,7 @@ fn string_starts_with(args: &[Value]) -> Result<Value> {
         _ => return Err(anyhow!("string-starts-with?: expected string prefix")),
     };
     
-    Ok(Value::Bool(s.starts_with(prefix)))
+    Ok(Value::Boolean(s.starts_with(prefix)))
 }
 
 fn string_ends_with(args: &[Value]) -> Result<Value> {
@@ -239,12 +239,12 @@ fn string_ends_with(args: &[Value]) -> Result<Value> {
         _ => return Err(anyhow!("string-ends-with?: expected string suffix")),
     };
     
-    Ok(Value::Bool(s.ends_with(suffix)))
+    Ok(Value::Boolean(s.ends_with(suffix)))
 }
 
 fn string_empty(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::String(s) => Ok(Value::Bool(s.is_empty())),
+        Value::String(s) => Ok(Value::Boolean(s.is_empty())),
         _ => Err(anyhow!("string-empty?: expected string")),
     }
 }
@@ -308,7 +308,7 @@ fn string_to_number(args: &[Value]) -> Result<Value> {
         Value::String(s) => {
             // Try parsing as integer first
             if let Ok(i) = s.parse::<i64>() {
-                Ok(Value::Int(i))
+                Ok(Value::Integer(i))
             } else if let Ok(f) = s.parse::<f64>() {
                 Ok(Value::Float(f))
             } else {
@@ -321,7 +321,7 @@ fn string_to_number(args: &[Value]) -> Result<Value> {
 
 fn number_to_string(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::Int(i) => Ok(Value::String(i.to_string())),
+        Value::Integer(i) => Ok(Value::String(i.to_string())),
         Value::Float(f) => Ok(Value::String(f.to_string())),
         _ => Err(anyhow!("number->string: expected number")),
     }
@@ -336,7 +336,7 @@ fn char_to_int(args: &[Value]) -> Result<Value> {
             if chars.len() != 1 {
                 return Err(anyhow!("char->int: expected single character string"));
             }
-            Ok(Value::Int(chars[0] as i64))
+            Ok(Value::Integer(chars[0] as i64))
         }
         _ => Err(anyhow!("char->int: expected string")),
     }
@@ -344,7 +344,7 @@ fn char_to_int(args: &[Value]) -> Result<Value> {
 
 fn int_to_char(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::Int(i) => {
+        Value::Integer(i) => {
             if *i < 0 || *i > 0x10FFFF {
                 return Err(anyhow!("int->char: invalid Unicode code point"));
             }

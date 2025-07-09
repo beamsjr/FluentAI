@@ -11,25 +11,25 @@ fn test_list_operations() {
     // Test cons
     let cons = stdlib.get("cons").unwrap();
     let result = cons.call(&[
-        Value::Int(1),
-        Value::List(vec![Value::Int(2), Value::Int(3)])
+        Value::Integer(1),
+        Value::List(vec![Value::Integer(2), Value::Integer(3)])
     ]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 3);
-            assert_eq!(items[0], Value::Int(1));
-            assert_eq!(items[1], Value::Int(2));
-            assert_eq!(items[2], Value::Int(3));
+            assert_eq!(items[0], Value::Integer(1));
+            assert_eq!(items[1], Value::Integer(2));
+            assert_eq!(items[2], Value::Integer(3));
         }
         _ => panic!("Expected list"),
     }
     
     // Test car
     let car = stdlib.get("car").unwrap();
-    let list = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+    let list = Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]);
     assert_eq!(
         car.call(&[list.clone()]).unwrap(),
-        Value::Int(1)
+        Value::Integer(1)
     );
     
     // Test car on empty list
@@ -41,8 +41,8 @@ fn test_list_operations() {
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 2);
-            assert_eq!(items[0], Value::Int(2));
-            assert_eq!(items[1], Value::Int(3));
+            assert_eq!(items[0], Value::Integer(2));
+            assert_eq!(items[1], Value::Integer(3));
         }
         _ => panic!("Expected list"),
     }
@@ -54,11 +54,11 @@ fn test_list_operations() {
     let null = stdlib.get("null?").unwrap();
     assert_eq!(
         null.call(&[Value::List(vec![])]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
-        null.call(&[Value::List(vec![Value::Int(1)])]).unwrap(),
-        Value::Bool(false)
+        null.call(&[Value::List(vec![Value::Integer(1)])]).unwrap(),
+        Value::Boolean(false)
     );
 }
 
@@ -75,21 +75,21 @@ fn test_list_utilities() {
     ]);
     
     assert_eq!(
-        list_ref.call(&[list.clone(), Value::Int(0)]).unwrap(),
+        list_ref.call(&[list.clone(), Value::Integer(0)]).unwrap(),
         Value::String("a".to_string())
     );
     assert_eq!(
-        list_ref.call(&[list.clone(), Value::Int(2)]).unwrap(),
+        list_ref.call(&[list.clone(), Value::Integer(2)]).unwrap(),
         Value::String("c".to_string())
     );
     
     // Test out of bounds
-    assert!(list_ref.call(&[list.clone(), Value::Int(3)]).is_err());
-    assert!(list_ref.call(&[list.clone(), Value::Int(-1)]).is_err());
+    assert!(list_ref.call(&[list.clone(), Value::Integer(3)]).is_err());
+    assert!(list_ref.call(&[list.clone(), Value::Integer(-1)]).is_err());
     
     // Test take
     let take = stdlib.get("take").unwrap();
-    let result = take.call(&[Value::Int(2), list.clone()]).unwrap();
+    let result = take.call(&[Value::Integer(2), list.clone()]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 2);
@@ -100,7 +100,7 @@ fn test_list_utilities() {
     }
     
     // Test take more than available
-    let result = take.call(&[Value::Int(5), list.clone()]).unwrap();
+    let result = take.call(&[Value::Integer(5), list.clone()]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 3);
@@ -110,7 +110,7 @@ fn test_list_utilities() {
     
     // Test drop
     let drop = stdlib.get("drop").unwrap();
-    let result = drop.call(&[Value::Int(1), list.clone()]).unwrap();
+    let result = drop.call(&[Value::Integer(1), list.clone()]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 2);
@@ -122,7 +122,7 @@ fn test_list_utilities() {
     
     // Test zip
     let zip = stdlib.get("zip").unwrap();
-    let list1 = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+    let list1 = Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]);
     let list2 = Value::List(vec![
         Value::String("a".to_string()),
         Value::String("b".to_string()),
@@ -137,7 +137,7 @@ fn test_list_utilities() {
             match &items[0] {
                 Value::List(pair) => {
                     assert_eq!(pair.len(), 2);
-                    assert_eq!(pair[0], Value::Int(1));
+                    assert_eq!(pair[0], Value::Integer(1));
                     assert_eq!(pair[1], Value::String("a".to_string()));
                 }
                 _ => panic!("Expected pair"),
@@ -154,9 +154,9 @@ fn test_flatten() {
     
     // Test simple flatten
     let nested = Value::List(vec![
-        Value::List(vec![Value::Int(1), Value::Int(2)]),
-        Value::List(vec![Value::Int(3), Value::Int(4)]),
-        Value::List(vec![Value::Int(5)]),
+        Value::List(vec![Value::Integer(1), Value::Integer(2)]),
+        Value::List(vec![Value::Integer(3), Value::Integer(4)]),
+        Value::List(vec![Value::Integer(5)]),
     ]);
     
     let result = flatten.call(&[nested]).unwrap();
@@ -164,11 +164,11 @@ fn test_flatten() {
         Value::List(items) => {
             assert_eq!(items.len(), 5);
             assert_eq!(items, vec![
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
-                Value::Int(4),
-                Value::Int(5),
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
+                Value::Integer(4),
+                Value::Integer(5),
             ]);
         }
         _ => panic!("Expected list"),
@@ -176,9 +176,9 @@ fn test_flatten() {
     
     // Test with empty lists
     let with_empty = Value::List(vec![
-        Value::List(vec![Value::Int(1)]),
+        Value::List(vec![Value::Integer(1)]),
         Value::List(vec![]),
-        Value::List(vec![Value::Int(2), Value::Int(3)]),
+        Value::List(vec![Value::Integer(2), Value::Integer(3)]),
     ]);
     
     let result = flatten.call(&[with_empty]).unwrap();
@@ -186,9 +186,9 @@ fn test_flatten() {
         Value::List(items) => {
             assert_eq!(items.len(), 3);
             assert_eq!(items, vec![
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
             ]);
         }
         _ => panic!("Expected list"),
@@ -217,20 +217,20 @@ fn test_map_operations() {
     let result = map_set.call(&[
         map_val,
         Value::String("key1".to_string()),
-        Value::Int(42)
+        Value::Integer(42)
     ]).unwrap();
     
     match result {
         Value::Map(new_map) => {
             assert_eq!(new_map.len(), 1);
-            assert_eq!(new_map.get("key1"), Some(&Value::Int(42)));
+            assert_eq!(new_map.get("key1"), Some(&Value::Integer(42)));
         }
         _ => panic!("Expected map"),
     }
     
     // Test map-get
     let map_get = stdlib.get("map-get").unwrap();
-    map.insert("key1".to_string(), Value::Int(42));
+    map.insert("key1".to_string(), Value::Integer(42));
     map.insert("key2".to_string(), Value::String("hello".to_string()));
     let map_val = Value::Map(map.clone());
     
@@ -239,7 +239,7 @@ fn test_map_operations() {
             map_val.clone(),
             Value::String("key1".to_string())
         ]).unwrap(),
-        Value::Int(42)
+        Value::Integer(42)
     );
     
     assert_eq!(
@@ -264,9 +264,9 @@ fn test_map_utilities() {
     let stdlib = init_stdlib();
     
     let mut map = FxHashMap::default();
-    map.insert("a".to_string(), Value::Int(1));
-    map.insert("b".to_string(), Value::Int(2));
-    map.insert("c".to_string(), Value::Int(3));
+    map.insert("a".to_string(), Value::Integer(1));
+    map.insert("b".to_string(), Value::Integer(2));
+    map.insert("c".to_string(), Value::Integer(3));
     let map_val = Value::Map(map);
     
     // Test map-has?
@@ -276,14 +276,14 @@ fn test_map_utilities() {
             map_val.clone(),
             Value::String("a".to_string())
         ]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         map_has.call(&[
             map_val.clone(),
             Value::String("d".to_string())
         ]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test map-remove
@@ -297,8 +297,8 @@ fn test_map_utilities() {
         Value::Map(new_map) => {
             assert_eq!(new_map.len(), 2);
             assert!(!new_map.contains_key("b"));
-            assert_eq!(new_map.get("a"), Some(&Value::Int(1)));
-            assert_eq!(new_map.get("c"), Some(&Value::Int(3)));
+            assert_eq!(new_map.get("a"), Some(&Value::Integer(1)));
+            assert_eq!(new_map.get("c"), Some(&Value::Integer(3)));
         }
         _ => panic!("Expected map"),
     }
@@ -330,9 +330,9 @@ fn test_map_utilities() {
     match result {
         Value::List(values) => {
             assert_eq!(values.len(), 3);
-            assert!(values.contains(&Value::Int(1)));
-            assert!(values.contains(&Value::Int(2)));
-            assert!(values.contains(&Value::Int(3)));
+            assert!(values.contains(&Value::Integer(1)));
+            assert!(values.contains(&Value::Integer(2)));
+            assert!(values.contains(&Value::Integer(3)));
         }
         _ => panic!("Expected list"),
     }
@@ -344,12 +344,12 @@ fn test_map_merge() {
     let map_merge = stdlib.get("map-merge").unwrap();
     
     let mut map1 = FxHashMap::default();
-    map1.insert("a".to_string(), Value::Int(1));
-    map1.insert("b".to_string(), Value::Int(2));
+    map1.insert("a".to_string(), Value::Integer(1));
+    map1.insert("b".to_string(), Value::Integer(2));
     
     let mut map2 = FxHashMap::default();
-    map2.insert("b".to_string(), Value::Int(20)); // Override
-    map2.insert("c".to_string(), Value::Int(3));
+    map2.insert("b".to_string(), Value::Integer(20)); // Override
+    map2.insert("c".to_string(), Value::Integer(3));
     
     let result = map_merge.call(&[
         Value::Map(map1),
@@ -359,9 +359,9 @@ fn test_map_merge() {
     match result {
         Value::Map(merged) => {
             assert_eq!(merged.len(), 3);
-            assert_eq!(merged.get("a"), Some(&Value::Int(1)));
-            assert_eq!(merged.get("b"), Some(&Value::Int(20))); // map2 value wins
-            assert_eq!(merged.get("c"), Some(&Value::Int(3)));
+            assert_eq!(merged.get("a"), Some(&Value::Integer(1)));
+            assert_eq!(merged.get("b"), Some(&Value::Integer(20))); // map2 value wins
+            assert_eq!(merged.get("c"), Some(&Value::Integer(3)));
         }
         _ => panic!("Expected map"),
     }
@@ -375,16 +375,16 @@ fn test_tagged_values() {
     let make_tagged = stdlib.get("make-tagged").unwrap();
     let result = make_tagged.call(&[
         Value::String("Point".to_string()),
-        Value::Int(10),
-        Value::Int(20)
+        Value::Integer(10),
+        Value::Integer(20)
     ]).unwrap();
     
     match result {
         Value::Tagged { tag, values } => {
             assert_eq!(tag, "Point");
             assert_eq!(values.len(), 2);
-            assert_eq!(values[0], Value::Int(10));
-            assert_eq!(values[1], Value::Int(20));
+            assert_eq!(values[0], Value::Integer(10));
+            assert_eq!(values[1], Value::Integer(20));
         }
         _ => panic!("Expected tagged value"),
     }
@@ -393,16 +393,16 @@ fn test_tagged_values() {
     let tagged_pred = stdlib.get("tagged?").unwrap();
     let point = Value::Tagged {
         tag: "Point".to_string(),
-        values: vec![Value::Int(10), Value::Int(20)]
+        values: vec![Value::Integer(10), Value::Integer(20)]
     };
     
     assert_eq!(
         tagged_pred.call(&[point.clone()]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
-        tagged_pred.call(&[Value::Int(42)]).unwrap(),
-        Value::Bool(false)
+        tagged_pred.call(&[Value::Integer(42)]).unwrap(),
+        Value::Boolean(false)
     );
     
     // Test tagged-tag
@@ -418,8 +418,8 @@ fn test_tagged_values() {
     match result {
         Value::List(values) => {
             assert_eq!(values.len(), 2);
-            assert_eq!(values[0], Value::Int(10));
-            assert_eq!(values[1], Value::Int(20));
+            assert_eq!(values[0], Value::Integer(10));
+            assert_eq!(values[1], Value::Integer(20));
         }
         _ => panic!("Expected list"),
     }
@@ -431,27 +431,27 @@ fn test_list_slice() {
     let list_slice = stdlib.get("list-slice").unwrap();
     
     let list = Value::List(vec![
-        Value::Int(0),
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
-        Value::Int(4),
-        Value::Int(5),
+        Value::Integer(0),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
+        Value::Integer(4),
+        Value::Integer(5),
     ]);
     
     // Test normal slice
     let result = list_slice.call(&[
         list.clone(),
-        Value::Int(1),
-        Value::Int(4),
+        Value::Integer(1),
+        Value::Integer(4),
     ]).unwrap();
     
     match result {
         Value::List(items) => {
             assert_eq!(items, vec![
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
             ]);
         }
         _ => panic!("Expected list"),
@@ -460,16 +460,16 @@ fn test_list_slice() {
     // Test slice from beginning
     let result = list_slice.call(&[
         list.clone(),
-        Value::Int(0),
-        Value::Int(3),
+        Value::Integer(0),
+        Value::Integer(3),
     ]).unwrap();
     
     match result {
         Value::List(items) => {
             assert_eq!(items, vec![
-                Value::Int(0),
-                Value::Int(1),
-                Value::Int(2),
+                Value::Integer(0),
+                Value::Integer(1),
+                Value::Integer(2),
             ]);
         }
         _ => panic!("Expected list"),
@@ -478,16 +478,16 @@ fn test_list_slice() {
     // Test slice to end
     let result = list_slice.call(&[
         list.clone(),
-        Value::Int(3),
-        Value::Int(6),
+        Value::Integer(3),
+        Value::Integer(6),
     ]).unwrap();
     
     match result {
         Value::List(items) => {
             assert_eq!(items, vec![
-                Value::Int(3),
-                Value::Int(4),
-                Value::Int(5),
+                Value::Integer(3),
+                Value::Integer(4),
+                Value::Integer(5),
             ]);
         }
         _ => panic!("Expected list"),
@@ -496,8 +496,8 @@ fn test_list_slice() {
     // Test empty slice
     let result = list_slice.call(&[
         list.clone(),
-        Value::Int(2),
-        Value::Int(2),
+        Value::Integer(2),
+        Value::Integer(2),
     ]).unwrap();
     
     match result {
@@ -515,26 +515,26 @@ fn test_list_sort() {
     
     // Test sorting integers
     let unsorted = Value::List(vec![
-        Value::Int(3),
-        Value::Int(1),
-        Value::Int(4),
-        Value::Int(1),
-        Value::Int(5),
-        Value::Int(9),
-        Value::Int(2),
+        Value::Integer(3),
+        Value::Integer(1),
+        Value::Integer(4),
+        Value::Integer(1),
+        Value::Integer(5),
+        Value::Integer(9),
+        Value::Integer(2),
     ]);
     
     let result = list_sort.call(&[unsorted]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items, vec![
-                Value::Int(1),
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
-                Value::Int(4),
-                Value::Int(5),
-                Value::Int(9),
+                Value::Integer(1),
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
+                Value::Integer(4),
+                Value::Integer(5),
+                Value::Integer(9),
             ]);
         }
         _ => panic!("Expected list"),
@@ -578,13 +578,13 @@ fn test_list_unique() {
     
     // Test removing duplicates
     let with_dups = Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
-        Value::Int(2),
-        Value::Int(1),
-        Value::Int(4),
-        Value::Int(3),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
+        Value::Integer(2),
+        Value::Integer(1),
+        Value::Integer(4),
+        Value::Integer(3),
     ]);
     
     let result = list_unique.call(&[with_dups]).unwrap();
@@ -592,10 +592,10 @@ fn test_list_unique() {
         Value::List(items) => {
             // Should preserve order of first occurrence
             assert_eq!(items, vec![
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
-                Value::Int(4),
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
+                Value::Integer(4),
             ]);
         }
         _ => panic!("Expected list"),
@@ -603,18 +603,18 @@ fn test_list_unique() {
     
     // Test already unique list
     let unique = Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(3),
     ]);
     
     let result = list_unique.call(&[unique]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items, vec![
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
             ]);
         }
         _ => panic!("Expected list"),
@@ -648,26 +648,26 @@ fn test_set_operations() {
     let set_add = stdlib.get("set-add").unwrap();
     let empty_set = Value::List(vec![]);
     
-    let result = set_add.call(&[empty_set, Value::Int(42)]).unwrap();
+    let result = set_add.call(&[empty_set, Value::Integer(42)]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 1);
-            assert_eq!(items[0], Value::Int(42));
+            assert_eq!(items[0], Value::Integer(42));
         }
         _ => panic!("Expected list"),
     }
     
     // Test set-contains?
     let set_contains = stdlib.get("set-contains?").unwrap();
-    let set_with_values = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+    let set_with_values = Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]);
     
     assert_eq!(
-        set_contains.call(&[set_with_values.clone(), Value::Int(2)]).unwrap(),
-        Value::Bool(true)
+        set_contains.call(&[set_with_values.clone(), Value::Integer(2)]).unwrap(),
+        Value::Boolean(true)
     );
     assert_eq!(
-        set_contains.call(&[set_with_values.clone(), Value::Int(4)]).unwrap(),
-        Value::Bool(false)
+        set_contains.call(&[set_with_values.clone(), Value::Integer(4)]).unwrap(),
+        Value::Boolean(false)
     );
     
     // Test set->list (identity function for our implementation)
@@ -676,9 +676,9 @@ fn test_set_operations() {
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 3);
-            assert!(items.contains(&Value::Int(1)));
-            assert!(items.contains(&Value::Int(2)));
-            assert!(items.contains(&Value::Int(3)));
+            assert!(items.contains(&Value::Integer(1)));
+            assert!(items.contains(&Value::Integer(2)));
+            assert!(items.contains(&Value::Integer(3)));
         }
         _ => panic!("Expected list"),
     }
@@ -686,20 +686,20 @@ fn test_set_operations() {
     // Test list->set
     let list_to_set = stdlib.get("list->set").unwrap();
     let list_with_dups = Value::List(vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(2),
-        Value::Int(3),
-        Value::Int(1),
+        Value::Integer(1),
+        Value::Integer(2),
+        Value::Integer(2),
+        Value::Integer(3),
+        Value::Integer(1),
     ]);
     
     let result = list_to_set.call(&[list_with_dups]).unwrap();
     match result {
         Value::List(items) => {
             assert_eq!(items.len(), 3); // duplicates removed
-            assert!(items.contains(&Value::Int(1)));
-            assert!(items.contains(&Value::Int(2)));
-            assert!(items.contains(&Value::Int(3)));
+            assert!(items.contains(&Value::Integer(1)));
+            assert!(items.contains(&Value::Integer(2)));
+            assert!(items.contains(&Value::Integer(3)));
         }
         _ => panic!("Expected list"),
     }
@@ -726,13 +726,13 @@ fn test_dict_operations() {
     let result = dict_set.call(&[
         empty_dict,
         Value::String("key".to_string()),
-        Value::Int(42),
+        Value::Integer(42),
     ]).unwrap();
     
     match result {
         Value::Map(map) => {
             assert_eq!(map.len(), 1);
-            assert_eq!(map.get("key"), Some(&Value::Int(42)));
+            assert_eq!(map.get("key"), Some(&Value::Integer(42)));
         }
         _ => panic!("Expected map"),
     }
@@ -740,13 +740,13 @@ fn test_dict_operations() {
     // Test dict-get
     let dict_get = stdlib.get("dict-get").unwrap();
     let mut map = FxHashMap::default();
-    map.insert("a".to_string(), Value::Int(1));
-    map.insert("b".to_string(), Value::Int(2));
+    map.insert("a".to_string(), Value::Integer(1));
+    map.insert("b".to_string(), Value::Integer(2));
     let dict = Value::Map(map);
     
     assert_eq!(
         dict_get.call(&[dict.clone(), Value::String("a".to_string())]).unwrap(),
-        Value::Int(1)
+        Value::Integer(1)
     );
     assert_eq!(
         dict_get.call(&[dict.clone(), Value::String("c".to_string())]).unwrap(),

@@ -2,16 +2,34 @@
 
 use rustc_hash::FxHashMap;
 use crate::value::Value;
+use crate::vm_bridge::StdlibContext;
 use fluentai_core::ast::EffectType;
 use anyhow::Result;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
+/// Function implementation type
+pub enum FunctionImpl {
+    /// Simple function without context
+    Simple(fn(&[Value]) -> Result<Value>),
+    /// Context-aware function
+    ContextAware(fn(&mut StdlibContext, &[Value]) -> Result<Value>),
+}
+
+impl Clone for FunctionImpl {
+    fn clone(&self) -> Self {
+        match self {
+            FunctionImpl::Simple(f) => FunctionImpl::Simple(*f),
+            FunctionImpl::ContextAware(f) => FunctionImpl::ContextAware(*f),
+        }
+    }
+}
+
 /// A standard library function with metadata
 #[derive(Clone)]
 pub struct StdlibFunction {
     /// The function implementation
-    pub func: fn(&[Value]) -> Result<Value>,
+    pub func: FunctionImpl,
     
     /// The function's name
     pub name: String,
@@ -39,7 +57,7 @@ impl StdlibFunction {
         doc: impl Into<String>,
     ) -> Self {
         Self {
-            func,
+            func: FunctionImpl::Simple(func),
             name: name.into(),
             min_args,
             max_args,
@@ -58,7 +76,26 @@ impl StdlibFunction {
         doc: impl Into<String>,
     ) -> Self {
         Self {
-            func,
+            func: FunctionImpl::Simple(func),
+            name: name.into(),
+            min_args,
+            max_args,
+            effects,
+            doc: doc.into(),
+        }
+    }
+    
+    /// Create a new context-aware effectful function
+    pub fn effectful_with_context(
+        name: impl Into<String>,
+        func: fn(&mut StdlibContext, &[Value]) -> Result<Value>,
+        min_args: usize,
+        max_args: Option<usize>,
+        effects: Vec<EffectType>,
+        doc: impl Into<String>,
+    ) -> Self {
+        Self {
+            func: FunctionImpl::ContextAware(func),
             name: name.into(),
             min_args,
             max_args,
@@ -91,7 +128,21 @@ impl StdlibFunction {
     /// Call the function with argument validation
     pub fn call(&self, args: &[Value]) -> Result<Value> {
         self.validate_args(args.len())?;
-        (self.func)(args)
+        match &self.func {
+            FunctionImpl::Simple(f) => f(args),
+            FunctionImpl::ContextAware(_) => {
+                anyhow::bail!("{}: context-aware function called without context", self.name)
+            }
+        }
+    }
+    
+    /// Call the function with a context
+    pub fn call_with_context(&self, context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+        self.validate_args(args.len())?;
+        match &self.func {
+            FunctionImpl::Simple(f) => f(args),
+            FunctionImpl::ContextAware(f) => f(context, args),
+        }
     }
 }
 

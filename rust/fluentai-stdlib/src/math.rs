@@ -85,7 +85,7 @@ fn add(args: &[Value]) -> Result<Value> {
     
     for arg in args {
         match arg {
-            Value::Int(i) => result += *i as f64,
+            Value::Integer(i) => result += *i as f64,
             Value::Float(f) => {
                 result += f;
                 all_ints = false;
@@ -95,7 +95,7 @@ fn add(args: &[Value]) -> Result<Value> {
     }
     
     if all_ints && result.fract() == 0.0 {
-        Ok(Value::Int(result as i64))
+        Ok(Value::Integer(result as i64))
     } else {
         Ok(Value::Float(result))
     }
@@ -105,17 +105,17 @@ fn subtract(args: &[Value]) -> Result<Value> {
     if args.len() == 1 {
         // Unary minus (negation)
         match &args[0] {
-            Value::Int(n) => Ok(Value::Int(-n)),
+            Value::Integer(n) => Ok(Value::Integer(-n)),
             Value::Float(f) => Ok(Value::Float(-f)),
             _ => Err(anyhow!("-: expected number")),
         }
     } else {
         // Binary subtraction
         match (&args[0], &args[1]) {
-            (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a - b)),
+            (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a - b)),
             (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a - b)),
-            (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
-            (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a - *b as f64)),
+            (Value::Integer(a), Value::Float(b)) => Ok(Value::Float(*a as f64 - b)),
+            (Value::Float(a), Value::Integer(b)) => Ok(Value::Float(a - *b as f64)),
             _ => Err(anyhow!("-: expected numbers")),
         }
     }
@@ -127,7 +127,7 @@ fn multiply(args: &[Value]) -> Result<Value> {
     
     for arg in args {
         match arg {
-            Value::Int(i) => result *= *i as f64,
+            Value::Integer(i) => result *= *i as f64,
             Value::Float(f) => {
                 result *= f;
                 all_ints = false;
@@ -137,7 +137,7 @@ fn multiply(args: &[Value]) -> Result<Value> {
     }
     
     if all_ints && result.fract() == 0.0 {
-        Ok(Value::Int(result as i64))
+        Ok(Value::Integer(result as i64))
     } else {
         Ok(Value::Float(result))
     }
@@ -151,7 +151,7 @@ fn max(args: &[Value]) -> Result<Value> {
     }
     
     let mut result = match &args[0] {
-        Value::Int(i) => *i as f64,
+        Value::Integer(i) => *i as f64,
         Value::Float(f) => *f,
         _ => return Err(anyhow!("max: expected numbers")),
     };
@@ -159,7 +159,7 @@ fn max(args: &[Value]) -> Result<Value> {
     
     for arg in &args[1..] {
         match arg {
-            Value::Int(i) => result = result.max(*i as f64),
+            Value::Integer(i) => result = result.max(*i as f64),
             Value::Float(f) => {
                 result = result.max(*f);
                 is_float = true;
@@ -171,7 +171,7 @@ fn max(args: &[Value]) -> Result<Value> {
     if is_float || result.fract() != 0.0 {
         Ok(Value::Float(result))
     } else {
-        Ok(Value::Int(result as i64))
+        Ok(Value::Integer(result as i64))
     }
 }
 
@@ -181,7 +181,7 @@ fn min(args: &[Value]) -> Result<Value> {
     }
     
     let mut result = match &args[0] {
-        Value::Int(i) => *i as f64,
+        Value::Integer(i) => *i as f64,
         Value::Float(f) => *f,
         _ => return Err(anyhow!("min: expected numbers")),
     };
@@ -189,7 +189,7 @@ fn min(args: &[Value]) -> Result<Value> {
     
     for arg in &args[1..] {
         match arg {
-            Value::Int(i) => result = result.min(*i as f64),
+            Value::Integer(i) => result = result.min(*i as f64),
             Value::Float(f) => {
                 result = result.min(*f);
                 is_float = true;
@@ -201,13 +201,13 @@ fn min(args: &[Value]) -> Result<Value> {
     if is_float || result.fract() != 0.0 {
         Ok(Value::Float(result))
     } else {
-        Ok(Value::Int(result as i64))
+        Ok(Value::Integer(result as i64))
     }
 }
 
 fn divide(args: &[Value]) -> Result<Value> {
     let divisor = match &args[1] {
-        Value::Int(i) => *i as f64,
+        Value::Integer(i) => *i as f64,
         Value::Float(f) => *f,
         _ => return Err(anyhow!("/: expected number")),
     };
@@ -217,13 +217,13 @@ fn divide(args: &[Value]) -> Result<Value> {
     }
     
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => {
+        (Value::Integer(a), Value::Integer(b)) => {
             // Integer division for int/int
-            Ok(Value::Int(a / b))
+            Ok(Value::Integer(a / b))
         }
         (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a / b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 / b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a / *b as f64)),
+        (Value::Integer(a), Value::Float(b)) => Ok(Value::Float(*a as f64 / b)),
+        (Value::Float(a), Value::Integer(b)) => Ok(Value::Float(a / *b as f64)),
         _ => Err(anyhow!("/: expected numbers")),
     }
 }
@@ -232,36 +232,36 @@ fn divide(args: &[Value]) -> Result<Value> {
 
 fn is_zero(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::Int(i) => Ok(Value::Bool(*i == 0)),
-        Value::Float(f) => Ok(Value::Bool(*f == 0.0)),
+        Value::Integer(i) => Ok(Value::Boolean(*i == 0)),
+        Value::Float(f) => Ok(Value::Boolean(*f == 0.0)),
         _ => Err(anyhow!("zero?: expected number")),
     }
 }
 
 fn is_even(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::Int(i) => Ok(Value::Bool(i % 2 == 0)),
+        Value::Integer(i) => Ok(Value::Boolean(i % 2 == 0)),
         _ => Err(anyhow!("even?: expected integer")),
     }
 }
 
 fn is_odd(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::Int(i) => Ok(Value::Bool(i % 2 != 0)),
+        Value::Integer(i) => Ok(Value::Boolean(i % 2 != 0)),
         _ => Err(anyhow!("odd?: expected integer")),
     }
 }
 
 fn sign(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::Int(i) => Ok(Value::Int(i.signum())),
+        Value::Integer(i) => Ok(Value::Integer(i.signum())),
         Value::Float(f) => {
             if f > &0.0 {
-                Ok(Value::Int(1))
+                Ok(Value::Integer(1))
             } else if f < &0.0 {
-                Ok(Value::Int(-1))
+                Ok(Value::Integer(-1))
             } else {
-                Ok(Value::Int(0))
+                Ok(Value::Integer(0))
             }
         }
         _ => Err(anyhow!("sign: expected number")),
@@ -280,7 +280,7 @@ fn ln(args: &[Value]) -> Result<Value> {
 // Helper to convert Value to f64
 fn to_float(value: &Value) -> Result<f64> {
     match value {
-        Value::Int(i) => Ok(*i as f64),
+        Value::Integer(i) => Ok(*i as f64),
         Value::Float(f) => Ok(*f),
         _ => Err(anyhow!("expected number")),
     }
@@ -289,7 +289,7 @@ fn to_float(value: &Value) -> Result<f64> {
 // Helper to convert f64 result back to appropriate Value
 fn from_float(f: f64) -> Value {
     if f.fract() == 0.0 && f.is_finite() && f >= i64::MIN as f64 && f <= i64::MAX as f64 {
-        Value::Int(f as i64)
+        Value::Integer(f as i64)
     } else {
         Value::Float(f)
     }
@@ -392,11 +392,11 @@ fn log2(args: &[Value]) -> Result<Value> {
 
 fn pow(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(base), Value::Int(exp)) if *exp >= 0 => {
+        (Value::Integer(base), Value::Integer(exp)) if *exp >= 0 => {
             // For positive integer exponents, we can use integer arithmetic
             let result = (*base as f64).powi(*exp as i32);
             if result.fract() == 0.0 && result >= i64::MIN as f64 && result <= i64::MAX as f64 {
-                Ok(Value::Int(result as i64))
+                Ok(Value::Integer(result as i64))
             } else {
                 Ok(Value::Float(result))
             }
@@ -435,7 +435,7 @@ fn round(args: &[Value]) -> Result<Value> {
 fn round_to(args: &[Value]) -> Result<Value> {
     let x = to_float(&args[0])?;
     let places = match &args[1] {
-        Value::Int(i) => *i,
+        Value::Integer(i) => *i,
         _ => return Err(anyhow!("round-to: expected integer for decimal places")),
     };
     
@@ -482,7 +482,7 @@ fn hypot(args: &[Value]) -> Result<Value> {
 
 fn factorial(args: &[Value]) -> Result<Value> {
     let n = match &args[0] {
-        Value::Int(i) => *i,
+        Value::Integer(i) => *i,
         _ => return Err(anyhow!("factorial: expected integer")),
     };
     
@@ -502,18 +502,18 @@ fn factorial(args: &[Value]) -> Result<Value> {
         for i in 2..=n {
             result *= i;
         }
-        Ok(Value::Int(result))
+        Ok(Value::Integer(result))
     }
 }
 
 fn gcd(args: &[Value]) -> Result<Value> {
     let a = match &args[0] {
-        Value::Int(i) => i.abs(),
+        Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("gcd: expected integer")),
     };
     
     let b = match &args[1] {
-        Value::Int(i) => i.abs(),
+        Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("gcd: expected integer")),
     };
     
@@ -525,29 +525,29 @@ fn gcd(args: &[Value]) -> Result<Value> {
         }
     }
     
-    Ok(Value::Int(gcd_helper(a, b)))
+    Ok(Value::Integer(gcd_helper(a, b)))
 }
 
 fn lcm(args: &[Value]) -> Result<Value> {
     let a = match &args[0] {
-        Value::Int(i) => i.abs(),
+        Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("lcm: expected integer")),
     };
     
     let b = match &args[1] {
-        Value::Int(i) => i.abs(),
+        Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("lcm: expected integer")),
     };
     
     if a == 0 || b == 0 {
-        Ok(Value::Int(0))
+        Ok(Value::Integer(0))
     } else {
         // Use GCD to calculate LCM
         let gcd_val = match gcd(args)? {
-            Value::Int(g) => g,
+            Value::Integer(g) => g,
             _ => unreachable!(),
         };
-        Ok(Value::Int(a * b / gcd_val))
+        Ok(Value::Integer(a * b / gcd_val))
     }
 }
 
@@ -562,7 +562,7 @@ fn sum(args: &[Value]) -> Result<Value> {
             
             for item in items {
                 match item {
-                    Value::Int(i) => int_sum += i,
+                    Value::Integer(i) => int_sum += i,
                     Value::Float(f) => {
                         has_float = true;
                         float_sum += f;
@@ -574,7 +574,7 @@ fn sum(args: &[Value]) -> Result<Value> {
             if has_float {
                 Ok(Value::Float(int_sum as f64 + float_sum))
             } else {
-                Ok(Value::Int(int_sum))
+                Ok(Value::Integer(int_sum))
             }
         }
         _ => Err(anyhow!("sum: expected list")),
@@ -590,7 +590,7 @@ fn product(args: &[Value]) -> Result<Value> {
             
             for item in items {
                 match item {
-                    Value::Int(i) => int_product *= i,
+                    Value::Integer(i) => int_product *= i,
                     Value::Float(f) => {
                         has_float = true;
                         float_product *= f;
@@ -602,7 +602,7 @@ fn product(args: &[Value]) -> Result<Value> {
             if has_float {
                 Ok(Value::Float(int_product as f64 * float_product))
             } else {
-                Ok(Value::Int(int_product))
+                Ok(Value::Integer(int_product))
             }
         }
         _ => Err(anyhow!("product: expected list")),
@@ -618,7 +618,7 @@ fn mean(args: &[Value]) -> Result<Value> {
             
             let sum_val = sum(args)?;
             match sum_val {
-                Value::Int(i) => Ok(Value::Float(i as f64 / items.len() as f64)),
+                Value::Integer(i) => Ok(Value::Float(i as f64 / items.len() as f64)),
                 Value::Float(f) => Ok(Value::Float(f / items.len() as f64)),
                 _ => unreachable!(),
             }
@@ -640,7 +640,7 @@ fn clamp(args: &[Value]) -> Result<Value> {
     
     // Try to preserve integer type if possible
     match &args[0] {
-        Value::Int(_) if clamped == clamped.trunc() => Ok(Value::Int(clamped as i64)),
+        Value::Integer(_) if clamped == clamped.trunc() => Ok(Value::Integer(clamped as i64)),
         _ => Ok(Value::Float(clamped)),
     }
 }

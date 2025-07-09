@@ -5,7 +5,7 @@ use fluentai_viz::{
     layout::ASTLayouter,
 };
 use fluentai_core::ast::{Graph, Node, Literal};
-use fluentai_vm::bytecode::Value;
+use fluentai_vm::Value;
 
 #[test]
 fn test_debug_channel() {
@@ -24,12 +24,12 @@ fn test_debug_channel() {
 #[test]
 fn test_value_serialization() {
     assert_eq!(serialize_value(&Value::Nil), "nil");
-    assert_eq!(serialize_value(&Value::Bool(true)), "true");
-    assert_eq!(serialize_value(&Value::Int(42)), "42");
+    assert_eq!(serialize_value(&Value::Boolean(true)), "true");
+    assert_eq!(serialize_value(&Value::Integer(42)), "42");
     assert_eq!(serialize_value(&Value::Float(3.14)), "3.14");
     assert_eq!(serialize_value(&Value::String("hello".to_string())), "\"hello\"");
     
-    let list = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+    let list = Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]);
     assert_eq!(serialize_value(&list), "[1, 2, 3]");
 }
 

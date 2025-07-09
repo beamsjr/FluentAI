@@ -1,6 +1,7 @@
 //! High-performance stack-based virtual machine
 
-use crate::bytecode::{Bytecode, Instruction, Opcode, Value};
+use crate::bytecode::{Bytecode, Instruction, Opcode};
+use fluentai_core::value::Value;
 use crate::debug::{VMDebugEvent, DebugConfig, StepMode};
 use crate::safety::{IdGenerator, PromiseId, ChannelId, ResourceLimits, checked_ops};
 use crate::security::{SecurityManager, SecurityPolicy};
@@ -230,6 +231,10 @@ impl VM {
         self.effect_runtime = runtime;
     }
     
+    pub fn get_effect_context(&self) -> Arc<EffectContext> {
+        self.effect_context.clone()
+    }
+    
     pub fn set_effect_context(&mut self, context: Arc<EffectContext>) {
         self.effect_context = context;
     }
@@ -278,7 +283,7 @@ impl VM {
         if let Some(ref gc) = self.gc {
             let handle = gc.allocate(value)?;
             // Store handle ID in a special GC value variant
-            Ok(Value::GcHandle(Box::new(handle)))
+            Ok(Value::GcHandle(Arc::new(handle)))
         } else {
             // If GC is not enabled, return the value as-is
             Ok(value)
@@ -569,12 +574,12 @@ impl VM {
             }
             
             // Specialized constants
-            PushInt0 => self.push(Value::Int(0))?,
-            PushInt1 => self.push(Value::Int(1))?,
-            PushInt2 => self.push(Value::Int(2))?,
-            PushIntSmall => self.push(Value::Int(instruction.arg as i64))?,
-            PushTrue => self.push(Value::Bool(true))?,
-            PushFalse => self.push(Value::Bool(false))?,
+            PushInt0 => self.push(Value::Integer(0))?,
+            PushInt1 => self.push(Value::Integer(1))?,
+            PushInt2 => self.push(Value::Integer(2))?,
+            PushIntSmall => self.push(Value::Integer(instruction.arg as i64))?,
+            PushTrue => self.push(Value::Boolean(true))?,
+            PushFalse => self.push(Value::Boolean(false))?,
             PushNil => self.push(Value::Nil)?,
             
             PushConst => {
@@ -592,7 +597,7 @@ impl VM {
             
             // Arithmetic
             Add => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::add_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
+                (Value::Integer(x), Value::Integer(y)) => checked_ops::add_i64(x, y).map(Value::Integer).map_err(|_| VMError::IntegerOverflow {
                     operation: "add".to_string(),
                     operands: (x, y),
                     stack_trace: None,
@@ -609,7 +614,7 @@ impl VM {
             })?,
             
             Sub => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::sub_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
+                (Value::Integer(x), Value::Integer(y)) => checked_ops::sub_i64(x, y).map(Value::Integer).map_err(|_| VMError::IntegerOverflow {
                     operation: "sub".to_string(),
                     operands: (x, y),
                     stack_trace: None,
@@ -625,7 +630,7 @@ impl VM {
             })?,
             
             Mul => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::mul_i64(x, y).map(Value::Int).map_err(|_| VMError::IntegerOverflow {
+                (Value::Integer(x), Value::Integer(y)) => checked_ops::mul_i64(x, y).map(Value::Integer).map_err(|_| VMError::IntegerOverflow {
                     operation: "mul".to_string(),
                     operands: (x, y),
                     stack_trace: None,
@@ -641,7 +646,7 @@ impl VM {
             })?,
             
             Div => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::div_i64(x, y).map(Value::Int).map_err(|_| {
+                (Value::Integer(x), Value::Integer(y)) => checked_ops::div_i64(x, y).map(Value::Integer).map_err(|_| {
                     if y == 0 {
                         VMError::DivisionByZero { location: None, stack_trace: None }
                     } else {
@@ -663,7 +668,7 @@ impl VM {
             })?,
             
             Mod => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => checked_ops::mod_i64(x, y).map(Value::Int).map_err(|_| {
+                (Value::Integer(x), Value::Integer(y)) => checked_ops::mod_i64(x, y).map(Value::Integer).map_err(|_| {
                     if y == 0 {
                         VMError::DivisionByZero { location: None, stack_trace: None }
                     } else {
@@ -686,13 +691,13 @@ impl VM {
             Neg => {
                 let value = self.pop()?;
                 match value {
-                    Value::Int(x) => {
+                    Value::Integer(x) => {
                         let negated = checked_ops::neg_i64(x).map_err(|_| VMError::IntegerOverflow {
                             operation: "neg".to_string(),
                             operands: (x, 0),
                             stack_trace: None,
                         })?;
-                        self.push(Value::Int(negated))?
+                        self.push(Value::Integer(negated))?
                     }
                     Value::Float(x) => self.push(Value::Float(-x))?,
                     v => return Err(VMError::TypeError {
@@ -744,21 +749,22 @@ impl VM {
                 let b = self.pop()?;
                 let a = self.pop()?;
                 let equal = self.values_equal(&a, &b);
-                self.push(Value::Bool(equal))?;
+                self.push(Value::Boolean(equal))?;
             }
             Ne => {
                 let b = self.pop()?;
                 let a = self.pop()?;
                 let equal = self.values_equal(&a, &b);
-                self.push(Value::Bool(!equal))?;
+                self.push(Value::Boolean(!equal))?;
             }
             
             Lt => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x < y)),
-                (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x < y)),
+                (Value::Integer(x), Value::Integer(y)) => Ok(Value::Boolean(x < y)),
+                (Value::Float(x), Value::Float(y)) => Ok(Value::Boolean(x < y)),
+                (Value::String(x), Value::String(y)) => Ok(Value::Boolean(x < y)),
                 (a, b) => Err(VMError::TypeError {
                     operation: "lt".to_string(),
-                    expected: "int/float".to_string(),
+                    expected: "int/float/string".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
                     stack_trace: None,
@@ -766,11 +772,12 @@ impl VM {
             })?,
             
             Le => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x <= y)),
-                (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x <= y)),
+                (Value::Integer(x), Value::Integer(y)) => Ok(Value::Boolean(x <= y)),
+                (Value::Float(x), Value::Float(y)) => Ok(Value::Boolean(x <= y)),
+                (Value::String(x), Value::String(y)) => Ok(Value::Boolean(x <= y)),
                 (a, b) => Err(VMError::TypeError {
                     operation: "le".to_string(),
-                    expected: "int/float".to_string(),
+                    expected: "int/float/string".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
                     stack_trace: None,
@@ -778,11 +785,12 @@ impl VM {
             })?,
             
             Gt => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x > y)),
-                (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x > y)),
+                (Value::Integer(x), Value::Integer(y)) => Ok(Value::Boolean(x > y)),
+                (Value::Float(x), Value::Float(y)) => Ok(Value::Boolean(x > y)),
+                (Value::String(x), Value::String(y)) => Ok(Value::Boolean(x > y)),
                 (a, b) => Err(VMError::TypeError {
                     operation: "gt".to_string(),
-                    expected: "int/float".to_string(),
+                    expected: "int/float/string".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
                     stack_trace: None,
@@ -790,11 +798,12 @@ impl VM {
             })?,
             
             Ge => self.binary_op(|a, b| match (a, b) {
-                (Value::Int(x), Value::Int(y)) => Ok(Value::Bool(x >= y)),
-                (Value::Float(x), Value::Float(y)) => Ok(Value::Bool(x >= y)),
+                (Value::Integer(x), Value::Integer(y)) => Ok(Value::Boolean(x >= y)),
+                (Value::Float(x), Value::Float(y)) => Ok(Value::Boolean(x >= y)),
+                (Value::String(x), Value::String(y)) => Ok(Value::Boolean(x >= y)),
                 (a, b) => Err(VMError::TypeError {
                     operation: "ge".to_string(),
-                    expected: "int/float".to_string(),
+                    expected: "int/float/string".to_string(),
                     got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
                     location: None,
                     stack_trace: None,
@@ -809,7 +818,7 @@ impl VM {
             
             // Boolean
             And => self.binary_op(|a, b| match (a, b) {
-                (Value::Bool(x), Value::Bool(y)) => Ok(Value::Bool(x && y)),
+                (Value::Boolean(x), Value::Boolean(y)) => Ok(Value::Boolean(x && y)),
                 (a, b) => Err(VMError::TypeError {
                     operation: "and".to_string(),
                     expected: "bool".to_string(),
@@ -820,7 +829,7 @@ impl VM {
             })?,
             
             Or => self.binary_op(|a, b| match (a, b) {
-                (Value::Bool(x), Value::Bool(y)) => Ok(Value::Bool(x || y)),
+                (Value::Boolean(x), Value::Boolean(y)) => Ok(Value::Boolean(x || y)),
                 (a, b) => Err(VMError::TypeError {
                     operation: "or".to_string(),
                     expected: "bool".to_string(),
@@ -833,7 +842,7 @@ impl VM {
             Not => {
                 let value = self.pop()?;
                 match value {
-                    Value::Bool(x) => self.push(Value::Bool(!x))?,
+                    Value::Boolean(x) => self.push(Value::Boolean(!x))?,
                     v => return Err(VMError::TypeError {
                         operation: "not".to_string(),
                         expected: "bool".to_string(),
@@ -1162,10 +1171,11 @@ impl VM {
             ListLen => {
                 let list = self.pop()?;
                 match list {
-                    Value::List(items) => self.push(Value::Int(items.len() as i64))?,
+                    Value::List(items) => self.push(Value::Integer(items.len() as i64))?,
+                    Value::Vector(items) => self.push(Value::Integer(items.len() as i64))?,
                     v => return Err(VMError::TypeError {
                         operation: "list_len".to_string(),
-                        expected: "list".to_string(),
+                        expected: "list/vector".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
                         stack_trace: None,
@@ -1176,10 +1186,11 @@ impl VM {
             ListEmpty => {
                 let list = self.pop()?;
                 match list {
-                    Value::List(items) => self.push(Value::Bool(items.is_empty()))?,
+                    Value::List(items) => self.push(Value::Boolean(items.is_empty()))?,
+                    Value::Vector(items) => self.push(Value::Boolean(items.is_empty()))?,
                     v => return Err(VMError::TypeError {
                         operation: "list_empty".to_string(),
-                        expected: "list".to_string(),
+                        expected: "list/vector".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
                         stack_trace: None,
@@ -1199,9 +1210,18 @@ impl VM {
                         }
                         self.push(items[0].clone())?;
                     }
+                    Value::Vector(items) => {
+                        if items.is_empty() {
+                            return Err(VMError::RuntimeError {
+                                message: "Cannot take head of empty vector".to_string(),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
+                        }
+                        self.push(items[0].clone())?;
+                    }
                     v => return Err(VMError::TypeError {
                         operation: "list_head".to_string(),
-                        expected: "list".to_string(),
+                        expected: "list/vector".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
                         stack_trace: None,
@@ -1222,9 +1242,19 @@ impl VM {
                         let tail = items[1..].to_vec();
                         self.push(Value::List(tail))?;
                     }
+                    Value::Vector(items) => {
+                        if items.is_empty() {
+                            return Err(VMError::RuntimeError {
+                                message: "Cannot take tail of empty vector".to_string(),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
+                        }
+                        let tail = items[1..].to_vec();
+                        self.push(Value::Vector(tail))?;
+                    }
                     v => return Err(VMError::TypeError {
                         operation: "list_tail".to_string(),
-                        expected: "list".to_string(),
+                        expected: "list/vector".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
                         stack_trace: None,
@@ -1240,9 +1270,13 @@ impl VM {
                         items.insert(0, elem);
                         self.push(Value::List(items))?;
                     }
+                    Value::Vector(mut items) => {
+                        items.insert(0, elem);
+                        self.push(Value::Vector(items))?;
+                    }
                     v => return Err(VMError::TypeError {
                         operation: "list_cons".to_string(),
-                        expected: "list as second argument".to_string(),
+                        expected: "list/vector as second argument".to_string(),
                         got: value_type_name(&v).to_string(),
                         location: None,
                         stack_trace: None,
@@ -1254,7 +1288,7 @@ impl VM {
             StrLen => {
                 let string = self.pop()?;
                 match string {
-                    Value::String(s) => self.push(Value::Int(s.len() as i64))?,
+                    Value::String(s) => self.push(Value::Integer(s.len() as i64))?,
                     v => return Err(VMError::TypeError {
                         operation: "str_len".to_string(),
                         expected: "string".to_string(),
@@ -1495,13 +1529,13 @@ impl VM {
                 runtime.spawn(future);
                 
                 // Return the promise ID as string for compatibility
-                self.push(Value::Promise(promise_id))?;
+                self.push(Value::Promise(promise_id.0))?;
             }
             
             Await => {
                 // Pop promise
                 let promise_id = match self.pop()? {
-                    Value::Promise(id) => id,
+                    Value::Promise(id) => PromiseId(id),
                     v => return Err(VMError::TypeError {
                         operation: "await".to_string(),
                         expected: "promise".to_string(),
@@ -1520,7 +1554,7 @@ impl VM {
                         Err(oneshot::error::TryRecvError::Empty) => {
                             // Not ready yet, put it back and return the promise
                             self.promises.insert(promise_id, rx);
-                            self.push(Value::Promise(promise_id))?;
+                            self.push(Value::Promise(promise_id.0))?;
                         }
                         Err(oneshot::error::TryRecvError::Closed) => {
                             return Err(VMError::AsyncError {
@@ -1547,7 +1581,7 @@ impl VM {
                 let promise_id = self.id_generator.next_promise_id();
                 
                 // Return a promise that represents the goroutine
-                self.push(Value::Promise(promise_id))?;
+                self.push(Value::Promise(promise_id.0))?;
             }
             
             Channel => {
@@ -1565,14 +1599,14 @@ impl VM {
                 let channel_id = self.id_generator.next_channel_id();
                 let (tx, rx) = mpsc::channel(self.resource_limits.channel_buffer_size);
                 self.channels.insert(channel_id, (tx, rx));
-                self.push(Value::Channel(channel_id))?;
+                self.push(Value::Channel(channel_id.0))?;
             }
             
             Send => {
                 // Pop value and channel
                 let value = self.pop()?;
                 let channel_id = match self.pop()? {
-                    Value::Channel(id) => id,
+                    Value::Channel(id) => ChannelId(id),
                     v => return Err(VMError::TypeError {
                         operation: "send".to_string(),
                         expected: "channel".to_string(),
@@ -1608,7 +1642,7 @@ impl VM {
             Receive => {
                 // Pop channel
                 let channel_id = match self.pop()? {
-                    Value::Channel(id) => id,
+                    Value::Channel(id) => ChannelId(id),
                     v => return Err(VMError::TypeError {
                         operation: "receive".to_string(),
                         expected: "channel".to_string(),
@@ -1790,8 +1824,13 @@ impl VM {
                                         .map(|v| self.vm_value_to_stdlib_value(v))
                                         .collect();
                                     
-                                    // Call the stdlib function
-                                    let stdlib_result = stdlib_func.call(&stdlib_args)?;
+                                    // Create StdlibContext with just the effect context for now
+                                    // TODO: Add VM callback support in a way that doesn't require mutable borrow
+                                    let mut context = fluentai_stdlib::vm_bridge::StdlibContext::default();
+                                    context.effect_context_override = Some(self.effect_context.clone());
+                                    
+                                    // Call the stdlib function with context
+                                    let stdlib_result = stdlib_func.call_with_context(&mut context, &stdlib_args)?;
                                     
                                     // Convert result back to VM value
                                     let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
@@ -1805,6 +1844,24 @@ impl VM {
                                 }
                             }
                         }
+                    }
+                    Value::NativeFunction { function, arity, .. } => {
+                        // Check arity
+                        if args.len() != *arity {
+                            return Err(VMError::RuntimeError {
+                                message: format!("Native function expects {} arguments, got {}", arity, args.len()),
+                                stack_trace: None,
+                            });
+                        }
+                        
+                        // Call the native function
+                        let result = function(&args).map_err(|e| VMError::RuntimeError {
+                            message: format!("Native function error: {}", e),
+                            stack_trace: None,
+                        })?;
+                        
+                        // Push result
+                        self.push(result)?;
                     }
                     v => return Err(VMError::TypeError {
                         operation: "call".to_string(),
@@ -1969,7 +2026,7 @@ impl VM {
                     _ => false,
                 };
                 
-                self.push(Value::Bool(is_match))?;
+                self.push(Value::Boolean(is_match))?;
             }
             
             // Environment management (reserved for future use)
@@ -2110,9 +2167,19 @@ impl VM {
             GcDeref => {
                 let handle = self.pop()?;
                 match handle {
-                    Value::GcHandle(gc_handle) => {
-                        let value = gc_handle.get();
-                        self.push(value)?;
+                    Value::GcHandle(any_handle) => {
+                        if let Some(gc_handle) = any_handle.downcast_ref::<crate::gc::GcHandle>() {
+                            let value = gc_handle.get();
+                            self.push(value)?;
+                        } else {
+                            return Err(VMError::TypeError {
+                                operation: "gc_deref".to_string(),
+                                expected: "GC handle".to_string(),
+                                got: "invalid GC handle type".to_string(),
+                                location: None,
+                                stack_trace: None,
+                            });
+                        }
                     }
                     v => return Err(VMError::TypeError {
                         operation: "gc_deref".to_string(),
@@ -2128,9 +2195,19 @@ impl VM {
                 let value = self.pop()?;
                 let handle = self.pop()?;
                 match handle {
-                    Value::GcHandle(gc_handle) => {
-                        gc_handle.set(value);
-                        self.push(Value::Nil)?;
+                    Value::GcHandle(any_handle) => {
+                        if let Some(gc_handle) = any_handle.downcast_ref::<crate::gc::GcHandle>() {
+                            gc_handle.set(value);
+                            self.push(Value::Nil)?;
+                        } else {
+                            return Err(VMError::TypeError {
+                                operation: "gc_set".to_string(),
+                                expected: "GC handle".to_string(),
+                                got: "invalid GC handle type".to_string(),
+                                location: None,
+                                stack_trace: None,
+                            });
+                        }
                     }
                     v => return Err(VMError::TypeError {
                         operation: "gc_set".to_string(),
@@ -2178,6 +2255,14 @@ impl VM {
                             frame.ip = 0;
                             frame.chunk_id = chunk_id;
                             frame.env = env;
+                        }
+                        Value::NativeFunction { .. } => {
+                            // Native functions don't support tail call optimization
+                            // Fall back to regular call semantics
+                            return Err(VMError::RuntimeError {
+                                message: "Native functions do not support tail call optimization".to_string(),
+                                stack_trace: None,
+                            });
                         }
                         v => return Err(VMError::TypeError {
                             operation: "tail_call".to_string(),
@@ -2294,7 +2379,7 @@ impl VM {
                 
                 // Add metadata
                 handler_data.insert("_type".to_string(), Value::String("handler".to_string()));
-                handler_data.insert("_count".to_string(), Value::Int(handler_count as i64));
+                handler_data.insert("_count".to_string(), Value::Integer(handler_count as i64));
                 
                 self.push(Value::Map(handler_data))?;
             }
@@ -2437,9 +2522,9 @@ impl VM {
         let b = self.pop()?;
         let a = self.pop()?;
         match (a, b) {
-            (Value::Int(x), Value::Int(y)) => {
+            (Value::Integer(x), Value::Integer(y)) => {
                 let result = op(x, y)?;
-                self.push(Value::Int(result))
+                self.push(Value::Integer(result))
             }
             (a, b) => Err(VMError::TypeError {
                 operation: "binary int operation".to_string(),
@@ -2458,9 +2543,9 @@ impl VM {
         let b = self.pop()?;
         let a = self.pop()?;
         match (a, b) {
-            (Value::Int(x), Value::Int(y)) => {
+            (Value::Integer(x), Value::Integer(y)) => {
                 let result = op(x, y);
-                self.push(Value::Bool(result))
+                self.push(Value::Boolean(result))
             }
             (a, b) => Err(VMError::TypeError {
                 operation: "binary int comparison".to_string(),
@@ -2496,18 +2581,28 @@ impl VM {
     fn values_equal(&self, a: &Value, b: &Value) -> bool {
         match (a, b) {
             (Value::Nil, Value::Nil) => true,
-            (Value::Bool(x), Value::Bool(y)) => x == y,
-            (Value::Int(x), Value::Int(y)) => x == y,
+            (Value::Boolean(x), Value::Boolean(y)) => x == y,
+            (Value::Integer(x), Value::Integer(y)) => x == y,
             (Value::Float(x), Value::Float(y)) => x == y,
             (Value::String(x), Value::String(y)) => x == y,
+            (Value::Symbol(x), Value::Symbol(y)) => x == y,
             (Value::List(x), Value::List(y)) => {
                 x.len() == y.len() && x.iter().zip(y).all(|(a, b)| self.values_equal(a, b))
+            }
+            (Value::Vector(x), Value::Vector(y)) => {
+                x.len() == y.len() && x.iter().zip(y).all(|(a, b)| self.values_equal(a, b))
+            }
+            (Value::Map(x), Value::Map(y)) => {
+                x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).map_or(false, |v2| self.values_equal(v, v2)))
             }
             (Value::Tagged { tag: tag1, values: vals1 }, Value::Tagged { tag: tag2, values: vals2 }) => {
                 tag1 == tag2 && vals1.len() == vals2.len() && 
                 vals1.iter().zip(vals2).all(|(a, b)| self.values_equal(a, b))
             }
             (Value::Module { name: n1, .. }, Value::Module { name: n2, .. }) => n1 == n2,
+            (Value::Promise(x), Value::Promise(y)) => x == y,
+            (Value::Channel(x), Value::Channel(y)) => x == y,
+            (Value::Cell(x), Value::Cell(y)) => x == y,
             _ => false,
         }
     }
@@ -2515,12 +2610,16 @@ impl VM {
     fn is_truthy(&self, value: &Value) -> bool {
         match value {
             Value::Nil => false,
-            Value::Bool(b) => *b,
-            Value::Int(i) => *i != 0,
+            Value::Boolean(b) => *b,
+            Value::Integer(i) => *i != 0,
             Value::Float(f) => *f != 0.0,
             Value::String(s) => !s.is_empty(),
+            Value::Symbol(_) => true,
             Value::List(l) => !l.is_empty(),
+            Value::Procedure(_) => true,
+            Value::Vector(v) => !v.is_empty(),
             Value::Map(m) => !m.is_empty(),
+            Value::NativeFunction { .. } => true,
             Value::Function { .. } => true,
             Value::Promise(_) => true,
             Value::Channel(_) => true,
@@ -2532,85 +2631,13 @@ impl VM {
     }
     
     pub fn vm_value_to_stdlib_value(&self, value: &Value) -> StdlibValue {
-        match value {
-            Value::Nil => StdlibValue::Nil,
-            Value::Bool(b) => StdlibValue::Bool(*b),
-            Value::Int(i) => StdlibValue::Int(*i),
-            Value::Float(f) => StdlibValue::Float(*f),
-            Value::String(s) => StdlibValue::String(s.clone()),
-            Value::List(items) => {
-                StdlibValue::List(
-                    items.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect()
-                )
-            }
-            Value::Map(map) => {
-                let mut stdlib_map = FxHashMap::default();
-                for (k, v) in map {
-                    stdlib_map.insert(k.clone(), self.vm_value_to_stdlib_value(v));
-                }
-                StdlibValue::Map(stdlib_map)
-            }
-            Value::Function { chunk_id, env } => {
-                StdlibValue::Function {
-                    chunk_id: *chunk_id,
-                    env: env.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect(),
-                }
-            }
-            Value::Promise(id) => StdlibValue::Promise(id.0),
-            Value::Channel(id) => StdlibValue::Channel(id.0),
-            Value::Cell(idx) => StdlibValue::Cell(*idx),
-            Value::Tagged { tag, values } => {
-                StdlibValue::Tagged {
-                    tag: tag.clone(),
-                    values: values.iter().map(|v| self.vm_value_to_stdlib_value(v)).collect(),
-                }
-            }
-            Value::Module { name, .. } => {
-                // No direct stdlib equivalent, use string representation
-                StdlibValue::String(format!("<module {}>", name))
-            }
-            Value::GcHandle(_) => {
-                // No direct stdlib equivalent, use string representation
-                StdlibValue::String("<gc-handle>".to_string())
-            }
-        }
+        // Since StdlibValue is just a re-export of Value, we can clone directly
+        value.clone()
     }
     
     pub fn stdlib_value_to_vm_value(&self, value: &StdlibValue) -> Value {
-        match value {
-            StdlibValue::Nil => Value::Nil,
-            StdlibValue::Bool(b) => Value::Bool(*b),
-            StdlibValue::Int(i) => Value::Int(*i),
-            StdlibValue::Float(f) => Value::Float(*f),
-            StdlibValue::String(s) => Value::String(s.clone()),
-            StdlibValue::List(items) => {
-                Value::List(
-                    items.iter().map(|v| self.stdlib_value_to_vm_value(v)).collect()
-                )
-            }
-            StdlibValue::Map(map) => {
-                let mut vm_map = FxHashMap::default();
-                for (k, v) in map {
-                    vm_map.insert(k.clone(), self.stdlib_value_to_vm_value(v));
-                }
-                Value::Map(vm_map)
-            }
-            StdlibValue::Function { chunk_id, env } => {
-                Value::Function {
-                    chunk_id: *chunk_id,
-                    env: env.iter().map(|v| self.stdlib_value_to_vm_value(v)).collect(),
-                }
-            }
-            StdlibValue::Promise(id) => Value::Promise(PromiseId(*id)),
-            StdlibValue::Channel(id) => Value::Channel(ChannelId(*id)),
-            StdlibValue::Cell(idx) => Value::Cell(*idx),
-            StdlibValue::Tagged { tag, values } => {
-                Value::Tagged {
-                    tag: tag.clone(),
-                    values: values.iter().map(|v| self.stdlib_value_to_vm_value(v)).collect(),
-                }
-            }
-        }
+        // Since StdlibValue is just a re-export of Value, we can clone directly
+        value.clone()
     }
     
     fn builtin_to_opcode(&self, name: &str) -> Option<Opcode> {
@@ -2719,6 +2746,25 @@ impl VM {
                 
                 Ok(())
             }
+            Value::NativeFunction { function, arity, .. } => {
+                // Check arity
+                if args.len() != arity {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Native function expects {} arguments, got {}", arity, args.len()),
+                        stack_trace: None,
+                    });
+                }
+                
+                // Call the native function
+                let result = function(&args).map_err(|e| VMError::RuntimeError {
+                    message: format!("Native function error: {}", e),
+                    stack_trace: None,
+                })?;
+                
+                // Push result
+                self.push(result)?;
+                Ok(())
+            }
             v => Err(VMError::TypeError {
                 operation: "call_value".to_string(),
                 expected: "function".to_string(),
@@ -2818,6 +2864,21 @@ impl VM {
                 
                 Ok(result)
             }
+            Value::NativeFunction { function, arity, .. } => {
+                // Check arity
+                if args.len() != arity {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Native handler expects {} arguments, got {}", arity, args.len()),
+                        stack_trace: None,
+                    });
+                }
+                
+                // Call the native function directly
+                function(&args).map_err(|e| VMError::RuntimeError {
+                    message: format!("Native handler error: {}", e),
+                    stack_trace: None,
+                })
+            }
             v => Err(VMError::TypeError {
                 operation: "call_handler_function".to_string(),
                 expected: "function".to_string(),
@@ -2831,12 +2892,19 @@ impl VM {
     fn vm_value_to_core_value(&self, value: &Value) -> fluentai_core::value::Value {
         match value {
             Value::Nil => fluentai_core::value::Value::Nil,
-            Value::Bool(b) => fluentai_core::value::Value::Boolean(*b),
-            Value::Int(i) => fluentai_core::value::Value::Integer(*i),
+            Value::Boolean(b) => fluentai_core::value::Value::Boolean(*b),
+            Value::Integer(i) => fluentai_core::value::Value::Integer(*i),
             Value::Float(f) => fluentai_core::value::Value::Float(*f),
             Value::String(s) => fluentai_core::value::Value::String(s.clone()),
+            Value::Symbol(s) => fluentai_core::value::Value::Symbol(s.clone()),
             Value::List(items) => {
                 fluentai_core::value::Value::List(
+                    items.iter().map(|v| self.vm_value_to_core_value(v)).collect()
+                )
+            }
+            Value::Procedure(proc) => fluentai_core::value::Value::Procedure(proc.clone()),
+            Value::Vector(items) => {
+                fluentai_core::value::Value::Vector(
                     items.iter().map(|v| self.vm_value_to_core_value(v)).collect()
                 )
             }
@@ -2846,6 +2914,13 @@ impl VM {
                     core_map.insert(k.clone(), self.vm_value_to_core_value(v));
                 }
                 fluentai_core::value::Value::Map(core_map)
+            }
+            Value::NativeFunction { name, arity, function } => {
+                fluentai_core::value::Value::NativeFunction {
+                    name: name.clone(),
+                    arity: *arity,
+                    function: function.clone(),
+                }
             }
             Value::Function { .. } => {
                 // Functions can't be directly converted, return a placeholder
@@ -2861,13 +2936,10 @@ impl VM {
                 fluentai_core::value::Value::String(format!("<cell:{}>", idx))
             }
             Value::Tagged { tag, values } => {
-                // Convert to a map representation for now
-                let mut map = FxHashMap::default();
-                map.insert("__tag__".to_string(), fluentai_core::value::Value::String(tag.clone()));
-                map.insert("__values__".to_string(), fluentai_core::value::Value::List(
-                    values.iter().map(|v| self.vm_value_to_core_value(v)).collect()
-                ));
-                fluentai_core::value::Value::Map(map)
+                fluentai_core::value::Value::Tagged {
+                    tag: tag.clone(),
+                    values: values.iter().map(|v| self.vm_value_to_core_value(v)).collect(),
+                }
             }
             Value::Module { name, exports } => {
                 // Convert to a map representation  
@@ -2889,8 +2961,8 @@ impl VM {
     fn core_value_to_vm_value(&self, value: &fluentai_core::value::Value) -> Value {
         match value {
             fluentai_core::value::Value::Nil => Value::Nil,
-            fluentai_core::value::Value::Boolean(b) => Value::Bool(*b),
-            fluentai_core::value::Value::Integer(i) => Value::Int(*i),
+            fluentai_core::value::Value::Boolean(b) => Value::Boolean(*b),
+            fluentai_core::value::Value::Integer(i) => Value::Integer(*i),
             fluentai_core::value::Value::Float(f) => Value::Float(*f),
             fluentai_core::value::Value::String(s) => Value::String(s.clone()),
             fluentai_core::value::Value::List(items) => {
@@ -2929,6 +3001,26 @@ impl VM {
                     items.iter().map(|v| self.core_value_to_vm_value(v)).collect()
                 )
             }
+            fluentai_core::value::Value::Function { chunk_id, env } => {
+                Value::Function {
+                    chunk_id: *chunk_id,
+                    env: env.iter().map(|v| self.core_value_to_vm_value(v)).collect(),
+                }
+            }
+            fluentai_core::value::Value::Promise(id) => Value::Promise(*id),
+            fluentai_core::value::Value::Channel(id) => Value::Channel(*id),
+            fluentai_core::value::Value::Cell(idx) => Value::Cell(*idx),
+            fluentai_core::value::Value::Module { name, exports } => {
+                let mut vm_exports = FxHashMap::default();
+                for (k, v) in exports {
+                    vm_exports.insert(k.clone(), self.core_value_to_vm_value(v));
+                }
+                Value::Module {
+                    name: name.clone(),
+                    exports: vm_exports,
+                }
+            }
+            fluentai_core::value::Value::GcHandle(handle) => Value::GcHandle(handle.clone()),
         }
     }
     
@@ -3185,15 +3277,15 @@ mod inline_tests {
         let vm = VM::new(bytecode);
         
         // Test VM value to stdlib value conversion
-        let vm_val = Value::Int(42);
+        let vm_val = Value::Integer(42);
         let stdlib_val = vm.vm_value_to_stdlib_value(&vm_val);
         match stdlib_val {
-            StdlibValue::Int(i) => assert_eq!(i, 42),
+            StdlibValue::Integer(i) => assert_eq!(i, 42),
             _ => panic!("Expected integer"),
         }
         
         // Test list conversion
-        let vm_list = Value::List(vec![Value::Int(1), Value::Int(2)]);
+        let vm_list = Value::List(vec![Value::Integer(1), Value::Integer(2)]);
         let stdlib_list = vm.vm_value_to_stdlib_value(&vm_list);
         match stdlib_list {
             StdlibValue::List(_) => {},

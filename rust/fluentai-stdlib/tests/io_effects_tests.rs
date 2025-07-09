@@ -76,7 +76,7 @@ fn test_file_operations_with_logging_handler() {
     
     // Test file exists (should always return false with LoggingIOHandler)
     let result = io_effects::file_exists_with_effects(&[Value::String("test.txt".to_string())]);
-    assert_eq!(result.unwrap(), Value::Bool(false));
+    assert_eq!(result.unwrap(), Value::Boolean(false));
     
     // Test file read (LoggingIOHandler returns error for file operations)
     let result = io_effects::file_read_with_effects(&[Value::String("test.txt".to_string())]);
@@ -301,7 +301,7 @@ fn test_argument_validation() {
     // Skip this test as it would panic rather than return an error
     
     // Test with non-string argument
-    let result = io_effects::file_read_with_effects(&[Value::Int(42)]);
+    let result = io_effects::file_read_with_effects(&[Value::Integer(42)]);
     assert!(result.is_err());
     
     // Reset context after test

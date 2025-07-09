@@ -100,10 +100,8 @@ impl VMServiceProvider for ContainerVMProvider {
         }
         
         // Check if effect handler provider is available
-        // Note: In the future, we could enhance EffectRuntime to accept a provider
-        if let Ok(_handler_provider) = self.container.resolve::<Arc<EffectHandlerProvider>>() {
-            // For now, just use the default runtime
-            // TODO: Integrate EffectHandlerProvider with EffectRuntime
+        if let Ok(handler_provider) = self.container.resolve::<Arc<EffectHandlerProvider>>() {
+            builder = builder.with_effect_handler_provider(handler_provider);
         }
         
         // Check if stdlib registry is available directly

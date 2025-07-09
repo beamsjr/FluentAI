@@ -24,7 +24,7 @@ fn test_basic_iot_functionality() {
     
     // Should find 1 high temperature (45.0)
     match result {
-        fluentai_vm::bytecode::Value::Int(n) => assert_eq!(n, 1),
+        fluentai_vm::Value::Integer(n) => assert_eq!(n, 1),
         _ => panic!("Expected Int, got {:?}", result),
     }
 }
@@ -57,7 +57,7 @@ fn test_sensor_reading_simulation() {
     let result = run_code(code).expect("Failed to run code");
     
     match result {
-        fluentai_vm::bytecode::Value::Int(n) => assert_eq!(n, 1),
+        fluentai_vm::Value::Integer(n) => assert_eq!(n, 1),
         _ => panic!("Expected Int, got {:?}", result),
     }
 }
@@ -82,7 +82,7 @@ fn test_pipeline_concept() {
     // After enrichment: 22, 27.5, 33, 38.5
     // After filtering > 30: 33, 38.5
     match result {
-        fluentai_vm::bytecode::Value::Int(n) => assert_eq!(n, 2),
+        fluentai_vm::Value::Integer(n) => assert_eq!(n, 2),
         _ => panic!("Expected Int, got {:?}", result),
     }
 }
@@ -106,15 +106,15 @@ fn test_fold_operations() {
     let result = run_code(code).expect("Failed to run code");
     
     match result {
-        fluentai_vm::bytecode::Value::List(items) => {
+        fluentai_vm::Value::List(items) => {
             assert_eq!(items.len(), 2);
             match &items[0] {
-                fluentai_vm::bytecode::Value::Int(n) => assert_eq!(*n, 15),
+                fluentai_vm::Value::Integer(n) => assert_eq!(*n, 15),
                 _ => panic!("Expected sum to be Int"),
             }
             match &items[1] {
-                fluentai_vm::bytecode::Value::Float(f) => assert!((f - 3.0).abs() < 0.001),
-                fluentai_vm::bytecode::Value::Int(n) => assert_eq!(*n, 3),
+                fluentai_vm::Value::Float(f) => assert!((f - 3.0).abs() < 0.001),
+                fluentai_vm::Value::Integer(n) => assert_eq!(*n, 3),
                 _ => panic!("Expected avg to be Float or Int"),
             }
         }
@@ -123,7 +123,7 @@ fn test_fold_operations() {
 }
 
 // Helper function to run FluentAI code
-fn run_code(code: &str) -> Result<fluentai_vm::bytecode::Value, Box<dyn std::error::Error>> {
+fn run_code(code: &str) -> Result<fluentai_vm::Value, Box<dyn std::error::Error>> {
     use fluentai_vm::builder::VMBuilder;
     
     // Initialize stdlib

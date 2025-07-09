@@ -1,0 +1,53 @@
+;; Working Example - demonstrates actual working features
+
+;; Basic arithmetic and printing
+(effect io:print "=== Basic Operations ===")
+(effect io:print (+ 1 2 3))
+(effect io:print (* 5 6))
+(effect io:print (- 10 3))
+
+;; Lists
+(effect io:print "\n=== List Operations ===")
+(let ((nums (list 1 2 3 4 5)))
+  (effect io:print nums))
+
+(let ((nums (list 1 2 3 4 5)))
+  (effect io:print (head nums)))
+
+(let ((nums (list 1 2 3 4 5)))
+  (effect io:print (tail nums)))
+
+(let ((nums (list 1 2 3 4 5)))
+  (effect io:print (length nums)))
+
+;; Map, filter, fold
+(effect io:print "\n=== Higher-Order Functions ===")
+(let ((nums (list 1 2 3 4 5)))
+  (effect io:print (map (lambda (x) (* x x)) nums)))
+
+(let ((nums (list 1 2 3 4 5 6 7 8 9 10)))
+  (effect io:print (filter (lambda (x) (= (mod x 2) 0)) nums)))
+
+(let ((nums (list 1 2 3 4 5)))
+  (effect io:print (fold + 0 nums)))
+
+;; Pattern matching
+(effect io:print "\n=== Pattern Matching ===")
+(let ((value 42))
+  (effect io:print (match value
+    (0 "zero")
+    (1 "one")
+    (42 "the answer")
+    (_ "something else"))))
+
+;; Effects
+(effect io:print "\n=== Effects ===")
+(effect state:set "counter" 0)
+(effect state:set "counter" (+ (effect state:get "counter") 1))
+(effect io:print (effect state:get "counter"))
+
+;; Random number
+(effect io:print (effect random:int 1 100))
+
+;; Result
+42

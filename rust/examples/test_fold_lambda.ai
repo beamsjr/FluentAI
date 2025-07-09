@@ -1,0 +1,2 @@
+;; Test fold with lambda
+(fold (lambda (acc x) (+ acc x)) 0 (list 1 2 3 4 5))

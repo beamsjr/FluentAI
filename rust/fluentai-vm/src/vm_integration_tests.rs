@@ -6,7 +6,8 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use fluentai_core::value::Value;
     use crate::compiler::{Compiler, CompilerOptions};
     use crate::vm::VM;
     use crate::builder::VMBuilder;
@@ -53,7 +54,7 @@ mod tests {
             
             // Create many allocations to trigger GC
             for i in 0..10 {
-                chunk.add_constant(Value::Int(i));
+                chunk.add_constant(Value::Integer(i));
                 chunk.add_instruction(Instruction::with_arg(Opcode::Push, i as u32));
                 chunk.add_instruction(Instruction::new(Opcode::GcAlloc));
             }
@@ -108,8 +109,8 @@ mod tests {
             let mut bytecode = Bytecode::new();
             let mut chunk = BytecodeChunk::new(Some("main".to_string()));
             
-            chunk.add_constant(Value::Int(10));
-            chunk.add_constant(Value::Int(32));
+            chunk.add_constant(Value::Integer(10));
+            chunk.add_constant(Value::Integer(32));
             
             chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
             chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -120,7 +121,7 @@ mod tests {
             
             let mut vm = VM::new(bytecode);
             let result = vm.run().expect("VM execution failed");
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -129,7 +130,7 @@ mod tests {
             
             // Create a simple function that doubles its input
             let mut func_chunk = BytecodeChunk::new(Some("double".to_string()));
-            func_chunk.add_constant(Value::Int(2));
+            func_chunk.add_constant(Value::Integer(2));
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Load, 0)); // Load argument
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push 2
             func_chunk.add_instruction(Instruction::new(Opcode::Mul));
@@ -138,7 +139,7 @@ mod tests {
             
             // Main chunk
             let mut main_chunk = BytecodeChunk::new(Some("main".to_string()));
-            main_chunk.add_constant(Value::Int(21));
+            main_chunk.add_constant(Value::Integer(21));
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push argument 21
             main_chunk.add_instruction(Instruction::with_arg(Opcode::MakeFunc, 0)); // Make function from chunk 0
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Call, 1)); // Call with 1 argument
@@ -148,7 +149,7 @@ mod tests {
             
             let mut vm = VM::new(bytecode);
             let result = vm.run().expect("VM execution failed");
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -156,9 +157,9 @@ mod tests {
             let mut bytecode = Bytecode::new();
             let mut chunk = BytecodeChunk::new(Some("main".to_string()));
             
-            chunk.add_constant(Value::Int(1));
-            chunk.add_constant(Value::Int(2));
-            chunk.add_constant(Value::Int(3));
+            chunk.add_constant(Value::Integer(1));
+            chunk.add_constant(Value::Integer(2));
+            chunk.add_constant(Value::Integer(3));
             
             chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
             chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1));
@@ -171,7 +172,7 @@ mod tests {
             
             let mut vm = VM::new(bytecode);
             let result = vm.run().expect("VM execution failed");
-            assert_eq!(result, Value::Int(1));
+            assert_eq!(result, Value::Integer(1));
         }
     }
     
@@ -182,14 +183,14 @@ mod tests {
         let mut bytecode = Bytecode::new();
         let mut chunk = BytecodeChunk::new(Some("async_test".to_string()));
         
-        chunk.add_constant(Value::Int(42));
+        chunk.add_constant(Value::Integer(42));
         chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0));
         chunk.add_instruction(Instruction::new(Opcode::Halt));
         bytecode.chunks.push(chunk);
         
         let mut vm = VM::new(bytecode);
         let result = vm.run().expect("VM execution failed");
-        assert_eq!(result, Value::Int(42));
+        assert_eq!(result, Value::Integer(42));
     }
     
     // The following tests are commented out as they require full AST and Type implementations

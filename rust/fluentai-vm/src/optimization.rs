@@ -1,6 +1,7 @@
 //! Runtime optimizations including instruction fusion and inline caching
 
-use crate::bytecode::{Opcode, Instruction, Value};
+use crate::bytecode::{Opcode, Instruction};
+use fluentai_core::value::Value;
 use rustc_hash::FxHashMap;
 use std::sync::RwLock;
 

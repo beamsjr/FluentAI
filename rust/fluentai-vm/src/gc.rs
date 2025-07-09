@@ -4,7 +4,7 @@
 //! used via special forms like (gc:let ...) while keeping Rust's ownership
 //! model as the default.
 
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::{Arc, Weak, RwLock, Mutex};
@@ -319,6 +319,11 @@ impl GarbageCollector {
                     self.mark_value_children(item)?;
                 }
             }
+            Value::Vector(items) => {
+                for item in items {
+                    self.mark_value_children(item)?;
+                }
+            }
             Value::Map(map) => {
                 for (_, v) in map {
                     self.mark_value_children(v)?;
@@ -329,11 +334,29 @@ impl GarbageCollector {
                     self.mark_value_children(v)?;
                 }
             }
+            Value::Tagged { values, .. } => {
+                for v in values {
+                    self.mark_value_children(v)?;
+                }
+            }
+            Value::Module { exports, .. } => {
+                for (_, v) in exports {
+                    self.mark_value_children(v)?;
+                }
+            }
             Value::Cell(cell_id) => {
                 // Mark referenced cell
                 if let Some(weak) = self.objects.read().unwrap().get(&(*cell_id as usize)) {
                     if let Some(obj) = weak.upgrade() {
                         self.mark(&obj)?;
+                    }
+                }
+            }
+            Value::Procedure(proc) => {
+                // Mark environment if it exists
+                if let Some(env) = &proc.env {
+                    for (_, v) in env {
+                        self.mark_value_children(v)?;
                     }
                 }
             }
@@ -490,8 +513,10 @@ impl GcValue for Value {
                     v.visit_gc_refs(&mut visitor);
                 }
             }
-            Value::GcHandle(handle) => {
-                visitor(handle);
+            Value::GcHandle(any_handle) => {
+                if let Some(handle) = any_handle.downcast_ref::<GcHandle>() {
+                    visitor(handle);
+                }
             }
             _ => {}
         }
@@ -505,11 +530,11 @@ mod tests {
     #[test]
     fn test_gc_allocation() {
         let gc = GarbageCollector::new(GcConfig::default());
-        let handle = gc.allocate(Value::Int(42)).unwrap();
-        assert_eq!(handle.get(), Value::Int(42));
+        let handle = gc.allocate(Value::Integer(42)).unwrap();
+        assert_eq!(handle.get(), Value::Integer(42));
         
-        handle.set(Value::Int(43));
-        assert_eq!(handle.get(), Value::Int(43));
+        handle.set(Value::Integer(43));
+        assert_eq!(handle.get(), Value::Integer(43));
     }
     
     #[test]
@@ -522,14 +547,14 @@ mod tests {
         // Allocate some objects
         let mut roots = vec![];
         for i in 0..5 {
-            let handle = gc.allocate(Value::Int(i)).unwrap();
+            let handle = gc.allocate(Value::Integer(i)).unwrap();
             gc.add_root(&handle);
             roots.push(handle);
         }
         
         // Allocate garbage
         for i in 5..15 {
-            let _ = gc.allocate(Value::Int(i)).unwrap();
+            let _ = gc.allocate(Value::Integer(i)).unwrap();
         }
         
         // Should trigger collection
@@ -544,8 +569,8 @@ mod tests {
         
         {
             let mut scope = GcScope::new(&gc);
-            let handle = scope.alloc(Value::Int(42)).unwrap();
-            assert_eq!(handle.get(), Value::Int(42));
+            let handle = scope.alloc(Value::Integer(42)).unwrap();
+            assert_eq!(handle.get(), Value::Integer(42));
         } // Roots automatically removed
         
         gc.collect().unwrap();
@@ -562,9 +587,9 @@ mod tests {
         
         // Create nested structures
         let list = Value::List(vec![
-            Value::Int(1),
+            Value::Integer(1),
             Value::String("hello".to_string()),
-            Value::List(vec![Value::Int(2), Value::Int(3)]),
+            Value::List(vec![Value::Integer(2), Value::Integer(3)]),
         ]);
         
         let handle = gc.allocate(list.clone()).unwrap();
@@ -575,7 +600,7 @@ mod tests {
         
         // Create more allocations to trigger collection
         for i in 0..10 {
-            let _ = gc.allocate(Value::Int(i)).unwrap();
+            let _ = gc.allocate(Value::Integer(i)).unwrap();
         }
         
         // Original handle should still be valid

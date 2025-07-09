@@ -1,0 +1,4 @@
+;; Mixed expressions
+(let ((x 10)) x)
+(let ((y 20)) y)
+(+ 5 5)

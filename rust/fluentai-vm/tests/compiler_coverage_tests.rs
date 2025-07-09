@@ -1,9 +1,10 @@
 //! Additional tests to improve compiler coverage
 
 use fluentai_core::ast::{Graph, Node, Literal, ImportItem, ExportItem, EffectType};
+use fluentai_core::value::Value;
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::{Opcode, Value},
+    bytecode::Opcode,
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;

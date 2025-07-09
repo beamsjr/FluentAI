@@ -5,7 +5,7 @@
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use anyhow::{anyhow, Result};
 
 /// SIMD operations for numeric arrays
@@ -183,14 +183,14 @@ impl SimdOps {
                     let a_vec: Vec<f64> = list_a.iter()
                         .map(|v| match v {
                             Value::Float(f) => *f,
-                            Value::Int(i) => *i as f64,
+                            Value::Integer(i) => *i as f64,
                             _ => 0.0,
                         })
                         .collect();
                     let b_vec: Vec<f64> = list_b.iter()
                         .map(|v| match v {
                             Value::Float(f) => *f,
-                            Value::Int(i) => *i as f64,
+                            Value::Integer(i) => *i as f64,
                             _ => 0.0,
                         })
                         .collect();
@@ -213,13 +213,13 @@ impl SimdOps {
                     // Integer SIMD operations
                     let a_vec: Vec<i64> = list_a.iter()
                         .map(|v| match v {
-                            Value::Int(i) => *i,
+                            Value::Integer(i) => *i,
                             _ => 0,
                         })
                         .collect();
                     let b_vec: Vec<i64> = list_b.iter()
                         .map(|v| match v {
-                            Value::Int(i) => *i,
+                            Value::Integer(i) => *i,
                             _ => 0,
                         })
                         .collect();
@@ -233,7 +233,7 @@ impl SimdOps {
                         }
                     }
                     
-                    Ok(Value::List(result.into_iter().map(Value::Int).collect()))
+                    Ok(Value::List(result.into_iter().map(Value::Integer).collect()))
                 } else {
                     Err(anyhow!("SIMD operations require homogeneous numeric lists"))
                 }
@@ -250,7 +250,7 @@ impl SimdOps {
         for v in list {
             match v {
                 Value::Float(_) => all_int = false,
-                Value::Int(_) => all_float = false,
+                Value::Integer(_) => all_float = false,
                 _ => {
                     all_float = false;
                     all_int = false;

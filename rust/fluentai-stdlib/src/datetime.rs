@@ -111,13 +111,13 @@ pub fn register(registry: &mut StdlibRegistry) {
 // Datetime representation as a Map with fields
 fn create_datetime_value(dt: DateTime<Utc>) -> Value {
     let mut map = rustc_hash::FxHashMap::default();
-    map.insert("year".to_string(), Value::Int(dt.year() as i64));
-    map.insert("month".to_string(), Value::Int(dt.month() as i64));
-    map.insert("day".to_string(), Value::Int(dt.day() as i64));
-    map.insert("hour".to_string(), Value::Int(dt.hour() as i64));
-    map.insert("minute".to_string(), Value::Int(dt.minute() as i64));
-    map.insert("second".to_string(), Value::Int(dt.second() as i64));
-    map.insert("timestamp".to_string(), Value::Int(dt.timestamp()));
+    map.insert("year".to_string(), Value::Integer(dt.year() as i64));
+    map.insert("month".to_string(), Value::Integer(dt.month() as i64));
+    map.insert("day".to_string(), Value::Integer(dt.day() as i64));
+    map.insert("hour".to_string(), Value::Integer(dt.hour() as i64));
+    map.insert("minute".to_string(), Value::Integer(dt.minute() as i64));
+    map.insert("second".to_string(), Value::Integer(dt.second() as i64));
+    map.insert("timestamp".to_string(), Value::Integer(dt.timestamp()));
     map.insert("_type".to_string(), Value::String("datetime".to_string()));
     Value::Map(map)
 }
@@ -134,7 +134,7 @@ fn extract_datetime(value: &Value) -> Result<DateTime<Utc>> {
             }
             
             let timestamp = match map.get("timestamp") {
-                Some(Value::Int(ts)) => *ts,
+                Some(Value::Integer(ts)) => *ts,
                 _ => return Err(anyhow!("invalid datetime object")),
             };
             
@@ -158,9 +158,9 @@ fn datetime_utcnow(_args: &[Value]) -> Result<Value> {
 fn datetime_today(_args: &[Value]) -> Result<Value> {
     let today = Local::now().date_naive();
     let mut map = rustc_hash::FxHashMap::default();
-    map.insert("year".to_string(), Value::Int(today.year() as i64));
-    map.insert("month".to_string(), Value::Int(today.month() as i64));
-    map.insert("day".to_string(), Value::Int(today.day() as i64));
+    map.insert("year".to_string(), Value::Integer(today.year() as i64));
+    map.insert("month".to_string(), Value::Integer(today.month() as i64));
+    map.insert("day".to_string(), Value::Integer(today.day() as i64));
     map.insert("_type".to_string(), Value::String("date".to_string()));
     Ok(Value::Map(map))
 }
@@ -169,23 +169,23 @@ fn datetime_today(_args: &[Value]) -> Result<Value> {
 
 fn datetime_create(args: &[Value]) -> Result<Value> {
     let year = match &args[0] {
-        Value::Int(y) => *y as i32,
+        Value::Integer(y) => *y as i32,
         _ => return Err(anyhow!("datetime:create: expected integer year")),
     };
     
     let month = match &args[1] {
-        Value::Int(m) => *m as u32,
+        Value::Integer(m) => *m as u32,
         _ => return Err(anyhow!("datetime:create: expected integer month")),
     };
     
     let day = match &args[2] {
-        Value::Int(d) => *d as u32,
+        Value::Integer(d) => *d as u32,
         _ => return Err(anyhow!("datetime:create: expected integer day")),
     };
     
     let hour = if args.len() > 3 {
         match &args[3] {
-            Value::Int(h) => *h as u32,
+            Value::Integer(h) => *h as u32,
             _ => return Err(anyhow!("datetime:create: expected integer hour")),
         }
     } else {
@@ -194,7 +194,7 @@ fn datetime_create(args: &[Value]) -> Result<Value> {
     
     let minute = if args.len() > 4 {
         match &args[4] {
-            Value::Int(m) => *m as u32,
+            Value::Integer(m) => *m as u32,
             _ => return Err(anyhow!("datetime:create: expected integer minute")),
         }
     } else {
@@ -203,7 +203,7 @@ fn datetime_create(args: &[Value]) -> Result<Value> {
     
     let second = if args.len() > 5 {
         match &args[5] {
-            Value::Int(s) => *s as u32,
+            Value::Integer(s) => *s as u32,
             _ => return Err(anyhow!("datetime:create: expected integer second")),
         }
     } else {
@@ -221,17 +221,17 @@ fn datetime_create(args: &[Value]) -> Result<Value> {
 
 fn date_create(args: &[Value]) -> Result<Value> {
     let year = match &args[0] {
-        Value::Int(y) => *y as i32,
+        Value::Integer(y) => *y as i32,
         _ => return Err(anyhow!("date:create: expected integer year")),
     };
     
     let month = match &args[1] {
-        Value::Int(m) => *m as u32,
+        Value::Integer(m) => *m as u32,
         _ => return Err(anyhow!("date:create: expected integer month")),
     };
     
     let day = match &args[2] {
-        Value::Int(d) => *d as u32,
+        Value::Integer(d) => *d as u32,
         _ => return Err(anyhow!("date:create: expected integer day")),
     };
     
@@ -239,9 +239,9 @@ fn date_create(args: &[Value]) -> Result<Value> {
         .ok_or_else(|| anyhow!("date:create: invalid date"))?;
     
     let mut map = rustc_hash::FxHashMap::default();
-    map.insert("year".to_string(), Value::Int(year as i64));
-    map.insert("month".to_string(), Value::Int(month as i64));
-    map.insert("day".to_string(), Value::Int(day as i64));
+    map.insert("year".to_string(), Value::Integer(year as i64));
+    map.insert("month".to_string(), Value::Integer(month as i64));
+    map.insert("day".to_string(), Value::Integer(day as i64));
     map.insert("_type".to_string(), Value::String("date".to_string()));
     Ok(Value::Map(map))
 }
@@ -252,19 +252,19 @@ fn current_time(_args: &[Value]) -> Result<Value> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|e| anyhow!("Failed to get current time: {}", e))?;
-    Ok(Value::Int(now.as_secs() as i64))
+    Ok(Value::Integer(now.as_secs() as i64))
 }
 
 fn current_millis(_args: &[Value]) -> Result<Value> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|e| anyhow!("Failed to get current time: {}", e))?;
-    Ok(Value::Int(now.as_millis() as i64))
+    Ok(Value::Integer(now.as_millis() as i64))
 }
 
 fn time_to_string(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time->string: expected integer timestamp")),
     };
     
@@ -276,79 +276,79 @@ fn time_to_string(args: &[Value]) -> Result<Value> {
 
 fn time_year(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-year: expected integer timestamp")),
     };
     
     let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
         .ok_or_else(|| anyhow!("Invalid timestamp"))?;
     
-    Ok(Value::Int(dt.year() as i64))
+    Ok(Value::Integer(dt.year() as i64))
 }
 
 fn time_month(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-month: expected integer timestamp")),
     };
     
     let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
         .ok_or_else(|| anyhow!("Invalid timestamp"))?;
     
-    Ok(Value::Int(dt.month() as i64))
+    Ok(Value::Integer(dt.month() as i64))
 }
 
 fn time_day(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-day: expected integer timestamp")),
     };
     
     let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
         .ok_or_else(|| anyhow!("Invalid timestamp"))?;
     
-    Ok(Value::Int(dt.day() as i64))
+    Ok(Value::Integer(dt.day() as i64))
 }
 
 fn time_hour(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-hour: expected integer timestamp")),
     };
     
     let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
         .ok_or_else(|| anyhow!("Invalid timestamp"))?;
     
-    Ok(Value::Int(dt.hour() as i64))
+    Ok(Value::Integer(dt.hour() as i64))
 }
 
 fn time_minute(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-minute: expected integer timestamp")),
     };
     
     let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
         .ok_or_else(|| anyhow!("Invalid timestamp"))?;
     
-    Ok(Value::Int(dt.minute() as i64))
+    Ok(Value::Integer(dt.minute() as i64))
 }
 
 fn time_second(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-second: expected integer timestamp")),
     };
     
     let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
         .ok_or_else(|| anyhow!("Invalid timestamp"))?;
     
-    Ok(Value::Int(dt.second() as i64))
+    Ok(Value::Integer(dt.second() as i64))
 }
 
 fn time_weekday(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-weekday: expected integer timestamp")),
     };
     
@@ -357,37 +357,37 @@ fn time_weekday(args: &[Value]) -> Result<Value> {
     
     // Convert chrono weekday (Mon=0) to standard (Sun=0)
     let weekday = dt.weekday().num_days_from_sunday();
-    Ok(Value::Int(weekday as i64))
+    Ok(Value::Integer(weekday as i64))
 }
 
 fn make_time(args: &[Value]) -> Result<Value> {
     let year = match &args[0] {
-        Value::Int(y) => *y as i32,
+        Value::Integer(y) => *y as i32,
         _ => return Err(anyhow!("make-time: expected integer year")),
     };
     
     let month = match &args[1] {
-        Value::Int(m) => *m as u32,
+        Value::Integer(m) => *m as u32,
         _ => return Err(anyhow!("make-time: expected integer month")),
     };
     
     let day = match &args[2] {
-        Value::Int(d) => *d as u32,
+        Value::Integer(d) => *d as u32,
         _ => return Err(anyhow!("make-time: expected integer day")),
     };
     
     let hour = match &args[3] {
-        Value::Int(h) => *h as u32,
+        Value::Integer(h) => *h as u32,
         _ => return Err(anyhow!("make-time: expected integer hour")),
     };
     
     let minute = match &args[4] {
-        Value::Int(m) => *m as u32,
+        Value::Integer(m) => *m as u32,
         _ => return Err(anyhow!("make-time: expected integer minute")),
     };
     
     let second = match &args[5] {
-        Value::Int(s) => *s as u32,
+        Value::Integer(s) => *s as u32,
         _ => return Err(anyhow!("make-time: expected integer second")),
     };
     
@@ -414,63 +414,63 @@ fn make_time(args: &[Value]) -> Result<Value> {
         .ok_or_else(|| anyhow!("make-time: invalid time"))?;
     let dt = DateTime::<Utc>::from_naive_utc_and_offset(time, Utc);
     
-    Ok(Value::Int(dt.timestamp()))
+    Ok(Value::Integer(dt.timestamp()))
 }
 
 fn time_before(args: &[Value]) -> Result<Value> {
     let t1 = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-before?: expected integer timestamp")),
     };
     
     let t2 = match &args[1] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-before?: expected integer timestamp")),
     };
     
-    Ok(Value::Bool(t1 < t2))
+    Ok(Value::Boolean(t1 < t2))
 }
 
 fn time_after(args: &[Value]) -> Result<Value> {
     let t1 = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-after?: expected integer timestamp")),
     };
     
     let t2 = match &args[1] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-after?: expected integer timestamp")),
     };
     
-    Ok(Value::Bool(t1 > t2))
+    Ok(Value::Boolean(t1 > t2))
 }
 
 fn time_diff(args: &[Value]) -> Result<Value> {
     let t1 = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-diff: expected integer timestamp")),
     };
     
     let t2 = match &args[1] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("time-diff: expected integer timestamp")),
     };
     
-    Ok(Value::Int(t1 - t2))
+    Ok(Value::Integer(t1 - t2))
 }
 
 fn add_seconds(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(t) => *t,
+        Value::Integer(t) => *t,
         _ => return Err(anyhow!("add-seconds: expected integer timestamp")),
     };
     
     let seconds = match &args[1] {
-        Value::Int(s) => *s,
+        Value::Integer(s) => *s,
         _ => return Err(anyhow!("add-seconds: expected integer seconds")),
     };
     
-    Ok(Value::Int(timestamp + seconds))
+    Ok(Value::Integer(timestamp + seconds))
 }
 
 // Parsing functions
@@ -510,7 +510,7 @@ fn datetime_year(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::Map(map) => {
             match map.get("year") {
-                Some(Value::Int(y)) => Ok(Value::Int(*y)),
+                Some(Value::Integer(y)) => Ok(Value::Integer(*y)),
                 _ => Err(anyhow!("datetime:year: invalid datetime object")),
             }
         }
@@ -522,7 +522,7 @@ fn datetime_month(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::Map(map) => {
             match map.get("month") {
-                Some(Value::Int(m)) => Ok(Value::Int(*m)),
+                Some(Value::Integer(m)) => Ok(Value::Integer(*m)),
                 _ => Err(anyhow!("datetime:month: invalid datetime object")),
             }
         }
@@ -534,7 +534,7 @@ fn datetime_day(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::Map(map) => {
             match map.get("day") {
-                Some(Value::Int(d)) => Ok(Value::Int(*d)),
+                Some(Value::Integer(d)) => Ok(Value::Integer(*d)),
                 _ => Err(anyhow!("datetime:day: invalid datetime object")),
             }
         }
@@ -546,7 +546,7 @@ fn datetime_hour(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::Map(map) => {
             match map.get("hour") {
-                Some(Value::Int(h)) => Ok(Value::Int(*h)),
+                Some(Value::Integer(h)) => Ok(Value::Integer(*h)),
                 _ => Err(anyhow!("datetime:hour: invalid datetime object")),
             }
         }
@@ -558,7 +558,7 @@ fn datetime_minute(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::Map(map) => {
             match map.get("minute") {
-                Some(Value::Int(m)) => Ok(Value::Int(*m)),
+                Some(Value::Integer(m)) => Ok(Value::Integer(*m)),
                 _ => Err(anyhow!("datetime:minute: invalid datetime object")),
             }
         }
@@ -570,7 +570,7 @@ fn datetime_second(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::Map(map) => {
             match map.get("second") {
-                Some(Value::Int(s)) => Ok(Value::Int(*s)),
+                Some(Value::Integer(s)) => Ok(Value::Integer(*s)),
                 _ => Err(anyhow!("datetime:second: invalid datetime object")),
             }
         }
@@ -582,7 +582,7 @@ fn datetime_weekday(args: &[Value]) -> Result<Value> {
     let dt = extract_datetime(&args[0])?;
     // Convert chrono weekday (Mon=0) to standard (Sun=0)
     let weekday = (dt.weekday().num_days_from_sunday()) as i64;
-    Ok(Value::Int(weekday))
+    Ok(Value::Integer(weekday))
 }
 
 // Arithmetic
@@ -590,7 +590,7 @@ fn datetime_weekday(args: &[Value]) -> Result<Value> {
 fn datetime_add_days(args: &[Value]) -> Result<Value> {
     let dt = extract_datetime(&args[0])?;
     let days = match &args[1] {
-        Value::Int(d) => *d,
+        Value::Integer(d) => *d,
         _ => return Err(anyhow!("datetime:add-days: expected integer days")),
     };
     
@@ -601,7 +601,7 @@ fn datetime_add_days(args: &[Value]) -> Result<Value> {
 fn datetime_add_hours(args: &[Value]) -> Result<Value> {
     let dt = extract_datetime(&args[0])?;
     let hours = match &args[1] {
-        Value::Int(h) => *h,
+        Value::Integer(h) => *h,
         _ => return Err(anyhow!("datetime:add-hours: expected integer hours")),
     };
     
@@ -612,7 +612,7 @@ fn datetime_add_hours(args: &[Value]) -> Result<Value> {
 fn datetime_add_minutes(args: &[Value]) -> Result<Value> {
     let dt = extract_datetime(&args[0])?;
     let minutes = match &args[1] {
-        Value::Int(m) => *m,
+        Value::Integer(m) => *m,
         _ => return Err(anyhow!("datetime:add-minutes: expected integer minutes")),
     };
     
@@ -623,7 +623,7 @@ fn datetime_add_minutes(args: &[Value]) -> Result<Value> {
 fn datetime_add_seconds(args: &[Value]) -> Result<Value> {
     let dt = extract_datetime(&args[0])?;
     let seconds = match &args[1] {
-        Value::Int(s) => *s,
+        Value::Integer(s) => *s,
         _ => return Err(anyhow!("datetime:add-seconds: expected integer seconds")),
     };
     
@@ -636,19 +636,19 @@ fn datetime_add_seconds(args: &[Value]) -> Result<Value> {
 fn datetime_before(args: &[Value]) -> Result<Value> {
     let dt1 = extract_datetime(&args[0])?;
     let dt2 = extract_datetime(&args[1])?;
-    Ok(Value::Bool(dt1 < dt2))
+    Ok(Value::Boolean(dt1 < dt2))
 }
 
 fn datetime_after(args: &[Value]) -> Result<Value> {
     let dt1 = extract_datetime(&args[0])?;
     let dt2 = extract_datetime(&args[1])?;
-    Ok(Value::Bool(dt1 > dt2))
+    Ok(Value::Boolean(dt1 > dt2))
 }
 
 fn datetime_equal(args: &[Value]) -> Result<Value> {
     let dt1 = extract_datetime(&args[0])?;
     let dt2 = extract_datetime(&args[1])?;
-    Ok(Value::Bool(dt1 == dt2))
+    Ok(Value::Boolean(dt1 == dt2))
 }
 
 // Differences
@@ -657,26 +657,26 @@ fn datetime_diff_seconds(args: &[Value]) -> Result<Value> {
     let dt1 = extract_datetime(&args[0])?;
     let dt2 = extract_datetime(&args[1])?;
     let diff = dt2.signed_duration_since(dt1);
-    Ok(Value::Int(diff.num_seconds()))
+    Ok(Value::Integer(diff.num_seconds()))
 }
 
 fn datetime_diff_days(args: &[Value]) -> Result<Value> {
     let dt1 = extract_datetime(&args[0])?;
     let dt2 = extract_datetime(&args[1])?;
     let diff = dt2.signed_duration_since(dt1);
-    Ok(Value::Int(diff.num_days()))
+    Ok(Value::Integer(diff.num_days()))
 }
 
 // Unix timestamps
 
 fn datetime_to_timestamp(args: &[Value]) -> Result<Value> {
     let dt = extract_datetime(&args[0])?;
-    Ok(Value::Int(dt.timestamp()))
+    Ok(Value::Integer(dt.timestamp()))
 }
 
 fn datetime_from_timestamp(args: &[Value]) -> Result<Value> {
     let timestamp = match &args[0] {
-        Value::Int(ts) => *ts,
+        Value::Integer(ts) => *ts,
         _ => return Err(anyhow!("datetime:from-timestamp: expected integer timestamp")),
     };
     

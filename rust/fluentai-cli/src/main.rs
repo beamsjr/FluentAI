@@ -8,7 +8,7 @@ mod commands;
 mod config;
 mod runner;
 
-use commands::{package, repl, run};
+use commands::{build, new, package, publish, repl, restore, run, test};
 
 #[derive(Parser)]
 #[command(name = "fluentai")]
@@ -29,6 +29,38 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Create a new FluentAI project
+    New {
+        /// Project template (console, library, webservice)
+        template: String,
+        
+        /// Project name
+        name: String,
+        
+        /// Output directory (defaults to project name)
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    
+    /// Build a FluentAI project
+    Build {
+        /// Project path (defaults to current directory)
+        #[arg(long)]
+        project: Option<PathBuf>,
+        
+        /// Build configuration (Debug or Release)
+        #[arg(short, long, default_value = "Debug")]
+        configuration: String,
+        
+        /// Output path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    
     /// Run a FluentAi program
     Run {
         /// Path to the FluentAi file
@@ -63,6 +95,71 @@ enum Commands {
         args: Vec<String>,
     },
     
+    /// Run tests
+    Test {
+        /// Project path (defaults to current directory)
+        #[arg(long)]
+        project: Option<PathBuf>,
+        
+        /// Filter tests by name
+        #[arg(long)]
+        filter: Option<String>,
+        
+        /// Run tests in parallel
+        #[arg(long)]
+        parallel: bool,
+        
+        /// Generate coverage report
+        #[arg(long)]
+        coverage: bool,
+        
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    
+    /// Publish a FluentAI application
+    Publish {
+        /// Project path (defaults to current directory)
+        #[arg(long)]
+        project: Option<PathBuf>,
+        
+        /// Build configuration (Debug or Release)
+        #[arg(short, long, default_value = "Release")]
+        configuration: String,
+        
+        /// Runtime option (framework-dependent or self-contained)
+        #[arg(long, default_value = "framework-dependent")]
+        runtime: String,
+        
+        /// Target platform (win-x64, linux-x64, osx-x64, osx-arm64, wasm)
+        #[arg(short = 'r', long)]
+        target: Option<String>,
+        
+        /// Output path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        
+        /// Create single-file executable
+        #[arg(long)]
+        single_file: bool,
+        
+        /// Trim unused code
+        #[arg(long)]
+        trimmed: bool,
+    },
+    
+    /// Restore project dependencies
+    Restore {
+        /// Project path (defaults to current directory)
+        #[arg(long)]
+        project: Option<PathBuf>,
+        
+        /// Force restore even if up to date
+        #[arg(long)]
+        force: bool,
+    },
+    
     /// Start interactive REPL
     Repl {
         /// Enable visualization
@@ -79,6 +176,20 @@ enum Commands {
     /// Package management commands
     #[command(subcommand)]
     Package(PackageCommands),
+    
+    /// Add a package reference
+    Add {
+        /// Package name
+        package: String,
+        
+        /// Package version
+        #[arg(long)]
+        version: Option<String>,
+        
+        /// Project path (defaults to current directory)
+        #[arg(long)]
+        project: Option<PathBuf>,
+    },
     
     /// Run with visualization (shortcut for run --visualize)
     #[cfg(feature = "visualization")]
@@ -191,6 +302,21 @@ async fn main() -> Result<()> {
     
     // Handle commands
     match cli.command {
+        Some(Commands::New { template, name, output }) => {
+            new::new_project(&template, &name, output).await?;
+        }
+        
+        Some(Commands::Build { project, configuration, output, verbose }) => {
+            let build_config = build::BuildConfig {
+                configuration,
+                output_path: output,
+                target: build::BuildTarget::Executable,
+                optimization_level: 2,
+                verbose,
+            };
+            build::build(project, build_config).await?;
+        }
+        
         Some(Commands::Run { 
             file, 
             optimization,
@@ -231,6 +357,49 @@ async fn main() -> Result<()> {
             run::run_file(&file, args, viz_config, 2, &config).await?; // Default to standard optimization
         }
         
+        Some(Commands::Test { project, filter, parallel, coverage, verbose }) => {
+            let test_config = test::TestConfig {
+                filter,
+                verbose,
+                parallel,
+                coverage,
+            };
+            test::test(project, test_config).await?;
+        }
+        
+        Some(Commands::Publish { 
+            project, 
+            configuration, 
+            runtime, 
+            target, 
+            output, 
+            single_file, 
+            trimmed 
+        }) => {
+            let runtime_opt = match runtime.as_str() {
+                "self-contained" => publish::RuntimeOption::SelfContained,
+                _ => publish::RuntimeOption::FrameworkDependent,
+            };
+            
+            let publish_target = target
+                .and_then(|t| publish::PublishTarget::from_str(&t))
+                .unwrap_or(publish::PublishTarget::Current);
+            
+            let publish_config = publish::PublishConfig {
+                configuration,
+                runtime: runtime_opt,
+                target: publish_target,
+                output_path: output,
+                single_file,
+                trimmed,
+            };
+            publish::publish(project, publish_config).await?;
+        }
+        
+        Some(Commands::Restore { project, force }) => {
+            restore::restore(project, force).await?;
+        }
+        
         Some(Commands::Repl { 
             #[cfg(feature = "visualization")]
             visualize,
@@ -254,6 +423,14 @@ async fn main() -> Result<()> {
         
         Some(Commands::Package(cmd)) => {
             package::handle_package_command(cmd, &config).await?;
+        }
+        
+        Some(Commands::Add { package: pkg, version, project }) => {
+            // Add package is a convenience command that modifies the project file
+            // and runs restore
+            println!("Adding package {} to project...", pkg);
+            // TODO: Implement project file modification
+            restore::restore(project, false).await?;
         }
         
         None => {

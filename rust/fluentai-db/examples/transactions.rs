@@ -6,7 +6,7 @@ use fluentai_db::{
     TransactionOptions, IsolationLevel, with_transaction, with_transaction_retry,
     DbResult,
 };
-use fluentai_vm::bytecode::Value;
+use fluentai_vm::Value;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

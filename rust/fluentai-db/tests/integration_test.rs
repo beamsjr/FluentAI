@@ -42,9 +42,9 @@ async fn test_full_database_workflow() {
     let rows_affected = conn.execute(
         "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
         vec![
-            fluentai_vm::bytecode::Value::String("Alice".to_string()),
-            fluentai_vm::bytecode::Value::String("alice@example.com".to_string()),
-            fluentai_vm::bytecode::Value::Int(25),
+            fluentai_vm::Value::String("Alice".to_string()),
+            fluentai_vm::Value::String("alice@example.com".to_string()),
+            fluentai_vm::Value::Integer(25),
         ]
     ).await.unwrap();
     
@@ -53,7 +53,7 @@ async fn test_full_database_workflow() {
     // Query data
     let rows = conn.fetch_all(
         "SELECT * FROM test_users WHERE age > ?",
-        vec![fluentai_vm::bytecode::Value::Int(20)]
+        vec![fluentai_vm::Value::Integer(20)]
     ).await.unwrap();
     
     assert_eq!(rows.len(), 1);
@@ -65,16 +65,16 @@ async fn test_full_database_workflow() {
             tx.execute(
                 "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
                 vec![
-                    fluentai_vm::bytecode::Value::String("Bob".to_string()),
-                    fluentai_vm::bytecode::Value::String("bob@example.com".to_string()),
-                    fluentai_vm::bytecode::Value::Int(30),
+                    fluentai_vm::Value::String("Bob".to_string()),
+                    fluentai_vm::Value::String("bob@example.com".to_string()),
+                    fluentai_vm::Value::Integer(30),
                 ]
             ).await?;
             
             // Update age
             tx.execute(
                 "UPDATE test_users SET age = age + 1 WHERE name = ?",
-                vec![fluentai_vm::bytecode::Value::String("Alice".to_string())]
+                vec![fluentai_vm::Value::String("Alice".to_string())]
             ).await?;
             
             Ok(())

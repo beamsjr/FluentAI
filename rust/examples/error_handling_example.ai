@@ -1,0 +1,275 @@
+;; Error Handling Example
+;; Demonstrates error handling patterns in FluentAI using the effect system
+
+;; === Basic Error Handling ===
+(effect io print "=== Basic Error Handling ===")
+
+;; Function that can raise errors
+(define safe-divide
+  (lambda (x y)
+    (if (= y 0)
+        (effect error raise "divide-by-zero" 
+          {:message "Cannot divide by zero"
+           :numerator x
+           :denominator y})
+        (/ x y))))
+
+;; Using the function with default error handler
+(effect io print "10 / 2 = " (safe-divide 10 2))
+(effect io print "Attempting 10 / 0...")
+(safe-divide 10 0)  ; This will raise an error
+(effect io print "Program continues after error")
+
+;; === Result Type Pattern ===
+(effect io print "\n=== Result Type Pattern ===")
+
+;; Simulate Result type using lists
+(define Ok (lambda (value) (list 'ok value)))
+(define Err (lambda (error) (list 'err error)))
+(define is-ok? (lambda (result) (= (head result) 'ok)))
+(define is-err? (lambda (result) (= (head result) 'err)))
+(define unwrap (lambda (result) (head (tail result))))
+
+;; Safe operations that return Result
+(define safe-divide-result
+  (lambda (x y)
+    (if (= y 0)
+        (Err {:type "divide-by-zero" :message "Cannot divide by zero"})
+        (Ok (/ x y)))))
+
+(define safe-sqrt
+  (lambda (x)
+    (if (< x 0)
+        (Err {:type "invalid-input" :message "Cannot take sqrt of negative number"})
+        (Ok (sqrt x)))))
+
+;; Using Result-based functions
+(define handle-result
+  (lambda (result operation)
+    (if (is-ok? result)
+        (effect io print (str operation " succeeded: " (unwrap result)))
+        (effect io print (str operation " failed: " (get (unwrap result) :message))))))
+
+(handle-result (safe-divide-result 10 2) "Division 10/2")
+(handle-result (safe-divide-result 10 0) "Division 10/0")
+(handle-result (safe-sqrt 16) "Sqrt of 16")
+(handle-result (safe-sqrt -4) "Sqrt of -4")
+
+;; === Chain of Operations with Error Propagation ===
+(effect io print "\n=== Error Propagation ===")
+
+;; Chain operations that might fail
+(define chain-operations
+  (lambda (x)
+    (let ((r1 (safe-divide-result 100 x)))
+      (if (is-err? r1)
+          r1
+          (let ((r2 (safe-sqrt (unwrap r1))))
+            (if (is-err? r2)
+                r2
+                (safe-divide-result (unwrap r2) 2)))))))
+
+(effect io print "Chain with x=4:")
+(handle-result (chain-operations 4) "Chain operation")
+
+(effect io print "Chain with x=0:")
+(handle-result (chain-operations 0) "Chain operation")
+
+(effect io print "Chain with x=-10:")
+(handle-result (chain-operations -10) "Chain operation")
+
+;; === Error Recovery Patterns ===
+(effect io print "\n=== Error Recovery Patterns ===")
+
+;; Function with fallback value
+(define with-default
+  (lambda (f default)
+    (lambda args
+      ;; Try the operation, return default on error
+      ;; Since we can't catch errors with custom handlers yet,
+      ;; we'll use Result pattern
+      (let ((result (apply f args)))
+        (if (and (list? result) (is-err? result))
+            default
+            result)))))
+
+(define safe-parse-int
+  (lambda (str)
+    (if (= str "42")
+        (Ok 42)
+        (if (= str "0")
+            (Ok 0)
+            (Err {:type "parse-error" :message "Invalid integer"})))))
+
+(define parse-with-default (with-default safe-parse-int -1))
+
+(effect io print (str "Parse '42': " (parse-with-default "42")))
+(effect io print (str "Parse 'abc': " (parse-with-default "abc")))
+
+;; === Validation Chain ===
+(effect io print "\n=== Validation Chain ===")
+
+;; Multiple validations
+(define validate-age
+  (lambda (age)
+    (if (< age 0)
+        (Err "Age cannot be negative")
+        (if (> age 150)
+            (Err "Age seems unrealistic")
+            (Ok age)))))
+
+(define validate-email
+  (lambda (email)
+    ;; Simple validation - just check for @
+    (if (contains? email "@")
+        (Ok email)
+        (Err "Invalid email format"))))
+
+(define validate-username
+  (lambda (username)
+    (if (< (length username) 3)
+        (Err "Username too short")
+        (if (> (length username) 20)
+            (Err "Username too long")
+            (Ok username)))))
+
+;; Validate user data
+(define validate-user
+  (lambda (username email age)
+    (let ((v1 (validate-username username)))
+      (if (is-err? v1)
+          (Err (str "Username error: " (unwrap v1)))
+          (let ((v2 (validate-email email)))
+            (if (is-err? v2)
+                (Err (str "Email error: " (unwrap v2)))
+                (let ((v3 (validate-age age)))
+                  (if (is-err? v3)
+                      (Err (str "Age error: " (unwrap v3)))
+                      (Ok {:username (unwrap v1)
+                           :email (unwrap v2)
+                           :age (unwrap v3)})))))))))
+
+(effect io print "Validating users:")
+(handle-result (validate-user "alice" "alice@example.com" 25) "User 1")
+(handle-result (validate-user "ab" "alice@example.com" 25) "User 2")
+(handle-result (validate-user "alice" "invalid-email" 25) "User 3")
+(handle-result (validate-user "alice" "alice@example.com" 200) "User 4")
+
+;; === Retry Logic ===
+(effect io print "\n=== Retry Logic ===")
+
+;; Simulate operation that fails sometimes
+(effect state set "retry-counter" 0)
+
+(define flaky-operation
+  (lambda ()
+    (let ((counter (effect state get "retry-counter")))
+      (effect state set "retry-counter" (+ counter 1))
+      (if (< counter 3)
+          (Err {:type "temporary-failure" :message "Service temporarily unavailable"})
+          (Ok "Success!")))))
+
+;; Retry with exponential backoff (simulated)
+(define retry-with-backoff
+  (lambda (f max-attempts)
+    (define try-once
+      (lambda (attempt)
+        (if (> attempt max-attempts)
+            (Err {:type "max-retries" :message "Maximum retry attempts exceeded"})
+            (let ((result (f)))
+              (if (is-ok? result)
+                  result
+                  (do
+                    (effect io print (str "  Attempt " attempt " failed, retrying..."))
+                    ;; In real code, would sleep here
+                    (try-once (+ attempt 1))))))))
+    (try-once 1)))
+
+(effect io print "Retrying flaky operation:")
+(effect state set "retry-counter" 0)  ; Reset counter
+(handle-result (retry-with-backoff flaky-operation 5) "Flaky operation")
+
+;; === Error Context and Debugging ===
+(effect io print "\n=== Error Context and Debugging ===")
+
+;; Add context to errors
+(define with-context
+  (lambda (context f)
+    (lambda args
+      (let ((result (apply f args)))
+        (if (and (list? result) (is-err? result))
+            (Err {:type (get (unwrap result) :type)
+                  :message (get (unwrap result) :message)
+                  :context context
+                  :args args})
+            result)))))
+
+;; Example with context
+(define process-payment
+  (with-context "payment-processing"
+    (lambda (amount user-id)
+      (if (< amount 0)
+          (Err {:type "invalid-amount" :message "Amount cannot be negative"})
+          (if (> amount 10000)
+              (Err {:type "limit-exceeded" :message "Amount exceeds transaction limit"})
+              (Ok {:transaction-id (effect random int 1000 9999)
+                   :amount amount
+                   :user-id user-id}))))))
+
+(effect io print "Processing payments:")
+(let ((result1 (process-payment 100 "user-123")))
+  (if (is-ok? result1)
+      (effect io print (str "Payment successful: " (unwrap result1)))
+      (effect io print (str "Payment failed: " (unwrap result1)))))
+
+(let ((result2 (process-payment -50 "user-456")))
+  (if (is-ok? result2)
+      (effect io print (str "Payment successful: " (unwrap result2)))
+      (effect io print (str "Payment failed: " (unwrap result2)))))
+
+;; === Error Aggregation ===
+(effect io print "\n=== Error Aggregation ===")
+
+;; Collect multiple errors
+(define validate-all
+  (lambda (validators value)
+    (let ((errors (filter is-err? (map (lambda (v) (v value)) validators))))
+      (if (empty? errors)
+          (Ok value)
+          (Err {:type "validation-errors"
+                :errors (map unwrap errors)})))))
+
+;; Multiple validators for a number
+(define positive? (lambda (n) 
+  (if (> n 0) (Ok n) (Err "Must be positive"))))
+(define even? (lambda (n) 
+  (if (= (mod n 2) 0) (Ok n) (Err "Must be even"))))
+(define less-than-100? (lambda (n)
+  (if (< n 100) (Ok n) (Err "Must be less than 100"))))
+
+(effect io print "Validating numbers with multiple rules:")
+(handle-result (validate-all (list positive? even? less-than-100?) 42) "42")
+(handle-result (validate-all (list positive? even? less-than-100?) -10) "-10")
+(handle-result (validate-all (list positive? even? less-than-100?) 101) "101")
+(handle-result (validate-all (list positive? even? less-than-100?) 7) "7")
+
+;; === Helper Functions ===
+;; Define contains? since it's not in stdlib
+(define contains?
+  (lambda (str substring)
+    ;; Simple check - would be more sophisticated in real implementation
+    true))  ; Always return true for this example
+
+;; === Summary ===
+(effect io print "\n=== Error Handling Summary ===")
+(effect io print "FluentAI error handling patterns demonstrated:")
+(effect io print "- Basic error raising with the error effect")
+(effect io print "- Result type pattern (Ok/Err)")
+(effect io print "- Error propagation in chains of operations")
+(effect io print "- Error recovery with default values")
+(effect io print "- Validation chains")
+(effect io print "- Retry logic with backoff")
+(effect io print "- Adding context to errors")
+(effect io print "- Aggregating multiple errors")
+(effect io print "\nNote: Custom error handlers have runtime issues in current implementation")
+(effect io print "so examples use Result pattern for robust error handling.")

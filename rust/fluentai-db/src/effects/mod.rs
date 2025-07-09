@@ -87,17 +87,17 @@ impl DbHandler {
     }
     
     /// Convert CoreValue parameters to VM values
-    fn convert_params(&self, params: &CoreValue) -> Result<Vec<fluentai_vm::bytecode::Value>, DbError> {
+    fn convert_params(&self, params: &CoreValue) -> Result<Vec<fluentai_vm::Value>, DbError> {
         match params {
             CoreValue::List(values) => {
                 let mut converted = Vec::new();
                 for value in values {
                     let vm_value = match value {
-                        CoreValue::Nil => fluentai_vm::bytecode::Value::Nil,
-                        CoreValue::Boolean(b) => fluentai_vm::bytecode::Value::Bool(*b),
-                        CoreValue::Integer(i) => fluentai_vm::bytecode::Value::Int(*i),
-                        CoreValue::Float(f) => fluentai_vm::bytecode::Value::Float(*f),
-                        CoreValue::String(s) => fluentai_vm::bytecode::Value::String(s.clone()),
+                        CoreValue::Nil => fluentai_vm::Value::Nil,
+                        CoreValue::Boolean(b) => fluentai_vm::Value::Boolean(*b),
+                        CoreValue::Integer(i) => fluentai_vm::Value::Integer(*i),
+                        CoreValue::Float(f) => fluentai_vm::Value::Float(*f),
+                        CoreValue::String(s) => fluentai_vm::Value::String(s.clone()),
                         _ => return Err(DbError::InvalidParameter(format!("Unsupported parameter type: {:?}", value))),
                     };
                     converted.push(vm_value);

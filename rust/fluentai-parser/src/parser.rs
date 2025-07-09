@@ -67,16 +67,28 @@ impl<'a> Parser<'a> {
     
     pub fn parse(&mut self) -> ParseResult<Graph> {
         // Parse all top-level expressions
-        let mut last_node = None;
+        let mut expressions = Vec::new();
         
         while self.lexer.peek_token().is_some() {
             let node_id = self.parse_expr()?;
-            last_node = Some(node_id);
+            expressions.push(node_id);
         }
         
-        // Set the last expression as root
-        if let Some(root) = last_node {
-            self.graph.root_id = Some(root);
+        // Set the root based on number of expressions
+        match expressions.len() {
+            0 => {
+                // No expressions, no root
+            }
+            1 => {
+                // Single expression, use it directly as root
+                self.graph.root_id = Some(expressions[0]);
+            }
+            _ => {
+                // Multiple expressions, wrap in Begin node
+                let begin_node = Node::Begin { exprs: expressions };
+                let begin_id = self.graph.add_node(begin_node)?;
+                self.graph.root_id = Some(begin_id);
+            }
         }
         
         Ok(std::mem::replace(&mut self.graph, Graph::new()))

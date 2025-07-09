@@ -1,7 +1,7 @@
 //! Demonstrates the improved pattern matching APIs
 
 use fluentai_core::ast::{Graph, Node, Literal, Pattern};
-use fluentai_vm::{compiler::Compiler, bytecode::Value, VM};
+use fluentai_vm::{compiler::Compiler, Value, VM};
 use fluentai_optimizer::OptimizationLevel;
 use anyhow::Result;
 

@@ -2,7 +2,8 @@
 
 use cranelift::prelude::*;
 
-use fluentai_vm::bytecode::{BytecodeChunk, Opcode, Value as ClValue};
+use fluentai_vm::bytecode::{BytecodeChunk, Opcode};
+use fluentai_vm::Value as ClValue;
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 
@@ -87,12 +88,12 @@ pub fn build_function(
                 let constant = chunk.constants.get(instruction.arg as usize)
                     .ok_or_else(|| anyhow!("Invalid constant index"))?;
                 let value = match constant {
-                    ClValue::Int(n) => builder.ins().iconst(types::I64, *n),
+                    ClValue::Integer(n) => builder.ins().iconst(types::I64, *n),
                     ClValue::Float(f) => {
                         let bits = f.to_bits();
                         builder.ins().iconst(types::I64, bits as i64)
                     }
-                    ClValue::Bool(b) => builder.ins().iconst(types::I64, if *b { 1 } else { 0 }),
+                    ClValue::Boolean(b) => builder.ins().iconst(types::I64, if *b { 1 } else { 0 }),
                     ClValue::Nil => builder.ins().iconst(types::I64, 0),
                     _ => return Err(anyhow!("Unsupported constant type in JIT")),
                 };

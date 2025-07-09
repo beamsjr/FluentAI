@@ -1,11 +1,12 @@
 //! Example demonstrating VM dependency injection
 
 use std::sync::Arc;
-use fluentai_vm::{Bytecode, bytecode::{Instruction, Value, BytecodeChunk, Opcode}};
+use fluentai_vm::{Bytecode, bytecode::{Instruction, BytecodeChunk, Opcode}};
 use fluentai_vm::di::*;
 use fluentai_di::prelude::*;
 use fluentai_effects::provider::EffectHandlerProvider;
 use fluentai_effects::{EffectType, EffectHandler, EffectResult};
+use fluentai_core::value::Value;
 use anyhow::Result;
 
 fn main() -> Result<()> {
@@ -41,7 +42,7 @@ fn basic_di_demo() -> Result<()> {
     let mut chunk = BytecodeChunk::new(Some("main".to_string()));
     
     // Add constant and load it
-    let const_idx = chunk.add_constant(Value::Int(42));
+    let const_idx = chunk.add_constant(Value::Integer(42));
     chunk.add_instruction(Instruction::with_arg(Opcode::PushConst, const_idx));
     chunk.add_instruction(Instruction::new(Opcode::Return));
     
@@ -167,8 +168,8 @@ fn create_test_bytecode() -> Bytecode {
     let mut chunk = BytecodeChunk::new(Some("arithmetic".to_string()));
     
     // Simple arithmetic: 10 + 32
-    let const1 = chunk.add_constant(Value::Int(10));
-    let const2 = chunk.add_constant(Value::Int(32));
+    let const1 = chunk.add_constant(Value::Integer(10));
+    let const2 = chunk.add_constant(Value::Integer(32));
     
     chunk.add_instruction(Instruction::with_arg(Opcode::PushConst, const1));
     chunk.add_instruction(Instruction::with_arg(Opcode::PushConst, const2));

@@ -3,7 +3,8 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode, Value};
+    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use fluentai_core::value::Value;
     use crate::error::VMError;
     use std::sync::Arc;
     use fluentai_effects::runtime::EffectRuntime;
@@ -94,7 +95,7 @@ mod tests {
             let mut vm = VM::new(create_test_bytecode());
             
             // Test push
-            vm.push(Value::Int(42)).unwrap();
+            vm.push(Value::Integer(42)).unwrap();
             assert_eq!(vm.get_stack().len(), 1);
             
             vm.push(Value::String("hello".to_string())).unwrap();
@@ -106,7 +107,7 @@ mod tests {
             assert_eq!(vm.get_stack().len(), 1);
             
             let val = vm.pop().unwrap();
-            assert_eq!(val, Value::Int(42));
+            assert_eq!(val, Value::Integer(42));
             assert_eq!(vm.get_stack().len(), 0);
         }
         
@@ -128,11 +129,11 @@ mod tests {
                 Instruction::new(Opcode::Dup),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(42)];
+            let constants = vec![Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
             assert_eq!(vm.get_stack().len(), 1); // One value left after halt pops
         }
         
@@ -144,11 +145,11 @@ mod tests {
                 Instruction::new(Opcode::Swap),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(1), Value::Int(2)];
+            let constants = vec![Value::Integer(1), Value::Integer(2)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(1)); // Top of stack after swap
+            assert_eq!(result, Value::Integer(1)); // Top of stack after swap
         }
         
         #[test]
@@ -160,11 +161,11 @@ mod tests {
                 Instruction::with_arg(Opcode::PopN, 2), // Pop 2, keep top
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
+            let constants = vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(3)); // Only top value remains
+            assert_eq!(result, Value::Integer(3)); // Only top value remains
         }
     }
     
@@ -179,11 +180,11 @@ mod tests {
                 Instruction::new(Opcode::Add),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(10), Value::Int(32)];
+            let constants = vec![Value::Integer(10), Value::Integer(32)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -194,11 +195,11 @@ mod tests {
                 Instruction::new(Opcode::Sub),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(50), Value::Int(8)];
+            let constants = vec![Value::Integer(50), Value::Integer(8)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -209,11 +210,11 @@ mod tests {
                 Instruction::new(Opcode::Mul),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(6), Value::Int(7)];
+            let constants = vec![Value::Integer(6), Value::Integer(7)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -224,11 +225,11 @@ mod tests {
                 Instruction::new(Opcode::Div),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(84), Value::Int(2)];
+            let constants = vec![Value::Integer(84), Value::Integer(2)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -239,7 +240,7 @@ mod tests {
                 Instruction::new(Opcode::Div),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(42), Value::Int(0)];
+            let constants = vec![Value::Integer(42), Value::Integer(0)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             match vm.run() {
@@ -256,11 +257,11 @@ mod tests {
                 Instruction::new(Opcode::Mod),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(17), Value::Int(5)];
+            let constants = vec![Value::Integer(17), Value::Integer(5)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(2));
+            assert_eq!(result, Value::Integer(2));
         }
         
         #[test]
@@ -270,11 +271,11 @@ mod tests {
                 Instruction::new(Opcode::Neg),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(42)];
+            let constants = vec![Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(-42));
+            assert_eq!(result, Value::Integer(-42));
         }
         
         #[test]
@@ -307,11 +308,11 @@ mod tests {
                 Instruction::new(Opcode::Eq),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(42), Value::Int(42)];
+            let constants = vec![Value::Integer(42), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
         
         #[test]
@@ -322,11 +323,11 @@ mod tests {
                 Instruction::new(Opcode::Ne),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(42), Value::Int(43)];
+            let constants = vec![Value::Integer(42), Value::Integer(43)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
         
         #[test]
@@ -337,11 +338,11 @@ mod tests {
                 Instruction::new(Opcode::Lt),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(10), Value::Int(20)];
+            let constants = vec![Value::Integer(10), Value::Integer(20)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
         
         #[test]
@@ -352,11 +353,11 @@ mod tests {
                 Instruction::new(Opcode::Le),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(10), Value::Int(10)];
+            let constants = vec![Value::Integer(10), Value::Integer(10)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
         
         #[test]
@@ -367,11 +368,11 @@ mod tests {
                 Instruction::new(Opcode::Gt),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(20), Value::Int(10)];
+            let constants = vec![Value::Integer(20), Value::Integer(10)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
         
         #[test]
@@ -382,11 +383,11 @@ mod tests {
                 Instruction::new(Opcode::Ge),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(20), Value::Int(20)];
+            let constants = vec![Value::Integer(20), Value::Integer(20)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
     }
     
@@ -401,11 +402,11 @@ mod tests {
                 Instruction::new(Opcode::And),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Bool(true), Value::Bool(false)];
+            let constants = vec![Value::Boolean(true), Value::Boolean(false)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(false));
+            assert_eq!(result, Value::Boolean(false));
         }
         
         #[test]
@@ -416,11 +417,11 @@ mod tests {
                 Instruction::new(Opcode::Or),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Bool(true), Value::Bool(false)];
+            let constants = vec![Value::Boolean(true), Value::Boolean(false)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
         
         #[test]
@@ -430,11 +431,11 @@ mod tests {
                 Instruction::new(Opcode::Not),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Bool(true)];
+            let constants = vec![Value::Boolean(true)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(false));
+            assert_eq!(result, Value::Boolean(false));
         }
     }
     
@@ -449,11 +450,11 @@ mod tests {
                 Instruction::with_arg(Opcode::Push, 1), // Execute this
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(1), Value::Int(42)];
+            let constants = vec![Value::Integer(1), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -465,11 +466,11 @@ mod tests {
                 Instruction::with_arg(Opcode::Push, 2), // Execute this
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Bool(true), Value::Int(1), Value::Int(42)];
+            let constants = vec![Value::Boolean(true), Value::Integer(1), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -481,11 +482,11 @@ mod tests {
                 Instruction::with_arg(Opcode::Push, 2), // Execute this
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Bool(false), Value::Int(1), Value::Int(42)];
+            let constants = vec![Value::Boolean(false), Value::Integer(1), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
     }
     
@@ -504,8 +505,8 @@ mod tests {
             
             // Create function chunk that uses local variables
             let mut func_chunk = BytecodeChunk::new(Some("test_func".to_string()));
-            func_chunk.add_constant(Value::Int(10));
-            func_chunk.add_constant(Value::Int(32));
+            func_chunk.add_constant(Value::Integer(10));
+            func_chunk.add_constant(Value::Integer(32));
             // Pre-allocate space for locals by pushing a nil value
             func_chunk.add_instruction(Instruction::new(Opcode::PushNil)); // Space for local 0
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push 10
@@ -526,7 +527,7 @@ mod tests {
             
             let mut vm = VM::new(bytecode);
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -538,12 +539,12 @@ mod tests {
                 Instruction::with_arg(Opcode::LoadGlobal, 1), // Load with name at constants[1]
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(42), Value::String("test_var".to_string())];
+            let constants = vec![Value::Integer(42), Value::String("test_var".to_string())];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
-            assert_eq!(vm.get_globals().get("test_var"), Some(&Value::Int(42)));
+            assert_eq!(result, Value::Integer(42));
+            assert_eq!(vm.get_globals().get("test_var"), Some(&Value::Integer(42)));
         }
     }
     
@@ -559,16 +560,16 @@ mod tests {
                 Instruction::with_arg(Opcode::MakeList, 3), // Make list of 3 elements
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
+            let constants = vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
             match result {
                 Value::List(items) => {
                     assert_eq!(items.len(), 3);
-                    assert_eq!(items[0], Value::Int(1));
-                    assert_eq!(items[1], Value::Int(2));
-                    assert_eq!(items[2], Value::Int(3));
+                    assert_eq!(items[0], Value::Integer(1));
+                    assert_eq!(items[1], Value::Integer(2));
+                    assert_eq!(items[2], Value::Integer(3));
                 },
                 _ => panic!("Expected list result"),
             }
@@ -582,12 +583,12 @@ mod tests {
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![
-                Value::List(vec![Value::Int(42), Value::Int(2), Value::Int(3)])
+                Value::List(vec![Value::Integer(42), Value::Integer(2), Value::Integer(3)])
             ];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -598,7 +599,7 @@ mod tests {
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![
-                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+                Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])
             ];
             let mut vm = create_vm_with_constants(instructions, constants);
             
@@ -606,8 +607,8 @@ mod tests {
             match result {
                 Value::List(items) => {
                     assert_eq!(items.len(), 2);
-                    assert_eq!(items[0], Value::Int(2));
-                    assert_eq!(items[1], Value::Int(3));
+                    assert_eq!(items[0], Value::Integer(2));
+                    assert_eq!(items[1], Value::Integer(3));
                 },
                 _ => panic!("Expected list result"),
             }
@@ -622,8 +623,8 @@ mod tests {
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![
-                Value::Int(42),
-                Value::List(vec![Value::Int(2), Value::Int(3)])
+                Value::Integer(42),
+                Value::List(vec![Value::Integer(2), Value::Integer(3)])
             ];
             let mut vm = create_vm_with_constants(instructions, constants);
             
@@ -631,9 +632,9 @@ mod tests {
             match result {
                 Value::List(items) => {
                     assert_eq!(items.len(), 3);
-                    assert_eq!(items[0], Value::Int(42));
-                    assert_eq!(items[1], Value::Int(2));
-                    assert_eq!(items[2], Value::Int(3));
+                    assert_eq!(items[0], Value::Integer(42));
+                    assert_eq!(items[1], Value::Integer(2));
+                    assert_eq!(items[2], Value::Integer(3));
                 },
                 _ => panic!("Expected list result"),
             }
@@ -647,12 +648,12 @@ mod tests {
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![
-                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+                Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])
             ];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(3));
+            assert_eq!(result, Value::Integer(3));
         }
         
         #[test]
@@ -666,7 +667,7 @@ mod tests {
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Bool(true));
+            assert_eq!(result, Value::Boolean(true));
         }
     }
     
@@ -684,7 +685,7 @@ mod tests {
             let mut vm = create_vm_with_constants(instructions, constants);
             
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(5));
+            assert_eq!(result, Value::Integer(5));
         }
         
         #[test]
@@ -743,7 +744,7 @@ mod tests {
             
             // Create function chunk that adds 1 to its argument
             let mut func_chunk = BytecodeChunk::new(Some("add_one".to_string()));
-            func_chunk.add_constant(Value::Int(1));
+            func_chunk.add_constant(Value::Integer(1));
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Load, 0)); // Load argument from stack base
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push 1
             func_chunk.add_instruction(Instruction::new(Opcode::Add));
@@ -752,7 +753,7 @@ mod tests {
             
             // Create main chunk
             let mut main_chunk = BytecodeChunk::new(Some("main".to_string()));
-            main_chunk.add_constant(Value::Int(41));
+            main_chunk.add_constant(Value::Integer(41));
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push argument 41
             main_chunk.add_instruction(Instruction::with_arg(Opcode::MakeFunc, 0)); // Make function from chunk 0
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Call, 1)); // Call with 1 argument
@@ -762,7 +763,7 @@ mod tests {
             
             let mut vm = VM::new(bytecode);
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
         
         #[test]
@@ -780,8 +781,8 @@ mod tests {
             
             // Create main chunk
             let mut main_chunk = BytecodeChunk::new(Some("main".to_string()));
-            main_chunk.add_constant(Value::Int(10)); // Value to capture
-            main_chunk.add_constant(Value::Int(32)); // Argument
+            main_chunk.add_constant(Value::Integer(10)); // Value to capture
+            main_chunk.add_constant(Value::Integer(32)); // Argument
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push value to capture (10)
             // MakeClosure packs chunk_id in upper 16 bits and capture count in lower 16 bits
             let packed_arg = (0 << 16) | 1; // chunk_id=0, capture_count=1
@@ -796,7 +797,7 @@ mod tests {
             
             let mut vm = VM::new(bytecode);
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Int(42));
+            assert_eq!(result, Value::Integer(42));
         }
     }
     
@@ -831,7 +832,7 @@ mod tests {
                 Instruction::with_arg(Opcode::Push, 0),
                 Instruction::with_arg(Opcode::Jump, 0), // Infinite loop for testing
             ];
-            let constants = vec![Value::Int(42)];
+            let constants = vec![Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             vm.enable_usage_tracking();
             
@@ -877,7 +878,7 @@ mod tests {
                 Instruction::new(Opcode::Add), // Can't add string and int
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![Value::String("hello".to_string()), Value::Int(42)];
+            let constants = vec![Value::String("hello".to_string()), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             
             match vm.run() {

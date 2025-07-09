@@ -116,9 +116,9 @@ mod tests {
         "#;
         
         let result = parse(code).unwrap();
-        // Last expression should be root
+        // Multiple expressions should be wrapped in Begin
         let root_id = result.root_id.unwrap();
-        assert!(matches!(result.get_node(root_id).unwrap(), Node::Application { .. }));
+        assert!(matches!(result.get_node(root_id).unwrap(), Node::Begin { .. }));
     }
     
     #[test]

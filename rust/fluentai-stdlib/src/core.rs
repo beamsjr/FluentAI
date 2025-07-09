@@ -5,6 +5,7 @@
 
 use crate::registry::{StdlibFunction, StdlibRegistry};
 use crate::value::Value;
+use crate::vm_bridge::StdlibContext;
 use anyhow::{anyhow, Result};
 
 /// Register all core functions
@@ -17,9 +18,9 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("nth", nth, 2, Some(2), "Get the nth element of a list"),
         StdlibFunction::pure("take", take, 2, Some(2), "Take the first n elements of a list"),
         StdlibFunction::pure("drop", drop, 2, Some(2), "Drop the first n elements of a list"),
-        StdlibFunction::pure("map", map, 2, Some(2), "Apply a function to each element of a list"),
-        StdlibFunction::pure("filter", filter, 2, Some(2), "Filter a list by a predicate"),
-        StdlibFunction::pure("fold", fold, 3, Some(3), "Fold a list from the left"),
+        StdlibFunction::effectful_with_context("map", map_ctx, 2, Some(2), vec![], "Apply a function to each element of a list"),
+        StdlibFunction::effectful_with_context("filter", filter_ctx, 2, Some(2), vec![], "Filter a list by a predicate"),
+        StdlibFunction::effectful_with_context("fold", fold_ctx, 3, Some(3), vec![], "Fold a list from the left"),
         StdlibFunction::pure("range", range, 1, Some(3), "Generate a range of numbers"),
         StdlibFunction::pure("cons", cons, 2, Some(2), "Construct a list by prepending an element"),
         StdlibFunction::pure("car", car, 1, Some(1), "Get the first element of a list"),
@@ -74,7 +75,7 @@ pub fn register(registry: &mut StdlibRegistry) {
 
 fn length(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::List(items) => Ok(Value::Int(items.len() as i64)),
+        Value::List(items) => Ok(Value::Integer(items.len() as i64)),
         _ => Err(anyhow!("length: expected list")),
     }
 }
@@ -108,7 +109,7 @@ fn nth(args: &[Value]) -> Result<Value> {
     };
     
     let index = match &args[1] {
-        Value::Int(i) => *i as usize,
+        Value::Integer(i) => *i as usize,
         _ => return Err(anyhow!("nth: expected integer index")),
     };
     
@@ -119,7 +120,7 @@ fn nth(args: &[Value]) -> Result<Value> {
 
 fn take(args: &[Value]) -> Result<Value> {
     let n = match &args[0] {
-        Value::Int(i) => *i as usize,
+        Value::Integer(i) => *i as usize,
         _ => return Err(anyhow!("take: expected integer count")),
     };
     
@@ -134,7 +135,7 @@ fn take(args: &[Value]) -> Result<Value> {
 
 fn drop(args: &[Value]) -> Result<Value> {
     let n = match &args[0] {
-        Value::Int(i) => *i as usize,
+        Value::Integer(i) => *i as usize,
         _ => return Err(anyhow!("drop: expected integer count")),
     };
     
@@ -147,52 +148,75 @@ fn drop(args: &[Value]) -> Result<Value> {
     }
 }
 
-fn map(args: &[Value]) -> Result<Value> {
-    let _func = match &args[0] {
+fn map_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let func = match &args[0] {
         Value::Function { .. } => &args[0],
         _ => return Err(anyhow!("map: expected function")),
     };
     
     match &args[1] {
-        Value::List(_items) => {
-            // This is a placeholder - in real implementation, we'd need to
-            // call the VM to execute the function on each element
-            // For now, return an error indicating this needs VM integration
-            Err(anyhow!("map: VM integration required for function application"))
+        Value::List(items) => {
+            let mut result = Vec::with_capacity(items.len());
+            
+            for item in items {
+                // Call the function with the item
+                match context.call_function_with_effects(func, &[item.clone()]) {
+                    Ok(mapped_value) => result.push(mapped_value),
+                    Err(e) => return Err(anyhow!("map: error applying function: {}", e)),
+                }
+            }
+            
+            Ok(Value::List(result))
         }
         _ => Err(anyhow!("map: expected list")),
     }
 }
 
-fn filter(args: &[Value]) -> Result<Value> {
-    let _pred = match &args[0] {
+fn filter_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let pred = match &args[0] {
         Value::Function { .. } => &args[0],
         _ => return Err(anyhow!("filter: expected predicate function")),
     };
     
     match &args[1] {
-        Value::List(_items) => {
-            // This is a placeholder - in real implementation, we'd need to
-            // call the VM to execute the predicate on each element
-            Err(anyhow!("filter: VM integration required for function application"))
+        Value::List(items) => {
+            let mut result = Vec::new();
+            
+            for item in items {
+                // Call the predicate with the item
+                match context.call_function_with_effects(pred, &[item.clone()]) {
+                    Ok(Value::Boolean(true)) => result.push(item.clone()),
+                    Ok(Value::Boolean(false)) => {},
+                    Ok(_) => return Err(anyhow!("filter: predicate must return boolean")),
+                    Err(e) => return Err(anyhow!("filter: error evaluating predicate: {}", e)),
+                }
+            }
+            
+            Ok(Value::List(result))
         }
         _ => Err(anyhow!("filter: expected list")),
     }
 }
 
-fn fold(args: &[Value]) -> Result<Value> {
-    let _func = match &args[0] {
+fn fold_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let func = match &args[0] {
         Value::Function { .. } => &args[0],
         _ => return Err(anyhow!("fold: expected function")),
     };
     
-    let _init = &args[1];
+    let mut accumulator = args[1].clone();
     
     match &args[2] {
-        Value::List(_items) => {
-            // This is a placeholder - in real implementation, we'd need to
-            // call the VM to execute the function
-            Err(anyhow!("fold: VM integration required for function application"))
+        Value::List(items) => {
+            for item in items {
+                // Call the function with accumulator and item
+                match context.call_function_with_effects(func, &[accumulator, item.clone()]) {
+                    Ok(new_acc) => accumulator = new_acc,
+                    Err(e) => return Err(anyhow!("fold: error applying function: {}", e)),
+                }
+            }
+            
+            Ok(accumulator)
         }
         _ => Err(anyhow!("fold: expected list")),
     }
@@ -202,33 +226,33 @@ fn range(args: &[Value]) -> Result<Value> {
     let (start, end, step) = match args.len() {
         1 => {
             let end = match &args[0] {
-                Value::Int(i) => *i,
+                Value::Integer(i) => *i,
                 _ => return Err(anyhow!("range: expected integer")),
             };
             (0, end, 1)
         }
         2 => {
             let start = match &args[0] {
-                Value::Int(i) => *i,
+                Value::Integer(i) => *i,
                 _ => return Err(anyhow!("range: expected integer start")),
             };
             let end = match &args[1] {
-                Value::Int(i) => *i,
+                Value::Integer(i) => *i,
                 _ => return Err(anyhow!("range: expected integer end")),
             };
             (start, end, 1)
         }
         3 => {
             let start = match &args[0] {
-                Value::Int(i) => *i,
+                Value::Integer(i) => *i,
                 _ => return Err(anyhow!("range: expected integer start")),
             };
             let end = match &args[1] {
-                Value::Int(i) => *i,
+                Value::Integer(i) => *i,
                 _ => return Err(anyhow!("range: expected integer end")),
             };
             let step = match &args[2] {
-                Value::Int(i) => *i,
+                Value::Integer(i) => *i,
                 _ => return Err(anyhow!("range: expected integer step")),
             };
             if step == 0 {
@@ -244,12 +268,12 @@ fn range(args: &[Value]) -> Result<Value> {
     
     if step > 0 {
         while current < end {
-            result.push(Value::Int(current));
+            result.push(Value::Integer(current));
             current += step;
         }
     } else {
         while current > end {
-            result.push(Value::Int(current));
+            result.push(Value::Integer(current));
             current += step;
         }
     }
@@ -261,7 +285,7 @@ fn range(args: &[Value]) -> Result<Value> {
 
 fn abs(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::Int(i) => Ok(Value::Int(i.abs())),
+        Value::Integer(i) => Ok(Value::Integer(i.abs())),
         Value::Float(f) => Ok(Value::Float(f.abs())),
         _ => Err(anyhow!("abs: expected number")),
     }
@@ -276,10 +300,10 @@ fn max(args: &[Value]) -> Result<Value> {
     
     for arg in &args[1..] {
         max_val = match (max_val, arg) {
-            (Value::Int(a), Value::Int(b)) => if b > a { arg } else { max_val },
+            (Value::Integer(a), Value::Integer(b)) => if b > a { arg } else { max_val },
             (Value::Float(a), Value::Float(b)) => if b > a { arg } else { max_val },
-            (Value::Int(a), Value::Float(b)) => if *b > *a as f64 { arg } else { max_val },
-            (Value::Float(a), Value::Int(b)) => if *b as f64 > *a { arg } else { max_val },
+            (Value::Integer(a), Value::Float(b)) => if *b > *a as f64 { arg } else { max_val },
+            (Value::Float(a), Value::Integer(b)) => if *b as f64 > *a { arg } else { max_val },
             _ => return Err(anyhow!("max: expected numbers")),
         };
     }
@@ -296,10 +320,10 @@ fn min(args: &[Value]) -> Result<Value> {
     
     for arg in &args[1..] {
         min_val = match (min_val, arg) {
-            (Value::Int(a), Value::Int(b)) => if b < a { arg } else { min_val },
+            (Value::Integer(a), Value::Integer(b)) => if b < a { arg } else { min_val },
             (Value::Float(a), Value::Float(b)) => if b < a { arg } else { min_val },
-            (Value::Int(a), Value::Float(b)) => if *b < *a as f64 { arg } else { min_val },
-            (Value::Float(a), Value::Int(b)) => if (*b as f64) < *a { arg } else { min_val },
+            (Value::Integer(a), Value::Float(b)) => if *b < *a as f64 { arg } else { min_val },
+            (Value::Float(a), Value::Integer(b)) => if (*b as f64) < *a { arg } else { min_val },
             _ => return Err(anyhow!("min: expected numbers")),
         };
     }
@@ -309,11 +333,11 @@ fn min(args: &[Value]) -> Result<Value> {
 
 fn modulo(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => {
+        (Value::Integer(a), Value::Integer(b)) => {
             if *b == 0 {
                 Err(anyhow!("mod: division by zero"))
             } else {
-                Ok(Value::Int(a % b))
+                Ok(Value::Integer(a % b))
             }
         }
         _ => Err(anyhow!("mod: expected integers")),
@@ -324,7 +348,7 @@ fn modulo(args: &[Value]) -> Result<Value> {
 
 fn xor(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a ^ b)),
+        (Value::Boolean(a), Value::Boolean(b)) => Ok(Value::Boolean(a ^ b)),
         _ => Err(anyhow!("xor: expected booleans")),
     }
 }
@@ -332,102 +356,102 @@ fn xor(args: &[Value]) -> Result<Value> {
 // Type predicates
 
 fn is_int(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::Int(_))))
+    Ok(Value::Boolean(matches!(&args[0], Value::Integer(_))))
 }
 
 fn is_float(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::Float(_))))
+    Ok(Value::Boolean(matches!(&args[0], Value::Float(_))))
 }
 
 fn is_string(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::String(_))))
+    Ok(Value::Boolean(matches!(&args[0], Value::String(_))))
 }
 
 fn is_list(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::List(_))))
+    Ok(Value::Boolean(matches!(&args[0], Value::List(_))))
 }
 
 fn is_bool(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::Bool(_))))
+    Ok(Value::Boolean(matches!(&args[0], Value::Boolean(_))))
 }
 
 fn is_nil(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::Nil)))
+    Ok(Value::Boolean(matches!(&args[0], Value::Nil)))
 }
 
 fn is_function(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::Function { .. })))
+    Ok(Value::Boolean(matches!(&args[0], Value::Function { .. })))
 }
 
 fn is_number(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::Int(_) | Value::Float(_))))
+    Ok(Value::Boolean(matches!(&args[0], Value::Integer(_) | Value::Float(_))))
 }
 
 // Comparison operations
 
 fn less_than(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a < b)),
-        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a < b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool((*a as f64) < *b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a < (*b as f64))),
+        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Boolean(a < b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Boolean(a < b)),
+        (Value::Integer(a), Value::Float(b)) => Ok(Value::Boolean((*a as f64) < *b)),
+        (Value::Float(a), Value::Integer(b)) => Ok(Value::Boolean(*a < (*b as f64))),
         _ => Err(anyhow!("<: expected numbers")),
     }
 }
 
 fn greater_than(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a > b)),
-        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a > b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool(*a as f64 > *b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a > *b as f64)),
+        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Boolean(a > b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Boolean(a > b)),
+        (Value::Integer(a), Value::Float(b)) => Ok(Value::Boolean(*a as f64 > *b)),
+        (Value::Float(a), Value::Integer(b)) => Ok(Value::Boolean(*a > *b as f64)),
         _ => Err(anyhow!(">: expected numbers")),
     }
 }
 
 fn less_equal(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a <= b)),
-        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a <= b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool(*a as f64 <= *b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a <= *b as f64)),
+        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Boolean(a <= b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Boolean(a <= b)),
+        (Value::Integer(a), Value::Float(b)) => Ok(Value::Boolean(*a as f64 <= *b)),
+        (Value::Float(a), Value::Integer(b)) => Ok(Value::Boolean(*a <= *b as f64)),
         _ => Err(anyhow!("<=: expected numbers")),
     }
 }
 
 fn greater_equal(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a >= b)),
-        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a >= b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool(*a as f64 >= *b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a >= *b as f64)),
+        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Boolean(a >= b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Boolean(a >= b)),
+        (Value::Integer(a), Value::Float(b)) => Ok(Value::Boolean(*a as f64 >= *b)),
+        (Value::Float(a), Value::Integer(b)) => Ok(Value::Boolean(*a >= *b as f64)),
         _ => Err(anyhow!(">=: expected numbers")),
     }
 }
 
 fn equal(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a == b)),
-        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a == b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool(*a as f64 == *b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a == *b as f64)),
-        (Value::String(a), Value::String(b)) => Ok(Value::Bool(a == b)),
-        (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a == b)),
-        (Value::Nil, Value::Nil) => Ok(Value::Bool(true)),
-        _ => Ok(Value::Bool(false)), // Different types are not equal
+        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Boolean(a == b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Boolean(a == b)),
+        (Value::Integer(a), Value::Float(b)) => Ok(Value::Boolean(*a as f64 == *b)),
+        (Value::Float(a), Value::Integer(b)) => Ok(Value::Boolean(*a == *b as f64)),
+        (Value::String(a), Value::String(b)) => Ok(Value::Boolean(a == b)),
+        (Value::Boolean(a), Value::Boolean(b)) => Ok(Value::Boolean(a == b)),
+        (Value::Nil, Value::Nil) => Ok(Value::Boolean(true)),
+        _ => Ok(Value::Boolean(false)), // Different types are not equal
     }
 }
 
 fn not_equal(args: &[Value]) -> Result<Value> {
     match (&args[0], &args[1]) {
-        (Value::Int(a), Value::Int(b)) => Ok(Value::Bool(a != b)),
-        (Value::Float(a), Value::Float(b)) => Ok(Value::Bool(a != b)),
-        (Value::Int(a), Value::Float(b)) => Ok(Value::Bool(*a as f64 != *b)),
-        (Value::Float(a), Value::Int(b)) => Ok(Value::Bool(*a != *b as f64)),
-        (Value::String(a), Value::String(b)) => Ok(Value::Bool(a != b)),
-        (Value::Bool(a), Value::Bool(b)) => Ok(Value::Bool(a != b)),
-        (Value::Nil, Value::Nil) => Ok(Value::Bool(false)),
-        _ => Ok(Value::Bool(true)), // Different types are not equal
+        (Value::Integer(a), Value::Integer(b)) => Ok(Value::Boolean(a != b)),
+        (Value::Float(a), Value::Float(b)) => Ok(Value::Boolean(a != b)),
+        (Value::Integer(a), Value::Float(b)) => Ok(Value::Boolean(*a as f64 != *b)),
+        (Value::Float(a), Value::Integer(b)) => Ok(Value::Boolean(*a != *b as f64)),
+        (Value::String(a), Value::String(b)) => Ok(Value::Boolean(a != b)),
+        (Value::Boolean(a), Value::Boolean(b)) => Ok(Value::Boolean(a != b)),
+        (Value::Nil, Value::Nil) => Ok(Value::Boolean(false)),
+        _ => Ok(Value::Boolean(true)), // Different types are not equal
     }
 }
 
@@ -470,8 +494,8 @@ fn cdr(args: &[Value]) -> Result<Value> {
 
 fn is_null(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::List(items) => Ok(Value::Bool(items.is_empty())),
-        _ => Ok(Value::Bool(false)),
+        Value::List(items) => Ok(Value::Boolean(items.is_empty())),
+        _ => Ok(Value::Boolean(false)),
     }
 }
 
@@ -482,7 +506,7 @@ fn list_ref(args: &[Value]) -> Result<Value> {
     };
     
     let index = match &args[1] {
-        Value::Int(i) => {
+        Value::Integer(i) => {
             if *i < 0 {
                 return Err(anyhow!("list-ref: negative index"));
             }
@@ -579,7 +603,7 @@ fn map_has(args: &[Value]) -> Result<Value> {
         _ => return Err(anyhow!("map-has?: key must be a string")),
     };
     
-    Ok(Value::Bool(map.contains_key(key)))
+    Ok(Value::Boolean(map.contains_key(key)))
 }
 
 fn map_remove(args: &[Value]) -> Result<Value> {
@@ -656,7 +680,7 @@ fn make_tagged(args: &[Value]) -> Result<Value> {
 }
 
 fn is_tagged(args: &[Value]) -> Result<Value> {
-    Ok(Value::Bool(matches!(&args[0], Value::Tagged { .. })))
+    Ok(Value::Boolean(matches!(&args[0], Value::Tagged { .. })))
 }
 
 fn tagged_tag(args: &[Value]) -> Result<Value> {

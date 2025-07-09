@@ -1,0 +1,5 @@
+;; Test that all top-level expressions execute
+(effect io:print "First top-level expression")
+(effect io:print "Second top-level expression")
+(effect io:print "Third top-level expression")
+42  ; Final result

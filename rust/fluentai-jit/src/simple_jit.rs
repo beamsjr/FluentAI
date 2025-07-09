@@ -48,6 +48,6 @@ impl SimpleJIT {
     
     pub fn compile_and_run(&mut self, bytecode: &Bytecode) -> Result<Value> {
         let func = self.compile(bytecode, bytecode.main_chunk)?;
-        Ok(Value::Int(func()))
+        Ok(Value::Integer(func()))
     }
 }

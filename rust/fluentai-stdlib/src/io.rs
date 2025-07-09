@@ -2,48 +2,56 @@
 
 use crate::registry::{StdlibFunction, StdlibRegistry};
 use crate::value::Value;
+use crate::vm_bridge::StdlibContext;
 use fluentai_core::ast::EffectType;
 use anyhow::{anyhow, Result};
+
+/// Helper to perform IO effects through the effect context
+fn perform_io_effect(context: &mut StdlibContext, operation: &str, args: &[Value]) -> Result<Value> {
+    let effect_context = context.effect_context();
+    effect_context.perform_sync(EffectType::IO, operation, args)
+        .map_err(|e| anyhow!("IO effect error: {}", e))
+}
 
 /// Register all I/O functions
 pub fn register(registry: &mut StdlibRegistry) {
     registry.register_all(vec![
         // File operations
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "file-read",
-            file_read,
+            file_read_ctx,
             1,
             Some(1),
             vec![EffectType::IO],
             "Read entire file contents"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "file-write",
-            file_write,
+            file_write_ctx,
             2,
             Some(2),
             vec![EffectType::IO],
             "Write content to file"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "file-append",
-            file_append,
+            file_append_ctx,
             2,
             Some(2),
             vec![EffectType::IO],
             "Append content to file"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "file-delete",
-            file_delete,
+            file_delete_ctx,
             1,
             Some(1),
             vec![EffectType::IO],
             "Delete a file"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "file-exists?",
-            file_exists,
+            file_exists_ctx,
             1,
             Some(1),
             vec![EffectType::IO],
@@ -51,25 +59,25 @@ pub fn register(registry: &mut StdlibRegistry) {
         ),
         
         // Directory operations
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "dir-list",
-            dir_list,
+            dir_list_ctx,
             1,
             Some(1),
             vec![EffectType::IO],
             "List directory contents"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "dir-create",
-            dir_create,
+            dir_create_ctx,
             1,
             Some(1),
             vec![EffectType::IO],
             "Create a directory"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "current-directory",
-            current_directory,
+            current_directory_ctx,
             0,
             Some(0),
             vec![EffectType::IO],
@@ -77,25 +85,25 @@ pub fn register(registry: &mut StdlibRegistry) {
         ),
         
         // Console I/O
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "read-line",
-            read_line,
+            read_line_ctx,
             0,
             Some(0),
             vec![EffectType::IO],
             "Read a line from stdin"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "print-line",
-            print_line,
+            print_line_ctx,
             1,
             None,
             vec![EffectType::IO],
             "Print values followed by newline"
         ),
-        StdlibFunction::effectful(
+        StdlibFunction::effectful_with_context(
             "print",
-            print,
+            print_ctx,
             1,
             None,
             vec![EffectType::IO],
@@ -108,56 +116,54 @@ pub fn register(registry: &mut StdlibRegistry) {
     ]);
 }
 
-// File operations
-// Note: These are placeholder implementations that would need to integrate
-// with the effect system for proper sandboxing and async support
+// Context-aware file operations
 
-fn file_read(args: &[Value]) -> Result<Value> {
-    crate::io_effects::file_read_with_effects(args)
+fn file_read_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "read_file", args)
 }
 
-fn file_write(args: &[Value]) -> Result<Value> {
-    crate::io_effects::file_write_with_effects(args)
+fn file_write_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "write_file", args)
 }
 
-fn file_append(args: &[Value]) -> Result<Value> {
-    crate::io_effects::file_append_with_effects(args)
+fn file_append_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "append_file", args)
 }
 
-fn file_delete(args: &[Value]) -> Result<Value> {
-    crate::io_effects::file_delete_with_effects(args)
+fn file_delete_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "delete_file", args)
 }
 
-fn file_exists(args: &[Value]) -> Result<Value> {
-    crate::io_effects::file_exists_with_effects(args)
+fn file_exists_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "file_exists", args)
 }
 
 // Directory operations
 
-fn dir_list(args: &[Value]) -> Result<Value> {
-    crate::io_effects::dir_list_with_effects(args)
+fn dir_list_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "list_dir", args)
 }
 
-fn dir_create(args: &[Value]) -> Result<Value> {
-    crate::io_effects::dir_create_with_effects(args)
+fn dir_create_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "create_dir", args)
 }
 
-fn current_directory(args: &[Value]) -> Result<Value> {
-    crate::io_effects::current_directory_with_effects(args)
+fn current_directory_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "current_dir", args)
 }
 
 // Console I/O
 
-fn read_line(args: &[Value]) -> Result<Value> {
-    crate::io_effects::read_line_with_effects(args)
+fn read_line_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "read_line", args)
 }
 
-fn print_line(args: &[Value]) -> Result<Value> {
-    crate::io_effects::print_line_with_effects(args)
+fn print_line_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "print_line", args)
 }
 
-fn print(args: &[Value]) -> Result<Value> {
-    crate::io_effects::print_with_effects(args)
+fn print_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    perform_io_effect(context, "print", args)
 }
 
 // JSON operations
@@ -188,10 +194,10 @@ fn json_stringify(args: &[Value]) -> Result<Value> {
 fn json_to_value(json: &serde_json::Value) -> Result<Value> {
     match json {
         serde_json::Value::Null => Ok(Value::Nil),
-        serde_json::Value::Bool(b) => Ok(Value::Bool(*b)),
+        serde_json::Value::Bool(b) => Ok(Value::Boolean(*b)),
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
-                Ok(Value::Int(i))
+                Ok(Value::Integer(i))
             } else if let Some(f) = n.as_f64() {
                 Ok(Value::Float(f))
             } else {
@@ -219,8 +225,8 @@ fn json_to_value(json: &serde_json::Value) -> Result<Value> {
 fn value_to_json(value: &Value) -> Result<serde_json::Value> {
     match value {
         Value::Nil => Ok(serde_json::Value::Null),
-        Value::Bool(b) => Ok(serde_json::Value::Bool(*b)),
-        Value::Int(i) => Ok(serde_json::json!(*i)),
+        Value::Boolean(b) => Ok(serde_json::Value::Bool(*b)),
+        Value::Integer(i) => Ok(serde_json::json!(*i)),
         Value::Float(f) => Ok(serde_json::json!(*f)),
         Value::String(s) => Ok(serde_json::Value::String(s.clone())),
         Value::List(items) => {

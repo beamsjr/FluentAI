@@ -50,7 +50,7 @@ fn test_log_levels() {
 #[test]
 fn test_basic_logging() {
     // Test log function with different levels
-    let result = log(&[Value::Int(1), Value::String("Test info message".to_string())]);
+    let result = log(&[Value::Integer(1), Value::String("Test info message".to_string())]);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), Value::Nil);
     
@@ -60,14 +60,14 @@ fn test_basic_logging() {
     data.insert("action".to_string(), Value::String("login".to_string()));
     
     let result = log(&[
-        Value::Int(1),
+        Value::Integer(1),
         Value::String("User action".to_string()),
         Value::Map(data),
     ]);
     assert!(result.is_ok());
     
     // Test error cases
-    let result = log(&[Value::Int(1)]); // Too few arguments
+    let result = log(&[Value::Integer(1)]); // Too few arguments
     assert!(result.is_err());
     
     let result = log(&[Value::String("not a number".to_string()), Value::String("message".to_string())]);
@@ -94,7 +94,7 @@ fn test_level_specific_functions() {
     
     // Test with structured data
     let mut data = FxHashMap::default();
-    data.insert("code".to_string(), Value::Int(404));
+    data.insert("code".to_string(), Value::Integer(404));
     data.insert("path".to_string(), Value::String("/not/found".to_string()));
     
     let result = error(&[
@@ -112,21 +112,21 @@ fn test_log_level_management() {
     let initial_level = result.unwrap();
     
     // Set log level to Debug
-    let result = set_log_level(&[Value::Int(0)]);
+    let result = set_log_level(&[Value::Integer(0)]);
     assert!(result.is_ok());
     
     let result = get_log_level(&[]);
-    assert_eq!(result.unwrap(), Value::Int(0));
+    assert_eq!(result.unwrap(), Value::Integer(0));
     
     // Set log level to Error
-    let result = set_log_level(&[Value::Int(3)]);
+    let result = set_log_level(&[Value::Integer(3)]);
     assert!(result.is_ok());
     
     let result = get_log_level(&[]);
-    assert_eq!(result.unwrap(), Value::Int(3));
+    assert_eq!(result.unwrap(), Value::Integer(3));
     
     // Test invalid log level
-    let result = set_log_level(&[Value::Int(5)]);
+    let result = set_log_level(&[Value::Integer(5)]);
     assert!(result.is_err());
     
     // Test non-integer argument
@@ -143,7 +143,7 @@ fn test_log_filtering() {
     let initial_level = get_log_level(&[]).unwrap();
     
     // Set log level to WARN
-    set_log_level(&[Value::Int(2)]).unwrap();
+    set_log_level(&[Value::Integer(2)]).unwrap();
     
     // Debug and Info messages should be filtered (but function still returns Ok)
     let result = debug(&[Value::String("This should be filtered".to_string())]);
@@ -169,16 +169,16 @@ fn test_value_to_json_conversion() {
     // We can test this indirectly by passing various value types
     
     // Simple values
-    info(&[Value::String("Test with integer".to_string()), Value::Int(42)]).unwrap();
+    info(&[Value::String("Test with integer".to_string()), Value::Integer(42)]).unwrap();
     info(&[Value::String("Test with float".to_string()), Value::Float(3.14)]).unwrap();
-    info(&[Value::String("Test with boolean".to_string()), Value::Bool(true)]).unwrap();
+    info(&[Value::String("Test with boolean".to_string()), Value::Boolean(true)]).unwrap();
     info(&[Value::String("Test with nil".to_string()), Value::Nil]).unwrap();
     
     // List values
     let list = Value::List(vec![
-        Value::Int(1),
+        Value::Integer(1),
         Value::String("two".to_string()),
-        Value::Bool(false),
+        Value::Boolean(false),
     ]);
     info(&[Value::String("Test with list".to_string()), list]).unwrap();
     
@@ -187,7 +187,7 @@ fn test_value_to_json_conversion() {
     inner_map.insert("nested".to_string(), Value::String("value".to_string()));
     
     let mut outer_map = FxHashMap::default();
-    outer_map.insert("level".to_string(), Value::Int(1));
+    outer_map.insert("level".to_string(), Value::Integer(1));
     outer_map.insert("data".to_string(), Value::Map(inner_map));
     
     info(&[Value::String("Test with nested map".to_string()), Value::Map(outer_map)]).unwrap();

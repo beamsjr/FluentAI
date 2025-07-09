@@ -3,7 +3,7 @@
 //! Provides detailed error types with context and stack traces
 
 use std::fmt;
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 
 /// VM error types with rich context
 #[derive(Debug, Clone)]
@@ -278,12 +278,16 @@ impl std::error::Error for VMError {}
 pub fn value_type_name(value: &Value) -> &'static str {
     match value {
         Value::Nil => "nil",
-        Value::Bool(_) => "bool",
-        Value::Int(_) => "int",
+        Value::Boolean(_) => "bool",
+        Value::Integer(_) => "int",
         Value::Float(_) => "float",
         Value::String(_) => "string",
+        Value::Symbol(_) => "symbol",
         Value::List(_) => "list",
+        Value::Procedure(_) => "procedure",
+        Value::Vector(_) => "vector",
         Value::Map(_) => "map",
+        Value::NativeFunction { .. } => "native-function",
         Value::Function { .. } => "function",
         Value::Promise(_) => "promise",
         Value::Channel(_) => "channel",

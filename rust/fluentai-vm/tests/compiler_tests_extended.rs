@@ -1,9 +1,10 @@
 //! Extended compiler tests for FluentAI VM
 
 use fluentai_core::ast::{Graph, Node, Literal, Pattern};
+use fluentai_core::value::Value;
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
-    bytecode::{Opcode, Value},
+    bytecode::Opcode,
     VM,
 };
 use fluentai_optimizer::OptimizationLevel;
@@ -168,7 +169,7 @@ fn test_compile_deeply_nested_let() -> Result<()> {
     graph.root_id = Some(outer_let);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(3));
+    assert_eq!(result, Value::Integer(3));
     
     Ok(())
 }
@@ -194,7 +195,7 @@ fn test_compile_multiple_bindings_access() -> Result<()> {
     graph.root_id = Some(let_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(20));
+    assert_eq!(result, Value::Integer(20));
     
     Ok(())
 }
@@ -247,7 +248,7 @@ fn test_compile_nested_if() -> Result<()> {
     graph.root_id = Some(outer_if);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(2));
+    assert_eq!(result, Value::Integer(2));
     
     Ok(())
 }
@@ -285,7 +286,7 @@ fn test_compile_special_integer_values() -> Result<()> {
     let large = graph.add_node(Node::Literal(Literal::Integer(i64::MAX))).expect("Failed to add node");
     graph.root_id = Some(large);
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(i64::MAX));
+    assert_eq!(result, Value::Integer(i64::MAX));
     
     Ok(())
 }
@@ -540,7 +541,7 @@ fn test_compile_letrec_empty_bindings() -> Result<()> {
     graph.root_id = Some(letrec_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(42));
+    assert_eq!(result, Value::Integer(42));
     Ok(())
 }
 
@@ -636,7 +637,7 @@ fn test_compile_large_list() -> Result<()> {
         Value::List(items) => {
             assert_eq!(items.len(), 10);
             for (i, item) in items.iter().enumerate() {
-                assert_eq!(*item, Value::Int(i as i64));
+                assert_eq!(*item, Value::Integer(i as i64));
             }
         }
         _ => panic!("Expected list"),
@@ -713,7 +714,7 @@ fn test_compile_pattern_matching() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::Int(1)); // Should match the first element
+    assert_eq!(result, Value::Integer(1)); // Should match the first element
     
     Ok(())
 }
@@ -775,7 +776,7 @@ fn test_compile_pattern_matching_tail() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run(&graph)?;
-    assert_eq!(result, Value::List(vec![Value::Int(2), Value::Int(3)]));
+    assert_eq!(result, Value::List(vec![Value::Integer(2), Value::Integer(3)]));
     
     Ok(())
 }
@@ -857,7 +858,7 @@ fn test_compile_pattern_matching_with_optimization() -> Result<()> {
     
     // Test without optimization first
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::None)?;
-    assert_eq!(result, Value::Int(99)); // Should match cons and return 99
+    assert_eq!(result, Value::Integer(99)); // Should match cons and return 99
     
     // TODO: There's an issue where the optimizer is being called twice:
     // 1. In compile_and_run_with_optimization which passes OptimizationLevel to compiler
@@ -867,11 +868,11 @@ fn test_compile_pattern_matching_with_optimization() -> Result<()> {
     /*
     // Test with standard optimization
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::Standard)?;
-    assert_eq!(result, Value::Int(99)); // Should match cons and return 99
+    assert_eq!(result, Value::Integer(99)); // Should match cons and return 99
     
     // Test with aggressive optimization
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::Aggressive)?;
-    assert_eq!(result, Value::Int(99));
+    assert_eq!(result, Value::Integer(99));
     */
     
     // Test nil pattern matching with optimization
@@ -925,7 +926,7 @@ fn test_compile_pattern_matching_with_optimization() -> Result<()> {
     graph.root_id = Some(match_node);
     
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::Standard)?;
-    assert_eq!(result, Value::List(vec![Value::Int(2), Value::Int(3)]));
+    assert_eq!(result, Value::List(vec![Value::Integer(2), Value::Integer(3)]));
     
     Ok(())
 }

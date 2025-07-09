@@ -307,6 +307,11 @@ impl AdvancedOptimizer {
                         Node::Define { value, .. } => {
                             stack.push(WorkItem::Process(*value));
                         }
+                        Node::Begin { exprs } => {
+                            for expr in exprs.iter().rev() {
+                                stack.push(WorkItem::Process(*expr));
+                            }
+                        }
                     }
                 }
                 WorkItem::Complete(node_id, placeholder_id) => {

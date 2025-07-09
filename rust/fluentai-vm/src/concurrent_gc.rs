@@ -3,7 +3,7 @@
 //! This module implements a concurrent, generational garbage collector that
 //! minimizes stop-the-world pauses by doing most work concurrently.
 
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use crate::gc::{GcHandle, ConcurrentGcNode};
 use anyhow::{anyhow, Result};
 use crossbeam_epoch::{self as epoch, Atomic, Guard};
@@ -432,9 +432,36 @@ impl ConcurrentGc {
                     self.scan_value(item);
                 }
             }
+            Value::Vector(items) => {
+                for item in items {
+                    self.scan_value(item);
+                }
+            }
             Value::Map(map) => {
                 for (_, v) in map {
                     self.scan_value(v);
+                }
+            }
+            Value::Function { env, .. } => {
+                for v in env {
+                    self.scan_value(v);
+                }
+            }
+            Value::Tagged { values, .. } => {
+                for v in values {
+                    self.scan_value(v);
+                }
+            }
+            Value::Module { exports, .. } => {
+                for (_, v) in exports {
+                    self.scan_value(v);
+                }
+            }
+            Value::Procedure(proc) => {
+                if let Some(env) = &proc.env {
+                    for (_, v) in env {
+                        self.scan_value(v);
+                    }
                 }
             }
             Value::GcHandle(_handle) => {
@@ -459,9 +486,36 @@ impl ConcurrentGc {
                     self.scan_value_concurrent(item, gray_queue, guard);
                 }
             }
+            Value::Vector(items) => {
+                for item in items {
+                    self.scan_value_concurrent(item, gray_queue, guard);
+                }
+            }
             Value::Map(map) => {
                 for (_, v) in map {
                     self.scan_value_concurrent(v, gray_queue, guard);
+                }
+            }
+            Value::Function { env, .. } => {
+                for v in env {
+                    self.scan_value_concurrent(v, gray_queue, guard);
+                }
+            }
+            Value::Tagged { values, .. } => {
+                for v in values {
+                    self.scan_value_concurrent(v, gray_queue, guard);
+                }
+            }
+            Value::Module { exports, .. } => {
+                for (_, v) in exports {
+                    self.scan_value_concurrent(v, gray_queue, guard);
+                }
+            }
+            Value::Procedure(proc) => {
+                if let Some(env) = &proc.env {
+                    for (_, v) in env {
+                        self.scan_value_concurrent(v, gray_queue, guard);
+                    }
                 }
             }
             _ => {}
@@ -604,13 +658,23 @@ impl ConcurrentGc {
     fn value_size(&self, value: &Value) -> usize {
         match value {
             Value::Nil => 8,
-            Value::Bool(_) => 8,
-            Value::Int(_) => 16,
+            Value::Boolean(_) => 8,
+            Value::Integer(_) => 16,
             Value::Float(_) => 16,
             Value::String(s) => 24 + s.len(),
+            Value::Symbol(s) => 24 + s.len(),
             Value::List(items) => 24 + items.len() * 8,
+            Value::Procedure(_) => 48, // Arc + fields
+            Value::Vector(items) => 24 + items.len() * 8,
             Value::Map(m) => 32 + m.len() * 16,
-            _ => 32, // Default
+            Value::NativeFunction { .. } => 64, // Arc + fields
+            Value::Function { env, .. } => 32 + env.len() * 8,
+            Value::Promise(_) => 16,
+            Value::Channel(_) => 16,
+            Value::Cell(_) => 16,
+            Value::Tagged { values, .. } => 32 + values.len() * 8,
+            Value::Module { exports, .. } => 48 + exports.len() * 16,
+            Value::GcHandle(_) => 16,
         }
     }
     
@@ -672,7 +736,7 @@ mod tests {
         
         // Allocate some values
         for i in 0..1000 {
-            let value = Value::Int(i);
+            let value = Value::Integer(i);
             let _handle = gc.allocate(value).unwrap();
         }
         

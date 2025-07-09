@@ -7,7 +7,7 @@
 //! - Taint tracking for data flow security
 //! - Execution time limits
 
-use crate::bytecode::Value;
+use fluentai_core::value::Value;
 use anyhow::{anyhow, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};

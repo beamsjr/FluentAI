@@ -1,0 +1,350 @@
+;; Comprehensive List Operations Example
+;; Demonstrates all list operations available in FluentAI
+
+;; === Basic List Creation and Access ===
+(effect io print "=== Basic List Operations ===")
+
+;; Create lists
+(define empty-list (list))
+(define numbers (list 1 2 3 4 5))
+(define mixed (list 1 "hello" true 3.14 nil))
+(define nested (list 1 (list 2 3) (list 4 (list 5 6))))
+
+(effect io print (str "Empty list: " empty-list))
+(effect io print (str "Numbers: " numbers))
+(effect io print (str "Mixed types: " mixed))
+(effect io print (str "Nested lists: " nested))
+
+;; Access list elements
+(effect io print "\n=== List Access ===")
+(effect io print (str "First of " numbers ": " (head numbers)))
+(effect io print (str "Rest of " numbers ": " (tail numbers)))
+(effect io print (str "Length of " numbers ": " (length numbers)))
+(effect io print (str "Is " empty-list " empty? " (empty? empty-list)))
+(effect io print (str "Is " numbers " empty? " (empty? numbers)))
+
+;; List construction with cons
+(effect io print "\n=== List Construction ===")
+(define list1 (cons 1 (list)))
+(define list2 (cons 2 list1))
+(define list3 (cons 3 list2))
+(effect io print (str "Built with cons: " list3))
+
+;; Build a list recursively
+(define range
+  (lambda (from to)
+    (if (> from to)
+        (list)
+        (cons from (range (+ from 1) to)))))
+
+(effect io print (str "Range 1-10: " (range 1 10)))
+
+;; === List Traversal and Transformation ===
+(effect io print "\n=== List Transformations ===")
+
+;; Map - transform each element
+(define square (lambda (x) (* x x)))
+(define double (lambda (x) (* x 2)))
+(define add-one (lambda (x) (+ x 1)))
+
+(effect io print (str "Original: " numbers))
+(effect io print (str "Squared: " (map square numbers)))
+(effect io print (str "Doubled: " (map double numbers)))
+(effect io print (str "Plus one: " (map add-one numbers)))
+
+;; Map with different types
+(define to-string (lambda (x) (str x)))
+(effect io print (str "As strings: " (map to-string numbers)))
+
+;; Filter - select elements
+(define even? (lambda (x) (= (mod x 2) 0)))
+(define odd? (lambda (x) (= (mod x 2) 1)))
+(define greater-than-3? (lambda (x) (> x 3)))
+
+(effect io print "\n=== List Filtering ===")
+(define test-numbers (range 1 10))
+(effect io print (str "All numbers: " test-numbers))
+(effect io print (str "Even numbers: " (filter even? test-numbers)))
+(effect io print (str "Odd numbers: " (filter odd? test-numbers)))
+(effect io print (str "Greater than 3: " (filter greater-than-3? test-numbers)))
+
+;; === List Reduction ===
+(effect io print "\n=== List Reduction ===")
+
+;; Using fold/reduce from stdlib
+(effect io print (str "Sum: " (fold + 0 numbers)))
+(effect io print (str "Product: " (fold * 1 numbers)))
+(effect io print (str "Maximum: " (fold max (head numbers) numbers)))
+(effect io print (str "Minimum: " (fold min (head numbers) numbers)))
+
+;; Custom reduction functions
+(define count-evens
+  (lambda (lst)
+    (fold (lambda (acc x) (if (even? x) (+ acc 1) acc)) 0 lst)))
+
+(define sum-of-squares
+  (lambda (lst)
+    (fold (lambda (acc x) (+ acc (* x x))) 0 lst)))
+
+(effect io print (str "Count of evens in " test-numbers ": " (count-evens test-numbers)))
+(effect io print (str "Sum of squares of " numbers ": " (sum-of-squares numbers)))
+
+;; === List Searching ===
+(effect io print "\n=== List Searching ===")
+
+;; Find first matching element
+(define find
+  (lambda (pred lst)
+    (if (empty? lst)
+        nil
+        (if (pred (head lst))
+            (head lst)
+            (find pred (tail lst))))))
+
+;; Find index of element
+(define index-of
+  (lambda (elem lst)
+    (define helper
+      (lambda (lst idx)
+        (if (empty? lst)
+            -1
+            (if (= (head lst) elem)
+                idx
+                (helper (tail lst) (+ idx 1))))))
+    (helper lst 0)))
+
+(effect io print (str "First even in " numbers ": " (find even? numbers)))
+(effect io print (str "First > 3 in " numbers ": " (find greater-than-3? numbers)))
+(effect io print (str "Index of 3 in " numbers ": " (index-of 3 numbers)))
+(effect io print (str "Index of 10 in " numbers ": " (index-of 10 numbers)))
+
+;; Check if any/all elements match
+(define any?
+  (lambda (pred lst)
+    (if (empty? lst)
+        false
+        (if (pred (head lst))
+            true
+            (any? pred (tail lst))))))
+
+(define all?
+  (lambda (pred lst)
+    (if (empty? lst)
+        true
+        (if (pred (head lst))
+            (all? pred (tail lst))
+            false))))
+
+(effect io print (str "Any even in " numbers "? " (any? even? numbers)))
+(effect io print (str "All positive in " numbers "? " (all? (lambda (x) (> x 0)) numbers)))
+
+;; === List Manipulation ===
+(effect io print "\n=== List Manipulation ===")
+
+;; Reverse a list
+(define reverse
+  (lambda (lst)
+    (fold (lambda (acc x) (cons x acc)) (list) lst)))
+
+(effect io print (str "Original: " numbers))
+(effect io print (str "Reversed: " (reverse numbers)))
+
+;; Take and drop
+(define take
+  (lambda (n lst)
+    (if (or (= n 0) (empty? lst))
+        (list)
+        (cons (head lst) (take (- n 1) (tail lst))))))
+
+(define drop
+  (lambda (n lst)
+    (if (or (= n 0) (empty? lst))
+        lst
+        (drop (- n 1) (tail lst)))))
+
+(effect io print (str "Take 3 from " numbers ": " (take 3 numbers)))
+(effect io print (str "Drop 2 from " numbers ": " (drop 2 numbers)))
+
+;; Append lists
+(define append
+  (lambda (lst1 lst2)
+    (if (empty? lst1)
+        lst2
+        (cons (head lst1) (append (tail lst1) lst2)))))
+
+(define list-a (list 1 2 3))
+(define list-b (list 4 5 6))
+(effect io print (str "Append " list-a " and " list-b ": " (append list-a list-b)))
+
+;; === Advanced List Operations ===
+(effect io print "\n=== Advanced List Operations ===")
+
+;; Zip two lists
+(define zip
+  (lambda (lst1 lst2)
+    (if (or (empty? lst1) (empty? lst2))
+        (list)
+        (cons (list (head lst1) (head lst2))
+              (zip (tail lst1) (tail lst2))))))
+
+(define keys (list "a" "b" "c"))
+(define values (list 1 2 3))
+(effect io print (str "Zip " keys " with " values ": " (zip keys values)))
+
+;; Flatten nested lists
+(define flatten
+  (lambda (lst)
+    (if (empty? lst)
+        (list)
+        (let ((h (head lst)))
+          (if (list? h)
+              (append (flatten h) (flatten (tail lst)))
+              (cons h (flatten (tail lst))))))))
+
+(effect io print (str "Nested: " nested))
+(effect io print (str "Flattened: " (flatten nested)))
+
+;; Partition list by predicate
+(define partition
+  (lambda (pred lst)
+    (list (filter pred lst)
+          (filter (lambda (x) (not (pred x))) lst))))
+
+(define result (partition even? test-numbers))
+(effect io print (str "Partition by even: " result))
+
+;; Group consecutive elements
+(define group-consecutive
+  (lambda (lst)
+    (if (empty? lst)
+        (list)
+        (let ((first-elem (head lst)))
+          (define take-while-eq
+            (lambda (elem lst)
+              (if (or (empty? lst) (not (= (head lst) elem)))
+                  (list)
+                  (cons elem (take-while-eq elem (tail lst))))))
+          (define drop-while-eq
+            (lambda (elem lst)
+              (if (or (empty? lst) (not (= (head lst) elem)))
+                  lst
+                  (drop-while-eq elem (tail lst)))))
+          (cons (take-while-eq first-elem lst)
+                (group-consecutive (drop-while-eq first-elem lst)))))))
+
+(define repeated (list 1 1 2 2 2 3 1 1))
+(effect io print (str "Group consecutive in " repeated ": " (group-consecutive repeated)))
+
+;; === List Generation ===
+(effect io print "\n=== List Generation ===")
+
+;; Generate list with function
+(define generate
+  (lambda (n f)
+    (define helper
+      (lambda (i)
+        (if (>= i n)
+            (list)
+            (cons (f i) (helper (+ i 1))))))
+    (helper 0)))
+
+(effect io print (str "First 10 squares: " (generate 10 (lambda (i) (* i i)))))
+(effect io print (str "Powers of 2: " (generate 8 (lambda (i) (pow 2 i)))))
+
+;; Repeat element
+(define repeat
+  (lambda (n elem)
+    (if (= n 0)
+        (list)
+        (cons elem (repeat (- n 1) elem)))))
+
+(effect io print (str "Repeat 'A' 5 times: " (repeat 5 "A")))
+
+;; === List Sorting (Simple) ===
+(effect io print "\n=== List Sorting ===")
+
+;; Insert element in sorted position
+(define insert-sorted
+  (lambda (elem lst)
+    (if (empty? lst)
+        (list elem)
+        (if (<= elem (head lst))
+            (cons elem lst)
+            (cons (head lst) (insert-sorted elem (tail lst)))))))
+
+;; Insertion sort
+(define insertion-sort
+  (lambda (lst)
+    (fold (lambda (acc x) (insert-sorted x acc)) (list) lst)))
+
+(define unsorted (list 3 1 4 1 5 9 2 6))
+(effect io print (str "Unsorted: " unsorted))
+(effect io print (str "Sorted: " (insertion-sort unsorted)))
+
+;; === Working with Indices ===
+(effect io print "\n=== Indexed Operations ===")
+
+;; Get nth element
+(define nth
+  (lambda (n lst)
+    (if (or (< n 0) (empty? lst))
+        nil
+        (if (= n 0)
+            (head lst)
+            (nth (- n 1) (tail lst))))))
+
+(effect io print (str "Element at index 2 in " numbers ": " (nth 2 numbers)))
+
+;; Create indexed list
+(define with-index
+  (lambda (lst)
+    (define helper
+      (lambda (lst idx)
+        (if (empty? lst)
+            (list)
+            (cons (list idx (head lst))
+                  (helper (tail lst) (+ idx 1))))))
+    (helper lst 0)))
+
+(effect io print (str "With indices: " (with-index (list "a" "b" "c" "d"))))
+
+;; === List Predicates ===
+(effect io print "\n=== List Predicates ===")
+
+;; Check if list is sorted
+(define sorted?
+  (lambda (lst)
+    (if (or (empty? lst) (empty? (tail lst)))
+        true
+        (if (<= (head lst) (head (tail lst)))
+            (sorted? (tail lst))
+            false))))
+
+(effect io print (str "Is " numbers " sorted? " (sorted? numbers)))
+(effect io print (str "Is " (list 3 1 4) " sorted? " (sorted? (list 3 1 4))))
+
+;; Check for duplicates
+(define has-duplicates?
+  (lambda (lst)
+    (if (empty? lst)
+        false
+        (if (any? (lambda (x) (= x (head lst))) (tail lst))
+            true
+            (has-duplicates? (tail lst))))))
+
+(effect io print (str "Has duplicates " numbers "? " (has-duplicates? numbers)))
+(effect io print (str "Has duplicates " (list 1 2 3 2) "? " (has-duplicates? (list 1 2 3 2))))
+
+;; === Summary ===
+(effect io print "\n=== List Operations Summary ===")
+(effect io print "FluentAI provides comprehensive list operations:")
+(effect io print "- Creation: list, cons")
+(effect io print "- Access: head, tail, length, empty?")
+(effect io print "- Transformation: map, filter, fold/reduce")
+(effect io print "- Searching: find, index-of, any?, all?")
+(effect io print "- Manipulation: reverse, take, drop, append")
+(effect io print "- Advanced: zip, flatten, partition, group")
+(effect io print "- Generation: range, generate, repeat")
+(effect io print "- Sorting: insertion-sort")
+(effect io print "- Utilities: nth, with-index, sorted?, has-duplicates?")
+(effect io print "\nAll operations work with FluentAI's functional programming model!")

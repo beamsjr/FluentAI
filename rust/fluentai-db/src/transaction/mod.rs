@@ -175,7 +175,7 @@ impl Transaction {
     pub async fn execute(
         &self,
         query: &str,
-        params: Vec<fluentai_vm::bytecode::Value>,
+        params: Vec<fluentai_vm::Value>,
     ) -> DbResult<u64> {
         let mut inner = self.inner.lock().await;
         if let Some(tx) = &mut inner.tx {
@@ -184,15 +184,15 @@ impl Transaction {
             // Bind parameters safely
             for param in params {
                 q = match param {
-                    fluentai_vm::bytecode::Value::Nil => q.bind(None::<i32>),
-                    fluentai_vm::bytecode::Value::Bool(b) => q.bind(b),
-                    fluentai_vm::bytecode::Value::Int(i) => q.bind(i),
-                    fluentai_vm::bytecode::Value::Float(f) => q.bind(f),
-                    fluentai_vm::bytecode::Value::String(s) => q.bind(s),
-                    fluentai_vm::bytecode::Value::List(bytes) => {
+                    fluentai_vm::Value::Nil => q.bind(None::<i32>),
+                    fluentai_vm::Value::Boolean(b) => q.bind(b),
+                    fluentai_vm::Value::Integer(i) => q.bind(i),
+                    fluentai_vm::Value::Float(f) => q.bind(f),
+                    fluentai_vm::Value::String(s) => q.bind(s),
+                    fluentai_vm::Value::List(bytes) => {
                         let byte_vec: Result<Vec<u8>, _> = bytes.iter()
                             .map(|v| match v {
-                                fluentai_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                                fluentai_vm::Value::Integer(i) => Ok(*i as u8),
                                 _ => Err(DbError::Transaction("Binary data must be a list of integers".into())),
                             })
                             .collect();
@@ -213,7 +213,7 @@ impl Transaction {
     pub async fn fetch_all(
         &self,
         query: &str,
-        params: Vec<fluentai_vm::bytecode::Value>,
+        params: Vec<fluentai_vm::Value>,
     ) -> DbResult<Vec<sqlx::any::AnyRow>> {
         let mut inner = self.inner.lock().await;
         if let Some(tx) = &mut inner.tx {
@@ -222,15 +222,15 @@ impl Transaction {
             // Bind parameters
             for param in params {
                 q = match param {
-                    fluentai_vm::bytecode::Value::Nil => q.bind(None::<i32>),
-                    fluentai_vm::bytecode::Value::Bool(b) => q.bind(b),
-                    fluentai_vm::bytecode::Value::Int(i) => q.bind(i),
-                    fluentai_vm::bytecode::Value::Float(f) => q.bind(f),
-                    fluentai_vm::bytecode::Value::String(s) => q.bind(s),
-                    fluentai_vm::bytecode::Value::List(bytes) => {
+                    fluentai_vm::Value::Nil => q.bind(None::<i32>),
+                    fluentai_vm::Value::Boolean(b) => q.bind(b),
+                    fluentai_vm::Value::Integer(i) => q.bind(i),
+                    fluentai_vm::Value::Float(f) => q.bind(f),
+                    fluentai_vm::Value::String(s) => q.bind(s),
+                    fluentai_vm::Value::List(bytes) => {
                         let byte_vec: Result<Vec<u8>, _> = bytes.iter()
                             .map(|v| match v {
-                                fluentai_vm::bytecode::Value::Int(i) => Ok(*i as u8),
+                                fluentai_vm::Value::Integer(i) => Ok(*i as u8),
                                 _ => Err(DbError::Transaction("Binary data must be a list of integers".into())),
                             })
                             .collect();

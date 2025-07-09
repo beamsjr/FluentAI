@@ -10,45 +10,45 @@ fn test_char_predicates() {
     let alphabetic = registry.get("char-alphabetic?").unwrap();
     assert_eq!(
         alphabetic.call(&[Value::String("A".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         alphabetic.call(&[Value::String("é".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         alphabetic.call(&[Value::String("3".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test char-numeric?
     let numeric = registry.get("char-numeric?").unwrap();
     assert_eq!(
         numeric.call(&[Value::String("5".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         numeric.call(&[Value::String("⅝".to_string())]).unwrap(),  // Unicode numeric
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         numeric.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test char-whitespace?
     let whitespace = registry.get("char-whitespace?").unwrap();
     assert_eq!(
         whitespace.call(&[Value::String(" ".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         whitespace.call(&[Value::String("\n".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         whitespace.call(&[Value::String("\u{00A0}".to_string())]).unwrap(),  // Non-breaking space
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     
     // Test char-upper-case? and char-lower-case?
@@ -57,19 +57,19 @@ fn test_char_predicates() {
     
     assert_eq!(
         upper.call(&[Value::String("A".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         upper.call(&[Value::String("Ñ".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         lower.call(&[Value::String("a".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         lower.call(&[Value::String("ñ".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
 }
 
@@ -111,29 +111,29 @@ fn test_char_comparisons() {
     let char_eq = registry.get("char=?").unwrap();
     assert_eq!(
         char_eq.call(&[Value::String("a".to_string()), Value::String("a".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         char_eq.call(&[Value::String("a".to_string()), Value::String("A".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test char<?
     let char_lt = registry.get("char<?").unwrap();
     assert_eq!(
         char_lt.call(&[Value::String("a".to_string()), Value::String("b".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         char_lt.call(&[Value::String("A".to_string()), Value::String("a".to_string())]).unwrap(),
-        Value::Bool(true) // 'A' < 'a' in Unicode
+        Value::Boolean(true) // 'A' < 'a' in Unicode
     );
     
     // Test char>?
     let char_gt = registry.get("char>?").unwrap();
     assert_eq!(
         char_gt.call(&[Value::String("z".to_string()), Value::String("a".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
 }
 
@@ -145,22 +145,22 @@ fn test_char_case_insensitive_comparisons() {
     let char_ci_eq = registry.get("char-ci=?").unwrap();
     assert_eq!(
         char_ci_eq.call(&[Value::String("a".to_string()), Value::String("A".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         char_ci_eq.call(&[Value::String("a".to_string()), Value::String("b".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     
     // Test char-ci<?
     let char_ci_lt = registry.get("char-ci<?").unwrap();
     assert_eq!(
         char_ci_lt.call(&[Value::String("a".to_string()), Value::String("B".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         char_ci_lt.call(&[Value::String("A".to_string()), Value::String("b".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
 }
 
@@ -172,30 +172,30 @@ fn test_special_characters() {
     let control = registry.get("char-control?").unwrap();
     assert_eq!(
         control.call(&[Value::String("\n".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         control.call(&[Value::String("\t".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         control.call(&[Value::String("\x1B".to_string())]).unwrap(), // ESC
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     
     // Test ASCII
     let ascii = registry.get("char-ascii?").unwrap();
     assert_eq!(
         ascii.call(&[Value::String("A".to_string())]).unwrap(),
-        Value::Bool(true)
+        Value::Boolean(true)
     );
     assert_eq!(
         ascii.call(&[Value::String("€".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
     assert_eq!(
         ascii.call(&[Value::String("🎉".to_string())]).unwrap(),
-        Value::Bool(false)
+        Value::Boolean(false)
     );
 }
 
@@ -211,8 +211,8 @@ fn test_error_handling() {
     assert!(alphabetic.call(&[Value::String("abc".to_string())]).is_err());
     
     // Non-string argument
-    assert!(alphabetic.call(&[Value::Int(65)]).is_err());
-    assert!(alphabetic.call(&[Value::Bool(true)]).is_err());
+    assert!(alphabetic.call(&[Value::Integer(65)]).is_err());
+    assert!(alphabetic.call(&[Value::Boolean(true)]).is_err());
     
     // Wrong number of arguments
     assert!(alphabetic.call(&[]).is_err());

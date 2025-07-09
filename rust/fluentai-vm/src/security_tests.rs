@@ -4,7 +4,7 @@
 mod tests {
     use super::super::*;
     use crate::security::{SecurityManager, SecurityPolicy, SecurityContext, Capability, TaintLevel, TaintTracker};
-    use crate::bytecode::Value;
+    use fluentai_core::value::Value;
     use std::sync::Arc;
     use std::time::Duration;
     use std::sync::atomic::Ordering;
@@ -190,12 +190,12 @@ mod tests {
         isolation.create_module_context("module2", module2_policy);
         
         // Set module-specific globals
-        isolation.set_module_global("module1", "x".to_string(), Value::Int(42));
-        isolation.set_module_global("module2", "x".to_string(), Value::Int(100));
+        isolation.set_module_global("module1", "x".to_string(), Value::Integer(42));
+        isolation.set_module_global("module2", "x".to_string(), Value::Integer(100));
         
         // Check isolation
-        assert_eq!(isolation.get_module_global("module1", "x"), Some(Value::Int(42)));
-        assert_eq!(isolation.get_module_global("module2", "x"), Some(Value::Int(100)));
+        assert_eq!(isolation.get_module_global("module1", "x"), Some(Value::Integer(42)));
+        assert_eq!(isolation.get_module_global("module2", "x"), Some(Value::Integer(100)));
         assert_eq!(isolation.get_module_global("module1", "y"), None);
     }
     

@@ -1,0 +1,4 @@
+;; Test multiple top-level expressions
+(effect io:print "First expression")
+(effect io:print "Second expression")
+(+ 10 20)  ; This should be the result

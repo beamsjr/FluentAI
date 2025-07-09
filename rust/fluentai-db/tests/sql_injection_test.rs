@@ -2,7 +2,7 @@
 
 use fluentai_db::*;
 use fluentai_db::query::*;
-use fluentai_vm::bytecode::Value;
+use fluentai_vm::Value;
 
 #[test]
 fn test_parameterized_query_prevents_injection() {
@@ -173,7 +173,7 @@ fn test_safe_query_builder_example() {
     // Verify parameters
     assert_eq!(params.len(), 2);
     match (&params[0], &params[1]) {
-        (Value::Int(age), Value::Bool(active)) => {
+        (Value::Integer(age), Value::Boolean(active)) => {
             assert_eq!(*age, 18);
             assert_eq!(*active, true);
         }
@@ -183,19 +183,19 @@ fn test_safe_query_builder_example() {
 
 #[cfg(test)]
 mod connection_tests {
-    use fluentai_vm::bytecode::Value;
+    use fluentai_vm::Value;
     
     #[test]
     fn test_parameter_binding_types() {
         // This test verifies that different parameter types are handled correctly
         let params = vec![
             Value::Nil,
-            Value::Bool(true),
-            Value::Int(42),
+            Value::Boolean(true),
+            Value::Integer(42),
             Value::Float(3.14),
             Value::String("test".to_string()),
             // Binary data represented as a list of integers
-            Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+            Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]),
         ];
         
         // The actual binding happens in the connection module

@@ -160,6 +160,19 @@ impl TypeInferencer {
                 self.infer_node(graph, *value)?;
                 TypedValue::primitive(PrimitiveType::unit())
             }
+            Node::Begin { exprs } => {
+                // Begin evaluates all expressions and returns the type of the last one
+                if exprs.is_empty() {
+                    TypedValue::primitive(PrimitiveType::unit())
+                } else {
+                    // Infer types for all expressions (for side effects/error checking)
+                    for expr in &exprs[..exprs.len()-1] {
+                        self.infer_node(graph, *expr)?;
+                    }
+                    // Return the type of the last expression
+                    self.infer_node(graph, exprs[exprs.len()-1])?
+                }
+            }
         };
 
         // Store the inferred type
