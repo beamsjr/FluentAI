@@ -1,0 +1,8 @@
+; Test multiple expressions in let body
+
+; Simple case
+(let ((x 10))
+  (print "x is: ")
+  (print x)
+  (print "\n")
+  (* x 2))

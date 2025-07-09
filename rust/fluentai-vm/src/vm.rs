@@ -3281,6 +3281,8 @@ impl VM {
                 })?;
 
         // Compile the module
+        // Disable optimization to work around optimizer node ID remapping bug
+        // TODO: Fix optimizer to properly remap node IDs in Module nodes
         let options = crate::compiler::CompilerOptions {
             optimization_level: fluentai_optimizer::OptimizationLevel::None,
             debug_info: false,
@@ -3326,11 +3328,19 @@ impl VM {
             });
         }
 
-        // Collect exports from module globals
+        // Collect exports from module
         let mut exports = FxHashMap::default();
-        for export_name in &module_info.exports {
-            if let Some(value) = module_vm.globals.get(export_name) {
-                exports.insert(export_name.clone(), value.clone());
+        
+        // First check if the module registered its exports via ExportBinding
+        if let Some(Value::Module { exports: module_exports, .. }) = module_vm.loaded_modules.get(module_name) {
+            // Use the exports from ExportBinding
+            exports = module_exports.clone();
+        } else {
+            // Fall back to collecting from globals (for modules using define)
+            for export_name in &module_info.exports {
+                if let Some(value) = module_vm.globals.get(export_name) {
+                    exports.insert(export_name.clone(), value.clone());
+                }
             }
         }
 

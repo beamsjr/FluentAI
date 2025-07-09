@@ -281,8 +281,8 @@ mod tests {
         assert_eq!(context.state(), RuntimeState::Idle);
 
         // Test globals
-        context.set_global("x", Value::Number(42.0));
-        assert_eq!(context.get_global("x"), Some(Value::Number(42.0)));
+        context.set_global("x", Value::Float(42.0));
+        assert_eq!(context.get_global("x"), Some(Value::Float(42.0)));
 
         // Test state changes
         context.set_state(RuntimeState::Running);

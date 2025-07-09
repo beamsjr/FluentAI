@@ -302,7 +302,10 @@ mod tests {
 
         // Register a simple host function
         let add = HostFunction::new("add", 2, |args| match (&args[0], &args[1]) {
-            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+            (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
+            (Value::Integer(a), Value::Integer(b)) => Ok(Value::Integer(a + b)),
+            (Value::Float(a), Value::Integer(b)) => Ok(Value::Float(a + *b as f64)),
+            (Value::Integer(a), Value::Float(b)) => Ok(Value::Float(*a as f64 + b)),
             _ => Err(RuntimeError::host("Expected two numbers")),
         });
 
@@ -310,7 +313,7 @@ mod tests {
 
         // Test execution
         let result = engine.execute("(+ 1 2)").unwrap();
-        assert_eq!(result, Value::Number(3.0));
+        assert_eq!(result, Value::Integer(3));
     }
 
     #[test]

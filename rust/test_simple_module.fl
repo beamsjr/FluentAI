@@ -1,0 +1,4 @@
+(begin
+  (define foo 42)
+  (export foo)
+  nil)

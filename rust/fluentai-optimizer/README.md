@@ -169,6 +169,11 @@ x
   1. First pass creates all nodes and establishes mappings
   2. Second pass updates references with all mappings available
   This ensures nodes that reference other nodes (e.g., variables in match branches) are processed correctly regardless of graph traversal order
+- **Begin node handling**: The optimizer properly handles `Begin` nodes (sequential expressions) in all contexts, including as bodies of `let` and `letrec` expressions. This ensures that:
+  - All expressions within a Begin are marked as reachable during dead code elimination
+  - Effects within Begin nodes are properly detected and preserved
+  - Variable usage within Begin nodes is correctly tracked
+  - Node references are properly updated when transforming Begin nodes
 
 ## API Documentation
 

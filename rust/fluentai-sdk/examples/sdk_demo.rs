@@ -50,12 +50,12 @@ fn custom_functions_example() -> anyhow::Result<()> {
 
     // Define custom host functions
     let greet = HostFunction::new("greet", 1, |args| match &args[0] {
-        Value::String(name) => Ok(Value::String(std::sync::Arc::new(format!(
+        Value::String(name) => Ok(Value::String(format!(
             "Hello, {}!",
             name
-        )))),
-        _ => Err(fluentai_sdk::Error::Runtime(
-            "greet expects a string".to_string(),
+        ))),
+        _ => Err(fluentai_core_lib::RuntimeError::host(
+            "greet expects a string",
         )),
     });
 
@@ -80,8 +80,8 @@ fn custom_functions_example() -> anyhow::Result<()> {
             let tax = amount_f * (rate_f / 100.0);
             Ok(Value::Float(amount_f + tax))
         }
-        _ => Err(fluentai_sdk::Error::Runtime(
-            "add-tax expects two numbers".to_string(),
+        _ => Err(fluentai_core_lib::RuntimeError::host(
+            "add-tax expects two numbers",
         )),
     });
 

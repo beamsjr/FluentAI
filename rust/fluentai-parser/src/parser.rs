@@ -242,9 +242,26 @@ impl<'a> Parser<'a> {
 
         self.expect_token(Token::RParen)?;
 
-        // Parse body
-        let body = self.parse_expr()?;
+        // Parse body expressions
+        let mut body_exprs = Vec::new();
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            body_exprs.push(self.parse_expr()?);
+        }
         self.expect_token(Token::RParen)?;
+
+        // Create body node
+        let body = if body_exprs.is_empty() {
+            // Empty body returns nil
+            let node = Node::Literal(Literal::Nil);
+            self.graph.add_node(node)?
+        } else if body_exprs.len() == 1 {
+            // Single expression, use directly
+            body_exprs[0]
+        } else {
+            // Multiple expressions, wrap in Begin
+            let node = Node::Begin { exprs: body_exprs };
+            self.graph.add_node(node)?
+        };
 
         let node = Node::Let { bindings, body };
         Ok(self.graph.add_node(node)?)
@@ -279,9 +296,26 @@ impl<'a> Parser<'a> {
 
         self.expect_token(Token::RParen)?;
 
-        // Parse body
-        let body = self.parse_expr()?;
+        // Parse body expressions
+        let mut body_exprs = Vec::new();
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            body_exprs.push(self.parse_expr()?);
+        }
         self.expect_token(Token::RParen)?;
+
+        // Create body node
+        let body = if body_exprs.is_empty() {
+            // Empty body returns nil
+            let node = Node::Literal(Literal::Nil);
+            self.graph.add_node(node)?
+        } else if body_exprs.len() == 1 {
+            // Single expression, use directly
+            body_exprs[0]
+        } else {
+            // Multiple expressions, wrap in Begin
+            let node = Node::Begin { exprs: body_exprs };
+            self.graph.add_node(node)?
+        };
 
         let node = Node::Letrec { bindings, body };
         Ok(self.graph.add_node(node)?)

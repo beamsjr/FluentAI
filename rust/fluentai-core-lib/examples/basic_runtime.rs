@@ -1,13 +1,20 @@
 //! Basic runtime usage example
 
 use fluentai_core_lib::{HostFunction, RuntimeEngine, RuntimeConfig, Value};
+use fluentai_core_lib::config::{DebugConfig, SecurityConfig};
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     // Create a runtime engine with custom configuration
     let config = RuntimeConfig {
-        debug: true,
-        timeout: Some(5000), // 5 second timeout
+        debug: DebugConfig {
+            enabled: true,
+            ..Default::default()
+        },
+        security: SecurityConfig {
+            max_execution_time: 5000, // 5 second timeout
+            ..Default::default()
+        },
         ..Default::default()
     };
     let mut engine = RuntimeEngine::new(config);
@@ -67,7 +74,7 @@ fn register_math_functions(engine: &RuntimeEngine) -> anyhow::Result<()> {
     // Square root
     let sqrt = HostFunction::new("sqrt", 1, |args| match &args[0] {
         Value::Float(n) => Ok(Value::Float(n.sqrt())),
-        Value::Integer(n) => Ok(Value::Float((n as f64).sqrt())),
+        Value::Integer(n) => Ok(Value::Float((*n as f64).sqrt())),
         _ => Err(fluentai_core_lib::RuntimeError::host(
             "sqrt expects a number",
         )),
@@ -77,7 +84,13 @@ fn register_math_functions(engine: &RuntimeEngine) -> anyhow::Result<()> {
     // Power
     let pow = HostFunction::new("pow", 2, |args| match (&args[0], &args[1]) {
         (Value::Float(base), Value::Float(exp)) => Ok(Value::Float(base.powf(*exp))),
-        (Value::Integer(base), Value::Integer(exp)) => Ok(Value::Integer(base.pow(*exp as u32))),
+        (Value::Integer(base), Value::Integer(exp)) => {
+            if *exp >= 0 && *exp <= u32::MAX as i64 {
+                Ok(Value::Integer(base.pow(*exp as u32)))
+            } else {
+                Ok(Value::Float((*base as f64).powf(*exp as f64)))
+            }
+        }
         (Value::Float(base), Value::Integer(exp)) => Ok(Value::Float(base.powi(*exp as i32))),
         (Value::Integer(base), Value::Float(exp)) => Ok(Value::Float((*base as f64).powf(*exp))),
         _ => Err(fluentai_core_lib::RuntimeError::host(
@@ -122,7 +135,7 @@ fn register_io_functions(engine: &RuntimeEngine) -> anyhow::Result<()> {
             }
             result.push_str(&format!("{:?}", arg));
         }
-        Ok(Value::String(Arc::new(result)))
+        Ok(Value::String(result))
     })
     .variadic()
     .with_doc("Format values as string");

@@ -1,0 +1,10 @@
+;; Test channel operations
+(let ((ch (chan)))
+  (do
+    (print-line "Created channel")
+    (send! ch "Hello")
+    (print-line "Sent message")
+    (let ((msg (recv! ch)))
+      (do
+        (print-line "Received:")
+        (print-line msg)))))

@@ -1,0 +1,2 @@
+(module test-module (export x)
+  (define x 10))

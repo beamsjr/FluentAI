@@ -13,17 +13,22 @@ fn create_test_module(dir: &Path, name: &str, content: &str) -> PathBuf {
 }
 
 #[test]
-#[ignore = "Module loading requires define or set-global to be implemented for creating exportable bindings"]
 fn test_module_loading_and_execution() {
     // Create a temporary directory for test modules
     let temp_dir = TempDir::new().unwrap();
     let temp_path = temp_dir.path();
 
     // Create a math module
-    // For now, we'll create an empty module that exports will be handled differently
+    // The module loader sets the module context, so we can use export directly
     let math_file = create_test_module(
-        temp_path, "math", r#"
-nil
+        temp_path,
+        "math",
+        r#"
+(begin
+  (define double (lambda (x) (+ x x)))
+  (define square (lambda (x) (* x x)))
+  (export double square)
+  #t)
 "#,
     );
     println!("Created math module at: {:?}", math_file);
@@ -105,7 +110,6 @@ nil
 }
 
 #[test]
-#[ignore = "Module loading requires define or set-global to be implemented for creating exportable bindings"]
 fn test_module_import_all() {
     // Create a temporary directory for test modules
     let temp_dir = TempDir::new().unwrap();
@@ -116,10 +120,11 @@ fn test_module_import_all() {
         temp_path,
         "utils",
         r#"
-(let ((add1 (lambda (x) (+ x 1)))
-      (sub1 (lambda (x) (- x 1))))
+(begin
+  (define add1 (lambda (x) (+ x 1)))
+  (define sub1 (lambda (x) (- x 1)))
   (export add1 sub1)
-  nil)
+  #t)
 "#,
     );
 

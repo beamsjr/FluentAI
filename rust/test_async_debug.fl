@@ -1,0 +1,2 @@
+;; Debug async - test non-async first
+(print-line "Test 1: Basic print works")

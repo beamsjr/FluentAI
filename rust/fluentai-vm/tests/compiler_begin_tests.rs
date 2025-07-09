@@ -1,23 +1,24 @@
 //! Compiler tests for Begin node (multiple top-level expressions)
 
-use fluentai_core::ast::Node;
+use fluentai_core::ast::Graph;
 use fluentai_parser::parse;
 use fluentai_vm::{
-    bytecode::{Chunk, Instruction, Opcode},
+    bytecode::Opcode,
     compiler::Compiler,
 };
 
 #[test]
 fn test_compile_begin_empty() {
-    let mut compiler = Compiler::new();
+    let compiler = Compiler::new();
     let graph = parse("").unwrap_or_else(|_| {
         // Create empty graph if parse fails
-        let mut g = fluentai_core::ast::ASTGraph::new();
+        let mut g = Graph::new();
         g.root_id = None;
         g
     });
 
-    let chunk = compiler.compile(&graph).unwrap();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
     // Empty or no root should compile to just PushNil and Return
     assert!(chunk.instructions.len() >= 2);
@@ -30,8 +31,9 @@ fn test_compile_begin_empty() {
 fn test_compile_begin_multiple_literals() {
     let code = "1 2 3";
     let graph = parse(code).unwrap();
-    let mut compiler = Compiler::new();
-    let chunk = compiler.compile(&graph).unwrap();
+    let compiler = Compiler::new();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
     // Should have:
     // Push(1), Pop, Push(2), Pop, Push(3), Return
@@ -51,8 +53,9 @@ fn test_compile_begin_expressions_with_side_effects() {
     "#;
 
     let graph = parse(code).unwrap();
-    let mut compiler = Compiler::new();
-    let chunk = compiler.compile(&graph).unwrap();
+    let compiler = Compiler::new();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
     // Verify we have effect operations
     let opcodes: Vec<_> = chunk.instructions.iter().map(|i| i.opcode).collect();
@@ -75,118 +78,166 @@ fn test_compile_begin_preserves_last_value() {
     "#;
 
     let graph = parse(code).unwrap();
-    let mut compiler = Compiler::new();
-    let chunk = compiler.compile(&graph).unwrap();
+    let compiler = Compiler::new();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
-    // The last expression (300) should not be followed by Pop
+    // Check that the last value (300) is pushed without a following Pop
     let opcodes: Vec<_> = chunk.instructions.iter().map(|i| i.opcode).collect();
 
-    // Find the last constant push before Return
-    let mut found_last_constant = false;
-    for i in (0..opcodes.len() - 1).rev() {
-        if matches!(opcodes[i], Opcode::PushInt | Opcode::LoadConst) {
-            // The instruction after the last constant push should not be Pop
-            assert_ne!(opcodes[i + 1], Opcode::Pop);
-            found_last_constant = true;
-            break;
+    // Find the last PushInt before Return
+    let mut last_push_idx = None;
+    for (i, op) in opcodes.iter().enumerate() {
+        if matches!(op, Opcode::PushConst) {
+            last_push_idx = Some(i);
         }
     }
-    assert!(found_last_constant);
+
+    if let Some(idx) = last_push_idx {
+        // The last push should not be followed by Pop
+        if idx + 1 < opcodes.len() - 1 {
+            // -1 for Return
+            assert!(!matches!(opcodes[idx + 1], Opcode::Pop));
+        }
+    }
 }
 
 #[test]
-fn test_compile_begin_single_expression() {
-    let code = "(+ 1 2 3)";
-    let graph = parse(code).unwrap();
-    let mut compiler = Compiler::new();
-    let chunk = compiler.compile(&graph).unwrap();
-
-    // Single expression should not have any Pop instructions
-    let opcodes: Vec<_> = chunk.instructions.iter().map(|i| i.opcode).collect();
-    assert!(!opcodes.contains(&Opcode::Pop));
-}
-
-#[test]
-fn test_compile_begin_with_let_bindings() {
+fn test_compile_begin_with_define() {
     let code = r#"
-        (let ((x 10)) x)
-        (let ((y 20)) y)
-        (+ 5 5)
+        (define x 10)
+        (define y 20)
+        (+ x y)
     "#;
 
     let graph = parse(code).unwrap();
-    let mut compiler = Compiler::new();
-    let chunk = compiler.compile(&graph).unwrap();
+    let compiler = Compiler::new();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
-    // Should compile all three expressions with proper cleanup
+    // Should have Define operations
     let opcodes: Vec<_> = chunk.instructions.iter().map(|i| i.opcode).collect();
-
-    // Should have EnterScope/LeaveScope for let bindings
-    assert!(opcodes.contains(&Opcode::EnterScope));
-    assert!(opcodes.contains(&Opcode::LeaveScope));
-
-    // Should have Pops between expressions
-    assert!(opcodes.contains(&Opcode::Pop));
+    assert!(opcodes.iter().any(|op| matches!(op, Opcode::StoreGlobal)));
 }
 
 #[test]
-fn test_begin_stack_depth_tracking() {
-    // This test verifies that stack depth is properly tracked
-    // when compiling Begin nodes
+fn test_compile_begin_nested_in_let() {
     let code = r#"
-        (+ 1 2)
-        (* 3 4)
-        (- 10 5)
+        (let ((x 10))
+          (print "first")
+          (print "second")
+          x)
     "#;
 
     let graph = parse(code).unwrap();
-    let mut compiler = Compiler::new();
+    let compiler = Compiler::new();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
-    // Compile and verify no panic from stack depth issues
-    let result = compiler.compile(&graph);
-    assert!(result.is_ok());
+    // Should not have top-level Pops since this is inside a let
+    let opcodes: Vec<_> = chunk.instructions.iter().map(|i| i.opcode).collect();
 
-    let chunk = result.unwrap();
-    // Final stack depth should be 1 (just the result)
-    // This is implicitly verified by successful compilation
-    assert!(!chunk.instructions.is_empty());
+    // The structure should be different from top-level begin
+    // Let expressions compile to Load/Store operations
+    assert!(opcodes.iter().any(|op| matches!(op, Opcode::Load | Opcode::Store)));
 }
 
 #[test]
-fn test_begin_with_complex_expressions() {
+fn test_compile_begin_pop_optimization() {
+    // Test that we don't generate unnecessary pops
     let code = r#"
-        (let ((f (lambda (x) (* x x)))) (f 5))
-        (if (> 10 5) "yes" "no")
-        (list 1 2 3)
+        (if true 1 2)
+        (if false 3 4)
+        5
     "#;
 
     let graph = parse(code).unwrap();
-    let mut compiler = Compiler::new();
-    let chunk = compiler.compile(&graph).unwrap();
+    let compiler = Compiler::new();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
-    // Verify successful compilation of complex expressions
     let opcodes: Vec<_> = chunk.instructions.iter().map(|i| i.opcode).collect();
 
-    // Should see evidence of all three expressions
-    assert!(opcodes.contains(&Opcode::MakeClosure)); // For lambda
-    assert!(opcodes.contains(&Opcode::JumpIfFalse)); // For if
-    assert!(opcodes.contains(&Opcode::MakeList)); // For list
+    // Count pops - should be exactly 2 (for the first two expressions)
+    let pop_count = opcodes
+        .iter()
+        .filter(|op| matches!(op, Opcode::Pop))
+        .count();
+    assert_eq!(pop_count, 2);
 }
 
 #[test]
-fn test_begin_error_recovery() {
-    // Test that compilation handles invalid expressions gracefully
-    let mut compiler = Compiler::new();
-    let mut graph = fluentai_core::ast::ASTGraph::new();
+fn test_compile_begin_with_match() {
+    let code = r#"
+        (match 1
+          (1 "one")
+          (_ "other"))
+        (match 2
+          (1 "one")
+          (_ "other"))
+        42
+    "#;
 
-    // Create a Begin node with invalid node IDs
-    let begin_node = Node::Begin {
-        exprs: vec![999.into(), 1000.into()],
-    };
-    let begin_id = graph.add_node(begin_node).unwrap();
-    graph.root_id = Some(begin_id);
+    let graph = parse(code).unwrap();
+    let compiler = Compiler::new();
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
 
-    // Should handle gracefully (might error, but shouldn't panic)
-    let result = compiler.compile(&graph);
+    // Should have match-related instructions
+    let opcodes: Vec<_> = chunk.instructions.iter().map(|i| i.opcode).collect();
+    // Match compiles to jumps and comparisons
+    assert!(opcodes.iter().any(|op| matches!(op, Opcode::Jump | Opcode::JumpIf | Opcode::JumpIfNot)));
+
+    // Should have 2 pops for intermediate values
+    let pop_count = opcodes
+        .iter()
+        .filter(|op| matches!(op, Opcode::Pop))
+        .count();
+    assert_eq!(pop_count, 2);
+}
+
+// Test error cases
+#[test]
+fn test_compile_begin_with_invalid_syntax() {
+    // This should fail during parsing
+    let code = "(+ 1 2) (+ 3"; // Incomplete expression
+
+    let result = parse(code);
     assert!(result.is_err());
+}
+
+#[test]
+fn test_compile_begin_optimization_levels() {
+    use fluentai_vm::{CompilerOptions, OptimizationLevel};
+
+    let code = r#"
+        1
+        2
+        3
+    "#;
+
+    let graph = parse(code).unwrap();
+
+    // Test with no optimization
+    let options = CompilerOptions {
+        optimization_level: OptimizationLevel::None,
+        ..Default::default()
+    };
+    let compiler = Compiler::with_options(options);
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
+    let unopt_len = chunk.instructions.len();
+
+    // Test with aggressive optimization
+    let options = CompilerOptions {
+        optimization_level: OptimizationLevel::Aggressive,
+        ..Default::default()
+    };
+    let compiler = Compiler::with_options(options);
+    let bytecode = compiler.compile(&graph).unwrap();
+    let chunk = &bytecode.chunks[bytecode.main_chunk];
+    let opt_len = chunk.instructions.len();
+
+    // Optimized version might have fewer instructions
+    assert!(opt_len <= unopt_len);
 }

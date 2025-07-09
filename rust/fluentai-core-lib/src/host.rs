@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn test_host_function() {
         let func = HostFunction::new("add", 2, |args| match (&args[0], &args[1]) {
-            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+            (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
             _ => Err(RuntimeError::host("Expected two numbers")),
         });
 
@@ -271,12 +271,12 @@ mod tests {
 
         // Test successful call
         let result = func
-            .call(&[Value::Number(1.0), Value::Number(2.0)])
+            .call(&[Value::Float(1.0), Value::Float(2.0)])
             .unwrap();
-        assert_eq!(result, Value::Number(3.0));
+        assert_eq!(result, Value::Float(3.0));
 
         // Test arity check
-        assert!(func.call(&[Value::Number(1.0)]).is_err());
+        assert!(func.call(&[Value::Float(1.0)]).is_err());
     }
 
     #[test]
@@ -284,7 +284,7 @@ mod tests {
         let registry = HostRegistry::new();
 
         let add = HostFunction::new("add", 2, |args| match (&args[0], &args[1]) {
-            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+            (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
             _ => Err(RuntimeError::host("Expected two numbers")),
         })
         .with_module("math");

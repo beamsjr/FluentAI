@@ -320,6 +320,19 @@ impl GraphOptimizer {
                         }
                     }
                 }
+                Node::Define { value, .. } => {
+                    // Check if the value expression has effects
+                    return self.check_for_effects(graph, *value, visited);
+                }
+                Node::Begin { exprs } => {
+                    // Check if any expression in the Begin has effects
+                    // Fix for handling let/letrec with Begin bodies - ensure effects are preserved
+                    for expr in exprs {
+                        if self.check_for_effects(graph, *expr, visited) {
+                            return true;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -426,6 +439,16 @@ impl GraphOptimizer {
                         self.collect_used_variables(graph, *inv, used, visited);
                     }
                 }
+                Node::Define { value, .. } => {
+                    // Collect variables used in the value expression
+                    self.collect_used_variables(graph, *value, used, visited);
+                }
+                Node::Begin { exprs } => {
+                    // Collect variables used in all expressions in the Begin
+                    for expr in exprs {
+                        self.collect_used_variables(graph, *expr, used, visited);
+                    }
+                }
                 _ => {}
             }
         }
@@ -526,6 +549,17 @@ impl GraphOptimizer {
                     }
                     for inv in invariants {
                         self.mark_reachable(graph, *inv, reachable);
+                    }
+                }
+                Node::Define { value, .. } => {
+                    // Mark the value expression as reachable
+                    self.mark_reachable(graph, *value, reachable);
+                }
+                Node::Begin { exprs } => {
+                    // Mark all expressions in the Begin as reachable
+                    // Fix for handling let/letrec with Begin bodies - preserve all expressions
+                    for expr in exprs {
+                        self.mark_reachable(graph, *expr, reachable);
                     }
                 }
                 _ => {}
@@ -792,6 +826,13 @@ impl GraphOptimizer {
                 complexity: complexity.clone(),
                 pure: *pure,
             },
+            Node::Define { name, value } => Node::Define {
+                name: name.clone(),
+                value: map_node_id(value)?,
+            },
+            Node::Begin { exprs } => Node::Begin {
+                exprs: exprs.iter().map(map_node_id).collect::<Result<Vec<_>>>()?,
+            },
             _ => node.clone(),
         };
 
@@ -911,6 +952,16 @@ impl GraphOptimizer {
                     .collect(),
                 complexity: complexity.clone(),
                 pure: *pure,
+            },
+            Node::Define { name, value } => Node::Define {
+                name: name.clone(),
+                value: mapping.get(value).copied().unwrap_or(*value),
+            },
+            Node::Begin { exprs } => Node::Begin {
+                exprs: exprs
+                    .iter()
+                    .map(|id| mapping.get(id).copied().unwrap_or(*id))
+                    .collect(),
             },
             _ => node.clone(),
         }

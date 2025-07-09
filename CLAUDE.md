@@ -5,13 +5,15 @@
     - Reconsider the change if it breaks legitimate functionality
     - Find a solution that satisfies all parts of the system
 
-  This is especially important in a complex system like FluentAI where modules are interconnected in subtle ways. The LoadGlobal change was a perfect example - what seemed like a simple fix in the VM module ended up
-   breaking functionality in the effects module.
+ This is especially important in a complex system like FluentAI where modules are interconnected in subtle ways.
+ The LoadGlobal change was a perfect example - what seemed like a simple fix in the VM module ended up  breaking functionality in the effects module.
 
-  I'll make sure to follow this workflow for all future changes:
+  Please make sure to follow this workflow for all future changes:
   1. Make change
   2. Run local module tests
   3. Run full workspace tests
   4. Only proceed if ALL tests pass
   5. If any test fails, investigate and resolve before moving on
 
+Also very important for development, if you change something in critical parts of the system that heavely depends on order, please leave a comment on what test you changed somthing for, this way If we find later that this change broke something else we know why we made the change so we can make sure to get both issues resolved. 
+ 

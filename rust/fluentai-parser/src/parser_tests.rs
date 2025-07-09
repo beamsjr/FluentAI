@@ -229,6 +229,89 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn test_parse_let_multiple_body_expressions() {
+        let result = parse("(let ((x 5)) (print x) (+ x 1))").unwrap();
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Let { bindings, body } => {
+                assert_eq!(bindings.len(), 1);
+                assert_eq!(bindings[0].0, "x");
+                // Body should be a Begin node with 2 expressions
+                match result.get_node(*body).unwrap() {
+                    Node::Begin { exprs } => {
+                        assert_eq!(exprs.len(), 2);
+                        // First expression should be (print x)
+                        assert!(matches!(
+                            result.get_node(exprs[0]).unwrap(),
+                            Node::Application { .. }
+                        ));
+                        // Second expression should be (+ x 1)
+                        assert!(matches!(
+                            result.get_node(exprs[1]).unwrap(),
+                            Node::Application { .. }
+                        ));
+                    }
+                    _ => panic!("Expected Begin node for body"),
+                }
+            }
+            _ => panic!("Expected Let node"),
+        }
+    }
+
+    #[test]
+    fn test_parse_let_empty_body() {
+        let result = parse("(let ((x 5)))").unwrap();
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Let { bindings, body } => {
+                assert_eq!(bindings.len(), 1);
+                // Empty body should be nil
+                assert!(matches!(
+                    result.get_node(*body).unwrap(),
+                    Node::Literal(Literal::Nil)
+                ));
+            }
+            _ => panic!("Expected Let node"),
+        }
+    }
+
+    #[test]
+    fn test_parse_let_single_body_expression() {
+        let result = parse("(let ((x 5)) x)").unwrap();
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Let { bindings, body } => {
+                assert_eq!(bindings.len(), 1);
+                // Single expression body should not be wrapped in Begin
+                assert!(matches!(
+                    result.get_node(*body).unwrap(),
+                    Node::Variable { .. }
+                ));
+            }
+            _ => panic!("Expected Let node"),
+        }
+    }
+
+    #[test]
+    fn test_parse_letrec_multiple_body_expressions() {
+        let result = parse("(letrec ((x 5)) (print x) (+ x 1))").unwrap();
+        let root_id = result.root_id.unwrap();
+        match result.get_node(root_id).unwrap() {
+            Node::Letrec { bindings, body } => {
+                assert_eq!(bindings.len(), 1);
+                // Body should be a Begin node with 2 expressions
+                match result.get_node(*body).unwrap() {
+                    Node::Begin { exprs } => {
+                        assert_eq!(exprs.len(), 2);
+                    }
+                    _ => panic!("Expected Begin node for body"),
+                }
+            }
+            _ => panic!("Expected Letrec node"),
+        }
+    }
+
     // ===== If Tests =====
 
     #[test]

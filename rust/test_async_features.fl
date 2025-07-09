@@ -1,0 +1,90 @@
+;; Test basic async/await functionality in FluentAI
+
+;; Test 1: Basic async function
+(define simple-async
+  (async
+    (do
+      (print-line "Starting async function")
+      (print-line "Async function complete")
+      42)))
+
+;; Test 2: Await on async function
+(define test-await
+  (async
+    (do
+      (print-line "Test 2: Testing await")
+      (let ((result (await (simple-async))))
+        (do
+          (print-line "Got await result")
+          result)))))
+
+;; Test 3: Spawn async task
+(define test-spawn
+  (async
+    (do
+      (print-line "Test 3: Testing spawn")
+      ;; Spawn an async task
+      (let ((task (spawn
+                    (async
+                      (do
+                        (print-line "Spawned task running")
+                        "spawned result")))))
+        (do
+          (print-line "Main task continuing")
+          ;; Wait for spawned task
+          (let ((result (await task)))
+            (print-line "Got spawned task result")))))))
+
+;; Test 4: Channel operations
+(define test-channels
+  (async
+    (do
+      (print-line "Test 4: Testing channels")
+      ;; Create a channel
+      (let ((ch (chan)))
+        (do
+          ;; Spawn a sender task
+          (spawn
+            (async
+              (do
+                (print-line "Sender: sending message")
+                (send! ch "Hello from sender"))))
+          ;; Receive message
+          (let ((msg (await (recv! ch))))
+            (print-line "Receiver: got message")))))))
+
+;; Test 5: Multiple async operations
+(define test-multiple-async
+  (async
+    (do
+      (print-line "Test 5: Testing multiple async operations")
+      (let ((task1 (spawn
+                     (async
+                       (do
+                         (print-line "Task 1 running")
+                         1))))
+            (task2 (spawn
+                     (async
+                       (do
+                         (print-line "Task 2 running")
+                         2)))))
+        (let ((result1 (await task1))
+              (result2 (await task2)))
+          (do
+            (print-line "Got both results")
+            (+ result1 result2)))))))
+
+;; Main entry point
+(define main
+  (async
+    (do
+      (print-line "=== FluentAI Async/Await Test Suite ===")
+      ;; Run all tests
+      (await (test-await))
+      (await (test-spawn))
+      (await (test-channels))
+      (await (test-multiple-async))
+      (print-line "=== All tests completed ==="))))
+
+;; Execute main
+(await (main))
