@@ -5,6 +5,58 @@
 
 FluentAI is an experimental programming language designed for AI systems rather than humans. It features a graph-based AST, effect-aware execution, and explicit, verifiable semantics tailored for static analysis and transformation. Powered by advanced optimization and reasoning passes—including data flow, control flow, type, and effect analysis—FluentAI enables AI agents to understand, manipulate, and optimize code safely. Fully implemented in Rust, it offers production-grade performance, safety, and runtime extensibility.
 
+## Implementation Status
+
+### ✅ Working Features (Tested and Verified)
+- **Core Language**: 
+  - S-expressions, arithmetic (`+`, `-`, `*`, `/`, `mod`)
+  - Comparisons (`=`, `<`, `>`, `<=`, `>=`)
+  - Conditionals (`if` with both then and else branches)
+- **Functions**: 
+  - Lambda expressions: `(lambda (x) (* x x))`
+  - Function calls work correctly
+  - Higher-order functions: `map`, `filter`, `fold` (Note: `fold` requires lambda, not bare `+`)
+- **Data Structures**: 
+  - Lists: `list`, `cons`, `head`, `tail`, `length`, `empty?`
+  - Additional: `reverse`, `append`, `take`, `drop`, `range`, `nth`
+- **Pattern Matching**: 
+  - Literal patterns with `match` expressions and wildcard `_`
+  - Example: `(match x (0 "zero") (1 "one") (_ "other"))`
+- **Effect System**: 
+  - `(effect io:print "message")` - prints to stdout
+  - `(effect state:set "key" value)` and `(effect state:get "key")`
+  - `(effect time:now)` - returns timestamp
+  - `(effect random:int min max)` - random integers
+  - `(effect random:float)` - random float [0,1)
+- **Let Bindings**: 
+  - Single expression in body only
+  - Supports multiple bindings: `(let ((x 1) (y 2)) (+ x y))`
+- **Multiple Top-Level Expressions**: 
+  - Multiple expressions are now wrapped in implicit `begin`
+  - Example: `1 2 3` evaluates all expressions and returns `3`
+
+### 🚧 Partially Implemented
+- **Recursion**: Basic recursion works but complex cases may have issues
+- **Pattern Matching**: Cons/Nil destructuring parses but has runtime issues
+- **Custom Effect Handlers**: `handler` form compiles but causes stack underflow at runtime
+- **Module System**: `module`, `import`, `export` parse but don't execute in VM
+- **JIT Compilation**: Infrastructure exists but not fully integrated
+
+### ❌ Not Working
+- **`define`**: Top-level definitions don't work (use `let` instead)
+- **`print` function**: Not available (use `effect io:print` instead)
+- **Multiple expressions in `let` body**: Causes parse errors
+- **`begin` blocks**: For sequencing multiple expressions
+
+### 📋 Planned/Aspirational Features
+- **Async/Await & Concurrency**: Channels, goroutines, async operations
+- **Web Features**: UI components, DOM effects, JavaScript compilation
+- **Advanced Types**: Algebraic data types, type inference, contracts
+- **Database Effects**: Query DSL, transactions, migrations
+- **Actor Model**: Supervision trees, message passing
+- **Security**: Sandboxing, capability-based security, taint analysis
+- **Metaprogramming**: AST manipulation, macros, code generation
+
 ## Table of Contents
 
 - [Key Features](#key-features)
@@ -20,61 +72,63 @@ FluentAI is an experimental programming language designed for AI systems rather 
 
 ## Key Features
 
-### 🚀 High-Performance Rust Implementation
+> **Implementation Status**: ✅ = Working with examples | 🚧 = Partially implemented | 📋 = Planned/Aspirational
+
+### 🚀 High-Performance Rust Implementation ✅
 - **Parser**: 0.8-5.2µs - optimized S-expression parsing ([see benchmark](rust/benchmarks/parser_benchmark.rs))
 - **VM**: ~0.1µs average execution time
-- **JIT Compiler**: Native code generation with Cranelift (x86_64)
+- **JIT Compiler**: Native code generation with Cranelift (x86_64) 🚧
 - **Memory Efficient**: 5-10x less memory usage through zero-cost abstractions
 - **Throughput**: 19.2 million operations/second average, up to 35.8M ops/sec ([see benchmark](rust/benchmarks/throughput_benchmark.rs))
 - **Packet Processing Optimizations**: Tail calls, unboxed types, memory pools, lock-free queues
 
-### 🧠 AI-First Design
+### 🧠 AI-First Design 🚧
 - **Graph-based AST**: Programs as directed graphs, not text
 - **Explicit semantics**: All effects and dependencies declared
-- **Machine-readable specs**: Formal specifications embedded in code
-- **Semantic versioning**: Version numbers based on behavior, not syntax
+- **Machine-readable specs**: Formal specifications embedded in code 📋
+- **Semantic versioning**: Version numbers based on behavior, not syntax 📋
 
-### 🌐 Modern Web Features
-- **UI Framework**: React-like components with virtual DOM
-- **Async/Await**: Full asynchronous programming support
-- **Concurrency**: Go-style channels and goroutines
-- **Network Effects**: Built-in HTTP client/server capabilities
-- **JavaScript Compilation**: Compile to optimized JavaScript for browsers
+### 🌐 Modern Web Features 📋
+- **UI Framework**: React-like components with virtual DOM 📋
+- **Async/Await**: Full asynchronous programming support 📋
+- **Concurrency**: Go-style channels and goroutines 📋
+- **Network Effects**: Built-in HTTP client/server capabilities 📋
+- **JavaScript Compilation**: Compile to optimized JavaScript for browsers 📋
 
-### 🔧 Core Language Features
-- **Pattern matching**: ML-style with list destructuring (Cons/Nil patterns) ([see examples](rust/examples/pattern_matching.ai))
-  - Literal, variable, wildcard, and constructor patterns
-  - Special support for list pattern matching
-  - Efficient compilation to bytecode
-- **Algebraic data types**: Sum and product types with pattern matching
-- **Effect system**: Explicit tracking of IO, State, Error, DOM, Network with built-in error handling ([see demo](rust/examples/effects_demo.ai))
-  - Effect handlers for intercepting and customizing effects
-  - Dynamic scoping of handlers with proper cleanup
-  - Composable handler functions
-- **Module system**: Full namespace support with imports, exports, qualified references, and top-level definitions
-- **Type annotations**: Optional type ascription for clarity and optimization
+### 🔧 Core Language Features ✅
+- **Pattern matching**: Literal pattern matching with match expressions ([comprehensive example](rust/examples/pattern_matching_comprehensive.ai))
+  - ✅ Literal patterns with wildcards
+  - ✅ Conditional list processing (head/tail operations)
+  - 🚧 Cons/Nil pattern destructuring (parsing works, runtime has issues)
+- **Algebraic data types**: Sum and product types with pattern matching 📋
+- **Effect system**: Working IO, State, Error, Time, Random effects ([comprehensive example](rust/examples/effects_comprehensive.ai))
+  - ✅ Default effect handlers for all built-in effects
+  - 🚧 Custom effect handlers (compile but have runtime issues)
+  - ✅ Effect composition and sequencing
+- **Module system**: Full namespace support with imports, exports, qualified references 📋
+- **Type annotations**: Optional type ascription for clarity and optimization 📋
 
 ### 📊 Advanced Capabilities
-- **Advanced Optimization Framework**: Multi-pass optimizer achieving 80-95% AST reduction
-- **Formal Contract System**: Complete design-by-contract with static and runtime verification
-  - Runtime verification of preconditions, postconditions, and invariants
-  - Static verification with Z3 SMT solver integration
-  - Symbolic execution engine for path exploration
-  - Advanced proof generation with multiple strategies (induction, BMC, direct)
-  - Contract inheritance and refinement with LSP compliance
-  - Contract composition (conjunction, disjunction, sequential, XOR, implication)
-  - Temporal contracts with LTL operators (always, eventually, until, next)
-  - State machine contracts for FSM verification
-  - Enhanced debugging with visual diagrams and interactive REPL
-- **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications
-- **Purity Tracking**: Enforce and verify side-effect-free functions
-- **Structured Logging**: Log levels, structured data, and custom handlers
-- **Dependency Injection**: Full DI container with service lifetimes and modular architecture
-- **Database Effect System**: Functional database operations with connection pooling and transactions
-- **Property-based testing**: Automatic test generation with Hypothesis
-- **LSP Support**: Full IDE integration with <5ms response times
-- **Graph queries**: Analyze and transform program structure
-- **Performance tracking**: Built-in benchmarking and profiling
+- **Advanced Optimization Framework**: Multi-pass optimizer achieving 80-95% AST reduction ✅
+- **Formal Contract System**: Complete design-by-contract with static and runtime verification 🚧
+  - Runtime verification of preconditions, postconditions, and invariants 📋
+  - Static verification with Z3 SMT solver integration 🚧
+  - Symbolic execution engine for path exploration 🚧
+  - Advanced proof generation with multiple strategies (induction, BMC, direct) 📋
+  - Contract inheritance and refinement with LSP compliance 📋
+  - Contract composition (conjunction, disjunction, sequential, XOR, implication) 📋
+  - Temporal contracts with LTL operators (always, eventually, until, next) 📋
+  - State machine contracts for FSM verification 📋
+  - Enhanced debugging with visual diagrams and interactive REPL 📋
+- **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications 📋
+- **Purity Tracking**: Enforce and verify side-effect-free functions 📋
+- **Structured Logging**: Implemented using effect system ([example](rust/examples/logging_example.ai)) ✅
+- **Dependency Injection**: Full DI container with service lifetimes and modular architecture 🚧
+- **Database Effect System**: Functional database operations with connection pooling and transactions 📋
+- **Property-based testing**: Automatic test generation with Hypothesis 📋
+- **LSP Support**: Full IDE integration with <5ms response times 🚧
+- **Graph queries**: Analyze and transform program structure 📋
+- **Performance tracking**: Built-in benchmarking and profiling 🚧
 
 ### 🆕 Complete Feature Set
 - **Reactive State System**: Automatic dependency tracking and update scheduling
@@ -137,162 +191,107 @@ FluentAI is an experimental programming language designed for AI systems rather 
 
 ## Quick Example
 
-> **See also**: [Pattern matching examples](rust/examples/pattern_matching.ai) | [Effects demo](rust/examples/effects_demo.ai) | [All examples](rust/examples/)
+> **Working Examples**: 
+> - [Simple Arithmetic](rust/examples/arithmetic.ai) - Basic arithmetic operations
+> - [Hello World](rust/examples/hello.ai) - Minimal FluentAI program
+> - [Lists](rust/examples/lists.ai) - Basic list operations
+> - [Pattern Matching](rust/examples/pattern_match.ai) - Simple pattern matching
+> - [Lambda Functions](rust/examples/lambda.ai) - Anonymous functions
+> - [Let Bindings](rust/examples/let_binding.ai) - Variable binding
+> - [All examples](rust/examples/)
+> 
+> **Note**: The comprehensive examples contain some features that don't work yet. Refer to the Implementation Status section above for what's actually working.
 
 ```lisp
-;; Import modules
-(import "collections" (map filter reduce))
-(import "math" (pi sin cos))
-(import "ui/components" *)
+;; Working FluentAI Example
 
-;; Define a module
-(module list-utils [length sum average]
-  ;; Define an algebraic data type
-  (data List a
-    (Nil)
-    (Cons a (List a)))
+;; Basic arithmetic and comparisons
+(+ 1 2 3)                    ; => 6
+(* (+ 2 3) (- 10 5))        ; => 25
+(= 10 10)                   ; => true
 
-  ;; Pattern matching function (nested syntax)
-  (define (length xs)
-    (match xs
-      ((Nil) 0)
-      ((Cons x xs) (+ 1 (length xs)))))
-  
-  ;; Using simple syntax
-  (define sum
-    (lambda (xs)
-      (match xs
-        ((Nil) 0)
-        ((Cons x xs) (+ x (sum xs))))))
-  
-  ;; Combining both functions
-  (define (average xs)
-    (let ((len (length xs)))
-      (if (= len 0)
-          0
-          (/ (sum xs) len))))))
+;; Lambda functions
+(let ((square (lambda (x) (* x x)))
+      (add (lambda (x y) (+ x y))))
+  (add (square 3) (square 4))) ; => 25
 
-;; Pattern matching on built-in lists (Cons/Nil patterns)
-(define list-operations
-  (let ((my-list (list 1 2 3 4 5)))
-    ;; Match on list structure
-    (match my-list
-      ((Nil) "empty list")
-      ((Cons head tail) 
-        (print "First element:" head)
-        (print "Rest of list:" tail)))
-    
-    ;; Recursive list processing
-    (define take
-      (lambda (n lst)
-        (if (= n 0)
-            (list)
-            (match lst
-              ((Nil) (list))
-              ((Cons x xs) (cons x (take (- n 1) xs)))))))
-    
-    (take 3 my-list)))  ; Returns (list 1 2 3)
+;; Lists and list operations  
+(let ((nums (list 1 2 3 4 5)))
+  (effect io:print (head nums))           ; prints: 1
+  (effect io:print (tail nums))           ; prints: (2 3 4 5)
+  (effect io:print (length nums))         ; prints: 5
+  (effect io:print (cons 0 nums)))        ; prints: (0 1 2 3 4 5)
 
-;; Use imported functions
-(define circle-area (lambda (r) (* pi r r)))
+;; Higher-order functions
+(let ((nums (list 1 2 3 4 5)))
+  ;; Map - note: returns the result
+  (map (lambda (x) (* x x)) nums))        ; => (1 4 9 16 25)
 
-;; Modern UI component with imports
-(define-component "Counter" {:count {:type :number :default 0}}
-  (lambda (props)
-    (h "div" {}
-      (h "p" {} (str "Count: " (get props :count)))
-      (h "button" {:onClick (lambda () (emit :increment))}
-        "Increment"))))
+(let ((nums (range 1 10)))
+  ;; Filter  
+  (filter (lambda (x) (= (mod x 2) 0)) nums)) ; => (2 4 6 8 10)
 
-;; Async/await with error handling
-(import "network" *)
-(async (lambda ()
-  (handler
-    ((error (lambda (err)
-              (print "Network error:" (get err :message))
-              (effect dom update "Failed to load data"))))
-    (let ((data (await (effect network fetch "https://api.example.com/data"))))
-      (effect dom update (get data :result))))))
+(let ((nums (list 1 2 3 4 5)))
+  ;; Fold - note: requires lambda, not bare +
+  (fold (lambda (acc x) (+ acc x)) 0 nums))   ; => 15
 
-;; Concurrent programming with channels
-(import "concurrent" (chan go send! receive!))
-(let ((ch (chan 10)))
-  (go (lambda () (send! ch "Hello from goroutine!")))
-  (receive! ch))
+;; Pattern matching
+(let ((value 42))
+  (match value
+    (0 "zero")
+    (1 "one") 
+    (42 "the answer")
+    (_ "something else")))    ; => "the answer"
 
-;; High-performance packet processing
-(letrec ((process-packets
-          (lambda (packets stats)
-            (if (empty? packets)
-                stats
-                (let ((packet (first packets))
-                      (checksum (+int                    ; Unboxed arithmetic
-                                 (get packet :src-ip)
-                                 (get packet :dst-ip))))
-                  (process-packets                       ; Tail call optimized
-                    (rest packets)
-                    (update stats :count inc))))))
-  ; Process packets using lock-free queues and memory pools
-  (let ((packet-queue (chan 1000))               ; Bounded channel
-        (pool (memory-pool {:slab-size 1500})))  ; MTU-sized buffers
-    (spawn (packet-reader packet-queue pool))    ; Concurrent reader
-    (spawn (packet-writer packet-queue))         ; Concurrent writer
-    (process-packets (channel->list packet-queue) {:count 0})))
+;; Working effects
+(effect io:print "Hello, FluentAI!")      ; prints to stdout
+(effect state:set "counter" 0)            ; store state
+(effect state:set "counter" 
+  (+ (effect state:get "counter") 1))     ; increment
+(effect io:print (effect state:get "counter")) ; prints: 1
+(effect io:print (effect time:now))       ; prints timestamp
+(effect io:print (effect random:int 1 100)) ; prints random number
 
-;; SIMD Operations for high-performance numeric computation
-(import "simd" *)
-(let ((array1 (make-f64-array 1024))
-      (array2 (make-f64-array 1024))
-      (result (make-f64-array 1024)))
-  ; Vectorized operations run 4-8x faster
-  (simd-add-arrays array1 array2 result)
-  (simd-dot-product array1 array2))
+;; Recursive functions (basic cases work)
+(let ((factorial 
+        (lambda (n)
+          (if (= n 0)
+              1
+              (* n (factorial (- n 1)))))))
+  (factorial 5))              ; => 120
 
-;; Configurable Thread Pool with CPU affinity
-(import "threading" *)
-(let ((pool (thread-pool {:num-threads 8
-                         :cpu-affinity :numa-aware
-                         :priority :high
-                         :stack-size (* 2 1024 1024)})))
-  (spawn-in-pool pool
-    (lambda ()
-      (compute-intensive-task))))
-
-;; Actor Model for fault-tolerant concurrent systems
-(import "actors" *)
-(define-actor Counter
-  (state {:count 0})
-  (receive
-    ((:increment n) 
-     (update-state :count (+ (get state :count) n)))
-    ((:get reply-to)
-     (send! reply-to (get state :count)))))
-
-(let ((counter (spawn-actor Counter))
-      (supervisor (spawn-supervisor 
-                    {:strategy :one-for-one
-                     :max-restarts 3
-                     :within-seconds 60})))
-  (supervise supervisor counter)
-  (send! counter [:increment 5])
-  (ask counter [:get] 1000))  ; Ask with 1s timeout
-
-;; Concurrent GC with generational collection
-(gc-let ((large-data (generate-data 1000000)))  ; GC-managed binding
-  ; Young generation for short-lived objects
-  (map (lambda (x) (gc-let ((temp (* x x))) temp))
-       (range 1000))
-  ; Old generation for long-lived data
-  (set! application-cache large-data))
+;; List manipulation example
+(let ((evens (filter (lambda (x) (= (mod x 2) 0)) (range 1 20)))
+      (squared (map (lambda (x) (* x x)) evens))
+      (sum (fold (lambda (acc x) (+ acc x)) 0 squared)))
+  sum)                        ; => 1140
 ```
 
 ## Installation
 
-### Prerequisites
+### Option 1: Install FluentAI SDK (Recommended)
+
+The FluentAI SDK provides a complete development environment similar to .NET or Node.js:
+
+```bash
+# Install the SDK (includes compiler, runtime, and development tools)
+curl -sSL https://get.fluentai.dev | sh
+
+# Or via package managers
+brew install fluentai         # macOS
+apt install fluentai-sdk      # Ubuntu/Debian  
+choco install fluentai        # Windows
+
+# For production servers (runtime only)
+curl -sSL https://get.fluentai.dev/runtime | sh
+```
+
+### Option 2: Building from Source
+
+#### Prerequisites
 - Rust 1.70 or higher
 - Cargo (comes with Rust)
 
-### Building from Source
 ```bash
 # Clone the repository
 git clone https://github.com/beamsjr/FluentAI.git
@@ -307,8 +306,8 @@ cargo test
 # Run benchmarks
 cargo bench
 
-# Install the REPL globally
-cargo install --path fluentai-repl
+# Install the CLI globally
+cargo install --path fluentai-cli
 ```
 
 ### Running the REPL
@@ -337,6 +336,59 @@ cargo run --release --bin simd_benchmark
 # See all examples
 ls examples/
 ```
+
+## Getting Started with the SDK
+
+After installing the SDK, you can start developing FluentAI applications:
+
+### Create Your First Application
+```bash
+# Create a new console application
+fluentai new console MyApp
+cd MyApp
+
+# Restore dependencies
+fluentai restore
+
+# Run the application
+fluentai run
+```
+
+### Common SDK Commands
+```bash
+# Project templates
+fluentai new console MyApp        # Console application
+fluentai new library MyLib        # Reusable library  
+fluentai new webservice MyApi     # Web service
+
+# Build and run
+fluentai build                    # Debug build
+fluentai build -c Release         # Release build
+fluentai run                      # Run application
+fluentai test                     # Run tests
+
+# Package management
+fluentai add package FluentAI.Http
+fluentai restore                  # Restore packages
+fluentai package list             # List installed packages
+
+# Deployment
+fluentai publish -c Release --self-contained      # Standalone executable
+fluentai publish -r linux-x64                     # Cross-compile for Linux
+```
+
+### Project Structure
+A typical FluentAI project created with the SDK:
+```
+MyApp/
+├── MyApp.aiproj          # Project file (similar to .csproj)
+├── Program.ai            # Entry point
+├── src/                  # Source files
+├── tests/                # Test files
+└── packages.lock         # Package lock file
+```
+
+For detailed SDK documentation, see the [SDK User Guide](rust/FLUENTAI_SDK_GUIDE.md).
 
 ### Using the Optimizer
 
