@@ -120,8 +120,8 @@ fn test_compile_async() -> Result<()> {
         .expect("Failed to add node");
     graph.root_id = Some(async_node);
 
-    // Async should compile the body normally (no special opcode yet)
-    compile_and_check_opcodes(&graph, &[Opcode::Add])?;
+    // Async should create a function and spawn it
+    compile_and_check_opcodes(&graph, &[Opcode::MakeFunc, Opcode::Spawn])?;
     Ok(())
 }
 
@@ -282,7 +282,7 @@ fn test_compile_async_with_await() -> Result<()> {
         .expect("Failed to add node");
     graph.root_id = Some(async_node);
 
-    compile_and_check_opcodes(&graph, &[Opcode::Await, Opcode::Add])?;
+    compile_and_check_opcodes(&graph, &[Opcode::MakeFunc, Opcode::Spawn, Opcode::Await, Opcode::Add])?;
     Ok(())
 }
 
