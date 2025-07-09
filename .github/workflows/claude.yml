@@ -51,7 +51,7 @@ jobs:
           # assignee_trigger: "claude-bot"
           
           # Optional: Allow Claude to run specific commands
-          allowed_tools: "Bash(cd rust),Bash(cargo build),Bash(cargo test --workflow),Bash(cargo clean),Bash(cd rust && make test)"
+          allowed_tools: "Bash(cd:*),Bash(cargo:*)  'Bash(find:*)','Bash(grep:*)','FileEdit','FileRead','FileWrite','Grep','Update','Write'"
           
           # Optional: Add custom instructions for Claude to customize its behavior for your project
           custom_instructions: |
