@@ -47,25 +47,27 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Example: `1 2 3` evaluates all expressions and returns `3`
 
 ### 🚧 Partially Implemented
-- **Module System**: `module`, `import`, `export` parse successfully but module loading not wired up
+- **Module System**: Full parsing and loading infrastructure but cannot export/import values at runtime
+  - `module`, `import`, `export` syntax parses correctly
+  - Module loading from filesystem works
+  - Missing global binding mechanism for exports
 - **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
 - **Multiple expressions in `let` body**: Currently causes parse errors
-- **Async/Await & Concurrency**: Full language support (AST, parser, compiler, VM) but marked as not working
-  - `async`, `await`, `spawn` syntax implemented
-  - Channels with `(chan)`, `(send! ch val)`, `(recv! ch)`
-  - Effect handlers for async/concurrent operations
-- **Web Features**: UI compiler and DOM effects implemented but no examples/tests
-  - Complete UI compiler (fluentai-ui-compiler) targeting multiple frameworks
-  - DOM effect handler with virtual DOM operations
-  - UI special forms: `ui:element`, `ui:text`, `ui:bind`, `ui:on`, `ui:if`, `ui:for`
-  - JavaScript code generation for React, Vue, Web Components, Vanilla JS
-- **Actor Model**: Complete infrastructure in fluentai-actors but not integrated with language
-  - Actor system with supervision trees and fault tolerance
-  - Typed message passing with ask/tell patterns
-  - Router patterns (round-robin, broadcast)
-  - FSM and event sourcing behaviors
+- **Async/Await & Concurrency**: Basic concurrency works but true async/await is broken
+  - ✅ Channels work: `(chan)`, `(send! ch val)`, `(recv! ch)`
+  - ✅ Spawn works: `(spawn expr)` creates goroutines
+  - ❌ Async executes immediately instead of creating promises
+  - ❌ Await has bugs causing "Unknown identifier" errors
+- **Web Features**: UI compiler exists but not integrated with parser
+  - Code generators for React, Vue, Web Components, Vanilla JS work
+  - UI syntax (`ui:element`, `ui:text`, etc.) not recognized by parser
+  - No working examples or tests
 
 ### 📋 Planned/Aspirational Features
+- **Actor Model**: Rust implementation exists but zero language integration
+  - No FluentAI syntax for actors
+  - No stdlib functions exposed
+  - Only channel-based concurrency available
 - **Network Effects**: Built-in HTTP client/server capabilities
 - **Property-based testing**: Automatic test generation with Hypothesis  
 - **Hot code reloading**: Update running systems without downtime
