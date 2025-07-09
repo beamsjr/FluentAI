@@ -1682,7 +1682,7 @@ impl VM {
                     }
                 } else {
                     return Err(VMError::UnknownIdentifier {
-                        name: format!("promise:{}", promise_id),
+                        name: promise_id.to_string(),
                         location: None,
                         stack_trace: None,
                     });

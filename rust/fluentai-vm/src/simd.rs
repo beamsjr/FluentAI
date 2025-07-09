@@ -5,6 +5,7 @@
 
 use anyhow::{anyhow, Result};
 use fluentai_core::value::Value;
+use std::mem;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 use std::arch::x86_64::*;
 
