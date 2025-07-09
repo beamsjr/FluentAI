@@ -1691,13 +1691,54 @@ impl VM {
 
             Spawn => {
                 // Pop function value
-                let _function = self.pop()?;
+                let function = self.pop()?;
 
-                // For now, we'll create a placeholder goroutine
-                // In a real implementation, this would spawn a new VM instance
+                // Create promise for the spawned task
                 let promise_id = self.id_generator.next_promise_id();
+                let (sender, receiver) = oneshot::channel();
 
-                // Return a promise that represents the goroutine
+                // Store the promise receiver
+                self.promises.insert(promise_id, receiver);
+
+                // Create a new VM instance for the spawned task
+                let mut new_vm = VM::new(self.bytecode.clone());
+                new_vm.set_effect_context(self.effect_context.clone());
+                new_vm.set_effect_runtime(self.effect_runtime.clone());
+                new_vm.resource_limits = self.resource_limits.clone();
+                new_vm.debug_config = self.debug_config.clone();
+                new_vm.security_manager = self.security_manager.clone();
+                new_vm.gc = self.gc.clone();
+                new_vm.usage_tracker = self.usage_tracker.clone();
+
+                // Copy global state to new VM
+                new_vm.globals = self.globals.clone();
+
+                // Spawn the task
+                tokio::spawn(async move {
+                    let result = {
+                        // Push function onto stack
+                        if let Err(e) = new_vm.push(function) {
+                            let _ = sender.send(Err(e));
+                            return;
+                        }
+
+                        // Call the function with no arguments
+                        if let Err(e) = new_vm.call_value(0) {
+                            let _ = sender.send(Err(e));
+                            return;
+                        }
+
+                        // Run the VM to completion
+                        match new_vm.run() {
+                            Ok(value) => Ok(value),
+                            Err(e) => Err(e),
+                        }
+                    };
+
+                    let _ = sender.send(result);
+                });
+
+                // Return a promise that represents the spawned task
                 self.push(Value::Promise(promise_id.0))?;
             }
 
