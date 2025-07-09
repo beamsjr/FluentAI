@@ -161,6 +161,8 @@ impl Compiler {
             }
             Node::Export { export_list } => {
                 self.compile_export(export_list)?;
+                // Export returns nil
+                self.emit(Instruction::new(Opcode::PushNil));
             }
             Node::QualifiedVariable {
                 module_name,
