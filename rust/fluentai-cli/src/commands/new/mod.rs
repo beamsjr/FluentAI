@@ -66,7 +66,6 @@ fn list_templates(registry: &TemplateRegistry) {
         templates::TemplateCategory::Service,
         templates::TemplateCategory::Library,
         templates::TemplateCategory::Tool,
-        templates::TemplateCategory::Game,
     ];
     
     for category in &categories {

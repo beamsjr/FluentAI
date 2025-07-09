@@ -3,6 +3,7 @@ use fluentai_vm::{VM, compiler::{Compiler, CompilerOptions}};
 use fluentai_optimizer::OptimizationLevel;
 
 mod test_print;
+mod test_readme_features;
 
 fn main() {
     // Test 1: Multiple defines at top level
@@ -47,6 +48,9 @@ sum
     
     // Test print functions
     test_print::test_print_functions();
+    
+    // Test README features
+    test_readme_features::test_readme_features();
 }
 
 fn run_test(code: &str) {

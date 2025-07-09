@@ -12,17 +12,25 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - S-expressions, arithmetic (`+`, `-`, `*`, `/`, `mod`)
   - Comparisons (`=`, `<`, `>`, `<=`, `>=`)
   - Conditionals (`if` with both then and else branches)
+  - `begin` blocks for sequencing multiple expressions
 - **Functions**: 
   - Lambda expressions: `(lambda (x) (* x x))`
   - Function calls work correctly
   - Higher-order functions: `map`, `filter`, `fold` (Note: `fold` requires lambda, not bare `+`)
+  - Recursion works correctly (factorial, fibonacci, etc.)
+  - `define` for top-level function and value definitions
 - **Data Structures**: 
   - Lists: `list`, `cons`, `head`, `tail`, `length`, `empty?`
   - Additional: `reverse`, `append`, `take`, `drop`, `range`, `nth`
+- **I/O Functions**:
+  - `print` - prints value without newline
+  - `print-line` - prints value with newline
 - **Pattern Matching**: 
   - Literal patterns with `match` expressions and wildcard `_`
   - Example: `(match x (0 "zero") (1 "one") (_ "other"))`
 - **Effect System**: 
+  - Effects work with default handlers: `(effect io:print "Hello")`
+  - Custom effect handlers work correctly: `(handler ((error (lambda (e) 99))) ...)`
   - `(effect io:print "message")` - prints to stdout
   - `(effect state:set "key" value)` and `(effect state:get "key")`
   - `(effect time:now)` - returns timestamp
@@ -36,17 +44,11 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Example: `1 2 3` evaluates all expressions and returns `3`
 
 ### 🚧 Partially Implemented
-- **Recursion**: Basic recursion works but complex cases may have issues
-- **Pattern Matching**: Cons/Nil destructuring parses but has runtime issues
-- **Custom Effect Handlers**: `handler` form compiles but causes stack underflow at runtime
-- **Module System**: `module`, `import`, `export` parse but don't execute in VM
+- **Pattern Matching**: Cons/Nil destructuring has parse errors
+- **Module System**: `module`, `import`, `export` parse successfully but module loading not wired up
 - **JIT Compilation**: Infrastructure exists but not fully integrated
+- **Multiple expressions in `let` body**: Currently causes parse errors
 
-### ❌ Not Working
-- **`define`**: Top-level definitions don't work (use `let` instead)
-- **`print` function**: Not available (use `effect io:print` instead)
-- **Multiple expressions in `let` body**: Causes parse errors
-- **`begin` blocks**: For sequencing multiple expressions
 
 ### 📋 Planned/Aspirational Features
 - **Async/Await & Concurrency**: Channels, goroutines, async operations

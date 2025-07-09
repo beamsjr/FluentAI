@@ -8,11 +8,7 @@ use std::path::Path;
 pub mod api;
 pub mod cli;
 pub mod console;
-pub mod desktop;
-pub mod game;
-pub mod graphql;
 pub mod library;
-pub mod microservice;
 pub mod web;
 pub mod webservice;
 pub mod worker;
@@ -49,7 +45,6 @@ pub enum TemplateCategory {
     Service,
     Library,
     Tool,
-    Game,
 }
 
 impl TemplateCategory {
@@ -59,7 +54,6 @@ impl TemplateCategory {
             Self::Service => "Service",
             Self::Library => "Library",
             Self::Tool => "Tool",
-            Self::Game => "Game",
         }
     }
 }
@@ -106,10 +100,6 @@ impl TemplateRegistry {
             Box::new(web::WebTemplate),
             Box::new(cli::CliTemplate),
             Box::new(worker::WorkerTemplate),
-            Box::new(graphql::GraphQLTemplate),
-            Box::new(microservice::MicroserviceTemplate),
-            Box::new(desktop::DesktopTemplate),
-            Box::new(game::GameTemplate),
         ];
         
         Self { templates }
