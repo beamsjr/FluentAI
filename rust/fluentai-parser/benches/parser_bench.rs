@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use fluentai_parser::parse;
 
 const SIMPLE_EXPR: &str = "(+ 1 2)";
@@ -30,7 +30,7 @@ const LARGE_PROGRAM: &str = r#"
 
 fn parser_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("parser");
-    
+
     // Simple expression
     group.throughput(Throughput::Bytes(SIMPLE_EXPR.len() as u64));
     group.bench_function("simple_expr", |b| {
@@ -38,7 +38,7 @@ fn parser_benchmarks(c: &mut Criterion) {
             let _ = black_box(parse(black_box(SIMPLE_EXPR)));
         });
     });
-    
+
     // Nested expression
     group.throughput(Throughput::Bytes(NESTED_EXPR.len() as u64));
     group.bench_function("nested_expr", |b| {
@@ -46,7 +46,7 @@ fn parser_benchmarks(c: &mut Criterion) {
             let _ = black_box(parse(black_box(NESTED_EXPR)));
         });
     });
-    
+
     // Lambda expression
     group.throughput(Throughput::Bytes(LAMBDA_EXPR.len() as u64));
     group.bench_function("lambda", |b| {
@@ -54,7 +54,7 @@ fn parser_benchmarks(c: &mut Criterion) {
             let _ = black_box(parse(black_box(LAMBDA_EXPR)));
         });
     });
-    
+
     // Let binding
     group.throughput(Throughput::Bytes(LET_EXPR.len() as u64));
     group.bench_function("let_binding", |b| {
@@ -62,7 +62,7 @@ fn parser_benchmarks(c: &mut Criterion) {
             let _ = black_box(parse(black_box(LET_EXPR)));
         });
     });
-    
+
     // List literal
     group.throughput(Throughput::Bytes(LIST_EXPR.len() as u64));
     group.bench_function("list_literal", |b| {
@@ -70,7 +70,7 @@ fn parser_benchmarks(c: &mut Criterion) {
             let _ = black_box(parse(black_box(LIST_EXPR)));
         });
     });
-    
+
     // Complex expression
     group.throughput(Throughput::Bytes(COMPLEX_EXPR.len() as u64));
     group.bench_function("complex_expr", |b| {
@@ -78,7 +78,7 @@ fn parser_benchmarks(c: &mut Criterion) {
             let _ = black_box(parse(black_box(COMPLEX_EXPR)));
         });
     });
-    
+
     // Large program
     group.throughput(Throughput::Bytes(LARGE_PROGRAM.len() as u64));
     group.bench_function("large_program", |b| {
@@ -86,28 +86,24 @@ fn parser_benchmarks(c: &mut Criterion) {
             let _ = black_box(parse(black_box(LARGE_PROGRAM)));
         });
     });
-    
+
     group.finish();
 }
 
 fn scaling_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("parser_scaling");
-    
+
     // Test parser performance with different input sizes
     for size in [10, 100, 1000, 10000].iter() {
         let input = generate_nested_expr(*size);
         group.throughput(Throughput::Bytes(input.len() as u64));
-        group.bench_with_input(
-            BenchmarkId::from_parameter(size),
-            &input,
-            |b, input| {
-                b.iter(|| {
-                    let _ = black_box(parse(black_box(input)));
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(size), &input, |b, input| {
+            b.iter(|| {
+                let _ = black_box(parse(black_box(input)));
+            });
+        });
     }
-    
+
     group.finish();
 }
 

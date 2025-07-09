@@ -1,6 +1,6 @@
 //! Background worker template
 
-use super::{Template, TemplateCategory, TemplateOptions, TemplateOption, helpers};
+use super::{helpers, Template, TemplateCategory, TemplateOption, TemplateOptions};
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -11,19 +11,19 @@ impl Template for WorkerTemplate {
     fn name(&self) -> &'static str {
         "worker"
     }
-    
+
     fn description(&self) -> &'static str {
         "Background job processor with queue integration"
     }
-    
+
     fn aliases(&self) -> Vec<&'static str> {
         vec!["background", "job", "queue"]
     }
-    
+
     fn category(&self) -> TemplateCategory {
         TemplateCategory::Service
     }
-    
+
     fn options(&self) -> Vec<TemplateOption> {
         vec![
             TemplateOption {
@@ -40,11 +40,20 @@ impl Template for WorkerTemplate {
             },
         ]
     }
-    
+
     fn create(&self, path: &Path, name: &str, options: &TemplateOptions) -> Result<()> {
-        let queue_type = options.custom.get("queue").map(|s| s.as_str()).unwrap_or("redis");
-        let with_scheduler = options.custom.get("scheduler").map(|s| s.as_str()).unwrap_or("true") == "true";
-        
+        let queue_type = options
+            .custom
+            .get("queue")
+            .map(|s| s.as_str())
+            .unwrap_or("redis");
+        let with_scheduler = options
+            .custom
+            .get("scheduler")
+            .map(|s| s.as_str())
+            .unwrap_or("true")
+            == "true";
+
         // Create project file
         let mut packages = vec![
             ("FluentAI.Worker", "1.0.0"),
@@ -52,20 +61,20 @@ impl Template for WorkerTemplate {
             ("FluentAI.Logging", "1.0.0"),
             ("FluentAI.Config", "1.0.0"),
         ];
-        
+
         if with_scheduler {
             packages.push(("FluentAI.Scheduler", "1.0.0"));
         }
-        
+
         match queue_type {
             "redis" => packages.push(("FluentAI.Redis", "1.0.0")),
             "rabbitmq" => packages.push(("FluentAI.RabbitMQ", "1.0.0")),
             "kafka" => packages.push(("FluentAI.Kafka", "1.0.0")),
             _ => {}
         }
-        
+
         helpers::create_project_file(path, name, "Exe", &packages)?;
-        
+
         // Create main program
         let program_content = format!(
             r#";; {} Worker Service
@@ -127,23 +136,28 @@ impl Template for WorkerTemplate {
   (main (command-line-args)))
 "#,
             name,
-            if with_scheduler { "(import \"./src/scheduler\" :as scheduler)" } else { "" },
+            if with_scheduler {
+                "(import \"./src/scheduler\" :as scheduler)"
+            } else {
+                ""
+            },
             queue_type,
-            if with_scheduler { "\n  ;; Initialize scheduler\n  (scheduler/init)" } else { "" },
+            if with_scheduler {
+                "\n  ;; Initialize scheduler\n  (scheduler/init)"
+            } else {
+                ""
+            },
             name,
             name
         );
         fs::write(path.join("Program.ai"), program_content)?;
-        
+
         // Create directories
-        helpers::create_directories(path, &[
-            "src",
-            "src/jobs",
-            "src/processors",
-            "tests",
-            "scripts",
-        ])?;
-        
+        helpers::create_directories(
+            path,
+            &["src", "src/jobs", "src/processors", "tests", "scripts"],
+        )?;
+
         // Create config module
         let config_content = r#";; Worker configuration
 
@@ -171,7 +185,7 @@ impl Template for WorkerTemplate {
   (export load get))
 "#;
         fs::write(path.join("src/config.ai"), config_content)?;
-        
+
         // Create jobs registry
         let jobs_content = r#";; Job registry and registration
 
@@ -199,7 +213,7 @@ impl Template for WorkerTemplate {
   (export register-all))
 "#;
         fs::write(path.join("src/jobs.ai"), jobs_content)?;
-        
+
         // Create middleware
         let middleware_content = r#";; Worker middleware
 
@@ -264,7 +278,7 @@ impl Template for WorkerTemplate {
   (export error-handler logger metrics))
 "#;
         fs::write(path.join("src/middleware.ai"), middleware_content)?;
-        
+
         // Create example email job
         let email_job = r#";; Email job handlers
 
@@ -327,7 +341,7 @@ impl Template for WorkerTemplate {
   (export send-email send-bulk-email))
 "#;
         fs::write(path.join("src/jobs/email.ai"), email_job)?;
-        
+
         // Create example data processing job
         let data_job = r#";; Data processing job handlers
 
@@ -431,7 +445,7 @@ impl Template for WorkerTemplate {
   (export process-csv generate-report cleanup-old-data))
 "#;
         fs::write(path.join("src/jobs/data.ai"), data_job)?;
-        
+
         // Create notification job
         let notification_job = r#";; Notification job handlers
 
@@ -499,7 +513,7 @@ impl Template for WorkerTemplate {
   (export send-push send-sms))
 "#;
         fs::write(path.join("src/jobs/notification.ai"), notification_job)?;
-        
+
         // Create scheduler module if enabled
         if with_scheduler {
             let scheduler_content = r#";; Job scheduler
@@ -548,7 +562,7 @@ impl Template for WorkerTemplate {
 "#;
             fs::write(path.join("src/scheduler.ai"), scheduler_content)?;
         }
-        
+
         // Create test
         let test_content = r#";; Worker tests
 
@@ -598,11 +612,12 @@ impl Template for WorkerTemplate {
           (test/expect (:rows result) :to-be-a :number))))))
 "#;
         fs::write(path.join("tests/worker.test.ai"), test_content)?;
-        
+
         // Create docker-compose for queue backend
         if queue_type != "memory" {
             let docker_content = match queue_type {
-                "redis" => r#"version: '3.8'
+                "redis" => {
+                    r#"version: '3.8'
 
 services:
   redis:
@@ -615,8 +630,10 @@ services:
 
 volumes:
   redis_data:
-"#,
-                "rabbitmq" => r#"version: '3.8'
+"#
+                }
+                "rabbitmq" => {
+                    r#"version: '3.8'
 
 services:
   rabbitmq:
@@ -632,8 +649,10 @@ services:
 
 volumes:
   rabbitmq_data:
-"#,
-                "kafka" => r#"version: '3.8'
+"#
+                }
+                "kafka" => {
+                    r#"version: '3.8'
 
 services:
   zookeeper:
@@ -653,15 +672,16 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-"#,
-                _ => ""
+"#
+                }
+                _ => "",
             };
-            
+
             if !docker_content.is_empty() {
                 fs::write(path.join("docker-compose.yml"), docker_content)?;
             }
         }
-        
+
         // Create .env.example
         let env_example = format!(
             r#"# Worker configuration
@@ -690,11 +710,11 @@ SMS_FROM_NUMBER=+1234567890
                 "redis" => "redis://localhost:6379",
                 "rabbitmq" => "amqp://admin:admin@localhost:5672",
                 "kafka" => "kafka://localhost:9092",
-                _ => "memory://"
+                _ => "memory://",
             }
         );
         fs::write(path.join(".env.example"), env_example)?;
-        
+
         // Create deployment script
         let deploy_script = format!(
             r#"#!/bin/bash
@@ -720,7 +740,7 @@ echo "Deployment complete!"
             name, name, name, name
         );
         fs::write(path.join("scripts/deploy.sh"), deploy_script)?;
-        
+
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -728,7 +748,7 @@ echo "Deployment complete!"
             perms.set_mode(0o755);
             fs::set_permissions(path.join("scripts/deploy.sh"), perms)?;
         }
-        
+
         // Create README
         let readme_content = format!(
             r#"# {} Worker
@@ -873,12 +893,16 @@ MIT
 "#,
             name,
             queue_type,
-            if with_scheduler { "- [x] Cron-based job scheduling" } else { "" },
+            if with_scheduler {
+                "- [x] Cron-based job scheduling"
+            } else {
+                ""
+            },
             match queue_type {
                 "redis" => "Redis",
                 "rabbitmq" => "RabbitMQ",
                 "kafka" => "Apache Kafka",
-                _ => "None"
+                _ => "None",
             },
             name,
             name,
@@ -887,12 +911,12 @@ MIT
             name,
             name
         );
-        
+
         fs::write(path.join("README.md"), readme_content)?;
-        
+
         // Create .gitignore
         helpers::create_gitignore(path)?;
-        
+
         Ok(())
     }
 }

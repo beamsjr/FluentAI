@@ -1,10 +1,12 @@
 //! AST representation using an efficient graph structure
 
+use crate::documentation::{
+    Documentation, DocumentationCategory, DocumentationVisibility, DocumentedNode,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::num::NonZeroU32;
-use crate::documentation::{DocumentedNode, Documentation, DocumentationCategory, DocumentationVisibility};
 
 /// Type alias for the HashMap implementation used in the AST
 /// This allows easy switching between different hash map implementations
@@ -15,7 +17,7 @@ pub type AstHashMap<K, V> = FxHashMap<K, V>;
 pub type AstHashSet<T> = FxHashSet<T>;
 
 /// Node identifier in the AST graph
-/// 
+///
 /// Uses NonZeroU32 internally to enable null pointer optimization for Option<NodeId>.
 /// NodeId(0) is reserved as an invalid/null node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -27,7 +29,7 @@ impl NodeId {
     pub fn new(value: u32) -> Option<Self> {
         NonZeroU32::new(value).map(NodeId)
     }
-    
+
     /// Gets the inner u32 value
     pub fn get(&self) -> u32 {
         self.0.get()
@@ -165,7 +167,7 @@ pub enum ParallelismStrategy {
 }
 
 /// AST graph representation
-/// 
+///
 /// # Invariants
 /// - `next_id` monotonically increases and is never reused
 /// - NodeIds are unique within a graph
@@ -203,7 +205,7 @@ impl Graph {
         if self.next_id == u32::MAX {
             return Err(crate::error::Error::GraphNodeIdOverflow);
         }
-        
+
         // SAFETY: next_id starts at 1 and only increments, so it's always non-zero
         let id = NodeId(NonZeroU32::new(self.next_id).unwrap());
         self.next_id += 1;
@@ -214,50 +216,51 @@ impl Graph {
     pub fn get_node(&self, id: NodeId) -> Option<&Node> {
         self.nodes.get(&id)
     }
-    
+
     /// Gets mutable reference to a node
     pub fn get_node_mut(&mut self, id: NodeId) -> Option<&mut Node> {
         self.nodes.get_mut(&id)
     }
-    
+
     /// Gets metadata for a node
     pub fn get_metadata(&self, id: NodeId) -> Option<&NodeMetadata> {
         self.metadata.get(&id)
     }
-    
+
     /// Gets or creates metadata for a node
     pub fn metadata_mut(&mut self, id: NodeId) -> &mut NodeMetadata {
         self.metadata.entry(id).or_default()
     }
-    
+
     /// Sets metadata for a node
     pub fn set_metadata(&mut self, id: NodeId, metadata: NodeMetadata) {
         self.metadata.insert(id, metadata);
     }
-    
+
     /// Sets documentation ID for a node
     pub fn set_documentation(&mut self, id: NodeId, doc_id: String) {
         self.metadata_mut(id).documentation_id = Some(doc_id);
     }
-    
+
     /// Gets documentation ID for a node
     pub fn get_documentation(&self, id: NodeId) -> Option<&String> {
         self.metadata.get(&id)?.documentation_id.as_ref()
     }
-    
+
     /// Sets or updates context memory for a node
     pub fn set_context_memory(&mut self, id: NodeId, context: ContextMemory) {
         self.metadata_mut(id).context_memory = Some(context);
     }
-    
+
     /// Gets context memory for a node
     pub fn get_context_memory(&self, id: NodeId) -> Option<&ContextMemory> {
         self.metadata.get(&id)?.context_memory.as_ref()
     }
-    
+
     /// Updates usage statistics for a node
-    pub fn update_usage_stats<F>(&mut self, id: NodeId, updater: F) 
-    where F: FnOnce(&mut UsageStatistics)
+    pub fn update_usage_stats<F>(&mut self, id: NodeId, updater: F)
+    where
+        F: FnOnce(&mut UsageStatistics),
     {
         let metadata = self.metadata_mut(id);
         if metadata.context_memory.is_none() {
@@ -274,36 +277,36 @@ impl Graph {
             updater(&mut context.usage_stats);
         }
     }
-    
+
     /// Returns an iterator over all node IDs in the graph
     pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.nodes.keys().copied()
     }
-    
+
     /// Returns an iterator over all nodes in the graph
     pub fn nodes(&self) -> impl Iterator<Item = (&NodeId, &Node)> + '_ {
         self.nodes.iter()
     }
-    
+
     /// Performs a depth-first traversal starting from the given node
     /// Uses iterative implementation to avoid stack overflow on deep graphs
     pub fn dfs_from(&self, start: NodeId, mut visitor: impl FnMut(NodeId, &Node)) {
         self.dfs_iterative(start, &mut visitor);
     }
-    
+
     /// Performs an iterative depth-first traversal to avoid stack overflow
     pub fn dfs_iterative(&self, start: NodeId, visitor: &mut impl FnMut(NodeId, &Node)) {
         let mut visited = AstHashSet::default();
         let mut stack = vec![start];
-        
+
         while let Some(node_id) = stack.pop() {
             if !visited.insert(node_id) {
                 continue; // Already visited
             }
-            
+
             if let Some(node) = self.get_node(node_id) {
                 visitor(node_id, node);
-                
+
                 // Push children onto stack in reverse order for correct DFS order
                 match node {
                     Node::Lambda { body, .. } => {
@@ -322,7 +325,11 @@ impl Graph {
                             stack.push(*value);
                         }
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         stack.push(*else_branch);
                         stack.push(*then_branch);
                         stack.push(*condition);
@@ -377,14 +384,14 @@ impl Graph {
             }
         }
     }
-    
+
     /// Performs a recursive depth-first traversal (legacy method, may overflow on deep graphs)
     /// Consider using dfs_from() or dfs_iterative() instead
     pub fn dfs_recursive(&self, start: NodeId, mut visitor: impl FnMut(NodeId, &Node)) {
         let mut visited = AstHashSet::default();
         self.dfs_helper(start, &mut visited, &mut visitor);
     }
-    
+
     fn dfs_helper(
         &self,
         node_id: NodeId,
@@ -394,10 +401,10 @@ impl Graph {
         if !visited.insert(node_id) {
             return; // Already visited
         }
-        
+
         if let Some(node) = self.get_node(node_id) {
             visitor(node_id, node);
-            
+
             // Visit child nodes
             match node {
                 Node::Lambda { body, .. } => {
@@ -415,7 +422,11 @@ impl Graph {
                     }
                     self.dfs_helper(*body, visited, visitor);
                 }
-                Node::If { condition, then_branch, else_branch } => {
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
                     self.dfs_helper(*condition, visited, visitor);
                     self.dfs_helper(*then_branch, visited, visitor);
                     self.dfs_helper(*else_branch, visited, visitor);
@@ -451,7 +462,7 @@ impl Graph {
             }
         }
     }
-    
+
     /// Collects all child node IDs of a given node
     pub fn children(&self, node_id: NodeId) -> Vec<NodeId> {
         let mut children = Vec::new();
@@ -468,7 +479,11 @@ impl Graph {
                     children.extend(bindings.iter().map(|(_, v)| v));
                     children.push(*body);
                 }
-                Node::If { condition, then_branch, else_branch } => {
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
                     children.push(*condition);
                     children.push(*then_branch);
                     children.push(*else_branch);
@@ -511,9 +526,9 @@ impl Graph {
         }
         children
     }
-    
+
     /// Validates the graph structure and checks all invariants
-    /// 
+    ///
     /// # Invariants checked:
     /// - All NodeId references point to existing nodes
     /// - The root_id (if present) points to a valid node
@@ -524,78 +539,86 @@ impl Graph {
         // Check if root exists when specified
         if let Some(root) = self.root_id {
             if !self.nodes.contains_key(&root) {
-                return Err(crate::error::Error::Other(
-                    anyhow::anyhow!("Root node {} does not exist in graph", root)
-                ));
+                return Err(crate::error::Error::Other(anyhow::anyhow!(
+                    "Root node {} does not exist in graph",
+                    root
+                )));
             }
         }
-        
+
         // Collect all referenced node IDs
         let mut referenced_nodes = AstHashSet::default();
-        
+
         // Check all nodes and their references
-        for (&node_id, _node) in &self.nodes {
+        for &node_id in self.nodes.keys() {
             // Check node ID is within valid range
             if node_id.get() == 0 || node_id.get() >= self.next_id {
-                return Err(crate::error::Error::Other(
-                    anyhow::anyhow!("Invalid node ID {}: outside valid range 1..{}", node_id, self.next_id)
-                ));
+                return Err(crate::error::Error::Other(anyhow::anyhow!(
+                    "Invalid node ID {}: outside valid range 1..{}",
+                    node_id,
+                    self.next_id
+                )));
             }
-            
+
             // Get all child references from this node
             let children = self.children(node_id);
             for child_id in children {
                 // Check that referenced nodes exist
                 if !self.nodes.contains_key(&child_id) {
-                    return Err(crate::error::Error::Other(
-                        anyhow::anyhow!("Node {} references non-existent node {}", node_id, child_id)
-                    ));
+                    return Err(crate::error::Error::Other(anyhow::anyhow!(
+                        "Node {} references non-existent node {}",
+                        node_id,
+                        child_id
+                    )));
                 }
                 referenced_nodes.insert(child_id);
             }
         }
-        
+
         // Add root to referenced nodes if it exists
         if let Some(root) = self.root_id {
             referenced_nodes.insert(root);
         }
-        
+
         // Check for orphaned nodes (optional - may be too strict for some use cases)
         let all_nodes: AstHashSet<_> = self.nodes.keys().copied().collect();
         let orphaned: Vec<_> = all_nodes.difference(&referenced_nodes).collect();
-        
+
         // Allow orphaned nodes if they have metadata (they might be referenced externally)
         for &orphan in &orphaned {
-            if !self.metadata.contains_key(&orphan) && Some(*orphan) != self.root_id {
+            if !self.metadata.contains_key(orphan) && Some(*orphan) != self.root_id {
                 // This is a warning, not an error - some use cases may have intentionally orphaned nodes
                 // You could make this stricter if needed
-                eprintln!("Warning: Node {} is orphaned (not reachable from root)", orphan);
+                eprintln!(
+                    "Warning: Node {orphan} is orphaned (not reachable from root)"
+                );
             }
         }
-        
+
         // Validate metadata references
-        for (meta_id, _) in &self.metadata {
+        for meta_id in self.metadata.keys() {
             if !self.nodes.contains_key(meta_id) {
-                return Err(crate::error::Error::Other(
-                    anyhow::anyhow!("Metadata exists for non-existent node {}", meta_id)
-                ));
+                return Err(crate::error::Error::Other(anyhow::anyhow!(
+                    "Metadata exists for non-existent node {}",
+                    meta_id
+                )));
             }
         }
-        
+
         // Check for cycles (simplified check - full cycle detection would be more complex)
         if let Some(root) = self.root_id {
             let mut visited = AstHashSet::default();
             let mut stack = AstHashSet::default();
             if self.has_cycle_from(root, &mut visited, &mut stack) {
-                return Err(crate::error::Error::Other(
-                    anyhow::anyhow!("Graph contains a cycle")
-                ));
+                return Err(crate::error::Error::Other(anyhow::anyhow!(
+                    "Graph contains a cycle"
+                )));
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Helper method to detect cycles using DFS
     fn has_cycle_from(
         &self,
@@ -606,55 +629,73 @@ impl Graph {
         if stack.contains(&node_id) {
             return true; // Found a cycle
         }
-        
+
         if visited.contains(&node_id) {
             return false; // Already processed this node
         }
-        
+
         visited.insert(node_id);
         stack.insert(node_id);
-        
+
         // Check children
         for child in self.children(node_id) {
             if self.has_cycle_from(child, visited, stack) {
                 return true;
             }
         }
-        
+
         stack.remove(&node_id);
         false
     }
-    
+
     /// Creates a new match builder for constructing pattern matching expressions
     pub fn build_match(&mut self) -> MatchBuilder {
         MatchBuilder::new(self)
     }
-    
+
     /// Helper for list pattern matching
-    pub fn match_list<F>(&mut self, list: NodeId, on_empty: NodeId, on_cons: F) -> crate::error::Result<NodeId>
+    pub fn match_list<F>(
+        &mut self,
+        list: NodeId,
+        on_empty: NodeId,
+        on_cons: F,
+    ) -> crate::error::Result<NodeId>
     where
         F: FnOnce(&mut Self, NodeId, NodeId) -> crate::error::Result<NodeId>,
     {
-        let head_var = self.add_node(Node::Variable { name: "head".to_string() })?;
-        let tail_var = self.add_node(Node::Variable { name: "tail".to_string() })?;
+        let head_var = self.add_node(Node::Variable {
+            name: "head".to_string(),
+        })?;
+        let tail_var = self.add_node(Node::Variable {
+            name: "tail".to_string(),
+        })?;
         let cons_result = on_cons(self, head_var, tail_var)?;
-        
+
         self.add_node(Node::Match {
             expr: list,
             branches: vec![
                 (Pattern::nil(), on_empty),
-                (Pattern::cons(Pattern::var("head"), Pattern::var("tail")), cons_result),
+                (
+                    Pattern::cons(Pattern::var("head"), Pattern::var("tail")),
+                    cons_result,
+                ),
             ],
         })
     }
-    
+
     /// Helper for simple value matching with literal patterns
-    pub fn match_value(&mut self, value: NodeId, cases: Vec<(Literal, NodeId)>, default: NodeId) -> crate::error::Result<NodeId> {
-        let mut branches: Vec<(Pattern, NodeId)> = cases.into_iter()
+    pub fn match_value(
+        &mut self,
+        value: NodeId,
+        cases: Vec<(Literal, NodeId)>,
+        default: NodeId,
+    ) -> crate::error::Result<NodeId> {
+        let mut branches: Vec<(Pattern, NodeId)> = cases
+            .into_iter()
             .map(|(lit, result)| (Pattern::lit(lit), result))
             .collect();
         branches.push((Pattern::wildcard(), default));
-        
+
         self.add_node(Node::Match {
             expr: value,
             branches,
@@ -667,9 +708,11 @@ impl Graph {
 pub enum Node {
     // Literals
     Literal(Literal),
-    
+
     // Variables and bindings
-    Variable { name: String },
+    Variable {
+        name: String,
+    },
     Lambda {
         params: Vec<String>,
         body: NodeId,
@@ -682,43 +725,43 @@ pub enum Node {
         bindings: Vec<(String, NodeId)>,
         body: NodeId,
     },
-    
+
     // Control flow
     If {
         condition: NodeId,
         then_branch: NodeId,
         else_branch: NodeId,
     },
-    
+
     // Function application
     Application {
         function: NodeId,
         args: Vec<NodeId>,
     },
-    
+
     // Effects
     Effect {
         effect_type: EffectType,
         operation: String,
         args: Vec<NodeId>,
     },
-    
+
     // Effect handlers
     Handler {
         /// List of handlers: (effect_type, optional operation filter, handler function)
         handlers: Vec<(EffectType, Option<String>, NodeId)>,
         body: NodeId,
     },
-    
+
     // Data structures
     List(Vec<NodeId>),
-    
+
     // Pattern matching
     Match {
         expr: NodeId,
         branches: Vec<(Pattern, NodeId)>,
     },
-    
+
     // Module system
     Module {
         name: String,
@@ -737,18 +780,18 @@ pub enum Node {
         module_name: String,
         variable_name: String,
     },
-    
+
     // Top-level definitions
     Define {
         name: String,
         value: NodeId,
     },
-    
+
     // Sequencing
     Begin {
         exprs: Vec<NodeId>,
     },
-    
+
     // Async/concurrent constructs
     Async {
         body: NodeId,
@@ -767,7 +810,7 @@ pub enum Node {
     Receive {
         channel: NodeId,
     },
-    
+
     // Contract specification
     Contract {
         function_name: String,
@@ -791,10 +834,10 @@ pub enum Literal {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Literal::Integer(i) => write!(f, "{}", i),
-            Literal::Float(fl) => write!(f, "{}", fl),
-            Literal::String(s) => write!(f, "\"{}\"", s),
-            Literal::Boolean(b) => write!(f, "{}", b),
+            Literal::Integer(i) => write!(f, "{i}"),
+            Literal::Float(fl) => write!(f, "{fl}"),
+            Literal::String(s) => write!(f, "\"{s}\""),
+            Literal::Boolean(b) => write!(f, "{b}"),
             Literal::Nil => write!(f, "nil"),
         }
     }
@@ -816,7 +859,7 @@ pub enum Pattern {
         patterns: Vec<Pattern>,
     },
     Wildcard,
-    
+
     // Complex pattern extensions
     /// Pattern with a guard condition: pattern when condition
     Guard {
@@ -844,32 +887,32 @@ impl Pattern {
     pub fn var(name: &str) -> Self {
         Pattern::Variable(name.to_string())
     }
-    
+
     /// Creates a literal pattern that matches an exact value
     pub fn lit(literal: Literal) -> Self {
         Pattern::Literal(literal)
     }
-    
+
     /// Creates an integer literal pattern
     pub fn int(value: i64) -> Self {
         Pattern::Literal(Literal::Integer(value))
     }
-    
+
     /// Creates a string literal pattern
     pub fn string(value: &str) -> Self {
         Pattern::Literal(Literal::String(value.to_string()))
     }
-    
+
     /// Creates a boolean literal pattern
     pub fn bool(value: bool) -> Self {
         Pattern::Literal(Literal::Boolean(value))
     }
-    
+
     /// Creates a nil literal pattern
     pub fn nil_lit() -> Self {
         Pattern::Literal(Literal::Nil)
     }
-    
+
     /// Creates a cons pattern for matching non-empty lists
     pub fn cons(head: Pattern, tail: Pattern) -> Self {
         Pattern::Constructor {
@@ -877,7 +920,7 @@ impl Pattern {
             patterns: vec![head, tail],
         }
     }
-    
+
     /// Creates a nil pattern for matching empty lists
     pub fn nil() -> Self {
         Pattern::Constructor {
@@ -885,7 +928,7 @@ impl Pattern {
             patterns: vec![],
         }
     }
-    
+
     /// Creates a custom constructor pattern
     pub fn constructor(name: &str, patterns: Vec<Pattern>) -> Self {
         Pattern::Constructor {
@@ -893,19 +936,19 @@ impl Pattern {
             patterns,
         }
     }
-    
+
     /// Creates a wildcard pattern that matches anything
     pub fn wildcard() -> Self {
         Pattern::Wildcard
     }
-    
+
     /// Alias for wildcard pattern using underscore convention
     pub fn underscore() -> Self {
         Pattern::Wildcard
     }
-    
+
     // Complex pattern builders
-    
+
     /// Creates a guard pattern: pattern when condition
     pub fn guard(pattern: Pattern, condition: NodeId) -> Self {
         Pattern::Guard {
@@ -913,7 +956,7 @@ impl Pattern {
             condition,
         }
     }
-    
+
     /// Creates an as-pattern: binding @ pattern
     pub fn as_pattern(binding: &str, pattern: Pattern) -> Self {
         Pattern::As {
@@ -921,12 +964,12 @@ impl Pattern {
             pattern: Box::new(pattern),
         }
     }
-    
+
     /// Creates an or-pattern from multiple patterns
     pub fn or(patterns: Vec<Pattern>) -> Self {
         Pattern::Or(patterns)
     }
-    
+
     /// Creates an inclusive range pattern (start..=end)
     pub fn range_inclusive(start: Literal, end: Literal) -> Self {
         Pattern::Range(RangePattern {
@@ -935,7 +978,7 @@ impl Pattern {
             inclusive: true,
         })
     }
-    
+
     /// Creates an exclusive range pattern (start..end)
     pub fn range_exclusive(start: Literal, end: Literal) -> Self {
         Pattern::Range(RangePattern {
@@ -944,7 +987,7 @@ impl Pattern {
             inclusive: false,
         })
     }
-    
+
     /// Creates an integer range pattern (inclusive)
     pub fn int_range(start: i64, end: i64) -> Self {
         Pattern::Range(RangePattern {
@@ -953,7 +996,7 @@ impl Pattern {
             inclusive: true,
         })
     }
-    
+
     /// Creates a view pattern: applies function before matching
     pub fn view(function: NodeId, pattern: Pattern) -> Self {
         Pattern::View {
@@ -998,19 +1041,19 @@ impl DocumentedNode for Literal {
     fn name() -> &'static str {
         "Literal"
     }
-    
+
     fn syntax() -> &'static str {
         "<literal>"
     }
-    
+
     fn description() -> &'static str {
         "Literal values in FluentAi"
     }
-    
+
     fn examples() -> &'static [&'static str] {
         &["42", "3.14", "\"hello\"", "true", "nil"]
     }
-    
+
     fn category() -> DocumentationCategory {
         DocumentationCategory::Literal
     }
@@ -1029,20 +1072,20 @@ pub struct ExportItem {
 }
 
 /// Documentation System for AST Nodes
-/// 
+///
 /// FluentAI uses a compile-time enforced documentation system to ensure all language
 /// constructs are properly documented. The system works as follows:
-/// 
+///
 /// 1. The `DocumentedNode` trait defines the interface for documentation
 /// 2. The `Node` enum implements this trait generically
 /// 3. The `get_node_docs()` method provides specific documentation for each variant
 /// 4. The match statement in `get_node_docs()` is exhaustive and enforced by the compiler
-/// 
+///
 /// When adding a new Node variant:
-/// - You MUST update the match statement in `get_node_docs()` 
+/// - You MUST update the match statement in `get_node_docs()`
 /// - If you forget, the code will fail to compile with a non-exhaustive pattern error
 /// - This ensures documentation is never out of sync with the AST
-/// 
+///
 /// The documentation includes:
 /// - name: The construct's name
 /// - syntax: How to write it in FluentAI code
@@ -1055,27 +1098,27 @@ impl DocumentedNode for Node {
     fn name() -> &'static str {
         "AST Node"
     }
-    
+
     fn syntax() -> &'static str {
         "Various - see specific node types"
     }
-    
+
     fn description() -> &'static str {
         "Abstract Syntax Tree node representing a FluentAi construct"
     }
-    
+
     fn examples() -> &'static [&'static str] {
         &[]
     }
-    
+
     fn category() -> DocumentationCategory {
         DocumentationCategory::DataStructure
     }
-    
+
     fn visibility() -> DocumentationVisibility {
         DocumentationVisibility::Internal
     }
-    
+
     fn get_docs() -> Documentation {
         // For the enum itself, we return generic documentation
         // The real documentation comes from get_node_docs() below
@@ -1093,7 +1136,7 @@ impl DocumentedNode for Node {
 
 impl Node {
     /// Get documentation specific to this node variant
-    /// 
+    ///
     /// This method uses an exhaustive match to ensure all Node variants have documentation.
     /// If a new Node variant is added without updating this method, the code will fail to compile.
     /// Rust's compiler enforces exhaustive pattern matching by default.
@@ -1386,61 +1429,61 @@ impl<'a> MatchBuilder<'a> {
             branches: Vec::new(),
         }
     }
-    
+
     /// Sets the expression to match against
     pub fn expr(mut self, node_id: NodeId) -> Self {
         self.expr = Some(node_id);
         self
     }
-    
+
     /// Adds a branch with a pattern and result expression
     pub fn branch(mut self, pattern: Pattern, result: NodeId) -> Self {
         self.branches.push((pattern, result));
         self
     }
-    
+
     /// Adds a branch with an integer literal pattern
     pub fn int_case(mut self, value: i64, result: NodeId) -> Self {
         self.branches.push((Pattern::int(value), result));
         self
     }
-    
+
     /// Adds a branch with a string literal pattern
     pub fn string_case(mut self, value: &str, result: NodeId) -> Self {
         self.branches.push((Pattern::string(value), result));
         self
     }
-    
+
     /// Adds a branch with a boolean literal pattern
     pub fn bool_case(mut self, value: bool, result: NodeId) -> Self {
         self.branches.push((Pattern::bool(value), result));
         self
     }
-    
+
     /// Adds a branch with a variable pattern
     pub fn var_case(mut self, name: &str, result: NodeId) -> Self {
         self.branches.push((Pattern::var(name), result));
         self
     }
-    
+
     /// Adds a wildcard/default branch
     pub fn default(mut self, result: NodeId) -> Self {
         self.branches.push((Pattern::wildcard(), result));
         self
     }
-    
+
     /// Builds the match expression and returns its NodeId
     pub fn build(self) -> crate::error::Result<NodeId> {
-        let expr = self.expr.ok_or_else(|| crate::error::Error::Other(
-            anyhow::anyhow!("Match expression required")
-        ))?;
-        
+        let expr = self.expr.ok_or_else(|| {
+            crate::error::Error::Other(anyhow::anyhow!("Match expression required"))
+        })?;
+
         if self.branches.is_empty() {
-            return Err(crate::error::Error::Other(
-                anyhow::anyhow!("Match expression must have at least one branch")
-            ));
+            return Err(crate::error::Error::Other(anyhow::anyhow!(
+                "Match expression must have at least one branch"
+            )));
         }
-        
+
         self.graph.add_node(Node::Match {
             expr,
             branches: self.branches,

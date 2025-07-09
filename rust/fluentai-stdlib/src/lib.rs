@@ -1,22 +1,22 @@
 //! FluentAi Standard Library
-//! 
+//!
 //! This crate provides the standard library functions for FluentAi,
 //! implementing all the built-in functions available to FluentAi programs.
 
-pub mod value;
-pub mod core;
-pub mod strings;
-pub mod strings_extended;
 pub mod chars;
 pub mod collections;
-pub mod math;
+pub mod core;
+pub mod datetime;
+pub mod functional;
 pub mod io;
 pub mod io_effects;
-pub mod functional;
-pub mod datetime;
-pub mod registry;
-pub mod vm_bridge;
 pub mod logger;
+pub mod math;
+pub mod registry;
+pub mod strings;
+pub mod strings_extended;
+pub mod value;
+pub mod vm_bridge;
 
 // Re-export the registry for convenience
 pub use registry::{StdlibFunction, StdlibRegistry};
@@ -30,7 +30,7 @@ pub type StdlibFn = fn(&[Value]) -> Result<Value>;
 /// Initialize the standard library and return a populated registry
 pub fn init_stdlib() -> StdlibRegistry {
     let mut registry = StdlibRegistry::new();
-    
+
     // Register all modules
     core::register(&mut registry);
     strings::register(&mut registry);
@@ -42,6 +42,6 @@ pub fn init_stdlib() -> StdlibRegistry {
     functional::register(&mut registry);
     datetime::register(&mut registry);
     logger::register(&mut registry);
-    
+
     registry
 }

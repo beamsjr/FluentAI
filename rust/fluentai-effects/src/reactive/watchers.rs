@@ -1,8 +1,8 @@
 //! Watchers for reactive state changes
 
-use std::sync::Arc;
-use parking_lot::Mutex;
 use fluentai_core::value::Value;
+use parking_lot::Mutex;
+use std::sync::Arc;
 
 use super::{ReactiveContext, ReactiveState};
 
@@ -33,39 +33,40 @@ impl Watcher {
             _deep: deep,
         }
     }
-    
+
     /// Watch a specific key in reactive state
     pub fn watch_key(&self, state: &ReactiveState, key: &str) {
         // Add to dependencies
         self.dependencies.lock().push(key.to_string());
-        
+
         if let Some(ctx) = ReactiveContext::current() {
             let watch_fn = self.watch_fn.clone();
             let key_str = key.to_string();
             let state_clone = state.clone();
             let watcher_id = self.id.clone();
-            
+
             // Track dependencies by executing in a computation context
             let initial = ctx.with_computation(watcher_id.clone(), || {
                 // This get() call should register the dependency
                 state.get(key)
             });
-            
+
             // Register watcher callback that will be called when dependencies change
             let watch_fn_for_callback = watch_fn.clone();
             let state_for_callback = state_clone.clone();
             let key_for_callback = key_str.clone();
-            
-            ctx.scheduler.register_computed(watcher_id.clone(), move || {
-                // Get the new value directly (we don't need to track dependencies in the callback)
-                let value = state_for_callback.get(&key_for_callback);
-                // Handle both Some and None cases
-                match value {
-                    Some(ref v) => watch_fn_for_callback(v, None),
-                    None => watch_fn_for_callback(&Value::Nil, None),
-                }
-            });
-            
+
+            ctx.scheduler
+                .register_computed(watcher_id.clone(), move || {
+                    // Get the new value directly (we don't need to track dependencies in the callback)
+                    let value = state_for_callback.get(&key_for_callback);
+                    // Handle both Some and None cases
+                    match value {
+                        Some(ref v) => watch_fn_for_callback(v, None),
+                        None => watch_fn_for_callback(&Value::Nil, None),
+                    }
+                });
+
             // Execute immediately if requested
             if self.immediate {
                 match initial {
@@ -75,14 +76,14 @@ impl Watcher {
             }
         }
     }
-    
+
     /// Watch multiple keys
     pub fn watch_keys(&self, state: &ReactiveState, keys: &[String]) {
         for key in keys {
             self.watch_key(state, key);
         }
     }
-    
+
     /// Watch a computed value
     pub fn watch_computed<F>(&self, compute_fn: F)
     where
@@ -90,27 +91,27 @@ impl Watcher {
     {
         // Create a computed value that we watch
         let computed = super::computed::Computed::new(compute_fn);
-        
+
         // Get initial value
         let initial = computed.get();
-        
+
         // Register for updates
         if let Some(ctx) = ReactiveContext::current() {
             let watch_fn = self.watch_fn.clone();
             let computed = computed.clone();
-            
+
             ctx.scheduler.register_watcher(self.id.clone(), move || {
                 let new_value = computed.get();
                 watch_fn(&new_value, None);
             });
-            
+
             // Execute immediately if requested
             if self.immediate {
                 (self.watch_fn)(&initial, None);
             }
         }
     }
-    
+
     /// Stop watching (cleanup)
     pub fn stop(&self) {
         if let Some(ctx) = ReactiveContext::current() {
@@ -134,19 +135,19 @@ impl WatcherBuilder {
             deep: false,
         }
     }
-    
+
     /// Execute the watcher immediately
     pub fn immediate(mut self) -> Self {
         self.immediate = true;
         self
     }
-    
+
     /// Watch for deep changes in nested structures
     pub fn deep(mut self) -> Self {
         self.deep = true;
         self
     }
-    
+
     /// Build the watcher with a callback
     pub fn build<F>(self, watch_fn: F) -> Watcher
     where

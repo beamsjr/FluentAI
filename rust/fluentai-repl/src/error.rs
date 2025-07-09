@@ -1,10 +1,10 @@
 //! Error types for the REPL
 
-use thiserror::Error;
 use fluentai_interpreter::InterpreterError;
 use fluentai_parser::ParseError;
 use rustyline::error::ReadlineError;
 use std::io;
+use thiserror::Error;
 
 /// Result type for REPL operations
 pub type ReplResult<T> = Result<T, ReplError>;
@@ -55,7 +55,7 @@ pub enum ReplError {
     /// General error
     #[error("{0}")]
     General(String),
-    
+
     /// Readline error
     #[error("Readline error: {0}")]
     Readline(#[from] ReadlineError),

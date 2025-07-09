@@ -1,17 +1,17 @@
 //! Database effect types and handlers
 
 use async_trait::async_trait;
-use fluentai_effects::EffectHandler;
 use fluentai_core::ast::EffectType;
 use fluentai_core::value::Value as CoreValue;
 use fluentai_core::Result as CoreResult;
+use fluentai_effects::EffectHandler;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::{Mutex, RwLock};
 
 use crate::connection::ConnectionPool;
-use crate::transaction::Transaction;
 use crate::error::DbError;
+use crate::transaction::Transaction;
 
 /// Database effect types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -76,7 +76,7 @@ impl DbHandler {
             prepared_statements: Arc::new(RwLock::new(FxHashMap::default())),
         }
     }
-    
+
     pub fn with_pool(pool: ConnectionPool) -> Self {
         Self {
             connection_pool: Arc::new(RwLock::new(Some(pool))),
@@ -85,7 +85,7 @@ impl DbHandler {
             prepared_statements: Arc::new(RwLock::new(FxHashMap::default())),
         }
     }
-    
+
     /// Convert CoreValue parameters to VM values
     fn convert_params(&self, params: &CoreValue) -> Result<Vec<fluentai_vm::Value>, DbError> {
         match params {
@@ -98,30 +98,37 @@ impl DbHandler {
                         CoreValue::Integer(i) => fluentai_vm::Value::Integer(*i),
                         CoreValue::Float(f) => fluentai_vm::Value::Float(*f),
                         CoreValue::String(s) => fluentai_vm::Value::String(s.clone()),
-                        _ => return Err(DbError::InvalidParameter(format!("Unsupported parameter type: {:?}", value))),
+                        _ => {
+                            return Err(DbError::InvalidParameter(format!(
+                                "Unsupported parameter type: {:?}",
+                                value
+                            )))
+                        }
                     };
                     converted.push(vm_value);
                 }
                 Ok(converted)
             }
-            _ => Err(DbError::InvalidParameter("Parameters must be a list".into())),
+            _ => Err(DbError::InvalidParameter(
+                "Parameters must be a list".into(),
+            )),
         }
     }
-    
+
     /// Convert database rows to CoreValue
     fn rows_to_value(&self, rows: Vec<sqlx::any::AnyRow>) -> CoreValue {
-        use sqlx::Row;
         use sqlx::Column;
-        
+        use sqlx::Row;
+
         let mut result = Vec::new();
-        
+
         for row in rows {
             let mut row_map = FxHashMap::default();
-            
+
             // Iterate through columns
             for (idx, column) in row.columns().iter().enumerate() {
                 let column_name = column.name().to_string();
-                
+
                 // Try to get value as different types
                 let value = if let Ok(val) = row.try_get::<Option<i64>, _>(idx) {
                     match val {
@@ -146,13 +153,13 @@ impl DbHandler {
                 } else {
                     CoreValue::Nil
                 };
-                
+
                 row_map.insert(column_name, value);
             }
-            
+
             result.push(CoreValue::Map(row_map));
         }
-        
+
         CoreValue::List(result)
     }
 }
@@ -174,14 +181,14 @@ impl EffectHandler for DbHandler {
         // Database operations are IO effects
         EffectType::IO
     }
-    
+
     fn handle_sync(&self, operation: &str, _args: &[CoreValue]) -> CoreResult<CoreValue> {
         // Only handle synchronous operations that don't require database access
         match operation {
             "db:stats" => {
                 // Can be handled synchronously since it just reads Arc values
                 let mut stats = FxHashMap::default();
-                
+
                 // Try to get pool status without blocking
                 let connected = if let Ok(pool_lock) = self.connection_pool.try_read() {
                     pool_lock.is_some()
@@ -189,7 +196,7 @@ impl EffectHandler for DbHandler {
                     false
                 };
                 stats.insert("connected".to_string(), CoreValue::Boolean(connected));
-                
+
                 // Get transaction depth
                 let depth = if let Ok(depth_lock) = self.transaction_depth.try_read() {
                     *depth_lock as i64
@@ -197,15 +204,18 @@ impl EffectHandler for DbHandler {
                     0
                 };
                 stats.insert("transaction_depth".to_string(), CoreValue::Integer(depth));
-                
+
                 // Get prepared statement count
                 let stmt_count = if let Ok(stmts) = self.prepared_statements.try_read() {
                     stmts.len() as i64
                 } else {
                     0
                 };
-                stats.insert("prepared_statements".to_string(), CoreValue::Integer(stmt_count));
-                
+                stats.insert(
+                    "prepared_statements".to_string(),
+                    CoreValue::Integer(stmt_count),
+                );
+
                 Ok(CoreValue::Map(stats))
             }
             "db:is-connected" => {
@@ -219,13 +229,14 @@ impl EffectHandler for DbHandler {
             }
             _ => {
                 // All other operations require async handling
-                Err(fluentai_core::error::Error::Runtime(
-                    format!("Database operation '{}' requires async handler", operation)
-                ))
+                Err(fluentai_core::error::Error::Runtime(format!(
+                    "Database operation '{}' requires async handler",
+                    operation
+                )))
             }
         }
     }
-    
+
     async fn handle_async(&self, operation: &str, args: &[CoreValue]) -> CoreResult<CoreValue> {
         // Parse the database operation
         let db_op = match operation {
@@ -239,27 +250,34 @@ impl EffectHandler for DbHandler {
             "db:is-connected" => DbEffectType::IsConnected,
             "db:prepare" => DbEffectType::Prepare,
             "db:execute-prepared" => DbEffectType::ExecutePrepared,
-            _ => return Err(fluentai_core::error::Error::Runtime(
-                format!("Unknown database operation: {}", operation)
-            )),
+            _ => {
+                return Err(fluentai_core::error::Error::Runtime(format!(
+                    "Unknown database operation: {}",
+                    operation
+                )))
+            }
         };
-        
+
         {
             let value = match db_op {
                 DbEffectType::Connect => {
                     // Extract connection string
                     let url = match args.get(0) {
                         Some(CoreValue::String(s)) => s.clone(),
-                        _ => return Ok(CoreValue::String("Error: Connect requires connection string".into())),
+                        _ => {
+                            return Ok(CoreValue::String(
+                                "Error: Connect requires connection string".into(),
+                            ))
+                        }
                     };
-                    
+
                     let config = crate::DbConfig {
                         url,
                         ..Default::default()
                     };
-                    
+
                     let pool = ConnectionPool::new(config);
-                    
+
                     // Test connection
                     match pool.get_connection().await {
                         Ok(_) => {
@@ -270,14 +288,18 @@ impl EffectHandler for DbHandler {
                         Err(e) => CoreValue::String(format!("Connection failed: {}", e)),
                     }
                 }
-                
+
                 DbEffectType::Query => {
                     // Extract query string and parameters
                     let query = match args.get(0) {
                         Some(CoreValue::String(s)) => s,
-                        _ => return Ok(CoreValue::String("Error: Query requires string argument".into())),
+                        _ => {
+                            return Ok(CoreValue::String(
+                                "Error: Query requires string argument".into(),
+                            ))
+                        }
                     };
-                    
+
                     let params = if let Some(p) = args.get(1) {
                         match self.convert_params(p) {
                             Ok(params) => params,
@@ -286,31 +308,33 @@ impl EffectHandler for DbHandler {
                     } else {
                         Vec::new()
                     };
-                    
+
                     // Get connection
                     let pool_lock = self.connection_pool.read().await;
                     if let Some(pool) = pool_lock.as_ref() {
                         match pool.get_connection().await {
-                            Ok(conn) => {
-                                match conn.fetch_all(query, params).await {
-                                    Ok(rows) => self.rows_to_value(rows),
-                                    Err(e) => CoreValue::String(format!("Query error: {}", e)),
-                                }
-                            }
+                            Ok(conn) => match conn.fetch_all(query, params).await {
+                                Ok(rows) => self.rows_to_value(rows),
+                                Err(e) => CoreValue::String(format!("Query error: {}", e)),
+                            },
                             Err(e) => CoreValue::String(format!("Connection error: {}", e)),
                         }
                     } else {
                         CoreValue::String("Error: Not connected to database".into())
                     }
                 }
-                
+
                 DbEffectType::Execute => {
                     // Extract command and parameters
                     let command = match args.get(0) {
                         Some(CoreValue::String(s)) => s,
-                        _ => return Ok(CoreValue::String("Error: Execute requires string argument".into())),
+                        _ => {
+                            return Ok(CoreValue::String(
+                                "Error: Execute requires string argument".into(),
+                            ))
+                        }
                     };
-                    
+
                     let params = if let Some(p) = args.get(1) {
                         match self.convert_params(p) {
                             Ok(params) => params,
@@ -319,7 +343,7 @@ impl EffectHandler for DbHandler {
                     } else {
                         Vec::new()
                     };
-                    
+
                     // Check if we're in a transaction
                     let tx_lock = self.current_transaction.lock().await;
                     if let Some(tx) = tx_lock.as_ref() {
@@ -333,12 +357,10 @@ impl EffectHandler for DbHandler {
                         let pool_lock = self.connection_pool.read().await;
                         if let Some(pool) = pool_lock.as_ref() {
                             match pool.get_connection().await {
-                                Ok(conn) => {
-                                    match conn.execute(command, params).await {
-                                        Ok(rows) => CoreValue::Integer(rows as i64),
-                                        Err(e) => CoreValue::String(format!("Execute error: {}", e)),
-                                    }
-                                }
+                                Ok(conn) => match conn.execute(command, params).await {
+                                    Ok(rows) => CoreValue::Integer(rows as i64),
+                                    Err(e) => CoreValue::String(format!("Execute error: {}", e)),
+                                },
                                 Err(e) => CoreValue::String(format!("Connection error: {}", e)),
                             }
                         } else {
@@ -346,7 +368,7 @@ impl EffectHandler for DbHandler {
                         }
                     }
                 }
-                
+
                 DbEffectType::BeginTransaction => {
                     let pool_lock = self.connection_pool.read().await;
                     if let Some(pool) = pool_lock.as_ref() {
@@ -362,7 +384,9 @@ impl EffectHandler for DbHandler {
                                         *depth += 1;
                                         CoreValue::Boolean(true)
                                     }
-                                    Err(e) => CoreValue::String(format!("Transaction error: {}", e)),
+                                    Err(e) => {
+                                        CoreValue::String(format!("Transaction error: {}", e))
+                                    }
                                 }
                             }
                             Err(e) => CoreValue::String(format!("Connection error: {}", e)),
@@ -371,63 +395,72 @@ impl EffectHandler for DbHandler {
                         CoreValue::String("Error: Not connected to database".into())
                     }
                 }
-                
+
                 DbEffectType::CommitTransaction => {
                     let mut tx_lock = self.current_transaction.lock().await;
                     if let Some(tx) = tx_lock.take() {
                         match Arc::try_unwrap(tx) {
-                            Ok(tx) => {
-                                match tx.commit().await {
-                                    Ok(()) => {
-                                        let mut depth = self.transaction_depth.write().await;
-                                        *depth = depth.saturating_sub(1);
-                                        CoreValue::Boolean(true)
-                                    }
-                                    Err(e) => CoreValue::String(format!("Commit error: {}", e)),
+                            Ok(tx) => match tx.commit().await {
+                                Ok(()) => {
+                                    let mut depth = self.transaction_depth.write().await;
+                                    *depth = depth.saturating_sub(1);
+                                    CoreValue::Boolean(true)
                                 }
+                                Err(e) => CoreValue::String(format!("Commit error: {}", e)),
+                            },
+                            Err(_) => {
+                                CoreValue::String("Error: Transaction still referenced".into())
                             }
-                            Err(_) => CoreValue::String("Error: Transaction still referenced".into()),
                         }
                     } else {
                         CoreValue::String("Error: No active transaction".into())
                     }
                 }
-                
+
                 DbEffectType::RollbackTransaction => {
                     let mut tx_lock = self.current_transaction.lock().await;
                     if let Some(tx) = tx_lock.take() {
                         match Arc::try_unwrap(tx) {
-                            Ok(tx) => {
-                                match tx.rollback().await {
-                                    Ok(()) => {
-                                        let mut depth = self.transaction_depth.write().await;
-                                        *depth = depth.saturating_sub(1);
-                                        CoreValue::Boolean(true)
-                                    }
-                                    Err(e) => CoreValue::String(format!("Rollback error: {}", e)),
+                            Ok(tx) => match tx.rollback().await {
+                                Ok(()) => {
+                                    let mut depth = self.transaction_depth.write().await;
+                                    *depth = depth.saturating_sub(1);
+                                    CoreValue::Boolean(true)
                                 }
+                                Err(e) => CoreValue::String(format!("Rollback error: {}", e)),
+                            },
+                            Err(_) => {
+                                CoreValue::String("Error: Transaction still referenced".into())
                             }
-                            Err(_) => CoreValue::String("Error: Transaction still referenced".into()),
                         }
                     } else {
                         CoreValue::String("Error: No active transaction".into())
                     }
                 }
-                
+
                 DbEffectType::Stats => {
                     let mut stats = FxHashMap::default();
                     let pool_lock = self.connection_pool.read().await;
-                    stats.insert("connected".to_string(), CoreValue::Boolean(pool_lock.is_some()));
-                    
+                    stats.insert(
+                        "connected".to_string(),
+                        CoreValue::Boolean(pool_lock.is_some()),
+                    );
+
                     let depth = self.transaction_depth.read().await;
-                    stats.insert("transaction_depth".to_string(), CoreValue::Integer(*depth as i64));
-                    
+                    stats.insert(
+                        "transaction_depth".to_string(),
+                        CoreValue::Integer(*depth as i64),
+                    );
+
                     let stmts = self.prepared_statements.read().await;
-                    stats.insert("prepared_statements".to_string(), CoreValue::Integer(stmts.len() as i64));
-                    
+                    stats.insert(
+                        "prepared_statements".to_string(),
+                        CoreValue::Integer(stmts.len() as i64),
+                    );
+
                     CoreValue::Map(stats)
                 }
-                
+
                 DbEffectType::IsConnected => {
                     let pool_lock = self.connection_pool.read().await;
                     if let Some(pool) = pool_lock.as_ref() {
@@ -439,31 +472,43 @@ impl EffectHandler for DbHandler {
                         CoreValue::Boolean(false)
                     }
                 }
-                
+
                 DbEffectType::Prepare => {
                     let stmt_id = match args.get(0) {
                         Some(CoreValue::String(s)) => s.clone(),
-                        _ => return Ok(CoreValue::String("Error: Prepare requires statement ID".into())),
+                        _ => {
+                            return Ok(CoreValue::String(
+                                "Error: Prepare requires statement ID".into(),
+                            ))
+                        }
                     };
-                    
+
                     let query = match args.get(1) {
                         Some(CoreValue::String(s)) => s.clone(),
-                        _ => return Ok(CoreValue::String("Error: Prepare requires query string".into())),
+                        _ => {
+                            return Ok(CoreValue::String(
+                                "Error: Prepare requires query string".into(),
+                            ))
+                        }
                     };
-                    
+
                     // Store the prepared statement
                     let mut stmts = self.prepared_statements.write().await;
                     stmts.insert(stmt_id.clone(), query);
-                    
+
                     CoreValue::String(stmt_id)
                 }
-                
+
                 DbEffectType::ExecutePrepared => {
                     let stmt_id = match args.get(0) {
                         Some(CoreValue::String(s)) => s,
-                        _ => return Ok(CoreValue::String("Error: ExecutePrepared requires statement ID".into())),
+                        _ => {
+                            return Ok(CoreValue::String(
+                                "Error: ExecutePrepared requires statement ID".into(),
+                            ))
+                        }
                     };
-                    
+
                     let params = if let Some(p) = args.get(1) {
                         match self.convert_params(p) {
                             Ok(params) => params,
@@ -472,30 +517,31 @@ impl EffectHandler for DbHandler {
                     } else {
                         Vec::new()
                     };
-                    
+
                     // Get the prepared statement
                     let stmts = self.prepared_statements.read().await;
                     if let Some(query) = stmts.get(stmt_id) {
                         let query = query.clone();
                         drop(stmts); // Release lock before executing
-                        
+
                         // Execute the query
                         let pool_lock = self.connection_pool.read().await;
                         if let Some(pool) = pool_lock.as_ref() {
                             match pool.get_connection().await {
-                                Ok(conn) => {
-                                    match conn.fetch_all(&query, params).await {
-                                        Ok(rows) => self.rows_to_value(rows),
-                                        Err(e) => CoreValue::String(format!("Query error: {}", e)),
-                                    }
-                                }
+                                Ok(conn) => match conn.fetch_all(&query, params).await {
+                                    Ok(rows) => self.rows_to_value(rows),
+                                    Err(e) => CoreValue::String(format!("Query error: {}", e)),
+                                },
                                 Err(e) => CoreValue::String(format!("Connection error: {}", e)),
                             }
                         } else {
                             CoreValue::String("Error: Not connected to database".into())
                         }
                     } else {
-                        CoreValue::String(format!("Error: No prepared statement with ID: {}", stmt_id))
+                        CoreValue::String(format!(
+                            "Error: No prepared statement with ID: {}",
+                            stmt_id
+                        ))
                     }
                 }
                 DbEffectType::Custom(op) => {

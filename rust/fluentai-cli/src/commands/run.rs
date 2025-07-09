@@ -1,9 +1,9 @@
 //! Run command implementation
 
-use anyhow::Result;
-use std::path::Path;
 use crate::config::Config;
+use anyhow::Result;
 use fluentai_optimizer::OptimizationLevel;
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct VisualizationConfig {
@@ -25,12 +25,16 @@ pub async fn run_file(
         2 => OptimizationLevel::Standard,
         _ => OptimizationLevel::Aggressive,
     };
-    
-    println!("Running: {} (optimization: {:?})", path.display(), opt_level);
-    
+
+    println!(
+        "Running: {} (optimization: {:?})",
+        path.display(),
+        opt_level
+    );
+
     let result = crate::runner::run_file(path, args, viz_config, opt_level).await?;
-    
+
     println!("\nResult: {}", result);
-    
+
     Ok(())
 }

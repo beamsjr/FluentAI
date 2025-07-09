@@ -1,10 +1,10 @@
 //! Configuration-based dependency injection
 
+use crate::builder::ContainerBuilder;
+use crate::error::{DiError, DiResult};
+use crate::service::ServiceLifetime;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::error::{DiError, DiResult};
-use crate::builder::ContainerBuilder;
-use crate::service::ServiceLifetime;
 
 /// Service configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,31 +55,31 @@ impl ContainerConfig {
         toml::from_str(toml_str)
             .map_err(|e| DiError::ConfigError(format!("Failed to parse TOML: {}", e)))
     }
-    
+
     /// Load configuration from JSON string
     pub fn from_json(json_str: &str) -> DiResult<Self> {
         serde_json::from_str(json_str)
             .map_err(|e| DiError::ConfigError(format!("Failed to parse JSON: {}", e)))
     }
-    
+
     /// Apply configuration to a container builder
     pub fn apply_to_builder(&self, builder: &mut ContainerBuilder) -> DiResult<()> {
-        use crate::registry::{ServiceRegistry, RegistryContainerBuilderExt};
-        
+        use crate::registry::{RegistryContainerBuilderExt, ServiceRegistry};
+
         let registry = ServiceRegistry::global();
-        
+
         // Register interface mappings
         for service in &self.services {
             if service.service_type != service.implementation_type {
                 registry.register_interface(&service.service_type, &service.implementation_type)?;
             }
         }
-        
+
         // Register services
         for service in &self.services {
             builder.register_from_registry(&service.service_type, service.lifetime.into())?;
         }
-        
+
         Ok(())
     }
 }
@@ -98,19 +98,19 @@ impl ConfigBuilder {
             modules: Vec::new(),
         }
     }
-    
+
     /// Add a service configuration
     pub fn add_service(&mut self, config: ServiceConfig) -> &mut Self {
         self.services.push(config);
         self
     }
-    
+
     /// Add a module
     pub fn add_module(&mut self, module_name: String) -> &mut Self {
         self.modules.push(module_name);
         self
     }
-    
+
     /// Build the configuration
     pub fn build(self) -> ContainerConfig {
         ContainerConfig {
@@ -132,14 +132,14 @@ impl Default for ConfigBuilder {
 // service_type = "ILogger"
 // implementation_type = "ConsoleLogger"
 // lifetime = "singleton"
-// 
+//
 // [[services]]
 // service_type = "IDatabase"
 // implementation_type = "PostgresDatabase"
 // lifetime = "scoped"
-// 
+//
 // [services.parameters]
 // connection_string = "postgres://localhost/mydb"
-// 
+//
 // modules = ["core", "web", "data"]
 // ```

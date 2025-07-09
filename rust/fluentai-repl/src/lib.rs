@@ -4,17 +4,17 @@
 //! with features like syntax highlighting, auto-completion, and multiple
 //! execution modes.
 
-pub mod repl;
-pub mod completer;
-pub mod highlighter;
 pub mod commands;
-pub mod history;
+pub mod completer;
 pub mod environment;
 pub mod error;
+pub mod highlighter;
+pub mod history;
+pub mod repl;
 
-pub use repl::{Repl, ReplConfig};
-pub use environment::{ReplEnvironment, ExecutionMode};
+pub use environment::{ExecutionMode, ReplEnvironment};
 pub use error::{ReplError, ReplResult};
+pub use repl::{Repl, ReplConfig};
 
 // Re-export key dependencies
 pub use rustyline;

@@ -27,7 +27,10 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - `print-line` - prints value with newline
 - **Pattern Matching**: 
   - Literal patterns with `match` expressions and wildcard `_`
+  - Variable binding in patterns
+  - List patterns with `Cons`/`Nil` (uppercase) or `cons`/`nil` (lowercase)
   - Example: `(match x (0 "zero") (1 "one") (_ "other"))`
+  - Example: `(match lst (Nil "empty") ((Cons x xs) x))`
 - **Effect System**: 
   - Effects work with default handlers: `(effect io:print "Hello")`
   - Custom effect handlers work correctly: `(handler ((error (lambda (e) 99))) ...)`
@@ -44,20 +47,31 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Example: `1 2 3` evaluates all expressions and returns `3`
 
 ### 🚧 Partially Implemented
-- **Pattern Matching**: Cons/Nil destructuring has parse errors
 - **Module System**: `module`, `import`, `export` parse successfully but module loading not wired up
-- **JIT Compilation**: Infrastructure exists but not fully integrated
+- **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
 - **Multiple expressions in `let` body**: Currently causes parse errors
-
+- **Async/Await & Concurrency**: Full language support (AST, parser, compiler, VM) but marked as not working
+  - `async`, `await`, `spawn` syntax implemented
+  - Channels with `(chan)`, `(send! ch val)`, `(recv! ch)`
+  - Effect handlers for async/concurrent operations
+- **Web Features**: UI compiler and DOM effects implemented but no examples/tests
+  - Complete UI compiler (fluentai-ui-compiler) targeting multiple frameworks
+  - DOM effect handler with virtual DOM operations
+  - UI special forms: `ui:element`, `ui:text`, `ui:bind`, `ui:on`, `ui:if`, `ui:for`
+  - JavaScript code generation for React, Vue, Web Components, Vanilla JS
+- **Actor Model**: Complete infrastructure in fluentai-actors but not integrated with language
+  - Actor system with supervision trees and fault tolerance
+  - Typed message passing with ask/tell patterns
+  - Router patterns (round-robin, broadcast)
+  - FSM and event sourcing behaviors
 
 ### 📋 Planned/Aspirational Features
-- **Async/Await & Concurrency**: Channels, goroutines, async operations
-- **Web Features**: UI components, DOM effects, JavaScript compilation
-- **Advanced Types**: Algebraic data types, type inference, contracts
-- **Database Effects**: Query DSL, transactions, migrations
-- **Actor Model**: Supervision trees, message passing
-- **Security**: Sandboxing, capability-based security, taint analysis
-- **Metaprogramming**: AST manipulation, macros, code generation
+- **Network Effects**: Built-in HTTP client/server capabilities
+- **Property-based testing**: Automatic test generation with Hypothesis  
+- **Hot code reloading**: Update running systems without downtime
+- **Distributed computing**: Built-in support for distributed systems
+- **Visual programming**: Graphical representation and editing of programs
+- **AI agent integration**: Native support for AI agent development
 
 ## Table of Contents
 
@@ -74,7 +88,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
 
 ## Key Features
 
-> **Implementation Status**: ✅ = Working with examples | 🚧 = Partially implemented | 📋 = Planned/Aspirational
+> **Implementation Status**: ✅ = Working/Complete | 🚧 = Partially implemented | 📋 = Planned/Not started
 
 ### 🚀 High-Performance Rust Implementation ✅
 - **Parser**: 0.8-5.2µs - optimized S-expression parsing ([see benchmark](rust/benchmarks/parser_benchmark.rs))
@@ -90,46 +104,58 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **Machine-readable specs**: Formal specifications embedded in code 📋
 - **Semantic versioning**: Version numbers based on behavior, not syntax 📋
 
-### 🌐 Modern Web Features 📋
-- **UI Framework**: React-like components with virtual DOM 📋
-- **Async/Await**: Full asynchronous programming support 📋
-- **Concurrency**: Go-style channels and goroutines 📋
+### 🌐 Modern Web Features 🚧
+- **UI Framework**: React-like components with virtual DOM (compiler implemented)
+- **Async/Await**: Full asynchronous programming support (language support complete)
+- **Concurrency**: Go-style channels and goroutines (syntax and VM support implemented)
 - **Network Effects**: Built-in HTTP client/server capabilities 📋
-- **JavaScript Compilation**: Compile to optimized JavaScript for browsers 📋
+- **JavaScript Compilation**: Compile to optimized JavaScript for browsers (UI compiler targets JS)
 
 ### 🔧 Core Language Features ✅
 - **Pattern matching**: Literal pattern matching with match expressions ([comprehensive example](rust/examples/pattern_matching_comprehensive.ai))
   - ✅ Literal patterns with wildcards
   - ✅ Conditional list processing (head/tail operations)
   - 🚧 Cons/Nil pattern destructuring (parsing works, runtime has issues)
-- **Algebraic data types**: Sum and product types with pattern matching 📋
+- **Algebraic data types**: Sum and product types with pattern matching ✅
+  - Variant types (tagged unions) with optional payloads
+  - Product types (tuples and records)
+  - Full pattern matching support including guards, as-patterns, or-patterns
 - **Effect system**: Working IO, State, Error, Time, Random effects ([comprehensive example](rust/examples/effects_comprehensive.ai))
   - ✅ Default effect handlers for all built-in effects
   - 🚧 Custom effect handlers (compile but have runtime issues)
   - ✅ Effect composition and sequencing
-- **Module system**: Full namespace support with imports, exports, qualified references 📋
-- **Type annotations**: Optional type ascription for clarity and optimization 📋
+  - ✅ Effect tracking at type level
+- **Module system**: Full namespace support with imports, exports, qualified references 🚧
+- **Type System**: Advanced type features implemented ✅
+  - Hindley-Milner type inference with let-polymorphism
+  - Effect types tracked in function signatures
+  - Type constraints (numeric, comparable, traits)
+  - Probabilistic and temporal types
 
 ### 📊 Advanced Capabilities
 - **Advanced Optimization Framework**: Multi-pass optimizer achieving 80-95% AST reduction ✅
-- **Formal Contract System**: Complete design-by-contract with static and runtime verification 🚧
-  - Runtime verification of preconditions, postconditions, and invariants 📋
-  - Static verification with Z3 SMT solver integration 🚧
-  - Symbolic execution engine for path exploration 🚧
-  - Advanced proof generation with multiple strategies (induction, BMC, direct) 📋
-  - Contract inheritance and refinement with LSP compliance 📋
-  - Contract composition (conjunction, disjunction, sequential, XOR, implication) 📋
-  - Temporal contracts with LTL operators (always, eventually, until, next) 📋
-  - State machine contracts for FSM verification 📋
-  - Enhanced debugging with visual diagrams and interactive REPL 📋
-- **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications 📋
-- **Purity Tracking**: Enforce and verify side-effect-free functions 📋
+- **Formal Contract System**: Complete design-by-contract with static and runtime verification ✅
+  - Runtime verification of preconditions, postconditions, and invariants ✅
+  - Static verification with Z3 SMT solver integration ✅
+  - Symbolic execution engine for path exploration ✅
+  - Advanced proof generation with multiple strategies (induction, BMC, direct) ✅
+  - Contract inheritance and refinement with LSP compliance ✅
+  - Contract composition (conjunction, disjunction, sequential, XOR, implication) ✅
+  - Temporal contracts with LTL operators (always, eventually, until, next) ✅
+  - State machine contracts for FSM verification ✅
+  - Enhanced debugging with visual diagrams and interactive REPL 🚧
+- **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications ✅
+- **Purity Tracking**: Enforce and verify side-effect-free functions ✅
 - **Structured Logging**: Implemented using effect system ([example](rust/examples/logging_example.ai)) ✅
 - **Dependency Injection**: Full DI container with service lifetimes and modular architecture 🚧
-- **Database Effect System**: Functional database operations with connection pooling and transactions 📋
+- **Database Effect System**: Functional database operations with connection pooling and transactions ✅
+  - Query DSL with type-safe parameterized queries
+  - Full transaction support with savepoints and isolation levels
+  - Migration system with version tracking
+  - Multi-database support (PostgreSQL, MySQL, SQLite)
 - **Property-based testing**: Automatic test generation with Hypothesis 📋
 - **LSP Support**: Full IDE integration with <5ms response times 🚧
-- **Graph queries**: Analyze and transform program structure 📋
+- **Graph queries**: Analyze and transform program structure ✅
 - **Performance tracking**: Built-in benchmarking and profiling 🚧
 
 ### 🆕 Complete Feature Set
@@ -142,9 +168,12 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - React components with hooks and state management
   - Vue.js 3 components with Composition API
   - Web Components for framework-agnostic deployment
-- **Enhanced Security/Sandboxing**: Comprehensive VM security features
-  - Capability-based security model
-  - Resource quotas and tracking (CPU, memory, channels)
+- **Enhanced Security/Sandboxing**: Comprehensive VM security features ✅
+  - Capability-based security model with fine-grained permissions
+  - Resource quotas and tracking (CPU, memory, file handles, network)
+  - Taint analysis for information flow control
+  - Module isolation with separate namespaces
+  - I/O sandboxing with path whitelisting
   - Taint analysis for data flow tracking
   - Sandboxed execution environments
 - **Linting Framework**: Extensible static analysis
@@ -152,12 +181,14 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Custom rule creation API
   - Rich diagnostics with source locations
   - Performance optimizations for large codebases
-- **Metaprogramming System**: Advanced code manipulation
+- **Metaprogramming System**: Advanced code manipulation ✅
+  - Compile-time macro system with hygiene (gensym)
   - Pattern matching on AST nodes
   - Graph query language for program analysis
-  - Code transformation and rewriting
+  - Code transformation and rewriting with rules
   - Template-based code generation
-  - Macro expansion system
+  - Built-in macros: when, unless, cond, let*
+  - No runtime eval by design for security
 - **Opt-in Garbage Collection**: Complement Rust's ownership with GC
   - Mark-and-sweep algorithm with tri-color marking
   - Special `gc-let` form for GC-managed bindings

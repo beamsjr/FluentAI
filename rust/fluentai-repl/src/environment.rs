@@ -1,10 +1,12 @@
 //! REPL environment and execution mode management
 
+use crate::error::{ReplError, ReplResult};
+use fluentai_core::ast::Graph;
+use fluentai_interpreter::{
+    ExecutionMode as InterpreterExecutionMode, Interpreter, InterpreterOptions,
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use fluentai_interpreter::{Interpreter, InterpreterOptions, ExecutionMode as InterpreterExecutionMode};
-use fluentai_core::ast::Graph;
-use crate::error::{ReplError, ReplResult};
 
 /// Execution mode for the REPL
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,12 +72,12 @@ impl ReplEnvironment {
     /// Set execution mode
     pub fn set_mode(&mut self, mode: ExecutionMode) -> ReplResult<()> {
         self.mode = mode;
-        
+
         // Update interpreter options
         let mut options = InterpreterOptions::default();
         options.mode = mode.into();
         self.interpreter = Interpreter::new(options);
-        
+
         Ok(())
     }
 
@@ -105,7 +107,7 @@ impl ReplEnvironment {
     /// Enable or disable debug mode
     pub fn set_debug(&mut self, enabled: bool) {
         self.debug_enabled = enabled;
-        
+
         // Update interpreter debug mode
         let mut options = InterpreterOptions::default();
         options.debug_mode.enabled = enabled;

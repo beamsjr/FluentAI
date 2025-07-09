@@ -2,7 +2,7 @@
 
 use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::FxHashMap;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Types of optimization hints
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ pub struct ProgramFeatures {
     pub branching_factor: f32,
     /// Number of cycles in the graph
     pub cycle_count: usize,
-    
+
     /// Operation features
     pub arithmetic_ops: usize,
     /// Number of memory operations
@@ -49,14 +49,14 @@ pub struct ProgramFeatures {
     pub control_flow_ops: usize,
     /// Number of function calls
     pub function_calls: usize,
-    
+
     /// Data flow features
     pub data_dependencies: usize,
     /// Number of live variables
     pub live_variables: usize,
     /// Estimated register pressure
     pub register_pressure: f32,
-    
+
     /// Pattern features
     pub has_recursion: bool,
     /// Whether the program contains loops
@@ -65,7 +65,7 @@ pub struct ProgramFeatures {
     pub has_map_pattern: bool,
     /// Whether the program contains reduce patterns
     pub has_reduce_pattern: bool,
-    
+
     /// Type features
     pub uses_integers: bool,
     /// Whether the program uses floating point operations
@@ -74,7 +74,7 @@ pub struct ProgramFeatures {
     pub uses_lists: bool,
     /// Whether the program uses higher-order functions
     pub uses_higher_order: bool,
-    
+
     /// Performance hints
     pub estimated_iterations: Option<usize>,
     /// Hint about expected data size
@@ -149,7 +149,7 @@ impl MLOptimizationHints {
             0.3,  // data_size_hint
             0.5,  // hotness_score
         ];
-        
+
         let mut thresholds = FxHashMap::default();
         thresholds.insert(OptimizationHint::Inline, 0.6);
         thresholds.insert(OptimizationHint::Unroll, 0.7);
@@ -157,8 +157,11 @@ impl MLOptimizationHints {
         thresholds.insert(OptimizationHint::Parallelize, 0.75);
         thresholds.insert(OptimizationHint::Memoize, 0.6);
         thresholds.insert(OptimizationHint::Specialize, 0.7);
-        
-        Self { weights, thresholds }
+
+        Self {
+            weights,
+            thresholds,
+        }
     }
 
     /// Extract features from a graph
@@ -200,11 +203,17 @@ impl MLOptimizationHints {
     }
 
     /// Analyze a single node
-    fn analyze_node(&self, graph: &Graph, _node_id: NodeId, node: &Node, features: &mut ProgramFeatures) {
+    fn analyze_node(
+        &self,
+        graph: &Graph,
+        _node_id: NodeId,
+        node: &Node,
+        features: &mut ProgramFeatures,
+    ) {
         match node {
             Node::Application { function, args } => {
                 features.function_calls += 1;
-                
+
                 // Check function type
                 if let Some(Node::Variable { name }) = graph.get_node(*function) {
                     if is_arithmetic_op(name) {
@@ -217,7 +226,7 @@ impl MLOptimizationHints {
                         features.has_reduce_pattern = true;
                     }
                 }
-                
+
                 // Count data dependencies
                 features.data_dependencies += args.len();
             }
@@ -263,7 +272,13 @@ impl MLOptimizationHints {
     }
 
     /// Check if a node contains a reference to a name
-    fn contains_reference(&self, graph: &Graph, node_id: NodeId, target_name: &str, visited: &mut rustc_hash::FxHashSet<NodeId>) -> bool {
+    fn contains_reference(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        target_name: &str,
+        visited: &mut rustc_hash::FxHashSet<NodeId>,
+    ) -> bool {
         if !visited.insert(node_id) {
             return false;
         }
@@ -272,20 +287,28 @@ impl MLOptimizationHints {
             match node {
                 Node::Variable { name } => name == target_name,
                 Node::Application { function, args } => {
-                    self.contains_reference(graph, *function, target_name, visited) ||
-                    args.iter().any(|arg| self.contains_reference(graph, *arg, target_name, visited))
+                    self.contains_reference(graph, *function, target_name, visited)
+                        || args
+                            .iter()
+                            .any(|arg| self.contains_reference(graph, *arg, target_name, visited))
                 }
                 Node::Lambda { body, .. } => {
                     self.contains_reference(graph, *body, target_name, visited)
                 }
                 Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
-                    bindings.iter().any(|(_, val)| self.contains_reference(graph, *val, target_name, visited)) ||
-                    self.contains_reference(graph, *body, target_name, visited)
+                    bindings
+                        .iter()
+                        .any(|(_, val)| self.contains_reference(graph, *val, target_name, visited))
+                        || self.contains_reference(graph, *body, target_name, visited)
                 }
-                Node::If { condition, then_branch, else_branch } => {
-                    self.contains_reference(graph, *condition, target_name, visited) ||
-                    self.contains_reference(graph, *then_branch, target_name, visited) ||
-                    self.contains_reference(graph, *else_branch, target_name, visited)
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    self.contains_reference(graph, *condition, target_name, visited)
+                        || self.contains_reference(graph, *then_branch, target_name, visited)
+                        || self.contains_reference(graph, *else_branch, target_name, visited)
                 }
                 _ => false,
             }
@@ -312,7 +335,13 @@ impl MLOptimizationHints {
     }
 
     /// DFS-based cycle detection
-    fn dfs_cycle_detect(&self, graph: &Graph, node_id: NodeId, visited: &mut rustc_hash::FxHashSet<NodeId>, rec_stack: &mut rustc_hash::FxHashSet<NodeId>) -> usize {
+    fn dfs_cycle_detect(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        visited: &mut rustc_hash::FxHashSet<NodeId>,
+        rec_stack: &mut rustc_hash::FxHashSet<NodeId>,
+    ) -> usize {
         visited.insert(node_id);
         rec_stack.insert(node_id);
         let mut cycles = 0;
@@ -346,7 +375,11 @@ impl MLOptimizationHints {
                 children.push(*body);
                 children
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 vec![*condition, *then_branch, *else_branch]
             }
             Node::Match { expr, branches } => {
@@ -363,7 +396,7 @@ impl MLOptimizationHints {
         // Simple estimation based on node connectivity
         let avg_connections = features.data_dependencies as f32 / features.node_count.max(1) as f32;
         features.register_pressure = avg_connections * features.branching_factor;
-        
+
         // Estimate live variables (simplified)
         features.live_variables = (features.node_count as f32 * 0.3) as usize;
     }
@@ -383,7 +416,8 @@ impl MLOptimizationHints {
             match node {
                 Node::Application { function, args } => {
                     let func_depth = self.node_depth(graph, *function);
-                    let arg_depth = args.iter()
+                    let arg_depth = args
+                        .iter()
                         .map(|id| self.node_depth(graph, *id))
                         .max()
                         .unwrap_or(0);
@@ -391,14 +425,19 @@ impl MLOptimizationHints {
                 }
                 Node::Lambda { body, .. } => 1 + self.node_depth(graph, *body),
                 Node::Let { bindings, body } => {
-                    let bind_depth = bindings.iter()
+                    let bind_depth = bindings
+                        .iter()
                         .map(|(_, id)| self.node_depth(graph, *id))
                         .max()
                         .unwrap_or(0);
                     let body_depth = self.node_depth(graph, *body);
                     1 + bind_depth.max(body_depth)
                 }
-                Node::If { condition, then_branch, else_branch } => {
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
                     let cond_depth = self.node_depth(graph, *condition);
                     let then_depth = self.node_depth(graph, *then_branch);
                     let else_depth = self.node_depth(graph, *else_branch);
@@ -442,9 +481,10 @@ impl MLOptimizationHints {
     pub fn generate_hints(&self, graph: &Graph) -> Vec<(NodeId, OptimizationHint)> {
         let features = self.extract_features(graph);
         let feature_vec = features.to_vector();
-        
+
         // Simple dot product scoring
-        let score: f32 = feature_vec.iter()
+        let score: f32 = feature_vec
+            .iter()
             .zip(self.weights.iter())
             .map(|(f, w)| f * w)
             .sum();
@@ -454,10 +494,25 @@ impl MLOptimizationHints {
         // Generate hints based on score and patterns
         for (node_id, node) in &graph.nodes {
             match node {
-                Node::Lambda { .. } if score > self.thresholds.get(&OptimizationHint::Inline).copied().unwrap_or(0.6) => {
+                Node::Lambda { .. }
+                    if score
+                        > self
+                            .thresholds
+                            .get(&OptimizationHint::Inline)
+                            .copied()
+                            .unwrap_or(0.6) =>
+                {
                     hints.push((*node_id, OptimizationHint::Inline));
                 }
-                Node::Application { .. } if features.has_loops && score > self.thresholds.get(&OptimizationHint::Unroll).copied().unwrap_or(0.7) => {
+                Node::Application { .. }
+                    if features.has_loops
+                        && score
+                            > self
+                                .thresholds
+                                .get(&OptimizationHint::Unroll)
+                                .copied()
+                                .unwrap_or(0.7) =>
+                {
                     hints.push((*node_id, OptimizationHint::Unroll));
                 }
                 Node::Application { function, .. } if features.arithmetic_ops > 10 => {
@@ -474,7 +529,7 @@ impl MLOptimizationHints {
 
         hints
     }
-    
+
     /// Apply optimization hints to a graph (placeholder for now)
     pub fn apply_hints(&self, _graph: &Graph, _hints: &[(NodeId, OptimizationHint)]) {
         // This would integrate with the optimization pipeline
@@ -525,78 +580,104 @@ impl SimplePredictionModel {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// Predict optimization hints based on features
     pub fn predict(&self, features: &ProgramFeatures) -> Vec<(OptimizationHint, f32)> {
         let mut hints = Vec::new();
-        
+
         // Simple heuristic rules
         if features.has_loops && features.arithmetic_ops > 10 {
             hints.push((OptimizationHint::Unroll, 0.8));
         }
-        
+
         if features.arithmetic_ops > 20 && features.data_dependencies < 10 {
             hints.push((OptimizationHint::Vectorize, 0.7));
         }
-        
+
         if features.function_calls > 5 && features.node_count < 50 {
             hints.push((OptimizationHint::Inline, 0.6));
         }
-        
+
         if features.has_recursion && features.estimated_iterations.unwrap_or(0) > 100 {
             hints.push((OptimizationHint::Memoize, 0.7));
         }
-        
+
         hints
     }
 }
 
 /// Check if a function name is an arithmetic operation
 fn is_arithmetic_op(name: &str) -> bool {
-    matches!(name, 
-        "+" | "-" | "*" | "/" | "mod" | "expt" | "sqrt" | 
-        "sin" | "cos" | "tan" | "log" | "exp" | "abs"
+    matches!(
+        name,
+        "+" | "-"
+            | "*"
+            | "/"
+            | "mod"
+            | "expt"
+            | "sqrt"
+            | "sin"
+            | "cos"
+            | "tan"
+            | "log"
+            | "exp"
+            | "abs"
     )
 }
 
 /// Check if a function name is a memory operation
 fn is_memory_op(name: &str) -> bool {
-    matches!(name, 
-        "car" | "cdr" | "cons" | "list" | "append" |
-        "ref" | "deref" | "set!" | "vector-ref" | "vector-set!"
+    matches!(
+        name,
+        "car"
+            | "cdr"
+            | "cons"
+            | "list"
+            | "append"
+            | "ref"
+            | "deref"
+            | "set!"
+            | "vector-ref"
+            | "vector-set!"
     )
 }
 
 /// Check if a function name is a control flow operation
 #[cfg(test)]
 fn is_control_flow_op(name: &str) -> bool {
-    matches!(name, 
-        "if" | "cond" | "case" | "match" | "call/cc" | 
-        "call-with-current-continuation" | "begin" | "do"
+    matches!(
+        name,
+        "if" | "cond"
+            | "case"
+            | "match"
+            | "call/cc"
+            | "call-with-current-continuation"
+            | "begin"
+            | "do"
     )
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ml_hints::*;
-    use fluentai_core::ast::{Graph, Node, NodeId, Literal};
+    use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 
     #[test]
     fn test_optimization_hint_traits() {
         // Test that OptimizationHint implements expected traits
         let hint = OptimizationHint::Inline;
-        
+
         // Test Debug
         assert_eq!(format!("{:?}", hint), "Inline");
-        
+
         // Test Clone
         let cloned = hint.clone();
         assert_eq!(hint, cloned);
-        
+
         // Test PartialEq
         assert_eq!(OptimizationHint::Inline, OptimizationHint::Inline);
         assert_ne!(OptimizationHint::Inline, OptimizationHint::Unroll);
-        
+
         // Test Hash
         use std::collections::HashSet;
         let mut set = HashSet::new();
@@ -607,7 +688,7 @@ mod tests {
     #[test]
     fn test_program_features_default() {
         let features = ProgramFeatures::default();
-        
+
         assert_eq!(features.node_count, 0);
         assert_eq!(features.depth, 0);
         assert_eq!(features.branching_factor, 0.0);
@@ -633,19 +714,29 @@ mod tests {
     fn test_feature_extractor_basic() {
         let extractor = MLOptimizationHints::new();
         let mut graph = Graph::new();
-        
+
         // Create a simple expression: (+ 1 2)
-        let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
-        let two = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
-        let app = graph.add_node(Node::Application {
-            function: plus,
-            args: vec![one, two],
-        }).expect("Failed to add node");
+        let one = graph
+            .add_node(Node::Literal(Literal::Integer(1)))
+            .expect("Failed to add node");
+        let two = graph
+            .add_node(Node::Literal(Literal::Integer(2)))
+            .expect("Failed to add node");
+        let plus = graph
+            .add_node(Node::Variable {
+                name: "+".to_string(),
+            })
+            .expect("Failed to add node");
+        let app = graph
+            .add_node(Node::Application {
+                function: plus,
+                args: vec![one, two],
+            })
+            .expect("Failed to add node");
         graph.root_id = Some(app);
-        
+
         let features = extractor.extract_features(&graph);
-        
+
         assert_eq!(features.node_count, 4);
         assert_eq!(features.arithmetic_ops, 1);
         assert_eq!(features.function_calls, 1);
@@ -656,20 +747,28 @@ mod tests {
     fn test_feature_extractor_control_flow() {
         let extractor = MLOptimizationHints::new();
         let mut graph = Graph::new();
-        
+
         // Create: (if #t 1 2)
-        let cond = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add node");
-        let then_val = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
-        let else_val = graph.add_node(Node::Literal(Literal::Integer(2))).expect("Failed to add node");
-        let if_node = graph.add_node(Node::If {
-            condition: cond,
-            then_branch: then_val,
-            else_branch: else_val,
-        }).expect("Failed to add node");
+        let cond = graph
+            .add_node(Node::Literal(Literal::Boolean(true)))
+            .expect("Failed to add node");
+        let then_val = graph
+            .add_node(Node::Literal(Literal::Integer(1)))
+            .expect("Failed to add node");
+        let else_val = graph
+            .add_node(Node::Literal(Literal::Integer(2)))
+            .expect("Failed to add node");
+        let if_node = graph
+            .add_node(Node::If {
+                condition: cond,
+                then_branch: then_val,
+                else_branch: else_val,
+            })
+            .expect("Failed to add node");
         graph.root_id = Some(if_node);
-        
+
         let features = extractor.extract_features(&graph);
-        
+
         assert_eq!(features.control_flow_ops, 1);
         assert!(features.branching_factor > 0.0);
     }
@@ -678,17 +777,23 @@ mod tests {
     fn test_feature_extractor_higher_order() {
         let extractor = MLOptimizationHints::new();
         let mut graph = Graph::new();
-        
+
         // Create: (lambda (x) x)
-        let x_ref = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
-        let lambda = graph.add_node(Node::Lambda {
-            params: vec!["x".to_string()],
-            body: x_ref,
-        }).expect("Failed to add node");
+        let x_ref = graph
+            .add_node(Node::Variable {
+                name: "x".to_string(),
+            })
+            .expect("Failed to add node");
+        let lambda = graph
+            .add_node(Node::Lambda {
+                params: vec!["x".to_string()],
+                body: x_ref,
+            })
+            .expect("Failed to add node");
         graph.root_id = Some(lambda);
-        
+
         let features = extractor.extract_features(&graph);
-        
+
         assert!(features.uses_higher_order);
     }
 
@@ -696,19 +801,29 @@ mod tests {
     fn test_feature_extractor_lists() {
         let extractor = MLOptimizationHints::new();
         let mut graph = Graph::new();
-        
+
         // Create: (cons 1 '())
-        let one = graph.add_node(Node::Literal(Literal::Integer(1))).expect("Failed to add node");
-        let nil = graph.add_node(Node::List(vec![])).expect("Failed to add node");
-        let cons = graph.add_node(Node::Variable { name: "cons".to_string() }).expect("Failed to add node");
-        let app = graph.add_node(Node::Application {
-            function: cons,
-            args: vec![one, nil],
-        }).expect("Failed to add node");
+        let one = graph
+            .add_node(Node::Literal(Literal::Integer(1)))
+            .expect("Failed to add node");
+        let nil = graph
+            .add_node(Node::List(vec![]))
+            .expect("Failed to add node");
+        let cons = graph
+            .add_node(Node::Variable {
+                name: "cons".to_string(),
+            })
+            .expect("Failed to add node");
+        let app = graph
+            .add_node(Node::Application {
+                function: cons,
+                args: vec![one, nil],
+            })
+            .expect("Failed to add node");
         graph.root_id = Some(app);
-        
+
         let features = extractor.extract_features(&graph);
-        
+
         assert!(features.uses_lists);
         assert_eq!(features.memory_ops, 1);
     }
@@ -717,19 +832,33 @@ mod tests {
     fn test_feature_extractor_map_pattern() {
         let extractor = MLOptimizationHints::new();
         let mut graph = Graph::new();
-        
+
         // Create: (map f list)
-        let f = graph.add_node(Node::Variable { name: "f".to_string() }).expect("Failed to add node");
-        let list = graph.add_node(Node::Variable { name: "list".to_string() }).expect("Failed to add node");
-        let map_fn = graph.add_node(Node::Variable { name: "map".to_string() }).expect("Failed to add node");
-        let app = graph.add_node(Node::Application {
-            function: map_fn,
-            args: vec![f, list],
-        }).expect("Failed to add node");
+        let f = graph
+            .add_node(Node::Variable {
+                name: "f".to_string(),
+            })
+            .expect("Failed to add node");
+        let list = graph
+            .add_node(Node::Variable {
+                name: "list".to_string(),
+            })
+            .expect("Failed to add node");
+        let map_fn = graph
+            .add_node(Node::Variable {
+                name: "map".to_string(),
+            })
+            .expect("Failed to add node");
+        let app = graph
+            .add_node(Node::Application {
+                function: map_fn,
+                args: vec![f, list],
+            })
+            .expect("Failed to add node");
         graph.root_id = Some(app);
-        
+
         let features = extractor.extract_features(&graph);
-        
+
         assert!(features.has_map_pattern);
     }
 
@@ -737,39 +866,55 @@ mod tests {
     fn test_hint_generator() {
         let mut hints = MLOptimizationHints::new();
         let mut graph = Graph::new();
-        
+
         // Create a function with enough operations to trigger inlining hint
         let mut nodes = vec![];
         for i in 0..5 {
-            nodes.push(graph.add_node(Node::Literal(Literal::Integer(i))).expect("Failed to add node"));
+            nodes.push(
+                graph
+                    .add_node(Node::Literal(Literal::Integer(i)))
+                    .expect("Failed to add node"),
+            );
         }
-        
+
         // Create lambda body with multiple operations
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
+        let plus = graph
+            .add_node(Node::Variable {
+                name: "+".to_string(),
+            })
+            .expect("Failed to add node");
         let mut sum = nodes[0];
         for i in 1..5 {
-            sum = graph.add_node(Node::Application {
-                function: plus,
-                args: vec![sum, nodes[i]],
-            }).expect("Failed to add node");
+            sum = graph
+                .add_node(Node::Application {
+                    function: plus,
+                    args: vec![sum, nodes[i]],
+                })
+                .expect("Failed to add node");
         }
-        
-        let lambda = graph.add_node(Node::Lambda {
-            params: vec!["x".to_string()],
-            body: sum,
-        }).expect("Failed to add node");
-        
+
+        let lambda = graph
+            .add_node(Node::Lambda {
+                params: vec!["x".to_string()],
+                body: sum,
+            })
+            .expect("Failed to add node");
+
         // Apply the lambda
-        let x = graph.add_node(Node::Literal(Literal::Integer(10))).expect("Failed to add node");
-        let app = graph.add_node(Node::Application {
-            function: lambda,
-            args: vec![x],
-        }).expect("Failed to add node");
+        let x = graph
+            .add_node(Node::Literal(Literal::Integer(10)))
+            .expect("Failed to add node");
+        let app = graph
+            .add_node(Node::Application {
+                function: lambda,
+                args: vec![x],
+            })
+            .expect("Failed to add node");
         graph.root_id = Some(app);
-        
+
         // Generate hints
         let generated_hints = hints.generate_hints(&graph);
-        
+
         // Should suggest inlining for small functions
         assert!(!generated_hints.is_empty());
     }
@@ -777,73 +922,93 @@ mod tests {
     #[test]
     fn test_prediction_model_simple() {
         let model = SimplePredictionModel::new();
-        
+
         let mut features = ProgramFeatures::default();
         features.node_count = 50;
         features.arithmetic_ops = 20;
         features.has_loops = true;
-        
+
         let hints = model.predict(&features);
-        
+
         // Should suggest unrolling for loops with arithmetic
-        assert!(hints.iter().any(|(h, _)| matches!(h, OptimizationHint::Unroll)));
+        assert!(hints
+            .iter()
+            .any(|(h, _)| matches!(h, OptimizationHint::Unroll)));
     }
 
     #[test]
     fn test_prediction_model_vectorization() {
         let model = SimplePredictionModel::new();
-        
+
         let mut features = ProgramFeatures::default();
         features.arithmetic_ops = 30;
         features.memory_ops = 10;
         features.data_dependencies = 5;
-        
+
         let hints = model.predict(&features);
-        
+
         // Should suggest vectorization for arithmetic-heavy code
-        assert!(hints.iter().any(|(h, _)| matches!(h, OptimizationHint::Vectorize)));
+        assert!(hints
+            .iter()
+            .any(|(h, _)| matches!(h, OptimizationHint::Vectorize)));
     }
 
     #[test]
     fn test_ml_optimization_hints_integration() {
         let mut ml_hints = MLOptimizationHints::new();
         let mut graph = Graph::new();
-        
+
         // Create a complex expression to get various hints
         let mut values = vec![];
         for i in 0..10 {
-            values.push(graph.add_node(Node::Literal(Literal::Integer(i))).expect("Failed to add node"));
+            values.push(
+                graph
+                    .add_node(Node::Literal(Literal::Integer(i)))
+                    .expect("Failed to add node"),
+            );
         }
-        
+
         // Create arithmetic operations
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
-        let mult = graph.add_node(Node::Variable { name: "*".to_string() }).expect("Failed to add node");
-        
+        let plus = graph
+            .add_node(Node::Variable {
+                name: "+".to_string(),
+            })
+            .expect("Failed to add node");
+        let mult = graph
+            .add_node(Node::Variable {
+                name: "*".to_string(),
+            })
+            .expect("Failed to add node");
+
         let mut result = values[0];
         for i in 1..10 {
-            let prod = graph.add_node(Node::Application {
-                function: mult,
-                args: vec![values[i], values[i]],
-            }).expect("Failed to add node");
-            result = graph.add_node(Node::Application {
-                function: plus,
-                args: vec![result, prod],
-            }).expect("Failed to add node");
+            let prod = graph
+                .add_node(Node::Application {
+                    function: mult,
+                    args: vec![values[i], values[i]],
+                })
+                .expect("Failed to add node");
+            result = graph
+                .add_node(Node::Application {
+                    function: plus,
+                    args: vec![result, prod],
+                })
+                .expect("Failed to add node");
         }
-        
+
         graph.root_id = Some(result);
-        
+
         // Get optimization hints
         let features = ml_hints.extract_features(&graph);
         let hints = ml_hints.generate_hints(&graph);
-        
+
         // Verify features were extracted
         assert!(features.node_count > 20);
         assert!(features.arithmetic_ops > 15);
-        
+
         // Verify hints were generated
         assert!(!hints.is_empty());
-        
+
         // Apply hints (this tests the apply_hints method)
         ml_hints.apply_hints(&graph, &hints);
     }

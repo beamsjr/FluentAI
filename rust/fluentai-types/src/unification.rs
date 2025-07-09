@@ -34,9 +34,7 @@ impl Substitution {
                 }
             }
             TypedValueInner::Function(func) => {
-                let params = func.params.iter()
-                    .map(|p| self.apply_type(p))
-                    .collect();
+                let params = func.params.iter().map(|p| self.apply_type(p)).collect();
                 let result = self.apply_type(&func.result);
                 TypedValue::function(FunctionType {
                     params,
@@ -45,9 +43,7 @@ impl Substitution {
                 })
             }
             TypedValueInner::Tuple(tuple) => {
-                let elements = tuple.elements.iter()
-                    .map(|e| self.apply_type(e))
-                    .collect();
+                let elements = tuple.elements.iter().map(|e| self.apply_type(e)).collect();
                 TypedValue::tuple(TupleType { elements })
             }
             TypedValueInner::List(list) => {
@@ -57,13 +53,17 @@ impl Substitution {
                 })
             }
             TypedValueInner::Record(record) => {
-                let fields = record.fields.iter()
+                let fields = record
+                    .fields
+                    .iter()
                     .map(|(k, v)| (k.clone(), self.apply_type(v)))
                     .collect();
                 TypedValue::record(RecordType { fields })
             }
             TypedValueInner::Variant(variant) => {
-                let variants = variant.variants.iter()
+                let variants = variant
+                    .variants
+                    .iter()
                     .map(|(k, v)| {
                         let payload = v.as_ref().map(|p| self.apply_type(p));
                         (k.clone(), payload)
@@ -87,7 +87,9 @@ impl Substitution {
                 })
             }
             TypedValueInner::Effect(effect) => {
-                let payload_type = effect.payload_type.as_ref()
+                let payload_type = effect
+                    .payload_type
+                    .as_ref()
                     .map(|p| Box::new(self.apply_type(p)));
                 TypedValue::effect(EffectTypeWrapper {
                     effect_kind: effect.effect_kind,
@@ -104,7 +106,7 @@ impl Substitution {
         for value in self.mapping.values_mut() {
             *value = other.apply_type(value);
         }
-        
+
         // Add mappings from other that aren't in self
         for (var, ty) in &other.mapping {
             if !self.mapping.contains_key(var) {
@@ -131,11 +133,11 @@ pub enum UnificationError {
     /// Cannot unify two incompatible types
     #[error("Cannot unify {0} with {1}")]
     TypeMismatch(String, String),
-    
+
     /// Occurs check failed - would create infinite type
     #[error("Occurs check failed: {0} occurs in {1}")]
     OccursCheck(String, String),
-    
+
     /// Type kinds don't match
     #[error("Kind mismatch: expected {expected}, found {found}")]
     KindMismatch {
@@ -144,7 +146,7 @@ pub enum UnificationError {
         /// The found type kind
         found: TypeKind,
     },
-    
+
     /// Function or tuple arity mismatch
     #[error("Arity mismatch: expected {expected} arguments, found {found}")]
     ArityMismatch {
@@ -153,11 +155,11 @@ pub enum UnificationError {
         /// Found number of arguments/elements
         found: usize,
     },
-    
+
     /// Record fields don't match
     #[error("Record field mismatch")]
     RecordFieldMismatch,
-    
+
     /// Variant types don't match
     #[error("Variant mismatch")]
     VariantMismatch,
@@ -178,7 +180,11 @@ impl Unifier {
     }
 
     /// Unify two types, returning the resulting substitution
-    pub fn unify(&mut self, t1: &TypedValue, t2: &TypedValue) -> Result<Substitution, UnificationError> {
+    pub fn unify(
+        &mut self,
+        t1: &TypedValue,
+        t2: &TypedValue,
+    ) -> Result<Substitution, UnificationError> {
         // Apply current substitution to both types
         let t1 = self.subst.apply_type(t1);
         let t2 = self.subst.apply_type(t2);
@@ -365,27 +371,22 @@ impl Unifier {
         match &ty.inner {
             TypedValueInner::Variable(v) => v.name == var,
             TypedValueInner::Function(f) => {
-                f.params.iter().any(|p| self.occurs_check(var, p)) ||
-                self.occurs_check(var, &f.result)
+                f.params.iter().any(|p| self.occurs_check(var, p))
+                    || self.occurs_check(var, &f.result)
             }
-            TypedValueInner::Tuple(t) => {
-                t.elements.iter().any(|e| self.occurs_check(var, e))
-            }
+            TypedValueInner::Tuple(t) => t.elements.iter().any(|e| self.occurs_check(var, e)),
             TypedValueInner::List(l) => self.occurs_check(var, &l.element_type),
-            TypedValueInner::Record(r) => {
-                r.fields.values().any(|f| self.occurs_check(var, f))
-            }
-            TypedValueInner::Variant(v) => {
-                v.variants.values().any(|p| {
-                    p.as_ref().map_or(false, |ty| self.occurs_check(var, ty))
-                })
-            }
+            TypedValueInner::Record(r) => r.fields.values().any(|f| self.occurs_check(var, f)),
+            TypedValueInner::Variant(v) => v
+                .variants
+                .values()
+                .any(|p| p.as_ref().map_or(false, |ty| self.occurs_check(var, ty))),
             TypedValueInner::Uncertain(u) => self.occurs_check(var, &u.base_type),
             TypedValueInner::Temporal(t) => self.occurs_check(var, &t.base_type),
-            TypedValueInner::Effect(e) => {
-                e.payload_type.as_ref()
-                    .map_or(false, |p| self.occurs_check(var, p))
-            }
+            TypedValueInner::Effect(e) => e
+                .payload_type
+                .as_ref()
+                .map_or(false, |p| self.occurs_check(var, p)),
             TypedValueInner::Primitive(_) => false,
         }
     }
@@ -409,14 +410,14 @@ mod tests {
     #[test]
     fn test_unify_primitives() {
         let mut unifier = Unifier::new();
-        
+
         let int1 = TypedValue::primitive(PrimitiveType::int());
         let int2 = TypedValue::primitive(PrimitiveType::int());
         let string = TypedValue::primitive(PrimitiveType::string());
-        
+
         // Same types unify
         assert!(unifier.unify(&int1, &int2).is_ok());
-        
+
         // Different types don't unify
         assert!(unifier.unify(&int1, &string).is_err());
     }
@@ -424,14 +425,14 @@ mod tests {
     #[test]
     fn test_unify_variables() {
         let mut unifier = Unifier::new();
-        
+
         let var = TypedValue::variable(TypeVariable::new("T"));
         let int = TypedValue::primitive(PrimitiveType::int());
-        
+
         // Variable unifies with concrete type
         let subst = unifier.unify(&var, &int).unwrap();
         let result = subst.apply_type(&var);
-        
+
         match &result.inner {
             TypedValueInner::Primitive(p) => assert_eq!(p.name, "Int"),
             _ => panic!("Expected primitive type"),
@@ -441,28 +442,25 @@ mod tests {
     #[test]
     fn test_unify_functions() {
         let mut unifier = Unifier::new();
-        
+
         let int = TypedValue::primitive(PrimitiveType::int());
         let bool = TypedValue::primitive(PrimitiveType::bool());
-        
+
         let f1 = TypedValue::function(FunctionType::new(
             vec![int.clone(), int.clone()],
             bool.clone(),
         ));
-        
+
         let f2 = TypedValue::function(FunctionType::new(
             vec![int.clone(), int.clone()],
             bool.clone(),
         ));
-        
+
         // Same function types unify
         assert!(unifier.unify(&f1, &f2).is_ok());
-        
-        let f3 = TypedValue::function(FunctionType::new(
-            vec![int.clone()],
-            bool.clone(),
-        ));
-        
+
+        let f3 = TypedValue::function(FunctionType::new(vec![int.clone()], bool.clone()));
+
         // Different arities don't unify
         assert!(unifier.unify(&f1, &f3).is_err());
     }
@@ -470,28 +468,26 @@ mod tests {
     #[test]
     fn test_unify_lists() {
         let mut unifier = Unifier::new();
-        
-        let int_list = TypedValue::list(ListType::new(
-            TypedValue::primitive(PrimitiveType::int())
-        ));
-        
+
+        let int_list = TypedValue::list(ListType::new(TypedValue::primitive(PrimitiveType::int())));
+
         let var = TypedValue::variable(TypeVariable::new("T"));
         let var_list = TypedValue::list(ListType::new(var));
-        
+
         // List of variables unifies with list of ints
         let subst = unifier.unify(&var_list, &int_list).unwrap();
         let result = subst.apply_type(&var_list);
-        
+
         assert_eq!(result.to_string(), "[Int]");
     }
 
     #[test]
     fn test_occurs_check() {
         let mut unifier = Unifier::new();
-        
+
         let var = TypedValue::variable(TypeVariable::new("T"));
         let recursive = TypedValue::list(ListType::new(var.clone()));
-        
+
         // Should fail occurs check
         assert!(unifier.unify(&var, &recursive).is_err());
     }

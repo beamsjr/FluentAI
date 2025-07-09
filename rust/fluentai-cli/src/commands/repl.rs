@@ -1,7 +1,7 @@
 //! REPL command implementation
 
-use anyhow::Result;
 use crate::config::Config;
+use anyhow::Result;
 use std::io::{self, Write};
 
 #[cfg(feature = "visualization")]
@@ -10,26 +10,23 @@ pub struct VisualizationConfig {
     pub port: u16,
 }
 
-pub async fn start_repl(
-    _viz_config: Option<VisualizationConfig>,
-    config: &Config,
-) -> Result<()> {
+pub async fn start_repl(_viz_config: Option<VisualizationConfig>, config: &Config) -> Result<()> {
     println!("FluentAi REPL");
     println!("Type :help for commands, :quit to exit\n");
-    
+
     let stdin = io::stdin();
     let mut stdout = io::stdout();
-    
+
     loop {
         // Print prompt
         print!("{}", config.repl.prompt);
         stdout.flush()?;
-        
+
         // Read input
         let mut input = String::new();
         stdin.read_line(&mut input)?;
         let input = input.trim();
-        
+
         // Handle REPL commands
         if input.starts_with(':') {
             match input {
@@ -53,12 +50,12 @@ pub async fn start_repl(
             }
             continue;
         }
-        
+
         // Skip empty lines
         if input.is_empty() {
             continue;
         }
-        
+
         // Execute code
         match crate::runner::run_code(input) {
             Ok(result) => {
@@ -70,7 +67,7 @@ pub async fn start_repl(
         }
         println!();
     }
-    
+
     println!("Goodbye!");
     Ok(())
 }

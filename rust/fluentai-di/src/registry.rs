@@ -1,11 +1,11 @@
 //! Service registry for configuration-based dependency injection
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::any::TypeId;
+use crate::builder::ContainerBuilder;
 use crate::error::{DiError, DiResult};
 use crate::service::Service;
-use crate::builder::ContainerBuilder;
+use std::any::TypeId;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// Factory function that creates a service
 pub type ServiceFactory = Arc<dyn Fn() -> Box<dyn Service> + Send + Sync>;
@@ -29,41 +29,48 @@ impl ServiceRegistry {
             interfaces: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Register a service type
     pub fn register_type<T: Service + 'static>(&self, type_name: &str) -> DiResult<()> {
         let type_id = TypeId::of::<T>();
-        self.type_names.write()
+        self.type_names
+            .write()
             .map_err(|_| DiError::LockError)?
             .insert(type_name.to_string(), type_id);
         Ok(())
     }
-    
+
     /// Register a factory function for a type
     pub fn register_factory<F>(&self, type_name: &str, factory: F) -> DiResult<()>
     where
         F: Fn() -> Box<dyn Service> + Send + Sync + 'static,
     {
-        self.factories.write()
+        self.factories
+            .write()
             .map_err(|_| DiError::LockError)?
             .insert(type_name.to_string(), Arc::new(factory));
         Ok(())
     }
-    
+
     /// Register an interface to implementation mapping
-    pub fn register_interface(&self, interface_name: &str, implementation_name: &str) -> DiResult<()> {
-        self.interfaces.write()
+    pub fn register_interface(
+        &self,
+        interface_name: &str,
+        implementation_name: &str,
+    ) -> DiResult<()> {
+        self.interfaces
+            .write()
             .map_err(|_| DiError::LockError)?
             .insert(interface_name.to_string(), implementation_name.to_string());
         Ok(())
     }
-    
+
     /// Get the implementation name for an interface
     pub fn get_implementation(&self, interface_name: &str) -> DiResult<String> {
-        let interfaces = self.interfaces.read()
-            .map_err(|_| DiError::LockError)?;
-        
-        interfaces.get(interface_name)
+        let interfaces = self.interfaces.read().map_err(|_| DiError::LockError)?;
+
+        interfaces
+            .get(interface_name)
             .cloned()
             .or_else(|| {
                 // If not an interface, assume it's a concrete type
@@ -71,19 +78,19 @@ impl ServiceRegistry {
             })
             .ok_or_else(|| DiError::ServiceNotFoundByName(interface_name.to_string()))
     }
-    
+
     /// Get a factory for a type name
     pub fn get_factory(&self, type_name: &str) -> DiResult<ServiceFactory> {
         let impl_name = self.get_implementation(type_name)?;
-        
-        let factories = self.factories.read()
-            .map_err(|_| DiError::LockError)?;
-        
-        factories.get(&impl_name)
+
+        let factories = self.factories.read().map_err(|_| DiError::LockError)?;
+
+        factories
+            .get(&impl_name)
             .cloned()
             .ok_or_else(|| DiError::ServiceNotFoundByName(impl_name))
     }
-    
+
     /// Create a global registry instance
     pub fn global() -> &'static Self {
         static INSTANCE: std::sync::OnceLock<ServiceRegistry> = std::sync::OnceLock::new();
@@ -100,14 +107,22 @@ impl Default for ServiceRegistry {
 /// Extension trait for ContainerBuilder to use registry
 pub trait RegistryContainerBuilderExt {
     /// Register a service using the registry
-    fn register_from_registry(&mut self, service_type: &str, lifetime: crate::service::ServiceLifetime) -> DiResult<&mut Self>;
+    fn register_from_registry(
+        &mut self,
+        service_type: &str,
+        lifetime: crate::service::ServiceLifetime,
+    ) -> DiResult<&mut Self>;
 }
 
 impl RegistryContainerBuilderExt for ContainerBuilder {
-    fn register_from_registry(&mut self, service_type: &str, lifetime: crate::service::ServiceLifetime) -> DiResult<&mut Self> {
+    fn register_from_registry(
+        &mut self,
+        service_type: &str,
+        lifetime: crate::service::ServiceLifetime,
+    ) -> DiResult<&mut Self> {
         let registry = ServiceRegistry::global();
         let factory = registry.get_factory(service_type)?;
-        
+
         match lifetime {
             crate::service::ServiceLifetime::Singleton => {
                 // For singleton, we need to ensure only one instance
@@ -121,7 +136,7 @@ impl RegistryContainerBuilderExt for ContainerBuilder {
                 self.register_scoped_raw(service_type, move || factory());
             }
         }
-        
+
         Ok(self)
     }
 }

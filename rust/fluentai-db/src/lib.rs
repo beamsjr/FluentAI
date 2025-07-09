@@ -1,47 +1,46 @@
 //! Functional Database Effect System for FluentAi
-//! 
+//!
 //! This crate provides a functional approach to database operations that integrates
 //! with FluentAi's effect system and maintains functional purity.
-//! 
+//!
 //! The framework now includes AI-first graph-based schema representation that
 //! integrates with FluentAi's AST structure for better analysis and optimization.
 
+pub mod connection;
+pub mod di;
 pub mod effects;
+pub mod error;
+pub mod migration;
 pub mod query;
 pub mod schema;
-pub mod connection;
-pub mod error;
 pub mod transaction;
-pub mod migration;
-pub mod di;
 
 // AI-first graph-based schema representation
 pub mod graph_schema;
 
-pub use effects::{DbEffectType, DbHandler};
-pub use query::{Query, QueryBuilder, QueryExpr};
-pub use schema::{Schema, SchemaBuilder, FieldType};
 pub use connection::{ConnectionPool, DbConnection};
-pub use error::{DbError, DbResult};
-pub use transaction::{
-    Transaction, TransactionManager, TransactionOptions, 
-    IsolationLevel, with_transaction, with_transaction_retry
-};
-pub use migration::{
-    Migration, SqlMigration, MigrationBuilder, MigrationRunner,
-    MigrationRepository, MigrationPlan, Direction
-};
 pub use di::{
-    DatabaseModule, DatabaseServiceProvider, ContainerDatabaseProvider,
-    DatabaseContainerBuilderExt, DatabaseServicesBuilder
+    ContainerDatabaseProvider, DatabaseContainerBuilderExt, DatabaseModule,
+    DatabaseServiceProvider, DatabaseServicesBuilder,
+};
+pub use effects::{DbEffectType, DbHandler};
+pub use error::{DbError, DbResult};
+pub use migration::{
+    Direction, Migration, MigrationBuilder, MigrationPlan, MigrationRepository, MigrationRunner,
+    SqlMigration,
+};
+pub use query::{Query, QueryBuilder, QueryExpr};
+pub use schema::{FieldType, Schema, SchemaBuilder};
+pub use transaction::{
+    with_transaction, with_transaction_retry, IsolationLevel, Transaction, TransactionManager,
+    TransactionOptions,
 };
 
 // Graph-based schema exports
 pub use graph_schema::{
-    SchemaGraph, TableNode, ColumnNode, IndexNode, ConstraintNode,
-    RelationshipEdge, SchemaMetadata, TableHints, ColumnStatistics,
-    SchemaGraphBuilder, SchemaAnalysis, RelationshipType,
-    IndexType, ConstraintType, CacheStrategy, PartitioningStrategy,
+    CacheStrategy, ColumnNode, ColumnStatistics, ConstraintNode, ConstraintType, IndexNode,
+    IndexType, PartitioningStrategy, RelationshipEdge, RelationshipType, SchemaAnalysis,
+    SchemaGraph, SchemaGraphBuilder, SchemaMetadata, TableHints, TableNode,
 };
 
 /// Database configuration

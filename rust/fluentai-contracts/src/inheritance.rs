@@ -1,15 +1,15 @@
 //! Contract inheritance and refinement system
-//! 
+//!
 //! This module provides support for contract inheritance, allowing contracts
 //! to be extended, refined, and composed in a modular way.
 
-use std::collections::{HashMap, HashSet};
-use std::num::NonZeroU32;
-use fluentai_core::ast::{Graph, NodeId};
 use crate::{
     contract::{Contract, ContractCondition, ContractKind},
     errors::{ContractError, ContractResult},
 };
+use fluentai_core::ast::{Graph, NodeId};
+use std::collections::{HashMap, HashSet};
+use std::num::NonZeroU32;
 
 /// Contract inheritance relationship
 #[derive(Debug, Clone)]
@@ -96,17 +96,18 @@ impl ContractHierarchy {
             refinement_rules: HashMap::new(),
         }
     }
-    
+
     /// Add a contract to the hierarchy
     pub fn add_contract(&mut self, contract: Contract) {
-        self.contracts.insert(contract.function_name.clone(), contract);
+        self.contracts
+            .insert(contract.function_name.clone(), contract);
     }
-    
+
     /// Add an interface
     pub fn add_interface(&mut self, interface: ContractInterface) {
         self.interfaces.insert(interface.name.clone(), interface);
     }
-    
+
     /// Establish inheritance relationship
     pub fn add_inheritance(
         &mut self,
@@ -116,50 +117,52 @@ impl ContractHierarchy {
     ) -> ContractResult<()> {
         // Check that both contracts exist
         if !self.contracts.contains_key(&base) {
-            return Err(ContractError::Other(
-                format!("Base contract '{}' not found", base)
-            ));
+            return Err(ContractError::Other(format!(
+                "Base contract '{}' not found",
+                base
+            )));
         }
         if !self.contracts.contains_key(&derived) {
-            return Err(ContractError::Other(
-                format!("Derived contract '{}' not found", derived)
-            ));
+            return Err(ContractError::Other(format!(
+                "Derived contract '{}' not found",
+                derived
+            )));
         }
-        
+
         // Check for cycles
         if self.would_create_cycle(&base, &derived) {
             return Err(ContractError::Other(
-                "Inheritance would create a cycle".to_string()
+                "Inheritance would create a cycle".to_string(),
             ));
         }
-        
+
         self.inheritance.push(ContractInheritance {
             base,
             derived,
             inheritance_type,
         });
-        
+
         Ok(())
     }
-    
+
     /// Check if adding an inheritance would create a cycle
     fn would_create_cycle(&self, base: &str, derived: &str) -> bool {
         // Simple DFS to detect cycles
         let mut visited = HashSet::new();
         self.has_path_dfs(base, derived, &mut visited)
     }
-    
+
     fn has_path_dfs(&self, from: &str, to: &str, visited: &mut HashSet<String>) -> bool {
         if from == to {
             return true;
         }
-        
+
         if visited.contains(from) {
             return false;
         }
-        
+
         visited.insert(from.to_string());
-        
+
         // Check all contracts that 'from' inherits from
         for inheritance in &self.inheritance {
             if inheritance.derived == from {
@@ -168,10 +171,10 @@ impl ContractHierarchy {
                 }
             }
         }
-        
+
         false
     }
-    
+
     /// Get all base contracts for a given contract
     pub fn get_bases(&self, contract_name: &str) -> Vec<&str> {
         self.inheritance
@@ -180,7 +183,7 @@ impl ContractHierarchy {
             .map(|i| i.base.as_str())
             .collect()
     }
-    
+
     /// Get all derived contracts for a given contract
     pub fn get_derived(&self, contract_name: &str) -> Vec<&str> {
         self.inheritance
@@ -189,7 +192,7 @@ impl ContractHierarchy {
             .map(|i| i.derived.as_str())
             .collect()
     }
-    
+
     /// Verify that a derived contract correctly inherits from its base
     pub fn verify_inheritance(
         &self,
@@ -197,24 +200,30 @@ impl ContractHierarchy {
         base_name: &str,
         derived_name: &str,
     ) -> ContractResult<InheritanceVerificationResult> {
-        let base = self.contracts.get(base_name)
-            .ok_or_else(|| ContractError::Other(format!("Base contract '{}' not found", base_name)))?;
-        
-        let derived = self.contracts.get(derived_name)
-            .ok_or_else(|| ContractError::Other(format!("Derived contract '{}' not found", derived_name)))?;
-        
-        let inheritance = self.inheritance.iter()
+        let base = self.contracts.get(base_name).ok_or_else(|| {
+            ContractError::Other(format!("Base contract '{}' not found", base_name))
+        })?;
+
+        let derived = self.contracts.get(derived_name).ok_or_else(|| {
+            ContractError::Other(format!("Derived contract '{}' not found", derived_name))
+        })?;
+
+        let inheritance = self
+            .inheritance
+            .iter()
             .find(|i| i.base == base_name && i.derived == derived_name)
             .ok_or_else(|| ContractError::Other("No inheritance relationship found".to_string()))?;
-        
+
         match inheritance.inheritance_type {
             InheritanceType::Standard => self.verify_standard_inheritance(graph, base, derived),
             InheritanceType::Refinement => self.verify_refinement(graph, base, derived),
             InheritanceType::Weakening => self.verify_weakening(graph, base, derived),
-            InheritanceType::Interface => self.verify_interface_implementation(graph, base, derived),
+            InheritanceType::Interface => {
+                self.verify_interface_implementation(graph, base, derived)
+            }
         }
     }
-    
+
     /// Verify standard inheritance (Liskov substitution principle)
     fn verify_standard_inheritance(
         &self,
@@ -223,7 +232,7 @@ impl ContractHierarchy {
         derived: &Contract,
     ) -> ContractResult<InheritanceVerificationResult> {
         let mut violations = Vec::new();
-        
+
         // Derived preconditions must be weaker than or equal to base
         // (contravariant in preconditions)
         for base_pre in &base.preconditions {
@@ -232,7 +241,7 @@ impl ContractHierarchy {
                 // For now, just check if the same condition exists
                 derived_pre.expression == base_pre.expression
             });
-            
+
             if !found_weaker {
                 violations.push(InheritanceViolation {
                     violation_type: ViolationType::PreconditionStrengthened,
@@ -242,7 +251,7 @@ impl ContractHierarchy {
                 });
             }
         }
-        
+
         // Derived postconditions must be stronger than or equal to base
         // (covariant in postconditions)
         for base_post in &base.postconditions {
@@ -250,7 +259,7 @@ impl ContractHierarchy {
                 // In a real implementation, we'd use SMT to check implication
                 derived_post.expression == base_post.expression
             });
-            
+
             if !found_stronger {
                 violations.push(InheritanceViolation {
                     violation_type: ViolationType::PostconditionWeakened,
@@ -260,13 +269,14 @@ impl ContractHierarchy {
                 });
             }
         }
-        
+
         // Derived must preserve all base invariants
         for base_inv in &base.invariants {
-            let found = derived.invariants.iter().any(|derived_inv| {
-                derived_inv.expression == base_inv.expression
-            });
-            
+            let found = derived
+                .invariants
+                .iter()
+                .any(|derived_inv| derived_inv.expression == base_inv.expression);
+
             if !found {
                 violations.push(InheritanceViolation {
                     violation_type: ViolationType::InvariantViolated,
@@ -276,7 +286,7 @@ impl ContractHierarchy {
                 });
             }
         }
-        
+
         let verified = violations.is_empty();
         Ok(InheritanceVerificationResult {
             base_contract: base.function_name.clone(),
@@ -286,7 +296,7 @@ impl ContractHierarchy {
             verified,
         })
     }
-    
+
     /// Verify contract refinement
     fn verify_refinement(
         &self,
@@ -295,14 +305,15 @@ impl ContractHierarchy {
         derived: &Contract,
     ) -> ContractResult<InheritanceVerificationResult> {
         let mut violations = Vec::new();
-        
+
         // In refinement, derived can strengthen postconditions
         // but must include all base postconditions
         for base_post in &base.postconditions {
-            let found = derived.postconditions.iter().any(|derived_post| {
-                derived_post.expression == base_post.expression
-            });
-            
+            let found = derived
+                .postconditions
+                .iter()
+                .any(|derived_post| derived_post.expression == base_post.expression);
+
             if !found {
                 violations.push(InheritanceViolation {
                     violation_type: ViolationType::PostconditionMissing,
@@ -312,7 +323,7 @@ impl ContractHierarchy {
                 });
             }
         }
-        
+
         // Check if refinement rules are satisfied
         if let Some(rules) = self.refinement_rules.get(&derived.function_name) {
             for rule in rules {
@@ -343,7 +354,7 @@ impl ContractHierarchy {
                 }
             }
         }
-        
+
         let verified = violations.is_empty();
         Ok(InheritanceVerificationResult {
             base_contract: base.function_name.clone(),
@@ -353,7 +364,7 @@ impl ContractHierarchy {
             verified,
         })
     }
-    
+
     /// Verify contract weakening (dual of refinement)
     fn verify_weakening(
         &self,
@@ -363,12 +374,12 @@ impl ContractHierarchy {
     ) -> ContractResult<InheritanceVerificationResult> {
         // Weakening allows relaxing preconditions and postconditions
         // This is useful for implementing more general versions
-        
+
         let violations = Vec::new();
-        
+
         // In weakening, all checks are relaxed
         // This is always valid unless specific rules prohibit it
-        
+
         Ok(InheritanceVerificationResult {
             base_contract: base.function_name.clone(),
             derived_contract: derived.function_name.clone(),
@@ -377,7 +388,7 @@ impl ContractHierarchy {
             verified: true,
         })
     }
-    
+
     /// Verify interface implementation
     fn verify_interface_implementation(
         &self,
@@ -386,15 +397,16 @@ impl ContractHierarchy {
         derived: &Contract,
     ) -> ContractResult<InheritanceVerificationResult> {
         let mut violations = Vec::new();
-        
+
         // Find the interface
         if let Some(interface) = self.interfaces.get(&_base.function_name) {
             // Check required preconditions
             for req_pre in &interface.required_preconditions {
-                let found = derived.preconditions.iter().any(|pre| {
-                    pre.expression == req_pre.expression
-                });
-                
+                let found = derived
+                    .preconditions
+                    .iter()
+                    .any(|pre| pre.expression == req_pre.expression);
+
                 if !found {
                     violations.push(InheritanceViolation {
                         violation_type: ViolationType::InterfaceRequirementMissing,
@@ -404,13 +416,14 @@ impl ContractHierarchy {
                     });
                 }
             }
-            
+
             // Check required postconditions
             for req_post in &interface.required_postconditions {
-                let found = derived.postconditions.iter().any(|post| {
-                    post.expression == req_post.expression
-                });
-                
+                let found = derived
+                    .postconditions
+                    .iter()
+                    .any(|post| post.expression == req_post.expression);
+
                 if !found {
                     violations.push(InheritanceViolation {
                         violation_type: ViolationType::InterfaceRequirementMissing,
@@ -421,7 +434,7 @@ impl ContractHierarchy {
                 }
             }
         }
-        
+
         let verified = violations.is_empty();
         Ok(InheritanceVerificationResult {
             base_contract: _base.function_name.clone(),
@@ -431,7 +444,7 @@ impl ContractHierarchy {
             verified,
         })
     }
-    
+
     /// Compose contracts through inheritance
     pub fn compose_contracts(
         &self,
@@ -441,12 +454,13 @@ impl ContractHierarchy {
         if contract_names.is_empty() {
             return Err(ContractError::Other("No contracts to compose".to_string()));
         }
-        
-        let contracts: Vec<&Contract> = contract_names.iter()
+
+        let contracts: Vec<&Contract> = contract_names
+            .iter()
             .map(|name| self.contracts.get(name))
             .collect::<Option<Vec<_>>>()
             .ok_or_else(|| ContractError::Other("One or more contracts not found".to_string()))?;
-        
+
         match composition_type {
             CompositionType::Conjunction => self.compose_conjunction(contracts),
             CompositionType::Disjunction => self.compose_disjunction(contracts),
@@ -455,7 +469,7 @@ impl ContractHierarchy {
             CompositionType::Implication => self.compose_implication(contracts),
         }
     }
-    
+
     /// Compose contracts using conjunction (AND)
     fn compose_conjunction(&self, contracts: Vec<&Contract>) -> ContractResult<Contract> {
         let mut composed = Contract {
@@ -468,33 +482,37 @@ impl ContractHierarchy {
             frame_condition: None,
             node_id: contracts[0].node_id, // Dummy
         };
-        
+
         // Union of all preconditions
         for contract in &contracts {
-            composed.preconditions.extend(contract.preconditions.clone());
+            composed
+                .preconditions
+                .extend(contract.preconditions.clone());
         }
-        
+
         // Union of all postconditions
         for contract in &contracts {
-            composed.postconditions.extend(contract.postconditions.clone());
+            composed
+                .postconditions
+                .extend(contract.postconditions.clone());
         }
-        
+
         // Union of all invariants
         for contract in &contracts {
             composed.invariants.extend(contract.invariants.clone());
         }
-        
+
         Ok(composed)
     }
-    
+
     /// Compose contracts using disjunction (OR)
     fn compose_disjunction(&self, contracts: Vec<&Contract>) -> ContractResult<Contract> {
         // For disjunction, we need at least one contract's conditions to hold
         // This is more complex and would require creating disjunctive conditions
-        
+
         let composed = Contract {
             function_name: format!("composed_or_{}", contracts[0].function_name),
-            preconditions: Vec::new(), // Would need OR of preconditions
+            preconditions: Vec::new(),  // Would need OR of preconditions
             postconditions: Vec::new(), // Would need OR of postconditions
             invariants: Vec::new(),
             complexity: None,
@@ -502,18 +520,18 @@ impl ContractHierarchy {
             frame_condition: None,
             node_id: contracts[0].node_id,
         };
-        
+
         Ok(composed)
     }
-    
+
     /// Compose contracts sequentially
     fn compose_sequential(&self, contracts: Vec<&Contract>) -> ContractResult<Contract> {
         if contracts.len() < 2 {
             return Err(ContractError::Other(
-                "Sequential composition requires at least 2 contracts".to_string()
+                "Sequential composition requires at least 2 contracts".to_string(),
             ));
         }
-        
+
         let mut composed = Contract {
             function_name: format!("composed_seq_{}", contracts[0].function_name),
             preconditions: contracts[0].preconditions.clone(),
@@ -524,32 +542,35 @@ impl ContractHierarchy {
             frame_condition: None,
             node_id: contracts[0].node_id,
         };
-        
+
         // All invariants must hold throughout
         for contract in &contracts {
             composed.invariants.extend(contract.invariants.clone());
         }
-        
+
         Ok(composed)
     }
-    
+
     /// Compose contracts using exclusive OR (XOR)
     fn compose_exclusive_or(&self, contracts: Vec<&Contract>) -> ContractResult<Contract> {
         if contracts.len() != 2 {
             return Err(ContractError::Other(
-                "Exclusive OR composition requires exactly 2 contracts".to_string()
+                "Exclusive OR composition requires exactly 2 contracts".to_string(),
             ));
         }
-        
+
         let first = contracts[0];
         let second = contracts[1];
-        
+
         // XOR: (A && !B) || (!A && B)
         // This would require creating complex conditions that represent
         // "first holds but second doesn't" OR "second holds but first doesn't"
-        
+
         let mut composed = Contract {
-            function_name: format!("composed_xor_{}_{}", first.function_name, second.function_name),
+            function_name: format!(
+                "composed_xor_{}_{}",
+                first.function_name, second.function_name
+            ),
             preconditions: Vec::new(),
             postconditions: Vec::new(),
             invariants: Vec::new(),
@@ -558,47 +579,45 @@ impl ContractHierarchy {
             frame_condition: None,
             node_id: first.node_id,
         };
-        
+
         // For XOR, we need to create conditions that represent:
         // (first.pre && first.post && !second.pre && !second.post) ||
         // (!first.pre && !first.post && second.pre && second.post)
-        
+
         // This is a simplified implementation - in a real system, we'd need
         // to properly negate conditions and create disjunctive normal form
-        
+
         // For now, we'll document that exactly one set of contracts must hold
         // In a real implementation, we would create proper AST nodes for XOR logic
         composed.preconditions.push(ContractCondition {
             expression: NodeId(NonZeroU32::new(1).unwrap()), // Placeholder - would need proper AST node
             message: Some(format!(
                 "Exactly one of {} or {} must hold (XOR composition)",
-                first.function_name,
-                second.function_name
+                first.function_name, second.function_name
             )),
             kind: ContractKind::Precondition,
             span: None,
             blame_label: Some("xor_composition".to_string()),
         });
-        
+
         Ok(composed)
     }
-    
+
     /// Compose contracts using implication (A => B)
     fn compose_implication(&self, contracts: Vec<&Contract>) -> ContractResult<Contract> {
         if contracts.len() != 2 {
             return Err(ContractError::Other(
-                "Implication composition requires exactly 2 contracts".to_string()
+                "Implication composition requires exactly 2 contracts".to_string(),
             ));
         }
-        
+
         let antecedent = contracts[0];
         let consequent = contracts[1];
-        
+
         let mut composed = Contract {
             function_name: format!(
                 "composed_implies_{}_{}",
-                antecedent.function_name,
-                consequent.function_name
+                antecedent.function_name, consequent.function_name
             ),
             preconditions: Vec::new(),
             postconditions: Vec::new(),
@@ -608,56 +627,50 @@ impl ContractHierarchy {
             frame_condition: None,
             node_id: antecedent.node_id,
         };
-        
+
         // Implication: A => B is equivalent to !A || B
         // If antecedent's conditions hold, then consequent's must also hold
-        
+
         // In a real implementation, we would create proper AST nodes for implication
         // For now, we create placeholder conditions that document the implication
-        
+
         // If antecedent has preconditions, then consequent's preconditions must also hold
         if !antecedent.preconditions.is_empty() && !consequent.preconditions.is_empty() {
             composed.preconditions.push(ContractCondition {
                 expression: NodeId(NonZeroU32::new(1).unwrap()), // Placeholder - would need proper AST node
                 message: Some(format!(
                     "If {} preconditions hold, then {} preconditions must also hold",
-                    antecedent.function_name,
-                    consequent.function_name
+                    antecedent.function_name, consequent.function_name
                 )),
                 kind: ContractKind::Precondition,
                 span: None,
                 blame_label: Some("implication_precondition".to_string()),
             });
         }
-        
+
         // If antecedent's postconditions hold, then consequent's postconditions must hold
         if !antecedent.postconditions.is_empty() && !consequent.postconditions.is_empty() {
             composed.postconditions.push(ContractCondition {
                 expression: NodeId(NonZeroU32::new(1).unwrap()), // Placeholder - would need proper AST node
                 message: Some(format!(
                     "If {} postconditions hold, then {} postconditions must also hold",
-                    antecedent.function_name,
-                    consequent.function_name
+                    antecedent.function_name, consequent.function_name
                 )),
                 kind: ContractKind::Postcondition,
                 span: None,
                 blame_label: Some("implication_postcondition".to_string()),
             });
         }
-        
+
         // Invariants: Both sets of invariants must be maintained
         composed.invariants = antecedent.invariants.clone();
         composed.invariants.extend(consequent.invariants.clone());
-        
+
         Ok(composed)
     }
-    
+
     /// Add a refinement rule
-    pub fn add_refinement_rule(
-        &mut self,
-        contract_name: String,
-        rule: RefinementRule,
-    ) {
+    pub fn add_refinement_rule(&mut self, contract_name: String, rule: RefinementRule) {
         self.refinement_rules
             .entry(contract_name)
             .or_insert_with(Vec::new)
@@ -745,19 +758,19 @@ impl ContractHierarchyBuilder {
             hierarchy: ContractHierarchy::new(),
         }
     }
-    
+
     /// Add a contract
     pub fn contract(mut self, contract: Contract) -> Self {
         self.hierarchy.add_contract(contract);
         self
     }
-    
+
     /// Add an interface
     pub fn interface(mut self, interface: ContractInterface) -> Self {
         self.hierarchy.add_interface(interface);
         self
     }
-    
+
     /// Add inheritance relationship
     pub fn inherits(
         mut self,
@@ -765,10 +778,12 @@ impl ContractHierarchyBuilder {
         derived: String,
         inheritance_type: InheritanceType,
     ) -> Self {
-        let _ = self.hierarchy.add_inheritance(base, derived, inheritance_type);
+        let _ = self
+            .hierarchy
+            .add_inheritance(base, derived, inheritance_type);
         self
     }
-    
+
     /// Build the hierarchy
     pub fn build(self) -> ContractHierarchy {
         self.hierarchy

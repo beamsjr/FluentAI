@@ -1,10 +1,10 @@
 //! Loop optimization passes
 
+use crate::analysis::{ControlFlowGraph, DataFlowAnalysis};
+use crate::passes::OptimizationPass;
+use anyhow::Result;
 use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::{FxHashMap, FxHashSet};
-use anyhow::Result;
-use crate::passes::OptimizationPass;
-use crate::analysis::{ControlFlowGraph, DataFlowAnalysis};
 
 /// Loop optimization pass
 pub struct LoopOptimizationPass {
@@ -16,7 +16,7 @@ pub struct LoopOptimizationPass {
 impl LoopOptimizationPass {
     /// Create new loop optimization pass
     pub fn new() -> Self {
-        Self { 
+        Self {
             unrolled_count: 0,
             fused_count: 0,
             hoisted_count: 0,
@@ -30,7 +30,11 @@ impl LoopOptimizationPass {
             Node::Letrec { bindings, body: _ } => {
                 // Look for recursive functions that could be loops
                 for (name, func_id) in bindings {
-                    if let Some(Node::Lambda { params, body: lambda_body }) = graph.get_node(*func_id) {
+                    if let Some(Node::Lambda {
+                        params,
+                        body: lambda_body,
+                    }) = graph.get_node(*func_id)
+                    {
                         if self.is_tail_recursive(graph, name, *lambda_body) {
                             return Some(LoopInfo {
                                 kind: LoopKind::TailRecursive,
@@ -74,7 +78,13 @@ impl LoopOptimizationPass {
     }
 
     /// Check if recursive calls are in tail position
-    fn check_tail_position(&self, graph: &Graph, func_name: &str, node_id: NodeId, is_tail: bool) -> bool {
+    fn check_tail_position(
+        &self,
+        graph: &Graph,
+        func_name: &str,
+        node_id: NodeId,
+        is_tail: bool,
+    ) -> bool {
         if let Some(node) = graph.get_node(node_id) {
             match node {
                 Node::Application { function, .. } => {
@@ -85,10 +95,14 @@ impl LoopOptimizationPass {
                     }
                     true
                 }
-                Node::If { condition, then_branch, else_branch } => {
-                    self.check_tail_position(graph, func_name, *condition, false) &&
-                    self.check_tail_position(graph, func_name, *then_branch, is_tail) &&
-                    self.check_tail_position(graph, func_name, *else_branch, is_tail)
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    self.check_tail_position(graph, func_name, *condition, false)
+                        && self.check_tail_position(graph, func_name, *then_branch, is_tail)
+                        && self.check_tail_position(graph, func_name, *else_branch, is_tail)
                 }
                 Node::Let { bindings, body } => {
                     for (_, value) in bindings {
@@ -106,7 +120,12 @@ impl LoopOptimizationPass {
     }
 
     /// Try to unroll a small loop
-    fn try_unroll_loop(&self, graph: &Graph, loop_info: &LoopInfo, unroll_factor: usize) -> Option<Node> {
+    fn try_unroll_loop(
+        &self,
+        graph: &Graph,
+        loop_info: &LoopInfo,
+        unroll_factor: usize,
+    ) -> Option<Node> {
         // Only unroll small loops with constant bounds
         if let Some(bound) = self.get_loop_bound(graph, loop_info) {
             if bound <= 10 && bound <= unroll_factor {
@@ -138,31 +157,42 @@ impl LoopOptimizationPass {
     }
 
     /// Completely unroll a loop with known bounds
-    fn unroll_completely(&self, _graph: &Graph, _loop_info: &LoopInfo, _bound: usize) -> Option<Node> {
+    fn unroll_completely(
+        &self,
+        _graph: &Graph,
+        _loop_info: &LoopInfo,
+        _bound: usize,
+    ) -> Option<Node> {
         // TODO: Implement complete unrolling
         None
     }
 
     /// Find loop-invariant code
-    fn find_invariant_code(&self, graph: &Graph, loop_info: &LoopInfo, _cfg: &ControlFlowGraph, dfa: &DataFlowAnalysis) -> Vec<NodeId> {
+    fn find_invariant_code(
+        &self,
+        graph: &Graph,
+        loop_info: &LoopInfo,
+        _cfg: &ControlFlowGraph,
+        dfa: &DataFlowAnalysis,
+    ) -> Vec<NodeId> {
         let mut invariant = Vec::new();
         let loop_vars = self.get_loop_variables(loop_info);
-        
+
         // Check nodes in the loop body
         let mut to_check = vec![loop_info.body];
         let mut checked = FxHashSet::default();
-        
+
         while let Some(node_id) = to_check.pop() {
             if !checked.insert(node_id) {
                 continue;
             }
-            
+
             if let Some(node) = graph.get_node(node_id) {
                 // Check if this node is invariant
                 if self.is_invariant(node, &loop_vars, dfa) {
                     invariant.push(node_id);
                 }
-                
+
                 // Add children to check
                 match node {
                     Node::Application { function, args } => {
@@ -175,7 +205,11 @@ impl LoopOptimizationPass {
                         }
                         to_check.push(*body);
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         to_check.push(*condition);
                         to_check.push(*then_branch);
                         to_check.push(*else_branch);
@@ -184,7 +218,7 @@ impl LoopOptimizationPass {
                 }
             }
         }
-        
+
         invariant
     }
 
@@ -196,14 +230,18 @@ impl LoopOptimizationPass {
     }
 
     /// Check if a node is loop-invariant
-    fn is_invariant(&self, node: &Node, loop_vars: &FxHashSet<String>, _dfa: &DataFlowAnalysis) -> bool {
+    fn is_invariant(
+        &self,
+        node: &Node,
+        loop_vars: &FxHashSet<String>,
+        _dfa: &DataFlowAnalysis,
+    ) -> bool {
         match node {
             Node::Variable { name } => !loop_vars.contains(name),
             Node::Literal(_) => true,
             _ => false, // Conservative - need more analysis
         }
     }
-
 }
 
 impl OptimizationPass for LoopOptimizationPass {
@@ -215,18 +253,18 @@ impl OptimizationPass for LoopOptimizationPass {
         self.unrolled_count = 0;
         self.fused_count = 0;
         self.hoisted_count = 0;
-        
+
         let mut optimized = Graph::new();
         let mut node_mapping = FxHashMap::default();
-        
+
         // Build control flow and data flow analysis
         let cfg = ControlFlowGraph::build(graph);
         let dfa = DataFlowAnalysis::analyze(graph, &cfg);
-        
+
         // Process nodes looking for optimization opportunities
         for (node_id, node) in &graph.nodes {
             let mut optimized_node = None;
-            
+
             // Try loop optimizations
             if let Some(loop_info) = self.detect_loop(graph, node) {
                 // Try unrolling
@@ -242,29 +280,32 @@ impl OptimizationPass for LoopOptimizationPass {
                     }
                 }
             }
-            
+
             // Copy node (optimized or original)
-            let new_node = optimized_node.unwrap_or_else(|| {
-                map_node_refs(node, &node_mapping)
-            });
+            let new_node = optimized_node.unwrap_or_else(|| map_node_refs(node, &node_mapping));
             let new_id = optimized.add_node(new_node)?;
             node_mapping.insert(*node_id, new_id);
         }
-        
+
         // Look for fusion opportunities (simplified - would need more sophisticated analysis)
         // This is a second pass that could fuse adjacent operations
-        
+
         // Update root
         if let Some(root) = graph.root_id {
             optimized.root_id = node_mapping.get(&root).copied();
         }
-        
+
         Ok(optimized)
     }
 
     fn stats(&self) -> String {
-        format!("{} pass: {} loops unrolled, {} loops fused, {} invariants hoisted", 
-                self.name(), self.unrolled_count, self.fused_count, self.hoisted_count)
+        format!(
+            "{} pass: {} loops unrolled, {} loops fused, {} invariants hoisted",
+            self.name(),
+            self.unrolled_count,
+            self.fused_count,
+            self.hoisted_count
+        )
     }
 }
 
@@ -288,7 +329,8 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
     match node {
         Node::Application { function, args } => {
             let new_func = mapping.get(function).copied().unwrap_or(*function);
-            let new_args: Vec<_> = args.iter()
+            let new_args: Vec<_> = args
+                .iter()
                 .map(|&arg| mapping.get(&arg).copied().unwrap_or(arg))
                 .collect();
             Node::Application {
@@ -304,14 +346,15 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
             }
         }
         Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
-            let new_bindings: Vec<_> = bindings.iter()
+            let new_bindings: Vec<_> = bindings
+                .iter()
                 .map(|(name, value)| {
                     let new_value = mapping.get(value).copied().unwrap_or(*value);
                     (name.clone(), new_value)
                 })
                 .collect();
             let new_body = mapping.get(body).copied().unwrap_or(*body);
-            
+
             if matches!(node, Node::Letrec { .. }) {
                 Node::Letrec {
                     bindings: new_bindings,
@@ -324,7 +367,11 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
                 }
             }
         }
-        Node::If { condition, then_branch, else_branch } => {
+        Node::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
             let new_cond = mapping.get(condition).copied().unwrap_or(*condition);
             let new_then = mapping.get(then_branch).copied().unwrap_or(*then_branch);
             let new_else = mapping.get(else_branch).copied().unwrap_or(*else_branch);
@@ -336,7 +383,8 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
         }
         Node::Match { expr, branches } => {
             let new_expr = mapping.get(expr).copied().unwrap_or(*expr);
-            let new_branches: Vec<_> = branches.iter()
+            let new_branches: Vec<_> = branches
+                .iter()
                 .map(|(pattern, branch)| {
                     let new_branch = mapping.get(branch).copied().unwrap_or(*branch);
                     (pattern.clone(), new_branch)

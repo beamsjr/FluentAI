@@ -1,7 +1,7 @@
 //! Tests for qualified symbol parsing (e.g., module.function)
 
-use fluentai_parser::parse;
 use fluentai_core::ast::Node;
+use fluentai_parser::parse;
 
 #[test]
 fn test_parse_simple_qualified_symbol() {
@@ -9,9 +9,12 @@ fn test_parse_simple_qualified_symbol() {
     let result = parse("math.pi").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::QualifiedVariable { module_name, variable_name } => {
+        Node::QualifiedVariable {
+            module_name,
+            variable_name,
+        } => {
             assert_eq!(module_name, "math");
             assert_eq!(variable_name, "pi");
         }
@@ -28,7 +31,10 @@ fn test_parse_qualified_symbol_with_hyphen() {
     if let Ok(parsed) = result {
         if let Some(root_id) = parsed.root_id {
             match parsed.get_node(root_id) {
-                Some(Node::QualifiedVariable { module_name, variable_name }) => {
+                Some(Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                }) => {
                     assert_eq!(module_name, "my-module");
                     assert_eq!(variable_name, "my-function");
                 }
@@ -47,9 +53,12 @@ fn test_parse_qualified_symbol_with_underscore() {
     let result = parse("test_module.test_var").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::QualifiedVariable { module_name, variable_name } => {
+        Node::QualifiedVariable {
+            module_name,
+            variable_name,
+        } => {
             assert_eq!(module_name, "test_module");
             assert_eq!(variable_name, "test_var");
         }
@@ -63,9 +72,12 @@ fn test_parse_qualified_symbol_with_numbers() {
     let result = parse("module1.var2").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::QualifiedVariable { module_name, variable_name } => {
+        Node::QualifiedVariable {
+            module_name,
+            variable_name,
+        } => {
             assert_eq!(module_name, "module1");
             assert_eq!(variable_name, "var2");
         }
@@ -79,11 +91,14 @@ fn test_parse_qualified_symbol_in_application() {
     let result = parse("(math.sin 1.5)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Application { function, args } => {
             match result.get_node(*function).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "math");
                     assert_eq!(variable_name, "sin");
                 }
@@ -101,23 +116,29 @@ fn test_parse_qualified_symbol_as_argument() {
     let result = parse("(+ math.pi math.e)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Application { args, .. } => {
             assert_eq!(args.len(), 2);
-            
+
             // First argument should be math.pi
             match result.get_node(args[0]).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "math");
                     assert_eq!(variable_name, "pi");
                 }
                 _ => panic!("Expected QualifiedVariable for first arg"),
             }
-            
+
             // Second argument should be math.e
             match result.get_node(args[1]).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "math");
                     assert_eq!(variable_name, "e");
                 }
@@ -134,15 +155,18 @@ fn test_parse_qualified_symbol_in_let() {
     let result = parse("(let ((x math.pi)) (* x 2))").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Let { bindings, .. } => {
             assert_eq!(bindings.len(), 1);
             assert_eq!(bindings[0].0, "x");
-            
+
             // Value should be math.pi
             match result.get_node(bindings[0].1).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "math");
                     assert_eq!(variable_name, "pi");
                 }
@@ -159,17 +183,20 @@ fn test_parse_qualified_symbol_in_if() {
     let result = parse("(if (> x math.pi) \"large\" \"small\")").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::If { condition, .. } => {
             // Condition should be (> x math.pi)
             match result.get_node(*condition).unwrap() {
                 Node::Application { args, .. } => {
                     assert_eq!(args.len(), 2);
-                    
+
                     // Second arg should be math.pi
                     match result.get_node(args[1]).unwrap() {
-                        Node::QualifiedVariable { module_name, variable_name } => {
+                        Node::QualifiedVariable {
+                            module_name,
+                            variable_name,
+                        } => {
                             assert_eq!(module_name, "math");
                             assert_eq!(variable_name, "pi");
                         }
@@ -191,7 +218,10 @@ fn test_parse_qualified_symbol_with_special_chars() {
     if let Ok(parsed) = result {
         if let Some(root_id) = parsed.root_id {
             match parsed.get_node(root_id) {
-                Some(Node::QualifiedVariable { module_name, variable_name }) => {
+                Some(Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                }) => {
                     assert_eq!(module_name, "utils");
                     assert_eq!(variable_name, "list?");
                 }
@@ -210,20 +240,21 @@ fn test_parse_qualified_symbol_in_lambda() {
     let result = parse("(lambda (x) (math.sqrt x))").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Lambda { body, .. } => {
             // Body should be (math.sqrt x)
             match result.get_node(*body).unwrap() {
-                Node::Application { function, .. } => {
-                    match result.get_node(*function).unwrap() {
-                        Node::QualifiedVariable { module_name, variable_name } => {
-                            assert_eq!(module_name, "math");
-                            assert_eq!(variable_name, "sqrt");
-                        }
-                        _ => panic!("Expected QualifiedVariable as function"),
+                Node::Application { function, .. } => match result.get_node(*function).unwrap() {
+                    Node::QualifiedVariable {
+                        module_name,
+                        variable_name,
+                    } => {
+                        assert_eq!(module_name, "math");
+                        assert_eq!(variable_name, "sqrt");
                     }
-                }
+                    _ => panic!("Expected QualifiedVariable as function"),
+                },
                 _ => panic!("Expected Application in lambda body"),
             }
         }
@@ -237,32 +268,41 @@ fn test_parse_multiple_qualified_symbols() {
     let result = parse("(string.concat io.newline net.hostname)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Application { function, args } => {
             // Function should be string.concat
             match result.get_node(*function).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "string");
                     assert_eq!(variable_name, "concat");
                 }
                 _ => panic!("Expected QualifiedVariable as function"),
             }
-            
+
             assert_eq!(args.len(), 2);
-            
+
             // First arg should be io.newline
             match result.get_node(args[0]).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "io");
                     assert_eq!(variable_name, "newline");
                 }
                 _ => panic!("Expected QualifiedVariable"),
             }
-            
+
             // Second arg should be net.hostname
             match result.get_node(args[1]).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "net");
                     assert_eq!(variable_name, "hostname");
                 }
@@ -278,7 +318,7 @@ fn test_parse_qualified_symbol_in_list() {
     // Test qualified symbol in list literal
     let result = parse("[math.pi math.e math.tau]").unwrap();
     let root_id = result.root_id.unwrap();
-    
+
     // Lists are converted to cons operations, so this will be an Application
     // Just verify it parses successfully
     assert!(result.get_node(root_id).is_some());
@@ -337,9 +377,12 @@ fn test_parse_qualified_symbol_case_sensitivity() {
     let result = parse("Math.PI").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::QualifiedVariable { module_name, variable_name } => {
+        Node::QualifiedVariable {
+            module_name,
+            variable_name,
+        } => {
             assert_eq!(module_name, "Math");
             assert_eq!(variable_name, "PI");
         }

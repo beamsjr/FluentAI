@@ -14,7 +14,7 @@ mod contract_tests {
     #[test]
     fn test_contract_creation() {
         let contract = Contract::new("test_func".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-        
+
         assert_eq!(contract.function_name, "test_func");
         assert!(contract.preconditions.is_empty());
         assert!(contract.postconditions.is_empty());
@@ -27,15 +27,22 @@ mod contract_tests {
     #[test]
     fn test_add_conditions() {
         let mut contract = Contract::new("test".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-        
-        let pre = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Precondition);
-        let post = ContractCondition::new(NodeId(NonZeroU32::new(3).unwrap()), ContractKind::Postcondition);
-        let inv = ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Invariant);
-        
+
+        let pre = ContractCondition::new(
+            NodeId(NonZeroU32::new(2).unwrap()),
+            ContractKind::Precondition,
+        );
+        let post = ContractCondition::new(
+            NodeId(NonZeroU32::new(3).unwrap()),
+            ContractKind::Postcondition,
+        );
+        let inv =
+            ContractCondition::new(NodeId(NonZeroU32::new(4).unwrap()), ContractKind::Invariant);
+
         contract.add_precondition(pre);
         contract.add_postcondition(post);
         contract.add_invariant(inv);
-        
+
         assert_eq!(contract.preconditions.len(), 1);
         assert_eq!(contract.postconditions.len(), 1);
         assert_eq!(contract.invariants.len(), 1);
@@ -44,15 +51,16 @@ mod contract_tests {
 
     #[test]
     fn test_contract_condition_builder() {
-        let condition = ContractCondition::new(
-            NodeId(NonZeroU32::new(1).unwrap()),
-            ContractKind::Invariant
-        )
-        .with_message("Must maintain sorted order".to_string())
-        .with_span((10, 20))
-        .with_blame("caller".to_string());
-        
-        assert_eq!(condition.message, Some("Must maintain sorted order".to_string()));
+        let condition =
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant)
+                .with_message("Must maintain sorted order".to_string())
+                .with_span((10, 20))
+                .with_blame("caller".to_string());
+
+        assert_eq!(
+            condition.message,
+            Some("Must maintain sorted order".to_string())
+        );
         assert_eq!(condition.span, Some((10, 20)));
         assert_eq!(condition.blame_label, Some("caller".to_string()));
     }
@@ -60,32 +68,45 @@ mod contract_tests {
     #[test]
     fn test_conditions_of_kind() {
         let mut contract = Contract::new("test".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-        
+
         contract.add_precondition(ContractCondition::new(
-            NodeId(NonZeroU32::new(2).unwrap()), 
-            ContractKind::Precondition
+            NodeId(NonZeroU32::new(2).unwrap()),
+            ContractKind::Precondition,
         ));
         contract.add_precondition(ContractCondition::new(
-            NodeId(NonZeroU32::new(3).unwrap()), 
-            ContractKind::Precondition
+            NodeId(NonZeroU32::new(3).unwrap()),
+            ContractKind::Precondition,
         ));
         contract.add_postcondition(ContractCondition::new(
-            NodeId(NonZeroU32::new(4).unwrap()), 
-            ContractKind::Postcondition
+            NodeId(NonZeroU32::new(4).unwrap()),
+            ContractKind::Postcondition,
         ));
-        
-        assert_eq!(contract.conditions_of_kind(ContractKind::Precondition).len(), 2);
-        assert_eq!(contract.conditions_of_kind(ContractKind::Postcondition).len(), 1);
-        assert_eq!(contract.conditions_of_kind(ContractKind::Invariant).len(), 0);
+
+        assert_eq!(
+            contract
+                .conditions_of_kind(ContractKind::Precondition)
+                .len(),
+            2
+        );
+        assert_eq!(
+            contract
+                .conditions_of_kind(ContractKind::Postcondition)
+                .len(),
+            1
+        );
+        assert_eq!(
+            contract.conditions_of_kind(ContractKind::Invariant).len(),
+            0
+        );
     }
 
     #[test]
     fn test_contract_serialization() {
         let contract = Contract::new("test".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-        
+
         let json = serde_json::to_string(&contract).unwrap();
         let deserialized: Contract = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(contract.function_name, deserialized.function_name);
         assert_eq!(contract.node_id, deserialized.node_id);
     }
@@ -95,19 +116,23 @@ mod contract_tests {
         let condition = ContractCondition::new_with_message(
             NodeId(NonZeroU32::new(1).unwrap()),
             ContractKind::Postcondition,
-            "Result must be positive".to_string()
+            "Result must be positive".to_string(),
         );
-        
+
         assert_eq!(condition.expression, NodeId(NonZeroU32::new(1).unwrap()));
         assert_eq!(condition.kind, ContractKind::Postcondition);
-        assert_eq!(condition.message, Some("Result must be positive".to_string()));
+        assert_eq!(
+            condition.message,
+            Some("Result must be positive".to_string())
+        );
     }
 
     #[test]
     fn test_pure_contract() {
-        let mut contract = Contract::new("pure_func".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
+        let mut contract =
+            Contract::new("pure_func".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
         contract.pure = true;
-        
+
         assert!(contract.pure);
     }
 
@@ -115,7 +140,7 @@ mod contract_tests {
     fn test_contract_with_complexity() {
         let mut contract = Contract::new("sort".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
         contract.complexity = Some("O(n log n)".to_string());
-        
+
         assert_eq!(contract.complexity, Some("O(n log n)".to_string()));
     }
 }
@@ -128,7 +153,7 @@ mod error_tests {
     fn test_contract_error_display() {
         let error = ContractError::VerificationError("Unable to prove postcondition".to_string());
         let display = format!("{}", error);
-        
+
         assert!(display.contains("Verification error"));
         assert!(display.contains("Unable to prove postcondition"));
     }
@@ -143,7 +168,7 @@ mod error_tests {
         let timeout_err = ContractError::Timeout(30);
         let not_impl_err = ContractError::NotImplemented("Feature X".to_string());
         let other_err = ContractError::Other("Generic error".to_string());
-        
+
         assert!(format!("{}", verification_err).contains("Verification error"));
         assert!(format!("{}", parse_err).contains("parsing error"));
         assert!(format!("{}", invalid_expr_err).contains("Invalid contract expression"));

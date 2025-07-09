@@ -4,12 +4,12 @@
 mod tests {
     use super::super::*;
     use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
-use fluentai_core::value::Value;
     use crate::error::VMError;
-    use std::sync::Arc;
+    use fluentai_core::value::Value;
     use fluentai_effects::runtime::EffectRuntime;
     use fluentai_effects::EffectContext;
-    
+    use std::sync::Arc;
+
     // Helper functions
     fn create_test_bytecode() -> Bytecode {
         let mut bytecode = Bytecode::new();
@@ -18,7 +18,7 @@ use fluentai_core::value::Value;
         bytecode.chunks.push(chunk);
         bytecode
     }
-    
+
     fn create_vm_with_program(instructions: Vec<Instruction>) -> VM {
         let mut bytecode = Bytecode::new();
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
@@ -28,57 +28,57 @@ use fluentai_core::value::Value;
         bytecode.chunks.push(chunk);
         VM::new(bytecode)
     }
-    
+
     fn create_vm_with_constants(instructions: Vec<Instruction>, constants: Vec<Value>) -> VM {
         let mut bytecode = Bytecode::new();
         let mut chunk = BytecodeChunk::new(Some("main".to_string()));
-        
+
         for constant in constants {
             chunk.add_constant(constant);
         }
-        
+
         for instr in instructions {
             chunk.add_instruction(instr);
         }
-        
+
         bytecode.chunks.push(chunk);
         VM::new(bytecode)
     }
-    
+
     mod initialization {
         use super::*;
-        
+
         #[test]
         fn test_vm_new() {
             let bytecode = create_test_bytecode();
             let vm = VM::new(bytecode);
-            
+
             assert_eq!(vm.get_stack().len(), 0);
             assert_eq!(vm.get_globals().len(), 0);
             assert_eq!(vm.get_call_stack_depth(), 0);
         }
-        
+
         #[test]
         fn test_enable_trace() {
             let mut vm = VM::new(create_test_bytecode());
             vm.enable_trace();
             // Trace flag is private, but we can verify it doesn't panic
         }
-        
+
         #[test]
         fn test_enable_usage_tracking() {
             let mut vm = VM::new(create_test_bytecode());
             vm.enable_usage_tracking();
             assert!(vm.usage_tracker().is_some());
         }
-        
+
         #[test]
         fn test_set_effect_runtime() {
             let mut vm = VM::new(create_test_bytecode());
             let runtime = Arc::new(EffectRuntime::default());
             vm.set_effect_runtime(runtime);
         }
-        
+
         #[test]
         fn test_set_effect_context() {
             let mut vm = VM::new(create_test_bytecode());
@@ -86,42 +86,42 @@ use fluentai_core::value::Value;
             vm.set_effect_context(context);
         }
     }
-    
+
     mod stack_operations {
         use super::*;
-        
+
         #[test]
         fn test_push_pop() {
             let mut vm = VM::new(create_test_bytecode());
-            
+
             // Test push
             vm.push(Value::Integer(42)).unwrap();
             assert_eq!(vm.get_stack().len(), 1);
-            
+
             vm.push(Value::String("hello".to_string())).unwrap();
             assert_eq!(vm.get_stack().len(), 2);
-            
+
             // Test pop
             let val = vm.pop().unwrap();
             assert_eq!(val, Value::String("hello".to_string()));
             assert_eq!(vm.get_stack().len(), 1);
-            
+
             let val = vm.pop().unwrap();
             assert_eq!(val, Value::Integer(42));
             assert_eq!(vm.get_stack().len(), 0);
         }
-        
+
         #[test]
         fn test_stack_underflow() {
             let mut vm = VM::new(create_test_bytecode());
-            
+
             // Pop from empty stack should error
             match vm.pop() {
-                Err(VMError::StackUnderflow { .. }) => {},
+                Err(VMError::StackUnderflow { .. }) => {}
                 _ => panic!("Expected stack underflow error"),
             }
         }
-        
+
         #[test]
         fn test_dup_instruction() {
             let instructions = vec![
@@ -131,12 +131,12 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
             assert_eq!(vm.get_stack().len(), 1); // One value left after halt pops
         }
-        
+
         #[test]
         fn test_swap_instruction() {
             let instructions = vec![
@@ -147,11 +147,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(1), Value::Integer(2)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(1)); // Top of stack after swap
         }
-        
+
         #[test]
         fn test_pop_n_instruction() {
             let instructions = vec![
@@ -163,15 +163,15 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(3)); // Only top value remains
         }
     }
-    
+
     mod arithmetic_operations {
         use super::*;
-        
+
         #[test]
         fn test_add() {
             let instructions = vec![
@@ -182,11 +182,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(10), Value::Integer(32)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_sub() {
             let instructions = vec![
@@ -197,11 +197,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(50), Value::Integer(8)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_mul() {
             let instructions = vec![
@@ -212,11 +212,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(6), Value::Integer(7)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_div() {
             let instructions = vec![
@@ -227,11 +227,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(84), Value::Integer(2)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_div_by_zero() {
             let instructions = vec![
@@ -242,13 +242,13 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(42), Value::Integer(0)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             match vm.run() {
-                Err(VMError::DivisionByZero { .. }) => {},
+                Err(VMError::DivisionByZero { .. }) => {}
                 _ => panic!("Expected division by zero error"),
             }
         }
-        
+
         #[test]
         fn test_mod() {
             let instructions = vec![
@@ -259,11 +259,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(17), Value::Integer(5)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(2));
         }
-        
+
         #[test]
         fn test_neg() {
             let instructions = vec![
@@ -273,11 +273,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(-42));
         }
-        
+
         #[test]
         fn test_float_arithmetic() {
             let instructions = vec![
@@ -288,7 +288,7 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Float(3.14), Value::Float(2.86)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             match result {
                 Value::Float(f) => assert!((f - 6.0).abs() < 0.001),
@@ -296,10 +296,10 @@ use fluentai_core::value::Value;
             }
         }
     }
-    
+
     mod comparison_operations {
         use super::*;
-        
+
         #[test]
         fn test_eq() {
             let instructions = vec![
@@ -310,11 +310,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(42), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
-        
+
         #[test]
         fn test_ne() {
             let instructions = vec![
@@ -325,11 +325,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(42), Value::Integer(43)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
-        
+
         #[test]
         fn test_lt() {
             let instructions = vec![
@@ -340,11 +340,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(10), Value::Integer(20)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
-        
+
         #[test]
         fn test_le() {
             let instructions = vec![
@@ -355,11 +355,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(10), Value::Integer(10)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
-        
+
         #[test]
         fn test_gt() {
             let instructions = vec![
@@ -370,11 +370,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(20), Value::Integer(10)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
-        
+
         #[test]
         fn test_ge() {
             let instructions = vec![
@@ -385,15 +385,15 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(20), Value::Integer(20)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
     }
-    
+
     mod boolean_operations {
         use super::*;
-        
+
         #[test]
         fn test_and() {
             let instructions = vec![
@@ -404,11 +404,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Boolean(true), Value::Boolean(false)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(false));
         }
-        
+
         #[test]
         fn test_or() {
             let instructions = vec![
@@ -419,11 +419,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Boolean(true), Value::Boolean(false)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
-        
+
         #[test]
         fn test_not() {
             let instructions = vec![
@@ -433,15 +433,15 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Boolean(true)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(false));
         }
     }
-    
+
     mod control_flow {
         use super::*;
-        
+
         #[test]
         fn test_jump() {
             let instructions = vec![
@@ -452,57 +452,57 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(1), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_jump_if() {
             let instructions = vec![
-                Instruction::with_arg(Opcode::Push, 0), // Push true
+                Instruction::with_arg(Opcode::Push, 0),   // Push true
                 Instruction::with_arg(Opcode::JumpIf, 3), // Jump if true
-                Instruction::with_arg(Opcode::Push, 1), // Skipped
-                Instruction::with_arg(Opcode::Push, 2), // Execute this
+                Instruction::with_arg(Opcode::Push, 1),   // Skipped
+                Instruction::with_arg(Opcode::Push, 2),   // Execute this
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![Value::Boolean(true), Value::Integer(1), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_jump_if_not() {
             let instructions = vec![
-                Instruction::with_arg(Opcode::Push, 0), // Push false
+                Instruction::with_arg(Opcode::Push, 0),      // Push false
                 Instruction::with_arg(Opcode::JumpIfNot, 3), // Jump if false
-                Instruction::with_arg(Opcode::Push, 1), // Skipped
-                Instruction::with_arg(Opcode::Push, 2), // Execute this
+                Instruction::with_arg(Opcode::Push, 1),      // Skipped
+                Instruction::with_arg(Opcode::Push, 2),      // Execute this
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![Value::Boolean(false), Value::Integer(1), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
     }
-    
+
     mod variable_operations {
         use super::*;
-        
+
         // Note: These local variable tests are currently failing because they require
         // specific VM implementation details about how local variables are allocated
         // and accessed within function frames. The tests demonstrate the intended
         // behavior but need adjustment based on actual VM implementation.
-        
+
         #[test]
         fn test_store_load_local() {
             // Create a function that uses local variables
             let mut bytecode = Bytecode::new();
-            
+
             // Create function chunk that uses local variables
             let mut func_chunk = BytecodeChunk::new(Some("test_func".to_string()));
             func_chunk.add_constant(Value::Integer(10));
@@ -511,12 +511,12 @@ use fluentai_core::value::Value;
             func_chunk.add_instruction(Instruction::new(Opcode::PushNil)); // Space for local 0
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push 10
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Store, 0)); // Store at local 0
-            func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1)); // Push 32  
+            func_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 1)); // Push 32
             func_chunk.add_instruction(Instruction::with_arg(Opcode::Load, 0)); // Load local 0 (10)
             func_chunk.add_instruction(Instruction::new(Opcode::Add)); // Add them
             func_chunk.add_instruction(Instruction::new(Opcode::Return));
             bytecode.chunks.push(func_chunk);
-            
+
             // Create main chunk that calls the function
             let mut main_chunk = BytecodeChunk::new(Some("main".to_string()));
             main_chunk.add_instruction(Instruction::with_arg(Opcode::MakeFunc, 0)); // Make function from chunk 0
@@ -524,33 +524,33 @@ use fluentai_core::value::Value;
             main_chunk.add_instruction(Instruction::new(Opcode::Halt));
             bytecode.chunks.push(main_chunk);
             bytecode.main_chunk = 1;
-            
+
             let mut vm = VM::new(bytecode);
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_store_load_global() {
             // StoreGlobal and LoadGlobal use instruction.arg as index into constants
             let instructions = vec![
-                Instruction::with_arg(Opcode::Push, 0), // Push value 42
+                Instruction::with_arg(Opcode::Push, 0),        // Push value 42
                 Instruction::with_arg(Opcode::StoreGlobal, 1), // Store with name at constants[1]
-                Instruction::with_arg(Opcode::LoadGlobal, 1), // Load with name at constants[1]
+                Instruction::with_arg(Opcode::LoadGlobal, 1),  // Load with name at constants[1]
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![Value::Integer(42), Value::String("test_var".to_string())];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
             assert_eq!(vm.get_globals().get("test_var"), Some(&Value::Integer(42)));
         }
     }
-    
+
     mod list_operations {
         use super::*;
-        
+
         #[test]
         fn test_make_list() {
             let instructions = vec![
@@ -562,7 +562,7 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             match result {
                 Value::List(items) => {
@@ -570,11 +570,11 @@ use fluentai_core::value::Value;
                     assert_eq!(items[0], Value::Integer(1));
                     assert_eq!(items[1], Value::Integer(2));
                     assert_eq!(items[2], Value::Integer(3));
-                },
+                }
                 _ => panic!("Expected list result"),
             }
         }
-        
+
         #[test]
         fn test_list_head() {
             let instructions = vec![
@@ -582,15 +582,17 @@ use fluentai_core::value::Value;
                 Instruction::new(Opcode::ListHead),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![
-                Value::List(vec![Value::Integer(42), Value::Integer(2), Value::Integer(3)])
-            ];
+            let constants = vec![Value::List(vec![
+                Value::Integer(42),
+                Value::Integer(2),
+                Value::Integer(3),
+            ])];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_list_tail() {
             let instructions = vec![
@@ -598,22 +600,24 @@ use fluentai_core::value::Value;
                 Instruction::new(Opcode::ListTail),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![
-                Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])
-            ];
+            let constants = vec![Value::List(vec![
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
+            ])];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             match result {
                 Value::List(items) => {
                     assert_eq!(items.len(), 2);
                     assert_eq!(items[0], Value::Integer(2));
                     assert_eq!(items[1], Value::Integer(3));
-                },
+                }
                 _ => panic!("Expected list result"),
             }
         }
-        
+
         #[test]
         fn test_list_cons() {
             let instructions = vec![
@@ -624,10 +628,10 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![
                 Value::Integer(42),
-                Value::List(vec![Value::Integer(2), Value::Integer(3)])
+                Value::List(vec![Value::Integer(2), Value::Integer(3)]),
             ];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             match result {
                 Value::List(items) => {
@@ -635,11 +639,11 @@ use fluentai_core::value::Value;
                     assert_eq!(items[0], Value::Integer(42));
                     assert_eq!(items[1], Value::Integer(2));
                     assert_eq!(items[2], Value::Integer(3));
-                },
+                }
                 _ => panic!("Expected list result"),
             }
         }
-        
+
         #[test]
         fn test_list_len() {
             let instructions = vec![
@@ -647,15 +651,17 @@ use fluentai_core::value::Value;
                 Instruction::new(Opcode::ListLen),
                 Instruction::new(Opcode::Halt),
             ];
-            let constants = vec![
-                Value::List(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])
-            ];
+            let constants = vec![Value::List(vec![
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3),
+            ])];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(3));
         }
-        
+
         #[test]
         fn test_list_empty() {
             let instructions = vec![
@@ -665,15 +671,15 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::List(vec![])];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Boolean(true));
         }
     }
-    
+
     mod string_operations {
         use super::*;
-        
+
         #[test]
         fn test_str_len() {
             let instructions = vec![
@@ -683,11 +689,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::String("hello".to_string())];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(5));
         }
-        
+
         #[test]
         fn test_str_concat() {
             let instructions = vec![
@@ -698,14 +704,14 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![
                 Value::String("hello".to_string()),
-                Value::String(" world".to_string())
+                Value::String(" world".to_string()),
             ];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::String("hello world".to_string()));
         }
-        
+
         #[test]
         fn test_str_upper() {
             let instructions = vec![
@@ -715,11 +721,11 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::String("hello".to_string())];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::String("HELLO".to_string()));
         }
-        
+
         #[test]
         fn test_str_lower() {
             let instructions = vec![
@@ -729,19 +735,19 @@ use fluentai_core::value::Value;
             ];
             let constants = vec![Value::String("HELLO".to_string())];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             let result = vm.run().unwrap();
             assert_eq!(result, Value::String("hello".to_string()));
         }
     }
-    
+
     mod function_operations {
         use super::*;
-        
+
         #[test]
         fn test_make_func_and_call() {
             let mut bytecode = Bytecode::new();
-            
+
             // Create function chunk that adds 1 to its argument
             let mut func_chunk = BytecodeChunk::new(Some("add_one".to_string()));
             func_chunk.add_constant(Value::Integer(1));
@@ -750,7 +756,7 @@ use fluentai_core::value::Value;
             func_chunk.add_instruction(Instruction::new(Opcode::Add));
             func_chunk.add_instruction(Instruction::new(Opcode::Return));
             bytecode.chunks.push(func_chunk);
-            
+
             // Create main chunk
             let mut main_chunk = BytecodeChunk::new(Some("main".to_string()));
             main_chunk.add_constant(Value::Integer(41));
@@ -760,16 +766,16 @@ use fluentai_core::value::Value;
             main_chunk.add_instruction(Instruction::new(Opcode::Halt));
             bytecode.chunks.push(main_chunk);
             bytecode.main_chunk = 1;
-            
+
             let mut vm = VM::new(bytecode);
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
-        
+
         #[test]
         fn test_make_closure() {
             let mut bytecode = Bytecode::new();
-            
+
             // Create closure chunk that uses captured value
             let mut closure_chunk = BytecodeChunk::new(Some("add_captured".to_string()));
             // The argument will be at stack position 0 when the function is called
@@ -778,13 +784,13 @@ use fluentai_core::value::Value;
             closure_chunk.add_instruction(Instruction::new(Opcode::Add));
             closure_chunk.add_instruction(Instruction::new(Opcode::Return));
             bytecode.chunks.push(closure_chunk);
-            
+
             // Create main chunk
             let mut main_chunk = BytecodeChunk::new(Some("main".to_string()));
             main_chunk.add_constant(Value::Integer(10)); // Value to capture
             main_chunk.add_constant(Value::Integer(32)); // Argument
             main_chunk.add_instruction(Instruction::with_arg(Opcode::Push, 0)); // Push value to capture (10)
-            // MakeClosure packs chunk_id in upper 16 bits and capture count in lower 16 bits
+                                                                                // MakeClosure packs chunk_id in upper 16 bits and capture count in lower 16 bits
             let packed_arg = (0 << 16) | 1; // chunk_id=0, capture_count=1
             main_chunk.add_instruction(Instruction::with_arg(Opcode::MakeClosure, packed_arg));
             // Call expects: arguments first, then function on top
@@ -794,29 +800,29 @@ use fluentai_core::value::Value;
             main_chunk.add_instruction(Instruction::new(Opcode::Halt));
             bytecode.chunks.push(main_chunk);
             bytecode.main_chunk = 1;
-            
+
             let mut vm = VM::new(bytecode);
             let result = vm.run().unwrap();
             assert_eq!(result, Value::Integer(42));
         }
     }
-    
+
     mod usage_tracking {
         use super::*;
         use fluentai_core::ast::NodeId;
-        
+
         #[test]
         fn test_usage_tracking() {
             let mut vm = VM::new(create_test_bytecode());
             vm.enable_usage_tracking();
-            
+
             // Register chunk mapping
             let node_id = NodeId::new(1).unwrap();
             vm.register_chunk_mapping(0, node_id);
-            
+
             // Run VM
             let _ = vm.run();
-            
+
             // Check usage was tracked
             if let Some(tracker) = vm.usage_tracker() {
                 let tracker = tracker.read().unwrap();
@@ -825,7 +831,7 @@ use fluentai_core::value::Value;
                 // Note: exact execution count depends on implementation details
             }
         }
-        
+
         #[test]
         fn test_hot_path_detection() {
             let instructions = vec![
@@ -835,10 +841,10 @@ use fluentai_core::value::Value;
             let constants = vec![Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
             vm.enable_usage_tracking();
-            
+
             let node_id = NodeId::new(1).unwrap();
             vm.register_chunk_mapping(0, node_id);
-            
+
             // We can't actually run an infinite loop, but we can test the tracking setup
             if let Some(tracker) = vm.usage_tracker() {
                 let mut tracker = tracker.write().unwrap();
@@ -846,16 +852,16 @@ use fluentai_core::value::Value;
                 for _ in 0..1001 {
                     tracker.record_execution(0, 1000);
                 }
-                
+
                 let stats = tracker.get_stats(node_id).unwrap();
                 assert!(stats.is_hot_path);
             }
         }
     }
-    
+
     mod error_handling {
         use super::*;
-        
+
         #[test]
         fn test_invalid_constant_index() {
             let instructions = vec![
@@ -863,30 +869,30 @@ use fluentai_core::value::Value;
                 Instruction::new(Opcode::Halt),
             ];
             let mut vm = create_vm_with_program(instructions);
-            
+
             match vm.run() {
-                Err(VMError::InvalidConstantIndex { .. }) => {},
+                Err(VMError::InvalidConstantIndex { .. }) => {}
                 _ => panic!("Expected invalid constant index error"),
             }
         }
-        
+
         #[test]
         fn test_type_error() {
             let instructions = vec![
                 Instruction::with_arg(Opcode::Push, 0), // String
                 Instruction::with_arg(Opcode::Push, 1), // Int
-                Instruction::new(Opcode::Add), // Can't add string and int
+                Instruction::new(Opcode::Add),          // Can't add string and int
                 Instruction::new(Opcode::Halt),
             ];
             let constants = vec![Value::String("hello".to_string()), Value::Integer(42)];
             let mut vm = create_vm_with_constants(instructions, constants);
-            
+
             match vm.run() {
-                Err(VMError::TypeError { .. }) => {},
+                Err(VMError::TypeError { .. }) => {}
                 _ => panic!("Expected type error"),
             }
         }
-        
+
         // Note: UndefinedVariable error variant test removed as it doesn't exist in VMError enum
     }
 }

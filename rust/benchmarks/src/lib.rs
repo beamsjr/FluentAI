@@ -73,7 +73,12 @@ impl PerformanceTracker {
             "{}_{}_{}.json",
             result.name.replace(' ', "_"),
             result.timestamp.format("%Y%m%d_%H%M%S"),
-            result.environment.commit_hash.as_ref().unwrap_or(&"unknown".to_string())[..8].to_string()
+            result
+                .environment
+                .commit_hash
+                .as_ref()
+                .unwrap_or(&"unknown".to_string())[..8]
+                .to_string()
         );
 
         let path = dir_path.join(filename);
@@ -95,7 +100,7 @@ impl PerformanceTracker {
         for entry in fs::read_dir(dir_path)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
                 let contents = fs::read_to_string(&path)?;
                 if let Ok(result) = serde_json::from_str::<BenchmarkResult>(&contents) {
@@ -119,7 +124,7 @@ impl PerformanceTracker {
         rust_metrics: Metrics,
     ) -> PerformanceComparison {
         let speedup = python_metrics.mean_ns / rust_metrics.mean_ns;
-        
+
         PerformanceComparison {
             benchmark_name: benchmark_name.to_string(),
             python_baseline: python_metrics,
@@ -135,17 +140,20 @@ impl PerformanceTracker {
 
         // Group results by benchmark name
         let mut all_results: HashMap<String, Vec<BenchmarkResult>> = HashMap::new();
-        
+
         let dir_path = Path::new(&self.results_dir);
         if dir_path.exists() {
             for entry in fs::read_dir(dir_path)? {
                 let entry = entry?;
                 let path = entry.path();
-                
+
                 if path.extension().and_then(|s| s.to_str()) == Some("json") {
                     let contents = fs::read_to_string(&path)?;
                     if let Ok(result) = serde_json::from_str::<BenchmarkResult>(&contents) {
-                        all_results.entry(result.name.clone()).or_default().push(result);
+                        all_results
+                            .entry(result.name.clone())
+                            .or_default()
+                            .push(result);
                     }
                 }
             }
@@ -154,14 +162,14 @@ impl PerformanceTracker {
         // Calculate improvements for each benchmark
         for (name, mut results) in all_results {
             results.sort_by_key(|r| r.timestamp);
-            
+
             if results.len() >= 2 {
                 let first = &results[0];
                 let latest = &results[results.len() - 1];
-                
+
                 let improvement = first.metrics.mean_ns / latest.metrics.mean_ns;
                 report.improvements.insert(name.clone(), improvement);
-                
+
                 // Track progression
                 let progression: Vec<(DateTime<Utc>, f64)> = results
                     .iter()
@@ -194,12 +202,12 @@ impl PerformanceReport {
     pub fn print_summary(&self) {
         println!("Performance Report - Generated at: {}", self.generated_at);
         println!("{:-<80}", "");
-        
+
         println!("\nOverall Improvements:");
         for (benchmark, improvement) in &self.improvements {
             println!("  {:<40} {:>6.1}x faster", benchmark, improvement);
         }
-        
+
         println!("\nProgression Summary:");
         for (benchmark, progression) in &self.progressions {
             if let (Some(first), Some(last)) = (progression.first(), progression.last()) {
@@ -252,7 +260,7 @@ macro_rules! compare_benchmark {
         let rust_mean_ns = rust_elapsed.as_nanos() as f64 / 1000.0;
 
         let speedup = python_mean_ns / rust_mean_ns;
-        
+
         println!(
             "{}: Python {:.1}µs, Rust {:.1}µs, Speedup: {:.1}x",
             $name,

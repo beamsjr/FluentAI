@@ -21,25 +21,25 @@ impl TransactionScopeBuilder {
             read_only: false,
         }
     }
-    
+
     /// Set whether to automatically rollback on drop
     pub fn auto_rollback(mut self, enabled: bool) -> Self {
         self.auto_rollback = enabled;
         self
     }
-    
+
     /// Set isolation level for transactions in this scope
     pub fn isolation_level(mut self, level: super::IsolationLevel) -> Self {
         self.isolation_level = Some(level);
         self
     }
-    
+
     /// Set transactions as read-only
     pub fn read_only(mut self, enabled: bool) -> Self {
         self.read_only = enabled;
         self
     }
-    
+
     /// Build the transaction scope
     pub async fn build(self, manager: &TransactionManager) -> TransactionScope {
         let scope = manager.create_scope().await;

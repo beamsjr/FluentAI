@@ -1,7 +1,7 @@
 //! Tests for module system (import/export) parsing
 
-use fluentai_parser::parse;
 use fluentai_core::ast::Node;
+use fluentai_parser::parse;
 
 #[test]
 fn test_parse_simple_import() {
@@ -9,16 +9,20 @@ fn test_parse_simple_import() {
     let result = parse(r#"(import "std/math" (sin cos tan))"#).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Import { module_path, import_list, import_all } => {
+        Node::Import {
+            module_path,
+            import_list,
+            import_all,
+        } => {
             assert_eq!(module_path, "std/math");
             assert!(!import_all);
             assert_eq!(import_list.len(), 3);
             assert_eq!(import_list[0].name, "sin");
             assert_eq!(import_list[1].name, "cos");
             assert_eq!(import_list[2].name, "tan");
-            
+
             // Check no aliases
             assert!(import_list.iter().all(|item| item.alias.is_none()));
         }
@@ -32,9 +36,13 @@ fn test_parse_import_all() {
     let result = parse(r#"(import "utils" *)"#).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Import { module_path, import_list, import_all } => {
+        Node::Import {
+            module_path,
+            import_list,
+            import_all,
+        } => {
             assert_eq!(module_path, "utils");
             assert!(import_all);
             assert!(import_list.is_empty());
@@ -49,16 +57,20 @@ fn test_parse_import_with_aliases() {
     let result = parse(r#"(import "graphics/shapes" (circle as circ rectangle as rect))"#).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Import { module_path, import_list, import_all } => {
+        Node::Import {
+            module_path,
+            import_list,
+            import_all,
+        } => {
             assert_eq!(module_path, "graphics/shapes");
             assert!(!import_all);
             assert_eq!(import_list.len(), 2);
-            
+
             assert_eq!(import_list[0].name, "circle");
             assert_eq!(import_list[0].alias.as_ref().unwrap(), "circ");
-            
+
             assert_eq!(import_list[1].name, "rectangle");
             assert_eq!(import_list[1].alias.as_ref().unwrap(), "rect");
         }
@@ -72,7 +84,7 @@ fn test_parse_simple_export() {
     let result = parse("(export add subtract multiply divide)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Export { export_list } => {
             assert_eq!(export_list.len(), 4);
@@ -80,7 +92,7 @@ fn test_parse_simple_export() {
             assert_eq!(export_list[1].name, "subtract");
             assert_eq!(export_list[2].name, "multiply");
             assert_eq!(export_list[3].name, "divide");
-            
+
             // Check no aliases
             assert!(export_list.iter().all(|item| item.alias.is_none()));
         }
@@ -94,14 +106,14 @@ fn test_parse_export_with_aliases() {
     let result = parse("(export internal-add as add internal-sub as subtract)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Export { export_list } => {
             assert_eq!(export_list.len(), 2);
-            
+
             assert_eq!(export_list[0].name, "internal-add");
             assert_eq!(export_list[0].alias.as_ref().unwrap(), "add");
-            
+
             assert_eq!(export_list[1].name, "internal-sub");
             assert_eq!(export_list[1].alias.as_ref().unwrap(), "subtract");
         }
@@ -116,18 +128,22 @@ fn test_parse_module_definition() {
                      (let ((add (lambda (x y) (+ x y)))
                            (subtract (lambda (x y) (- x y))))
                        #t))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Module { name, exports, body } => {
+        Node::Module {
+            name,
+            exports,
+            body,
+        } => {
             assert_eq!(name, "math-utils");
             assert_eq!(exports.len(), 2);
             assert!(exports.contains(&"add".to_string()));
             assert!(exports.contains(&"subtract".to_string()));
-            
+
             // Body should be a let expression
             assert!(matches!(result.get_node(*body).unwrap(), Node::Let { .. }));
         }
@@ -141,9 +157,12 @@ fn test_parse_qualified_variable() {
     let result = parse("math.pi").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::QualifiedVariable { module_name, variable_name } => {
+        Node::QualifiedVariable {
+            module_name,
+            variable_name,
+        } => {
             assert_eq!(module_name, "math");
             assert_eq!(variable_name, "pi");
         }
@@ -157,7 +176,7 @@ fn test_parse_qualified_variable_in_expression() {
     let result = parse("(* math.pi radius radius)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Application { function, args } => {
             // Function should be *
@@ -165,12 +184,15 @@ fn test_parse_qualified_variable_in_expression() {
                 Node::Variable { name } => assert_eq!(name, "*"),
                 _ => panic!("Expected * function"),
             }
-            
+
             assert_eq!(args.len(), 3);
-            
+
             // First arg should be math.pi
             match result.get_node(args[0]).unwrap() {
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     assert_eq!(module_name, "math");
                     assert_eq!(variable_name, "pi");
                 }
@@ -187,9 +209,13 @@ fn test_parse_nested_module_path() {
     let result = parse(r#"(import "std/collections/hashmap" (HashMap))"#).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Import { module_path, import_list, .. } => {
+        Node::Import {
+            module_path,
+            import_list,
+            ..
+        } => {
             assert_eq!(module_path, "std/collections/hashmap");
             assert_eq!(import_list.len(), 1);
             assert_eq!(import_list[0].name, "HashMap");
@@ -206,16 +232,20 @@ fn test_parse_module_with_imports() {
                        (import "std/math" (sin cos pi))
                        (let ((area-of-circle (lambda (r) (* pi r r))))
                          area-of-circle)))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Module { name, exports, body } => {
+        Node::Module {
+            name,
+            exports,
+            body,
+        } => {
             assert_eq!(name, "geometry");
             assert!(exports.is_empty());
-            
+
             // Body should contain imports
             assert!(result.get_node(*body).is_some());
         }
@@ -229,7 +259,7 @@ fn test_parse_complex_qualified_variable() {
     let result = parse("(std.collections.list.map f lst)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     // This will likely parse as an application with a qualified variable
     assert!(matches!(node, Node::Application { .. }));
 }
@@ -291,11 +321,11 @@ fn test_parse_import_export_combination() {
                      (do
                        (import "std/math" (sin cos tan))
                        #t))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Module { name, exports, .. } => {
             assert_eq!(name, "wrapper");
@@ -313,7 +343,7 @@ fn test_parse_relative_import() {
     let result = parse(r#"(import "./sibling" (helper))"#).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Import { module_path, .. } => {
             assert_eq!(module_path, "./sibling");
@@ -328,9 +358,13 @@ fn test_parse_parent_relative_import() {
     let result = parse(r#"(import "../utils" *)"#).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Import { module_path, import_all, .. } => {
+        Node::Import {
+            module_path,
+            import_all,
+            ..
+        } => {
             assert_eq!(module_path, "../utils");
             assert!(import_all);
         }

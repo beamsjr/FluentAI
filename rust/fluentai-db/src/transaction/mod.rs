@@ -1,10 +1,10 @@
 //! Advanced transaction management for FluentAi
 
+use crate::connection::DbConnection;
+use crate::error::{DbError, DbResult};
+use sqlx::Any;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use sqlx::Any;
-use crate::error::{DbError, DbResult};
-use crate::connection::DbConnection;
 use uuid::Uuid;
 
 pub mod manager;
@@ -86,24 +86,24 @@ impl Transaction {
             let query = format!("SET TRANSACTION ISOLATION LEVEL {}", level.to_sql());
             connection.execute_raw_unsafe(&query).await?;
         }
-        
+
         if options.read_only {
-            connection.execute_raw_unsafe("SET TRANSACTION READ ONLY").await?;
+            connection
+                .execute_raw_unsafe("SET TRANSACTION READ ONLY")
+                .await?;
         }
-        
+
         // Begin transaction
         let pool = connection.pool();
         let tx = pool.begin().await?;
-        
+
         // Convert to 'static lifetime using unsafe transmute
         // This is safe because we manage the transaction lifetime manually
-        let tx: sqlx::Transaction<'static, Any> = unsafe {
-            std::mem::transmute(tx)
-        };
-        
+        let tx: sqlx::Transaction<'static, Any> = unsafe { std::mem::transmute(tx) };
+
         let id = Uuid::new_v4();
         let savepoint_manager = Arc::new(SavepointManager::new());
-        
+
         Ok(Self {
             id,
             connection,
@@ -116,22 +116,22 @@ impl Transaction {
             options,
         })
     }
-    
+
     /// Begin a new transaction with default options
     pub async fn begin(connection: Arc<DbConnection>) -> DbResult<Self> {
         Self::begin_with_options(connection, TransactionOptions::default()).await
     }
-    
+
     /// Get transaction ID
     pub fn id(&self) -> Uuid {
         self.id
     }
-    
+
     /// Get transaction depth (for nested transactions)
     pub async fn depth(&self) -> usize {
         self.inner.lock().await.depth
     }
-    
+
     /// Create a savepoint
     pub async fn savepoint(&self, name: &str) -> DbResult<()> {
         let mut inner = self.inner.lock().await;
@@ -144,7 +144,7 @@ impl Transaction {
             Err(DbError::Transaction("Transaction already completed".into()))
         }
     }
-    
+
     /// Release a savepoint
     pub async fn release_savepoint(&self, name: &str) -> DbResult<()> {
         let mut inner = self.inner.lock().await;
@@ -157,7 +157,7 @@ impl Transaction {
             Err(DbError::Transaction("Transaction already completed".into()))
         }
     }
-    
+
     /// Rollback to a savepoint
     pub async fn rollback_to_savepoint(&self, name: &str) -> DbResult<()> {
         let mut inner = self.inner.lock().await;
@@ -170,17 +170,13 @@ impl Transaction {
             Err(DbError::Transaction("Transaction already completed".into()))
         }
     }
-    
+
     /// Execute a query within the transaction
-    pub async fn execute(
-        &self,
-        query: &str,
-        params: Vec<fluentai_vm::Value>,
-    ) -> DbResult<u64> {
+    pub async fn execute(&self, query: &str, params: Vec<fluentai_vm::Value>) -> DbResult<u64> {
         let mut inner = self.inner.lock().await;
         if let Some(tx) = &mut inner.tx {
             let mut q = sqlx::query(query);
-            
+
             // Bind parameters safely
             for param in params {
                 q = match param {
@@ -190,25 +186,33 @@ impl Transaction {
                     fluentai_vm::Value::Float(f) => q.bind(f),
                     fluentai_vm::Value::String(s) => q.bind(s),
                     fluentai_vm::Value::List(bytes) => {
-                        let byte_vec: Result<Vec<u8>, _> = bytes.iter()
+                        let byte_vec: Result<Vec<u8>, _> = bytes
+                            .iter()
                             .map(|v| match v {
                                 fluentai_vm::Value::Integer(i) => Ok(*i as u8),
-                                _ => Err(DbError::Transaction("Binary data must be a list of integers".into())),
+                                _ => Err(DbError::Transaction(
+                                    "Binary data must be a list of integers".into(),
+                                )),
                             })
                             .collect();
                         q.bind(byte_vec?)
                     }
-                    _ => return Err(DbError::Transaction(format!("Cannot bind value type: {:?}", param))),
+                    _ => {
+                        return Err(DbError::Transaction(format!(
+                            "Cannot bind value type: {:?}",
+                            param
+                        )))
+                    }
                 };
             }
-            
+
             let result = q.execute(&mut **tx).await?;
             Ok(result.rows_affected())
         } else {
             Err(DbError::Transaction("Transaction already completed".into()))
         }
     }
-    
+
     /// Fetch all rows
     pub async fn fetch_all(
         &self,
@@ -218,7 +222,7 @@ impl Transaction {
         let mut inner = self.inner.lock().await;
         if let Some(tx) = &mut inner.tx {
             let mut q = sqlx::query(query);
-            
+
             // Bind parameters
             for param in params {
                 q = match param {
@@ -228,25 +232,33 @@ impl Transaction {
                     fluentai_vm::Value::Float(f) => q.bind(f),
                     fluentai_vm::Value::String(s) => q.bind(s),
                     fluentai_vm::Value::List(bytes) => {
-                        let byte_vec: Result<Vec<u8>, _> = bytes.iter()
+                        let byte_vec: Result<Vec<u8>, _> = bytes
+                            .iter()
                             .map(|v| match v {
                                 fluentai_vm::Value::Integer(i) => Ok(*i as u8),
-                                _ => Err(DbError::Transaction("Binary data must be a list of integers".into())),
+                                _ => Err(DbError::Transaction(
+                                    "Binary data must be a list of integers".into(),
+                                )),
                             })
                             .collect();
                         q.bind(byte_vec?)
                     }
-                    _ => return Err(DbError::Transaction(format!("Cannot bind value type: {:?}", param))),
+                    _ => {
+                        return Err(DbError::Transaction(format!(
+                            "Cannot bind value type: {:?}",
+                            param
+                        )))
+                    }
                 };
             }
-            
+
             let rows = q.fetch_all(&mut **tx).await?;
             Ok(rows)
         } else {
             Err(DbError::Transaction("Transaction already completed".into()))
         }
     }
-    
+
     /// Commit the transaction
     pub async fn commit(self) -> DbResult<()> {
         let mut inner = self.inner.lock().await;
@@ -258,7 +270,7 @@ impl Transaction {
             Err(DbError::Transaction("Transaction already completed".into()))
         }
     }
-    
+
     /// Rollback the transaction
     pub async fn rollback(self) -> DbResult<()> {
         let mut inner = self.inner.lock().await;
@@ -269,13 +281,13 @@ impl Transaction {
             Err(DbError::Transaction("Transaction already completed".into()))
         }
     }
-    
+
     /// Check if transaction is still active
     pub async fn is_active(&self) -> bool {
         let inner = self.inner.lock().await;
         inner.tx.is_some() && !inner.committed
     }
-    
+
     /// Get connection
     pub fn connection(&self) -> &Arc<DbConnection> {
         &self.connection
@@ -289,21 +301,21 @@ impl Drop for Transaction {
         tokio::spawn(async move {
             let inner = inner.lock().await;
             if inner.tx.is_some() && !inner.committed {
-                eprintln!("Warning: Transaction {} dropped without explicit commit or rollback", 
-                    inner.depth);
+                eprintln!(
+                    "Warning: Transaction {} dropped without explicit commit or rollback",
+                    inner.depth
+                );
             }
         });
     }
 }
 
 /// Transaction callback type
-pub type TransactionCallback<T> = Box<dyn FnOnce(&Transaction) -> futures::future::BoxFuture<'_, DbResult<T>> + Send>;
+pub type TransactionCallback<T> =
+    Box<dyn FnOnce(&Transaction) -> futures::future::BoxFuture<'_, DbResult<T>> + Send>;
 
 /// Execute a function within a transaction
-pub async fn with_transaction<T, F>(
-    connection: Arc<DbConnection>,
-    callback: F,
-) -> DbResult<T>
+pub async fn with_transaction<T, F>(connection: Arc<DbConnection>, callback: F) -> DbResult<T>
 where
     F: FnOnce(&Transaction) -> futures::future::BoxFuture<'_, DbResult<T>> + Send,
     T: Send,
@@ -335,24 +347,26 @@ where
     loop {
         let tx = Transaction::begin(connection.clone()).await?;
         match callback(&tx).await {
-            Ok(result) => {
-                match tx.commit().await {
-                    Ok(()) => return Ok(result),
-                    Err(e) => {
-                        if retries < max_retries && is_retryable_error(&e) {
-                            retries += 1;
-                            tokio::time::sleep(tokio::time::Duration::from_millis(100 * retries as u64)).await;
-                            continue;
-                        }
-                        return Err(e);
+            Ok(result) => match tx.commit().await {
+                Ok(()) => return Ok(result),
+                Err(e) => {
+                    if retries < max_retries && is_retryable_error(&e) {
+                        retries += 1;
+                        tokio::time::sleep(tokio::time::Duration::from_millis(
+                            100 * retries as u64,
+                        ))
+                        .await;
+                        continue;
                     }
+                    return Err(e);
                 }
-            }
+            },
             Err(e) => {
                 let _ = tx.rollback().await;
                 if retries < max_retries && is_retryable_error(&e) {
                     retries += 1;
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100 * retries as u64)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100 * retries as u64))
+                        .await;
                     continue;
                 }
                 return Err(e);
@@ -365,11 +379,10 @@ where
 fn is_retryable_error(error: &DbError) -> bool {
     match error {
         DbError::Query(msg) | DbError::Transaction(msg) => {
-            msg.contains("deadlock") || 
-            msg.contains("serialization") ||
-            msg.contains("could not serialize")
+            msg.contains("deadlock")
+                || msg.contains("serialization")
+                || msg.contains("could not serialize")
         }
         _ => false,
     }
 }
-

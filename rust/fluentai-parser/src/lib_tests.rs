@@ -1,68 +1,68 @@
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use fluentai_core::ast::Node;
     use bumpalo::Bump;
-    
+    use fluentai_core::ast::Node;
+
     #[test]
     fn test_parse_basic() {
         let code = "(+ 1 2)";
         let graph = parse(code).unwrap();
-        
+
         // Should have nodes
         assert!(!graph.nodes.is_empty());
-        
+
         // Check the root node
         assert!(graph.root_id.is_some());
         let root_node = graph.get_node(graph.root_id.unwrap()).unwrap();
         assert!(matches!(root_node, Node::Application { .. }));
     }
-    
+
     #[test]
     fn test_parse_with_arena() {
         let arena = Bump::new();
         let code = "(let ((x 10)) (* x 2))";
         let graph = parse_with_arena(code, &arena).unwrap();
-        
+
         // Should have nodes
         assert!(!graph.nodes.is_empty());
-        
+
         // Check the root node
         assert!(graph.root_id.is_some());
         let root_node = graph.get_node(graph.root_id.unwrap()).unwrap();
         assert!(matches!(root_node, Node::Let { .. }));
     }
-    
+
     #[test]
     fn test_parse_with_depth_limit() {
         // Test successful parse within depth limit
         let code = "(+ 1 (+ 2 3))";
         let graph = parse_with_depth_limit(code, 10).unwrap();
         assert!(!graph.nodes.is_empty());
-        
+
         // Test failing parse with too low depth limit
-        let deeply_nested = "(((((((((()))))))))"; 
+        let deeply_nested = "(((((((((()))))))))";
         let result = parse_with_depth_limit(deeply_nested, 5);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_parse_iterative() {
         let code = "(define factorial (lambda (n) (if (= n 0) 1 (* n (factorial (- n 1))))))";
         let graph = parse_iterative(code).unwrap();
-        
+
         // Should successfully parse recursive function
         assert!(!graph.nodes.is_empty());
         assert!(graph.root_id.is_some());
     }
-    
+
     #[test]
     fn test_parse_iterative_with_depth() {
         // Test within depth limit
         let code = "(list 1 2 3 4 5)";
         let graph = parse_iterative_with_depth(code, 50).unwrap();
         assert!(!graph.nodes.is_empty());
-        
+
         // Test exceeding depth limit
         let mut nested = String::new();
         for _ in 0..20 {
@@ -72,11 +72,11 @@ mod tests {
         for _ in 0..20 {
             nested.push(')');
         }
-        
+
         let result = parse_iterative_with_depth(&nested, 10);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_parse_empty_string() {
         let result = parse("");
@@ -84,7 +84,7 @@ mod tests {
         let graph = result.unwrap();
         assert!(graph.nodes.is_empty());
     }
-    
+
     #[test]
     fn test_parse_whitespace_only() {
         let result = parse("   \n\t  \r\n  ");
@@ -92,7 +92,7 @@ mod tests {
         let graph = result.unwrap();
         assert!(graph.nodes.is_empty());
     }
-    
+
     #[test]
     fn test_parse_comments_only() {
         let code = r#"
@@ -105,16 +105,16 @@ mod tests {
         let graph = result.unwrap();
         assert!(graph.nodes.is_empty());
     }
-    
+
     #[test]
     fn test_parse_multiple_expressions() {
         let code = "(+ 1 2) (* 3 4) (- 5 6)";
         let graph = parse(code).unwrap();
-        
+
         // Should have multiple nodes
         assert!(graph.nodes.len() >= 3);
     }
-    
+
     #[test]
     fn test_parse_with_all_literal_types() {
         let code = r#"
@@ -128,12 +128,12 @@ mod tests {
             ; 'symbol    ; quoted symbol might not parse
             nil          ; nil
         "#;
-        
+
         let graph = parse(code).unwrap();
         // Should have parsed some literals (count may vary)
         assert!(!graph.nodes.is_empty());
     }
-    
+
     #[test]
     fn test_parse_special_forms() {
         // Test various special forms
@@ -152,13 +152,13 @@ mod tests {
             // "(quasiquote (list ,x ,@xs))",
             // "`(list ,x ,@xs)",
         ];
-        
+
         for code in test_cases {
             let result = parse(code);
             assert!(result.is_ok(), "Failed to parse: {}", code);
         }
     }
-    
+
     #[test]
     fn test_parse_match_expressions() {
         // Simple match without complex patterns
@@ -168,36 +168,36 @@ mod tests {
               (1 "one")
               (2 "two"))
         "#;
-        
+
         let result = parse(code);
         if result.is_ok() {
             let graph = result.unwrap();
             assert!(graph.root_id.is_some());
-            
+
             let root_node = graph.get_node(graph.root_id.unwrap()).unwrap();
             assert!(matches!(root_node, Node::Match { .. }));
         }
         // Parser may not support match expressions yet
     }
-    
+
     #[test]
     fn test_parse_effects() {
         let code = "(effect io:print \"Hello, World!\")";
         let graph = parse(code).unwrap();
-        
+
         assert!(graph.root_id.is_some());
-        
+
         let root_node = graph.get_node(graph.root_id.unwrap()).unwrap();
         assert!(matches!(root_node, Node::Effect { .. }));
     }
-    
+
     #[test]
     fn test_parse_constructors() {
         let code = "(Some 42)";
         let graph = parse(code).unwrap();
-        
+
         assert!(graph.root_id.is_some());
-        
+
         let root_node = graph.get_node(graph.root_id.unwrap()).unwrap();
         if let Node::Application { function, .. } = root_node {
             let func_node = graph.get_node(*function).unwrap();
@@ -206,7 +206,7 @@ mod tests {
             panic!("Expected Application node");
         }
     }
-    
+
     #[test]
     fn test_parse_errors() {
         let error_cases = vec![
@@ -220,27 +220,27 @@ mod tests {
             ("(if x)", "if needs then branch"),
             ("(match)", "empty match"),
         ];
-        
+
         for (code, _description) in error_cases {
             let result = parse(code);
             // Some parsers may handle errors differently
             // Just check that we don't panic
         }
     }
-    
+
     #[test]
     fn test_arena_allocation_efficiency() {
         let arena = Bump::new();
         let code = "(let ((nums (list 1 2 3 4 5))) (map (lambda (x) (* x x)) nums))";
-        
+
         // Parse with arena should succeed
         let graph = parse_with_arena(code, &arena).unwrap();
         assert!(!graph.nodes.is_empty());
-        
+
         // Note: Arena allocation tracking may not be visible from outside
         // Just verify parsing succeeded
     }
-    
+
     #[test]
     fn test_parse_async_constructs() {
         let code = r#"
@@ -250,12 +250,12 @@ mod tests {
             (send! ch 42)
             (recv! ch)
         "#;
-        
+
         let graph = parse(code).unwrap();
         // Should have parsed all async constructs
         assert!(graph.nodes.len() >= 5);
     }
-    
+
     #[test]
     fn test_parse_contract_constructs() {
         let code = r#"
@@ -264,16 +264,16 @@ mod tests {
               (ensures (>= result 0))
               (lambda (x) (* x x)))
         "#;
-        
+
         let result = parse(code);
         assert!(result.is_ok());
     }
-    
+
     #[test]
     fn test_parse_module_constructs() {
         // Simplified module test
         let code = "(module math)";
-        
+
         let result = parse(code);
         if result.is_ok() {
             let graph = result.unwrap();
@@ -284,7 +284,7 @@ mod tests {
         }
         // Module syntax may not be fully supported
     }
-    
+
     #[test]
     fn test_parse_large_expression() {
         // Generate a large but valid expression
@@ -293,40 +293,39 @@ mod tests {
             code.push_str(&format!(" {}", i));
         }
         code.push(')');
-        
+
         let result = parse(&code);
         assert!(result.is_ok());
-        
+
         let graph = result.unwrap();
         assert!(!graph.nodes.is_empty());
     }
-    
+
     #[test]
     fn test_iterative_vs_recursive_equivalence() {
-        let test_cases = vec![
-            "(+ 1 2 3)",
-            "(lambda (x) x)",
-            "42",
-            "\"hello\"",
-        ];
-        
+        let test_cases = vec!["(+ 1 2 3)", "(lambda (x) x)", "42", "\"hello\""];
+
         for code in test_cases {
             let recursive_result = parse(code);
             let iterative_result = parse_iterative(code);
-            
-            assert_eq!(recursive_result.is_ok(), iterative_result.is_ok(), 
-                      "Results differ for: {}", code);
-            
+
+            assert_eq!(
+                recursive_result.is_ok(),
+                iterative_result.is_ok(),
+                "Results differ for: {}",
+                code
+            );
+
             // Node counts may differ between implementations
             // Just verify both parse successfully
         }
     }
-    
+
     #[test]
     fn test_unicode_handling() {
         // Test basic unicode in strings
         let code = "\"Hello 🌍\"";
-        
+
         let result = parse(code);
         if result.is_ok() {
             let graph = result.unwrap();
@@ -334,7 +333,7 @@ mod tests {
         }
         // Full unicode support may vary
     }
-    
+
     #[test]
     fn test_parse_numeric_edge_cases() {
         let code = r#"
@@ -348,10 +347,10 @@ mod tests {
             0.5
             5.0
         "#;
-        
+
         let result = parse(code);
         assert!(result.is_ok());
-        
+
         let graph = result.unwrap();
         // Should have parsed numeric literals
         assert!(!graph.nodes.is_empty());

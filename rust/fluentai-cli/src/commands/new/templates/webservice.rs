@@ -1,6 +1,6 @@
 //! Web service template
 
-use super::{Template, TemplateCategory, TemplateOptions, helpers};
+use super::{helpers, Template, TemplateCategory, TemplateOptions};
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -11,31 +11,28 @@ impl Template for WebServiceTemplate {
     fn name(&self) -> &'static str {
         "webservice"
     }
-    
+
     fn description(&self) -> &'static str {
         "Basic web service with HTTP routing"
     }
-    
+
     fn aliases(&self) -> Vec<&'static str> {
         vec!["web-service", "http"]
     }
-    
+
     fn category(&self) -> TemplateCategory {
         TemplateCategory::Service
     }
-    
+
     fn create(&self, path: &Path, name: &str, _options: &TemplateOptions) -> Result<()> {
         // Create project file
         helpers::create_project_file(
             path,
             name,
             "Exe",
-            &[
-                ("FluentAI.Http", "1.0.0"),
-                ("FluentAI.Json", "1.0.0"),
-            ],
+            &[("FluentAI.Http", "1.0.0"), ("FluentAI.Json", "1.0.0")],
         )?;
-        
+
         // Create main program
         let program_content = r#";; FluentAI Web Service
 
@@ -74,16 +71,13 @@ impl Template for WebServiceTemplate {
   (main (command-line-args)))
 "#;
         fs::write(path.join("Program.ai"), program_content)?;
-        
+
         // Create directories
-        helpers::create_directories(path, &[
-            "src",
-            "src/handlers",
-            "src/middleware",
-            "tests",
-            "static",
-        ])?;
-        
+        helpers::create_directories(
+            path,
+            &["src", "src/handlers", "src/middleware", "tests", "static"],
+        )?;
+
         // Create middleware
         let middleware_content = r#";; HTTP middleware
 
@@ -118,7 +112,7 @@ impl Template for WebServiceTemplate {
   (export logging cors))
 "#;
         fs::write(path.join("src/middleware/common.ai"), middleware_content)?;
-        
+
         // Create a handler module
         let users_handler = r#";; User handlers
 
@@ -156,7 +150,7 @@ impl Template for WebServiceTemplate {
   (export list-users get-user create-user))
 "#;
         fs::write(path.join("src/handlers/users.ai"), users_handler)?;
-        
+
         // Create tests
         let test_content = r#";; Web service tests
 
@@ -186,7 +180,7 @@ impl Template for WebServiceTemplate {
         (test/expect body :to-equal input)))))
 "#;
         fs::write(path.join("tests/api.test.ai"), test_content)?;
-        
+
         // Create static file
         let index_html = r#"<!DOCTYPE html>
 <html>
@@ -214,13 +208,13 @@ impl Template for WebServiceTemplate {
 </html>
 "#;
         fs::write(path.join("static/index.html"), index_html)?;
-        
+
         // Create .gitignore
         helpers::create_gitignore(path)?;
-        
+
         // Create README
         helpers::create_readme(path, name, "A FluentAI web service.")?;
-        
+
         Ok(())
     }
 }

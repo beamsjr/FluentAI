@@ -1,8 +1,8 @@
 //! Service provider interfaces and implementations
 
-use std::any::TypeId;
 use crate::error::DiResult;
 use crate::service::Service;
+use std::any::TypeId;
 
 /// Factory function for creating services
 pub type ServiceFactory = Box<dyn Fn() -> DiResult<Box<dyn Service>> + Send + Sync>;

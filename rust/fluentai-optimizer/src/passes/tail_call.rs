@@ -1,8 +1,8 @@
 //! Tail call optimization pass
 
-use fluentai_core::ast::{Graph, Node, NodeId};
-use anyhow::Result;
 use crate::passes::OptimizationPass;
+use anyhow::Result;
+use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Information about a tail call
@@ -27,7 +27,7 @@ pub struct TailCallOptimizationPass {
 impl TailCallOptimizationPass {
     /// Create new tail call optimization pass
     pub fn new() -> Self {
-        Self { 
+        Self {
             optimized_count: 0,
             tail_calls_count: 0,
             optimized_functions: FxHashSet::default(),
@@ -38,7 +38,12 @@ impl TailCallOptimizationPass {
 
 impl TailCallOptimizationPass {
     /// Check if a function body contains tail recursion and collect tail call info
-    fn analyze_tail_recursion(&self, graph: &Graph, func_name: &str, body: NodeId) -> Option<Vec<TailCallInfo>> {
+    fn analyze_tail_recursion(
+        &self,
+        graph: &Graph,
+        func_name: &str,
+        body: NodeId,
+    ) -> Option<Vec<TailCallInfo>> {
         let mut tail_calls = Vec::new();
         self.collect_tail_calls(graph, func_name, body, true, &mut tail_calls);
         if !tail_calls.is_empty() {
@@ -47,9 +52,16 @@ impl TailCallOptimizationPass {
             None
         }
     }
-    
+
     /// Collect all tail calls in a function body
-    fn collect_tail_calls(&self, graph: &Graph, func_name: &str, node_id: NodeId, is_tail: bool, tail_calls: &mut Vec<TailCallInfo>) {
+    fn collect_tail_calls(
+        &self,
+        graph: &Graph,
+        func_name: &str,
+        node_id: NodeId,
+        is_tail: bool,
+        tail_calls: &mut Vec<TailCallInfo>,
+    ) {
         if let Some(node) = graph.get_node(node_id) {
             match node {
                 Node::Application { function, args } => {
@@ -66,7 +78,11 @@ impl TailCallOptimizationPass {
                         }
                     }
                 }
-                Node::If { condition: _, then_branch, else_branch } => {
+                Node::If {
+                    condition: _,
+                    then_branch,
+                    else_branch,
+                } => {
                     // Both branches are in tail position
                     self.collect_tail_calls(graph, func_name, *then_branch, is_tail, tail_calls);
                     self.collect_tail_calls(graph, func_name, *else_branch, is_tail, tail_calls);
@@ -85,21 +101,31 @@ impl TailCallOptimizationPass {
             }
         }
     }
-    
+
     /// Mark a function as tail-call optimized
-    fn mark_as_optimized(&mut self, graph: &mut Graph, func_name: &str, body: NodeId, tail_calls: Vec<TailCallInfo>) -> NodeId {
+    fn mark_as_optimized(
+        &mut self,
+        graph: &mut Graph,
+        func_name: &str,
+        body: NodeId,
+        tail_calls: Vec<TailCallInfo>,
+    ) -> NodeId {
         let tail_call_count = tail_calls.len();
-        
+
         // Add metadata to indicate optimization
         let metadata = graph.metadata_mut(body);
-        metadata.annotations.push("tail-recursive-optimized".to_string());
-        metadata.annotations.push(format!("tail-calls-eliminated:{}", tail_call_count));
-        
+        metadata
+            .annotations
+            .push("tail-recursive-optimized".to_string());
+        metadata
+            .annotations
+            .push(format!("tail-calls-eliminated:{}", tail_call_count));
+
         // Update statistics
         self.optimized_count += 1;
         self.tail_calls_count += tail_call_count;
         self.optimized_functions.insert(func_name.to_string());
-        
+
         body
     }
 }
@@ -114,56 +140,74 @@ impl OptimizationPass for TailCallOptimizationPass {
         self.tail_calls_count = 0;
         self.optimized_functions.clear();
         self.function_params.clear();
-        
+
         let mut optimized = graph.clone();
-        
+
         // Collect all function definitions first
         for (_node_id, node) in &graph.nodes {
             match node {
                 Node::Letrec { bindings, .. } => {
                     for (func_name, func_id) in bindings {
                         if let Some(Node::Lambda { params, .. }) = graph.get_node(*func_id) {
-                            self.function_params.insert(func_name.clone(), params.clone());
+                            self.function_params
+                                .insert(func_name.clone(), params.clone());
                         }
                     }
                 }
                 Node::Let { bindings, .. } => {
                     for (func_name, func_id) in bindings {
                         if let Some(Node::Lambda { params, .. }) = graph.get_node(*func_id) {
-                            self.function_params.insert(func_name.clone(), params.clone());
+                            self.function_params
+                                .insert(func_name.clone(), params.clone());
                         }
                     }
                 }
                 _ => {}
             }
         }
-        
+
         // Find and optimize tail-recursive functions
         let mut functions_to_optimize = Vec::new();
-        
+
         for (node_id, node) in &graph.nodes {
             if let Node::Letrec { bindings, body: _ } = node {
                 for (i, (func_name, func_id)) in bindings.iter().enumerate() {
-                    if let Some(Node::Lambda { params, body: lambda_body }) = graph.get_node(*func_id) {
-                        if let Some(tail_calls) = self.analyze_tail_recursion(graph, func_name, *lambda_body) {
-                            functions_to_optimize.push((*node_id, i, func_name.clone(), *func_id, params.clone(), *lambda_body, tail_calls));
+                    if let Some(Node::Lambda {
+                        params,
+                        body: lambda_body,
+                    }) = graph.get_node(*func_id)
+                    {
+                        if let Some(tail_calls) =
+                            self.analyze_tail_recursion(graph, func_name, *lambda_body)
+                        {
+                            functions_to_optimize.push((
+                                *node_id,
+                                i,
+                                func_name.clone(),
+                                *func_id,
+                                params.clone(),
+                                *lambda_body,
+                                tail_calls,
+                            ));
                         }
                     }
                 }
             }
         }
-        
+
         // Apply optimizations (for now, just mark with metadata)
-        for (letrec_id, binding_idx, func_name, _lambda_id, params, body, tail_calls) in functions_to_optimize {
+        for (letrec_id, binding_idx, func_name, _lambda_id, params, body, tail_calls) in
+            functions_to_optimize
+        {
             // Mark the lambda body as optimized
             let marked_body = self.mark_as_optimized(&mut optimized, &func_name, body, tail_calls);
-            
+
             // Create new lambda with marked body
             let new_lambda = optimized.add_node(Node::Lambda {
                 params: params.clone(),
                 body: marked_body,
             })?;
-            
+
             // Update the letrec binding
             if let Some(Node::Letrec { bindings, body }) = optimized.get_node(letrec_id).cloned() {
                 let mut new_bindings = bindings;
@@ -172,17 +216,24 @@ impl OptimizationPass for TailCallOptimizationPass {
                 }
                 // Replace the letrec node
                 if let Some(node) = optimized.get_node_mut(letrec_id) {
-                    *node = Node::Letrec { bindings: new_bindings, body };
+                    *node = Node::Letrec {
+                        bindings: new_bindings,
+                        body,
+                    };
                 }
             }
         }
-        
+
         Ok(optimized)
     }
 
     fn stats(&self) -> String {
         if self.tail_calls_count > 0 {
-            format!("{} pass: {} tail calls optimized", self.name(), self.tail_calls_count)
+            format!(
+                "{} pass: {} tail calls optimized",
+                self.name(),
+                self.tail_calls_count
+            )
         } else {
             format!("{} pass: no optimizations performed", self.name())
         }

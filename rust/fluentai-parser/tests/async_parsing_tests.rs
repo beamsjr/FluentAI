@@ -1,14 +1,15 @@
 //! Tests for async/await/spawn parsing functionality
 
-use fluentai_parser::parse;
 use fluentai_core::ast::Node;
+use fluentai_parser::parse;
 
 // Helper function (unused but kept for potential future use)
 #[allow(dead_code)]
 fn parse_single_expr(input: &str) -> Result<Node, Box<dyn std::error::Error>> {
     let result = parse(input)?;
     let root_id = result.root_id.ok_or("No root node")?;
-    result.get_node(root_id)
+    result
+        .get_node(root_id)
         .ok_or("Root node not found".into())
         .map(|n| n.clone())
 }
@@ -19,7 +20,7 @@ fn test_parse_async_basic() {
     let result = parse("(async (+ 1 2))").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Async { body, .. } => {
             // Body should be the addition expression
@@ -45,11 +46,11 @@ fn test_parse_async_with_complex_body() {
         (let ((x 10)
               (y 20))
           (+ x y)))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     assert!(matches!(node, Node::Async { .. }));
 }
 
@@ -59,7 +60,7 @@ fn test_parse_await_basic() {
     let result = parse("(await promise)").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Await { expr, .. } => {
             // Expression should be a variable
@@ -81,7 +82,7 @@ fn test_parse_await_with_expression() {
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Await { expr, .. } => {
             // Expression should be an application
@@ -105,7 +106,7 @@ fn test_parse_spawn_basic() {
     let result = parse("(spawn (worker-task))").unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Spawn { expr, .. } => {
             // Expression should be an application
@@ -130,18 +131,20 @@ fn test_parse_spawn_with_lambda() {
                      (do
                        (println "Worker started")
                        (process-data))))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Spawn { expr, .. } => {
             // Expression should be a lambda
             match result.get_node(*expr) {
-                Some(Node::Lambda { params, body: _, .. }) => {
+                Some(Node::Lambda {
+                    params, body: _, ..
+                }) => {
                     assert_eq!(params.len(), 0); // No parameters
-                    // Body is a NodeId, not a vector
+                                                 // Body is a NodeId, not a vector
                 }
                 _ => panic!("Expected lambda node for spawn expression"),
             }
@@ -156,11 +159,11 @@ fn test_parse_nested_async_await() {
     let input = r#"(async 
                      (let ((result (await (fetch-api))))
                        (process result)))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     // Should be async at top level
     assert!(matches!(node, Node::Async { .. }));
 }
@@ -172,10 +175,10 @@ fn test_parse_multiple_awaits() {
                      (let ((a (await promise1))
                            (b (await promise2)))
                        (+ a b)))"#;
-    
+
     let result = parse(input).unwrap();
     assert!(result.root_id.is_some());
-    
+
     // Just verify it parses without error
     // The structure is complex but valid
 }
@@ -186,11 +189,11 @@ fn test_parse_spawn_in_async() {
     let input = r#"(async
                      (let ((worker (spawn (process-batch))))
                        (await worker)))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     assert!(matches!(node, Node::Async { .. }));
 }
 
@@ -203,7 +206,7 @@ fn test_parse_async_with_multiple_statements() {
                          (println "Processing")
                          (process data)
                          (println "Done"))))"#;
-    
+
     let result = parse(input).unwrap();
     assert!(result.root_id.is_some());
 }
@@ -212,11 +215,11 @@ fn test_parse_async_with_multiple_statements() {
 fn test_parse_spawn_with_arguments() {
     // Test spawn with a function that takes arguments
     let input = "(spawn (worker-fn arg1 arg2))";
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Spawn { expr, .. } => {
             match result.get_node(*expr) {
@@ -236,11 +239,11 @@ fn test_parse_await_in_condition() {
     let input = r#"(if (await check-condition)
                      (do-something)
                      (do-something-else))"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::If { condition, .. } => {
             // Condition should be await
@@ -259,11 +262,11 @@ fn test_parse_await_in_condition() {
 fn test_parse_async_lambda() {
     // Test async lambda
     let input = "(async (lambda (x) (await (process x))))";
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
         Node::Async { body, .. } => {
             // Body should be lambda
@@ -283,13 +286,15 @@ fn test_parse_error_unclosed_async() {
     // Test error handling for unclosed async
     let result = parse("(async (+ 1 2");
     assert!(result.is_err());
-    
+
     if let Err(e) = result {
-        // Should be unexpected EOF error  
-        assert!(e.to_string().contains("Unexpected end of input") || 
-                e.to_string().contains("EOF") || 
-                e.to_string().contains("Unclosed") || 
-                e.to_string().contains("delimiter"));
+        // Should be unexpected EOF error
+        assert!(
+            e.to_string().contains("Unexpected end of input")
+                || e.to_string().contains("EOF")
+                || e.to_string().contains("Unclosed")
+                || e.to_string().contains("delimiter")
+        );
     }
 }
 
@@ -323,7 +328,11 @@ fn test_parse_complex_async_pattern() {
             (let ((promises (map (lambda (url) (spawn (fetch url))) urls)))
               (let ((results (map await promises)))
                 (process-results results)))))"#;
-    
+
     let result = parse(input);
-    assert!(result.is_ok(), "Failed to parse complex async pattern: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to parse complex async pattern: {:?}",
+        result
+    );
 }

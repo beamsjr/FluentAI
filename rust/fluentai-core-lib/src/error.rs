@@ -48,7 +48,7 @@ pub enum RuntimeError {
     /// Not implemented
     #[error("Not implemented: {0}")]
     NotImplemented(String),
-    
+
     /// Generic error
     #[error("Error: {0}")]
     Generic(String),

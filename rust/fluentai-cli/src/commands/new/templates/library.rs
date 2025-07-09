@@ -1,6 +1,6 @@
 //! Library template
 
-use super::{Template, TemplateCategory, TemplateOptions, helpers};
+use super::{helpers, Template, TemplateCategory, TemplateOptions};
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -11,19 +11,19 @@ impl Template for LibraryTemplate {
     fn name(&self) -> &'static str {
         "library"
     }
-    
+
     fn description(&self) -> &'static str {
         "Reusable library package for sharing code"
     }
-    
+
     fn aliases(&self) -> Vec<&'static str> {
         vec!["lib", "package"]
     }
-    
+
     fn category(&self) -> TemplateCategory {
         TemplateCategory::Library
     }
-    
+
     fn create(&self, path: &Path, name: &str, _options: &TemplateOptions) -> Result<()> {
         // Create project file with library-specific settings
         let project_content = format!(
@@ -43,7 +43,7 @@ impl Template for LibraryTemplate {
             name, name
         );
         fs::write(path.join(format!("{}.aiproj", name)), project_content)?;
-        
+
         // Create main library file
         let lib_content = format!(
             r#";; {} Library
@@ -72,10 +72,10 @@ impl Template for LibraryTemplate {
             name, name, name
         );
         fs::write(path.join("lib.ai"), lib_content)?;
-        
+
         // Create directories
         helpers::create_directories(path, &["src", "tests", "docs", "examples"])?;
-        
+
         // Create additional source file
         let math_content = r#";; Math utilities
 
@@ -107,7 +107,7 @@ impl Template for LibraryTemplate {
   (export factorial fibonacci prime?))
 "#;
         fs::write(path.join("src/math.ai"), math_content)?;
-        
+
         // Create tests
         let test_content = format!(
             r#";; Tests for {} library
@@ -140,10 +140,16 @@ impl Template for LibraryTemplate {
       (test/expect (filter math/prime? (range 1 20))
                    :to-equal (list 2 3 5 7 11 13 17 19)))))
 "#,
-            name, name.to_lowercase(), name, name.to_lowercase(), name, name.to_lowercase(), name.to_lowercase()
+            name,
+            name.to_lowercase(),
+            name,
+            name.to_lowercase(),
+            name,
+            name.to_lowercase(),
+            name.to_lowercase()
         );
         fs::write(path.join("tests/lib.test.ai"), test_content)?;
-        
+
         // Create example
         let example_content = format!(
             r#";; Example usage of {} library
@@ -167,10 +173,12 @@ impl Template for LibraryTemplate {
 (println "Map twice example:"
          (lib/map-twice double (list 1 2 3 4 5)))
 "#,
-            name, name.to_lowercase(), name.to_lowercase()
+            name,
+            name.to_lowercase(),
+            name.to_lowercase()
         );
         fs::write(path.join("examples/usage.ai"), example_content)?;
-        
+
         // Create documentation
         let docs_content = format!(
             r#"# {} API Documentation
@@ -238,16 +246,19 @@ fluentai add package {}
 - **Returns**: Boolean
 - **Description**: Tests if n is prime
 "#,
-            name, name, name, name.to_lowercase()
+            name,
+            name,
+            name,
+            name.to_lowercase()
         );
         fs::write(path.join("docs/API.md"), docs_content)?;
-        
+
         // Create .gitignore
         helpers::create_gitignore(path)?;
-        
+
         // Create README
         helpers::create_readme(path, name, "A FluentAI library package.")?;
-        
+
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 //! Comprehensive tests for multiple top-level expressions (Begin node)
 
-use fluentai_vm::test_utils::*;
 use fluentai_core::value::Value;
+use fluentai_vm::test_utils::*;
 
 #[test]
 fn test_begin_multiple_literals() {

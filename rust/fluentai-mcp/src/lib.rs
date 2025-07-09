@@ -1,7 +1,7 @@
 //! FluentAI MCP Server Library
 
-pub mod server;
 pub mod handlers;
+pub mod server;
 pub mod transport;
 
 #[cfg(test)]

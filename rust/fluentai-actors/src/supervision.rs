@@ -5,10 +5,10 @@
 pub struct SupervisionStrategy {
     /// Restart strategy
     pub restart_strategy: RestartStrategy,
-    
+
     /// Maximum restarts allowed
     pub max_restarts: u32,
-    
+
     /// Time window for restart counting
     pub within_seconds: u64,
 }
@@ -28,13 +28,13 @@ impl Default for SupervisionStrategy {
 pub enum RestartStrategy {
     /// Resume processing next message
     Resume,
-    
+
     /// Restart the actor
     Restart,
-    
+
     /// Stop the actor
     Stop,
-    
+
     /// Escalate to parent supervisor
     Escalate,
 }

@@ -1,10 +1,10 @@
 //! Tests for effect primitive detection in the optimizer
 
-use fluentai_optimizer::analysis::{EffectAnalysis, is_effect_primitive};
+use fluentai_core::ast::{EffectType, Graph, Literal, Node, NodeId};
+use fluentai_optimizer::analysis::{is_effect_primitive, EffectAnalysis};
 use fluentai_parser::parse;
-use fluentai_core::ast::{Graph, Node, NodeId, Literal, EffectType};
-use std::num::NonZeroU32;
 use rustc_hash::FxHashSet;
+use std::num::NonZeroU32;
 
 #[test]
 fn test_io_effect_primitives() {
@@ -21,11 +21,16 @@ fn test_io_effect_primitives() {
         ("display", EffectType::IO),
         ("newline", EffectType::IO),
     ];
-    
+
     for (prim, expected_effect) in io_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -42,11 +47,16 @@ fn test_state_effect_primitives() {
         ("reset!", EffectType::State),
         ("compare-and-set!", EffectType::State),
     ];
-    
+
     for (prim, expected_effect) in state_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -60,11 +70,16 @@ fn test_error_effect_primitives() {
         ("assert", EffectType::Error),
         ("panic", EffectType::Error),
     ];
-    
+
     for (prim, expected_effect) in error_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -76,11 +91,16 @@ fn test_time_effect_primitives() {
         ("current-time", EffectType::Time),
         ("current-milliseconds", EffectType::Time),
     ];
-    
+
     for (prim, expected_effect) in time_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -93,11 +113,16 @@ fn test_random_effect_primitives() {
         ("random-float", EffectType::Random),
         ("random-seed!", EffectType::Random),
     ];
-    
+
     for (prim, expected_effect) in random_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -113,11 +138,16 @@ fn test_network_effect_primitives() {
         ("websocket-connect", EffectType::Network),
         ("tcp-connect", EffectType::Network),
     ];
-    
+
     for (prim, expected_effect) in network_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -131,11 +161,16 @@ fn test_async_effect_primitives() {
         ("future", EffectType::Async),
         ("async", EffectType::Async),
     ];
-    
+
     for (prim, expected_effect) in async_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -151,11 +186,16 @@ fn test_concurrent_effect_primitives() {
         ("unlock!", EffectType::Concurrent),
         ("thread-spawn", EffectType::Concurrent),
     ];
-    
+
     for (prim, expected_effect) in concurrent_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }
 
@@ -163,19 +203,39 @@ fn test_concurrent_effect_primitives() {
 fn test_pure_primitives_have_no_effects() {
     // Test that pure primitives return None
     let pure_primitives = vec![
-        "+", "-", "*", "/", "mod",
-        "<", ">", "<=", ">=", "=", "!=",
-        "and", "or", "not",
-        "car", "cdr", "cons", "list",
-        "list-len", "list-empty?",
-        "str-len", "str-concat", "str-upper", "str-lower",
-        "abs", "min", "max", "sqrt",
+        "+",
+        "-",
+        "*",
+        "/",
+        "mod",
+        "<",
+        ">",
+        "<=",
+        ">=",
+        "=",
+        "!=",
+        "and",
+        "or",
+        "not",
+        "car",
+        "cdr",
+        "cons",
+        "list",
+        "list-len",
+        "list-empty?",
+        "str-len",
+        "str-concat",
+        "str-upper",
+        "str-lower",
+        "abs",
+        "min",
+        "max",
+        "sqrt",
     ];
-    
+
     for prim in pure_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, None, 
-                   "Primitive '{}' should have no effects", prim);
+        assert_eq!(effect, None, "Primitive '{}' should have no effects", prim);
     }
 }
 
@@ -184,17 +244,18 @@ fn test_effect_detection_in_simple_application() {
     // Test that effect primitives are detected in function applications
     let code = "(print \"hello world\")";
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // The application node should have IO effects
-    let app_node = ast.nodes.iter().find(|(_, node)| {
-        matches!(node, Node::Application { .. })
-    });
-    
+    let app_node = ast
+        .nodes
+        .iter()
+        .find(|(_, node)| matches!(node, Node::Application { .. }));
+
     assert!(app_node.is_some());
     let (app_id, _) = app_node.unwrap();
-    
+
     assert!(!analysis.pure_nodes.contains(app_id));
     assert!(analysis.node_effects[app_id].contains(&EffectType::IO));
 }
@@ -204,9 +265,9 @@ fn test_effect_detection_in_nested_application() {
     // Test effects in nested expressions
     let code = "(+ 1 (print \"side effect\") 3)";
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // The outer + application should have effects from the print
     if let Some(root_id) = ast.root_id {
         assert!(!analysis.pure_nodes.contains(&root_id));
@@ -219,9 +280,9 @@ fn test_multiple_effects_in_expression() {
     // Test detection of multiple effect types
     let code = "(list (print \"io\") (set! x 42) (random))";
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // The list should have IO, State, and Random effects
     if let Some(root_id) = ast.root_id {
         let effects = &analysis.node_effects[&root_id];
@@ -239,14 +300,15 @@ fn test_effect_propagation_through_let() {
           (+ x 10))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // The let node should have effects
-    let let_node = ast.nodes.iter().find(|(_, node)| {
-        matches!(node, Node::Let { .. })
-    });
-    
+    let let_node = ast
+        .nodes
+        .iter()
+        .find(|(_, node)| matches!(node, Node::Let { .. }));
+
     if let Some((let_id, _)) = let_node {
         assert!(!analysis.pure_nodes.contains(let_id));
         assert!(analysis.node_effects[let_id].contains(&EffectType::IO));
@@ -262,14 +324,15 @@ fn test_effect_propagation_through_if() {
             (error "non-positive"))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // The if node should have both IO and Error effects
-    let if_node = ast.nodes.iter().find(|(_, node)| {
-        matches!(node, Node::If { .. })
-    });
-    
+    let if_node = ast
+        .nodes
+        .iter()
+        .find(|(_, node)| matches!(node, Node::If { .. }));
+
     if let Some((if_id, _)) = if_node {
         let effects = &analysis.node_effects[if_id];
         assert!(effects.contains(&EffectType::IO));
@@ -282,9 +345,9 @@ fn test_effect_in_function_argument() {
     // Test effects in function arguments are detected
     let code = "(map print (list 1 2 3))";
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // The map application should be marked as effectful
     // because print has effects
     if let Some(root_id) = ast.root_id {
@@ -299,9 +362,9 @@ fn test_pure_expression_optimization_hint() {
     // Test that pure expressions are marked for optimization
     let code = "(+ (* 2 3) (/ 10 2))";
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // All nodes should be pure and const-evaluable
     for (node_id, node) in &ast.nodes {
         if matches!(node, Node::Application { .. } | Node::Literal(_)) {
@@ -320,9 +383,9 @@ fn test_mixed_pure_and_effectful() {
           (+ pure-val (str-len effect-val)))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // Find the multiplication - should be pure
     let mult_node = ast.nodes.iter().find(|(_, node)| {
         if let Node::Application { function, .. } = node {
@@ -335,12 +398,12 @@ fn test_mixed_pure_and_effectful() {
             false
         }
     });
-    
+
     if let Some((mult_id, _)) = mult_node {
         assert!(analysis.pure_nodes.contains(mult_id));
         assert!(analysis.const_evaluable.contains(mult_id));
     }
-    
+
     // The overall expression should have effects
     if let Some(root_id) = ast.root_id {
         assert!(!analysis.pure_nodes.contains(&root_id));
@@ -354,14 +417,15 @@ fn test_effect_free_lambda_body() {
     // even if their body contains effect primitives
     let code = "(lambda (x) (print x))";
     let ast = parse(code).unwrap();
-    
+
     let analysis = EffectAnalysis::analyze(&ast);
-    
+
     // The lambda node itself should be pure
-    let lambda_node = ast.nodes.iter().find(|(_, node)| {
-        matches!(node, Node::Lambda { .. })
-    });
-    
+    let lambda_node = ast
+        .nodes
+        .iter()
+        .find(|(_, node)| matches!(node, Node::Lambda { .. }));
+
     if let Some((lambda_id, _)) = lambda_node {
         assert!(analysis.pure_nodes.contains(lambda_id));
     }
@@ -372,16 +436,19 @@ fn test_effect_primitive_variations() {
     // Test various naming conventions for effect primitives
     let variations = vec![
         ("display", Some(EffectType::IO)),
-        ("PRINT", None), // Case sensitive
-        ("print!", None), // Not a recognized variant
+        ("PRINT", None),                       // Case sensitive
+        ("print!", None),                      // Not a recognized variant
         ("set-car!", Some(EffectType::State)), // Mutation primitive
         ("vector-set!", Some(EffectType::State)),
     ];
-    
+
     for (name, expected) in variations {
         let effect = is_effect_primitive(name);
-        assert_eq!(effect, expected, 
-                   "Primitive '{}' effect detection mismatch", name);
+        assert_eq!(
+            effect, expected,
+            "Primitive '{}' effect detection mismatch",
+            name
+        );
     }
 }
 
@@ -396,10 +463,15 @@ fn test_dom_effect_primitives() {
         ("dom-remove-element", EffectType::Dom),
         ("dom-query-selector", EffectType::Dom),
     ];
-    
+
     for (prim, expected_effect) in dom_primitives {
         let effect = is_effect_primitive(prim);
-        assert_eq!(effect, Some(expected_effect), 
-                   "Primitive '{}' should have {:?} effect", prim, expected_effect);
+        assert_eq!(
+            effect,
+            Some(expected_effect),
+            "Primitive '{}' should have {:?} effect",
+            prim,
+            expected_effect
+        );
     }
 }

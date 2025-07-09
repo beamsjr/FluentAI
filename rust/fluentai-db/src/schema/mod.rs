@@ -1,7 +1,7 @@
 //! Schema definition and management
 
-use serde::{Serialize, Deserialize};
 use crate::error::DbResult;
+use serde::{Deserialize, Serialize};
 
 /// Field data types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -11,26 +11,26 @@ pub enum FieldType {
     BigInt,
     Float,
     Decimal(u8, u8), // precision, scale
-    
+
     // String types
     String(Option<usize>), // max length
     Text,
-    
+
     // Boolean
     Bool,
-    
+
     // Date/Time types
     Date,
     Time,
     DateTime,
     Timestamp,
-    
+
     // Binary
     Binary(Option<usize>), // max length
-    
+
     // JSON
     Json,
-    
+
     // UUID
     Uuid,
 }
@@ -89,7 +89,7 @@ pub enum Constraint {
         on_delete: ForeignKeyAction,
         on_update: ForeignKeyAction,
     },
-    Check(String), // SQL expression
+    Check(String),   // SQL expression
     Default(String), // SQL expression
 }
 
@@ -133,22 +133,22 @@ impl Field {
             comment: None,
         }
     }
-    
+
     pub fn not_null(mut self) -> Self {
         self.constraints.push(Constraint::NotNull);
         self
     }
-    
+
     pub fn unique(mut self) -> Self {
         self.constraints.push(Constraint::Unique);
         self
     }
-    
+
     pub fn primary_key(mut self) -> Self {
         self.constraints.push(Constraint::PrimaryKey);
         self
     }
-    
+
     pub fn foreign_key(
         mut self,
         table: impl Into<String>,
@@ -164,30 +164,35 @@ impl Field {
         });
         self
     }
-    
+
     pub fn default(mut self, expr: impl Into<String>) -> Self {
         self.constraints.push(Constraint::Default(expr.into()));
         self
     }
-    
+
     pub fn check(mut self, expr: impl Into<String>) -> Self {
         self.constraints.push(Constraint::Check(expr.into()));
         self
     }
-    
+
     pub fn comment(mut self, comment: impl Into<String>) -> Self {
         self.comment = Some(comment.into());
         self
     }
-    
+
     /// Check if field is nullable
     pub fn is_nullable(&self) -> bool {
-        !self.constraints.iter().any(|c| matches!(c, Constraint::NotNull))
+        !self
+            .constraints
+            .iter()
+            .any(|c| matches!(c, Constraint::NotNull))
     }
-    
+
     /// Check if field is primary key
     pub fn is_primary_key(&self) -> bool {
-        self.constraints.iter().any(|c| matches!(c, Constraint::PrimaryKey))
+        self.constraints
+            .iter()
+            .any(|c| matches!(c, Constraint::PrimaryKey))
     }
 }
 
@@ -218,31 +223,31 @@ impl Schema {
             comment: None,
         }
     }
-    
+
     pub fn field(mut self, field: Field) -> Self {
         self.fields.push(field);
         self
     }
-    
+
     pub fn index(mut self, index: Index) -> Self {
         self.indexes.push(index);
         self
     }
-    
+
     pub fn comment(mut self, comment: impl Into<String>) -> Self {
         self.comment = Some(comment.into());
         self
     }
-    
+
     /// Get an iterator over fields
     pub fn fields(&self) -> impl Iterator<Item = &Field> {
         self.fields.iter()
     }
-    
+
     /// Generate CREATE TABLE SQL
     pub fn to_create_sql(&self, dialect: SqlDialect) -> DbResult<String> {
         let mut sql = format!("CREATE TABLE {} (\n", self.name);
-        
+
         // Fields
         for (i, field) in self.fields.iter().enumerate() {
             if i > 0 {
@@ -252,7 +257,7 @@ impl Schema {
             sql.push_str(&field.name);
             sql.push(' ');
             sql.push_str(&field.field_type.to_sql(dialect));
-            
+
             // Constraints
             for constraint in &field.constraints {
                 match constraint {
@@ -274,11 +279,17 @@ impl Schema {
                 }
             }
         }
-        
+
         // Foreign key constraints
         for field in &self.fields {
             for constraint in &field.constraints {
-                if let Constraint::ForeignKey { table, column, on_delete, on_update } = constraint {
+                if let Constraint::ForeignKey {
+                    table,
+                    column,
+                    on_delete,
+                    on_update,
+                } = constraint
+                {
                     sql.push_str(",\n    FOREIGN KEY (");
                     sql.push_str(&field.name);
                     sql.push_str(") REFERENCES ");
@@ -293,9 +304,9 @@ impl Schema {
                 }
             }
         }
-        
+
         sql.push_str("\n)");
-        
+
         // Table comment (if supported)
         if let Some(comment) = &self.comment {
             if dialect == SqlDialect::MySQL {
@@ -304,9 +315,9 @@ impl Schema {
                 sql.push('\'');
             }
         }
-        
+
         sql.push(';');
-        
+
         // Create indexes
         let mut index_sql = String::new();
         for index in &self.indexes {
@@ -327,7 +338,7 @@ impl Schema {
             }
             index_sql.push(';');
         }
-        
+
         Ok(sql + &index_sql)
     }
 }
@@ -343,14 +354,19 @@ impl SchemaBuilder {
             schema: Schema::new(name),
         }
     }
-    
+
     pub fn add_field(mut self, field: Field) -> Self {
         self.schema.fields.push(field);
         self
     }
-    
+
     /// Convenience method for adding a field with a builder function
-    pub fn add_field_with<F>(mut self, name: impl Into<String>, field_type: FieldType, builder: F) -> Self 
+    pub fn add_field_with<F>(
+        mut self,
+        name: impl Into<String>,
+        field_type: FieldType,
+        builder: F,
+    ) -> Self
     where
         F: FnOnce(Field) -> Field,
     {
@@ -358,8 +374,13 @@ impl SchemaBuilder {
         self.schema.fields.push(builder(field));
         self
     }
-    
-    pub fn add_index(mut self, name: impl Into<String>, columns: Vec<String>, unique: bool) -> Self {
+
+    pub fn add_index(
+        mut self,
+        name: impl Into<String>,
+        columns: Vec<String>,
+        unique: bool,
+    ) -> Self {
         self.schema.indexes.push(Index {
             name: name.into(),
             columns,
@@ -368,12 +389,12 @@ impl SchemaBuilder {
         });
         self
     }
-    
+
     pub fn comment(mut self, comment: impl Into<String>) -> Self {
         self.schema.comment = Some(comment.into());
         self
     }
-    
+
     pub fn build(self) -> Schema {
         self.schema
     }
@@ -384,7 +405,7 @@ impl SchemaBuilder {
 pub struct Migration {
     pub version: String,
     pub description: String,
-    pub up: Vec<String>, // SQL statements
+    pub up: Vec<String>,   // SQL statements
     pub down: Vec<String>, // SQL statements
     pub checksum: Option<String>,
 }
@@ -399,12 +420,12 @@ impl Migration {
             checksum: None,
         }
     }
-    
+
     pub fn up(mut self, sql: impl Into<String>) -> Self {
         self.up.push(sql.into());
         self
     }
-    
+
     pub fn down(mut self, sql: impl Into<String>) -> Self {
         self.down.push(sql.into());
         self

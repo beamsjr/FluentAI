@@ -2,9 +2,9 @@
 
 use crate::{EffectHandler, EffectResult};
 use async_trait::async_trait;
-use fluentai_core::{ast::EffectType, value::Value, error::Error};
-use rand::{Rng, SeedableRng};
+use fluentai_core::{ast::EffectType, error::Error, value::Value};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use std::sync::{Arc, Mutex};
 
 pub struct RandomHandler {
@@ -24,7 +24,7 @@ impl EffectHandler for RandomHandler {
     fn effect_type(&self) -> EffectType {
         EffectType::Random
     }
-    
+
     fn handle_sync(&self, operation: &str, args: &[Value]) -> EffectResult {
         match operation {
             "seed" => {
@@ -33,7 +33,9 @@ impl EffectHandler for RandomHandler {
                     *rng = StdRng::seed_from_u64(*seed as u64);
                     Ok(Value::Nil)
                 } else {
-                    Err(Error::Runtime("random:seed requires integer seed".to_string()))
+                    Err(Error::Runtime(
+                        "random:seed requires integer seed".to_string(),
+                    ))
                 }
             }
             "random" => {
@@ -43,15 +45,18 @@ impl EffectHandler for RandomHandler {
             "int" => {
                 let mut rng = self.rng.lock().unwrap();
                 if args.len() >= 2 {
-                    if let (Some(Value::Integer(min)), Some(Value::Integer(max))) = 
-                        (args.get(0), args.get(1)) {
+                    if let (Some(Value::Integer(min)), Some(Value::Integer(max))) =
+                        (args.get(0), args.get(1))
+                    {
                         if min >= max {
                             Err(Error::Runtime("random:int requires min < max".to_string()))
                         } else {
                             Ok(Value::Integer(rng.gen_range(*min..*max)))
                         }
                     } else {
-                        Err(Error::Runtime("random:int requires integer bounds".to_string()))
+                        Err(Error::Runtime(
+                            "random:int requires integer bounds".to_string(),
+                        ))
                     }
                 } else {
                     Ok(Value::Integer(rng.gen()))
@@ -60,15 +65,20 @@ impl EffectHandler for RandomHandler {
             "float" => {
                 let mut rng = self.rng.lock().unwrap();
                 if args.len() >= 2 {
-                    if let (Some(Value::Float(min)), Some(Value::Float(max))) = 
-                        (args.get(0), args.get(1)) {
+                    if let (Some(Value::Float(min)), Some(Value::Float(max))) =
+                        (args.get(0), args.get(1))
+                    {
                         if min >= max {
-                            Err(Error::Runtime("random:float requires min < max".to_string()))
+                            Err(Error::Runtime(
+                                "random:float requires min < max".to_string(),
+                            ))
                         } else {
                             Ok(Value::Float(rng.gen_range(*min..*max)))
                         }
                     } else {
-                        Err(Error::Runtime("random:float requires float bounds".to_string()))
+                        Err(Error::Runtime(
+                            "random:float requires float bounds".to_string(),
+                        ))
                     }
                 } else {
                     Ok(Value::Float(rng.gen()))
@@ -81,7 +91,9 @@ impl EffectHandler for RandomHandler {
             "choice" => {
                 if let Some(Value::List(items)) = args.first() {
                     if items.is_empty() {
-                        Err(Error::Runtime("random:choice requires non-empty list".to_string()))
+                        Err(Error::Runtime(
+                            "random:choice requires non-empty list".to_string(),
+                        ))
                     } else {
                         let mut rng = self.rng.lock().unwrap();
                         let idx = rng.gen_range(0..items.len());
@@ -102,7 +114,10 @@ impl EffectHandler for RandomHandler {
                     Err(Error::Runtime("random:shuffle requires a list".to_string()))
                 }
             }
-            _ => Err(Error::Runtime(format!("Unknown Random operation: {}", operation))),
+            _ => Err(Error::Runtime(format!(
+                "Unknown Random operation: {}",
+                operation
+            ))),
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Error types for the DI container
 
-use thiserror::Error;
 use std::any::TypeId;
+use thiserror::Error;
 
 /// Result type alias for DI operations
 pub type DiResult<T> = Result<T, DiError>;
@@ -15,44 +15,42 @@ pub enum DiError {
         service_type: String,
         type_id: TypeId,
     },
-    
+
     /// Service not found by name
     #[error("Service not found: {0}")]
     ServiceNotFoundByName(String),
-    
+
     /// Circular dependency detected
     #[error("Circular dependency detected: {path}")]
-    CircularDependency {
-        path: String,
-    },
-    
+    CircularDependency { path: String },
+
     /// Service creation failed
     #[error("Failed to create service: {service_type}: {reason}")]
     ServiceCreationFailed {
         service_type: String,
         reason: String,
     },
-    
+
     /// Invalid service lifetime
     #[error("Invalid service lifetime: cannot resolve {requested} from {available} scope")]
     InvalidLifetime {
         requested: String,
         available: String,
     },
-    
+
     /// Container is locked (during resolution)
     #[error("Container is locked - possible recursive resolution")]
     ContainerLocked,
-    
+
     /// Lock error
     #[error("Failed to acquire lock")]
     LockError,
-    
+
     /// Configuration error
     #[cfg(feature = "config")]
     #[error("Configuration error: {0}")]
     ConfigError(String),
-    
+
     /// Generic error
     #[error("DI error: {0}")]
     Other(String),
@@ -61,9 +59,9 @@ pub enum DiError {
 impl From<fluentai_core::error::Error> for DiError {
     fn from(err: fluentai_core::error::Error) -> Self {
         match err {
-            fluentai_core::error::Error::GraphNodeIdOverflow => {
-                DiError::Other("Graph node ID overflow - maximum number of nodes reached".to_string())
-            }
+            fluentai_core::error::Error::GraphNodeIdOverflow => DiError::Other(
+                "Graph node ID overflow - maximum number of nodes reached".to_string(),
+            ),
             _ => DiError::Other(format!("Core error: {}", err)),
         }
     }

@@ -3,26 +3,26 @@
 //! Provides Erlang/Akka-style actors with supervision, fault tolerance,
 //! and distributed communication capabilities.
 
-use std::any::Any;
-use std::sync::Arc;
-use std::time::Duration;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use parking_lot::RwLock;
+use std::any::Any;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::timeout;
-use uuid::Uuid;
-use anyhow::{anyhow, Result};
 use tracing::error;
+use uuid::Uuid;
 
+pub mod cluster;
 pub mod mailbox;
+pub mod persistence;
 pub mod router;
 pub mod supervision;
-pub mod cluster;
-pub mod persistence;
 
 use mailbox::MailboxConfig;
-use supervision::{SupervisionStrategy, RestartStrategy};
+use supervision::{RestartStrategy, SupervisionStrategy};
 
 /// Actor reference for sending messages
 #[derive(Debug, Clone)]
@@ -56,25 +56,29 @@ struct Envelope<M: Message> {
 #[async_trait]
 pub trait Actor: Send + Sync + 'static {
     type Message: Message;
-    
+
     /// Called when actor starts
     async fn pre_start(&mut self) -> Result<()> {
         Ok(())
     }
-    
+
     /// Called when actor stops
     async fn post_stop(&mut self) -> Result<()> {
         Ok(())
     }
-    
+
     /// Handle a message
-    async fn receive(&mut self, msg: Self::Message, ctx: &mut ActorContext<Self::Message>) -> Result<()>;
-    
+    async fn receive(
+        &mut self,
+        msg: Self::Message,
+        ctx: &mut ActorContext<Self::Message>,
+    ) -> Result<()>;
+
     /// Called when actor restarts
     async fn pre_restart(&mut self, _reason: &str) -> Result<()> {
         Ok(())
     }
-    
+
     /// Called after actor restarts
     async fn post_restart(&mut self) -> Result<()> {
         Ok(())
@@ -96,29 +100,38 @@ impl<M: Message> ActorContext<M> {
     pub fn self_ref(&self) -> &ActorRef<M> {
         &self.self_ref
     }
-    
+
     /// Get actor system
     pub fn system(&self) -> &Arc<ActorSystem> {
         &self.system
     }
-    
+
     /// Send message to another actor
     pub async fn send<M2: Message>(&self, to: &ActorRef<M2>, msg: M2) -> Result<()> {
         to.tell(msg).await
     }
-    
+
     /// Ask another actor (request-reply)
-    pub async fn ask<M2: Message, R: Message>(&self, to: &ActorRef<M2>, msg: M2, timeout: Duration) -> Result<R> {
+    pub async fn ask<M2: Message, R: Message>(
+        &self,
+        to: &ActorRef<M2>,
+        msg: M2,
+        timeout: Duration,
+    ) -> Result<R> {
         to.ask(msg, timeout).await
     }
-    
+
     /// Spawn a child actor
-    pub async fn spawn_child<A: Actor>(&mut self, name: &str, actor: A) -> Result<ActorRef<A::Message>> {
+    pub async fn spawn_child<A: Actor>(
+        &mut self,
+        name: &str,
+        actor: A,
+    ) -> Result<ActorRef<A::Message>> {
         let child_ref = self.system.spawn(actor).await?;
         self.children.insert(name.to_string(), child_ref.id.clone());
         Ok(child_ref)
     }
-    
+
     /// Stop a child actor
     pub async fn stop_child(&mut self, name: &str) -> Result<()> {
         if let Some((_, child_id)) = self.children.remove(name) {
@@ -126,20 +139,21 @@ impl<M: Message> ActorContext<M> {
         }
         Ok(())
     }
-    
+
     /// Watch another actor for termination
     pub fn watch(&mut self, actor: &ActorId) {
         self.watchers.insert(actor.clone(), ());
     }
-    
+
     /// Stop watching an actor
     pub fn unwatch(&mut self, actor: &ActorId) {
         self.watchers.remove(actor);
     }
-    
+
     /// Schedule a message to self
-    pub fn schedule_once(&mut self, name: String, delay: Duration, msg: M) 
-    where M: Clone 
+    pub fn schedule_once(&mut self, name: String, delay: Duration, msg: M)
+    where
+        M: Clone,
     {
         let self_ref = self.self_ref.clone();
         let handle = tokio::spawn(async move {
@@ -148,7 +162,7 @@ impl<M: Message> ActorContext<M> {
         });
         self.timers.insert(name, handle);
     }
-    
+
     /// Cancel a scheduled message
     pub fn cancel_timer(&mut self, name: &str) {
         if let Some((_, handle)) = self.timers.remove(name) {
@@ -171,16 +185,16 @@ pub struct ActorSystem {
 pub struct ActorSystemConfig {
     /// Default mailbox size
     pub default_mailbox_size: usize,
-    
+
     /// Default message timeout
     pub default_timeout: Duration,
-    
+
     /// Enable persistence
     pub enable_persistence: bool,
-    
+
     /// Enable clustering
     pub enable_clustering: bool,
-    
+
     /// Thread pool size
     pub thread_pool_size: usize,
 }
@@ -215,12 +229,13 @@ impl ActorSystem {
             shutdown: RwLock::new(false),
         })
     }
-    
+
     /// Spawn a new actor
     pub async fn spawn<A: Actor>(self: &Arc<Self>, actor: A) -> Result<ActorRef<A::Message>> {
-        self.spawn_with_config(actor, None, SupervisionStrategy::default()).await
+        self.spawn_with_config(actor, None, SupervisionStrategy::default())
+            .await
     }
-    
+
     /// Spawn actor with custom configuration
     pub async fn spawn_with_config<A: Actor>(
         self: &Arc<Self>,
@@ -233,15 +248,15 @@ impl ActorSystem {
             .as_ref()
             .map(|c| c.capacity)
             .unwrap_or(self.config.default_mailbox_size);
-        
+
         let (tx, mut rx) = mpsc::channel::<Envelope<A::Message>>(mailbox_size);
-        
+
         let actor_ref = ActorRef {
             id: id.clone(),
             sender: tx.clone(),
             system: Arc::clone(self),
         };
-        
+
         let mut context = ActorContext {
             self_ref: actor_ref.clone(),
             system: Arc::clone(self),
@@ -250,13 +265,13 @@ impl ActorSystem {
             watchers: DashMap::new(),
             timers: DashMap::new(),
         };
-        
+
         // Pre-start hook
         actor.pre_start().await?;
-        
+
         let system = Arc::clone(self);
         let actor_id = id.clone();
-        
+
         // Spawn actor task
         let task = tokio::spawn(async move {
             while let Some(envelope) = rx.recv().await {
@@ -286,28 +301,31 @@ impl ActorSystem {
                     }
                 }
             }
-            
+
             // Post-stop hook
             let _ = actor.post_stop().await;
-            
+
             // Notify watchers
             for watcher_id in context.watchers.iter() {
                 // Send termination message
             }
         });
-        
+
         // Create a dummy sender for type erasure
         let (erased_sender, _) = mpsc::channel::<Box<dyn Any + Send>>(1);
-        
-        self.actors.insert(id.clone(), ActorHandle {
-            task,
-            sender: erased_sender,
-            supervision,
-        });
-        
+
+        self.actors.insert(
+            id.clone(),
+            ActorHandle {
+                task,
+                sender: erased_sender,
+                supervision,
+            },
+        );
+
         Ok(actor_ref)
     }
-    
+
     /// Stop an actor
     pub async fn stop_actor(&self, id: &ActorId) -> Result<()> {
         if let Some((_, handle)) = self.actors.remove(id) {
@@ -317,20 +335,22 @@ impl ActorSystem {
             Err(anyhow!("Actor not found"))
         }
     }
-    
+
     /// Shutdown the actor system
     pub async fn shutdown(&self) -> Result<()> {
         *self.shutdown.write() = true;
-        
+
         // Stop all actors
-        let handles: Vec<_> = self.actors.iter()
+        let handles: Vec<_> = self
+            .actors
+            .iter()
             .map(|entry| entry.value().task.abort_handle())
             .collect();
-        
+
         for handle in handles {
             handle.abort();
         }
-        
+
         Ok(())
     }
 }
@@ -343,19 +363,21 @@ impl<M: Message> ActorRef<M> {
             sender: None,
             correlation_id: None,
         };
-        
-        self.sender.send(envelope).await
+
+        self.sender
+            .send(envelope)
+            .await
             .map_err(|_| anyhow!("Failed to send message"))
     }
-    
+
     /// Ask pattern (request-reply)
     pub async fn ask<R: Message>(&self, msg: M, timeout_duration: Duration) -> Result<R> {
         let (_tx, rx) = oneshot::channel();
-        
+
         // This would need special handling for reply
         // For now, simplified implementation
         self.tell(msg).await?;
-        
+
         timeout(timeout_duration, rx)
             .await
             .map_err(|_| anyhow!("Ask timeout"))?
@@ -368,16 +390,13 @@ impl<M: Message> ActorRef<M> {
 pub enum SystemMessage {
     /// Actor terminated
     Terminated(ActorId),
-    
+
     /// Supervision failure
-    SupervisionFailure {
-        child: ActorId,
-        reason: String,
-    },
-    
+    SupervisionFailure { child: ActorId, reason: String },
+
     /// Watch request
     Watch(ActorId),
-    
+
     /// Unwatch request
     Unwatch(ActorId),
 }
@@ -387,26 +406,26 @@ impl Message for SystemMessage {}
 /// Behaviors for common actor patterns
 pub mod behaviors {
     use super::*;
-    
+
     /// Finite State Machine behavior
     #[async_trait]
     pub trait FSM: Actor {
         type State: Send + Sync + Clone;
-        
+
         fn current_state(&self) -> &Self::State;
         fn set_state(&mut self, state: Self::State);
-        
+
         async fn on_transition(&mut self, _from: &Self::State, _to: &Self::State) -> Result<()> {
             Ok(())
         }
     }
-    
+
     /// Event sourcing behavior
     #[async_trait]
     pub trait EventSourced: Actor {
         type Event: Send + Sync + Clone;
         type State: Send + Sync + Clone;
-        
+
         fn apply_event(&mut self, event: &Self::Event) -> Result<()>;
         fn get_state(&self) -> &Self::State;
     }
@@ -416,13 +435,13 @@ pub mod behaviors {
 pub mod routers {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    
+
     /// Round-robin router
     pub struct RoundRobinRouter<M: Message> {
         routees: Vec<ActorRef<M>>,
         next: AtomicUsize,
     }
-    
+
     impl<M: Message> RoundRobinRouter<M> {
         pub fn new(routees: Vec<ActorRef<M>>) -> Self {
             Self {
@@ -430,32 +449,30 @@ pub mod routers {
                 next: AtomicUsize::new(0),
             }
         }
-        
+
         pub async fn route(&self, msg: M) -> Result<()> {
             if self.routees.is_empty() {
                 return Err(anyhow!("No routees available"));
             }
-            
+
             let idx = self.next.fetch_add(1, Ordering::Relaxed) % self.routees.len();
             self.routees[idx].tell(msg).await
         }
     }
-    
+
     /// Broadcast router
     pub struct BroadcastRouter<M: Message> {
         routees: Vec<ActorRef<M>>,
     }
-    
+
     impl<M: Message + Clone> BroadcastRouter<M> {
         pub fn new(routees: Vec<ActorRef<M>>) -> Self {
             Self { routees }
         }
-        
+
         pub async fn route(&self, msg: M) -> Result<()> {
-            let futures: Vec<_> = self.routees.iter()
-                .map(|r| r.tell(msg.clone()))
-                .collect();
-            
+            let futures: Vec<_> = self.routees.iter().map(|r| r.tell(msg.clone())).collect();
+
             futures::future::try_join_all(futures).await?;
             Ok(())
         }
@@ -465,54 +482,66 @@ pub mod routers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[derive(Debug, Clone)]
     struct TestMessage(String);
     impl Message for TestMessage {}
-    
+
     struct TestActor {
         state: String,
     }
-    
+
     #[async_trait]
     impl Actor for TestActor {
         type Message = TestMessage;
-        
-        async fn receive(&mut self, msg: Self::Message, _ctx: &mut ActorContext<Self::Message>) -> Result<()> {
+
+        async fn receive(
+            &mut self,
+            msg: Self::Message,
+            _ctx: &mut ActorContext<Self::Message>,
+        ) -> Result<()> {
             self.state = msg.0;
             Ok(())
         }
     }
-    
+
     #[tokio::test]
     async fn test_actor_spawn_and_tell() {
         let system = ActorSystem::new("test", ActorSystemConfig::default());
-        
+
         let actor = TestActor {
             state: String::new(),
         };
-        
+
         let actor_ref = system.spawn(actor).await.unwrap();
-        actor_ref.tell(TestMessage("Hello".to_string())).await.unwrap();
-        
+        actor_ref
+            .tell(TestMessage("Hello".to_string()))
+            .await
+            .unwrap();
+
         // Give actor time to process
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-    
+
     #[tokio::test]
     async fn test_round_robin_router() {
         let system = ActorSystem::new("test", ActorSystemConfig::default());
-        
+
         let mut routees = Vec::new();
         for _ in 0..3 {
-            let actor = TestActor { state: String::new() };
+            let actor = TestActor {
+                state: String::new(),
+            };
             routees.push(system.spawn(actor).await.unwrap());
         }
-        
+
         let router = routers::RoundRobinRouter::new(routees);
-        
+
         for i in 0..6 {
-            router.route(TestMessage(format!("Message {}", i))).await.unwrap();
+            router
+                .route(TestMessage(format!("Message {}", i)))
+                .await
+                .unwrap();
         }
     }
 }

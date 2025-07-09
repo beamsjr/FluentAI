@@ -24,7 +24,11 @@ pub trait Visitor {
                 }
                 self.visit_node_id(graph, *body);
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.visit_node_id(graph, *condition);
                 self.visit_node_id(graph, *then_branch);
                 self.visit_node_id(graph, *else_branch);
@@ -69,14 +73,14 @@ pub trait Visitor {
             }
         }
     }
-    
+
     /// Visit a node by ID
     fn visit_node_id(&mut self, graph: &Graph, node_id: NodeId) {
         if let Some(node) = graph.get_node(node_id) {
             self.visit_node(graph, node_id, node);
         }
     }
-    
+
     /// Visit the entire graph
     fn visit_graph(&mut self, graph: &Graph) {
         if let Some(root_id) = graph.root_id {
@@ -124,7 +128,7 @@ where
             collected: Vec::new(),
         }
     }
-    
+
     pub fn collect(mut self, graph: &Graph) -> Vec<NodeId> {
         self.visit_graph(graph);
         self.collected
@@ -156,7 +160,11 @@ where
                 }
                 self.visit_node_id(graph, *body);
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.visit_node_id(graph, *condition);
                 self.visit_node_id(graph, *then_branch);
                 self.visit_node_id(graph, *else_branch);

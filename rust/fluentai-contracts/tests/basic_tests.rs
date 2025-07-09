@@ -10,7 +10,7 @@ use std::num::NonZeroU32;
 #[test]
 fn test_contract_creation() {
     let contract = Contract::new("test_func".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-    
+
     assert_eq!(contract.function_name, "test_func");
     assert!(contract.preconditions.is_empty());
     assert!(contract.postconditions.is_empty());
@@ -22,8 +22,11 @@ fn test_contract_creation() {
 #[test]
 fn test_add_precondition() {
     let mut contract = Contract::new("test".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-    let condition = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Precondition);
-    
+    let condition = ContractCondition::new(
+        NodeId(NonZeroU32::new(2).unwrap()),
+        ContractKind::Precondition,
+    );
+
     contract.add_precondition(condition);
     assert_eq!(contract.preconditions.len(), 1);
 }
@@ -31,8 +34,11 @@ fn test_add_precondition() {
 #[test]
 fn test_add_postcondition() {
     let mut contract = Contract::new("test".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-    let condition = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Postcondition);
-    
+    let condition = ContractCondition::new(
+        NodeId(NonZeroU32::new(2).unwrap()),
+        ContractKind::Postcondition,
+    );
+
     contract.add_postcondition(condition);
     assert_eq!(contract.postconditions.len(), 1);
 }
@@ -41,20 +47,21 @@ fn test_add_postcondition() {
 fn test_has_conditions() {
     let mut contract = Contract::new("test".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
     assert!(!contract.has_conditions());
-    
-    let condition = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Precondition);
+
+    let condition = ContractCondition::new(
+        NodeId(NonZeroU32::new(2).unwrap()),
+        ContractKind::Precondition,
+    );
     contract.add_precondition(condition);
     assert!(contract.has_conditions());
 }
 
 #[test]
 fn test_contract_condition_with_message() {
-    let condition = ContractCondition::new(
-        NodeId(NonZeroU32::new(1).unwrap()),
-        ContractKind::Invariant
-    )
-    .with_message("Must be sorted".to_string());
-    
+    let condition =
+        ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant)
+            .with_message("Must be sorted".to_string());
+
     assert_eq!(condition.message, Some("Must be sorted".to_string()));
 }
 
@@ -75,11 +82,11 @@ fn test_pure_contract() {
 #[test]
 fn test_contract_serialization() {
     let contract = Contract::new("test".to_string(), NodeId(NonZeroU32::new(1).unwrap()));
-    
+
     // Test that the contract can be serialized
     let json = serde_json::to_string(&contract).unwrap();
     assert!(json.contains("test"));
-    
+
     // Test deserialization
     let deserialized: Contract = serde_json::from_str(&json).unwrap();
     assert_eq!(contract.function_name, deserialized.function_name);

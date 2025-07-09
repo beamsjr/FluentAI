@@ -1,7 +1,7 @@
 //! Migration versioning schemes
 
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use serde::{Serialize, Deserialize};
 
 /// Version scheme for migrations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,39 +29,40 @@ impl Version {
             scheme,
         }
     }
-    
+
     /// Parse a version string with auto-detection
     pub fn parse(value: impl Into<String>) -> Self {
         let value = value.into();
         let scheme = Self::detect_scheme(&value);
         Self { value, scheme }
     }
-    
+
     /// Get the version value
     pub fn value(&self) -> &str {
         &self.value
     }
-    
+
     /// Get the version scheme
     pub fn scheme(&self) -> VersionScheme {
         self.scheme
     }
-    
+
     /// Detect version scheme from string
     fn detect_scheme(value: &str) -> VersionScheme {
         // Check if it's a timestamp (14 digits)
         if value.len() == 14 && value.chars().all(|c| c.is_ascii_digit()) {
             return VersionScheme::Timestamp;
         }
-        
+
         // Check if it's semantic versioning (contains dots)
-        if value.contains('.') && value.split('.').all(|part| {
-            part.parse::<u32>().is_ok() || 
-            (part.contains('-') || part.contains('+'))
-        }) {
+        if value.contains('.')
+            && value.split('.').all(|part| {
+                part.parse::<u32>().is_ok() || (part.contains('-') || part.contains('+'))
+            })
+        {
             return VersionScheme::Semantic;
         }
-        
+
         // Default to sequential
         VersionScheme::Sequential
     }
@@ -91,21 +92,25 @@ impl Ord for Version {
                 // Parse semantic versions
                 let self_parts: Vec<_> = self.value.split('.').collect();
                 let other_parts: Vec<_> = other.value.split('.').collect();
-                
+
                 for i in 0..self_parts.len().min(other_parts.len()) {
-                    let self_num = self_parts[i].split('-').next()
+                    let self_num = self_parts[i]
+                        .split('-')
+                        .next()
                         .and_then(|s| s.parse::<u32>().ok())
                         .unwrap_or(0);
-                    let other_num = other_parts[i].split('-').next()
+                    let other_num = other_parts[i]
+                        .split('-')
+                        .next()
                         .and_then(|s| s.parse::<u32>().ok())
                         .unwrap_or(0);
-                    
+
                     match self_num.cmp(&other_num) {
                         Ordering::Equal => continue,
                         ord => return ord,
                     }
                 }
-                
+
                 self_parts.len().cmp(&other_parts.len())
             }
             _ => {
@@ -136,13 +141,13 @@ impl VersionGenerator {
             prefix: None,
         }
     }
-    
+
     /// Set a prefix for generated versions
     pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
         self.prefix = Some(prefix.into());
         self
     }
-    
+
     /// Generate the next version
     pub fn next(&self, current: Option<&Version>) -> Version {
         let value = match self.scheme {
@@ -166,16 +171,16 @@ impl VersionGenerator {
                 }
             }
         };
-        
+
         let final_value = if let Some(prefix) = &self.prefix {
             format!("{}_{}", prefix, value)
         } else {
             value
         };
-        
+
         Version::new(final_value, self.scheme)
     }
-    
+
     /// Increment semantic version (patch level)
     fn increment_semantic(&self, version: &str) -> String {
         let parts: Vec<_> = version.split('.').collect();
@@ -191,31 +196,31 @@ impl VersionGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_version_detection() {
         let v1 = Version::parse("001");
         assert_eq!(v1.scheme(), VersionScheme::Sequential);
-        
+
         let v2 = Version::parse("20240101120000");
         assert_eq!(v2.scheme(), VersionScheme::Timestamp);
-        
+
         let v3 = Version::parse("1.2.3");
         assert_eq!(v3.scheme(), VersionScheme::Semantic);
     }
-    
+
     #[test]
     fn test_version_ordering() {
         // Sequential
         let v1 = Version::new("001", VersionScheme::Sequential);
         let v2 = Version::new("002", VersionScheme::Sequential);
         assert!(v1 < v2);
-        
+
         // Timestamp
         let v3 = Version::new("20240101120000", VersionScheme::Timestamp);
         let v4 = Version::new("20240102120000", VersionScheme::Timestamp);
         assert!(v3 < v4);
-        
+
         // Semantic
         let v5 = Version::new("1.0.0", VersionScheme::Semantic);
         let v6 = Version::new("1.0.1", VersionScheme::Semantic);
@@ -223,20 +228,19 @@ mod tests {
         assert!(v5 < v6);
         assert!(v6 < v7);
     }
-    
+
     #[test]
     fn test_version_generator() {
         // Sequential
         let gen = VersionGenerator::new(VersionScheme::Sequential);
         let v1 = gen.next(None);
         assert_eq!(v1.value(), "001");
-        
+
         let v2 = gen.next(Some(&v1));
         assert_eq!(v2.value(), "002");
-        
+
         // With prefix
-        let gen_prefixed = VersionGenerator::new(VersionScheme::Sequential)
-            .with_prefix("V");
+        let gen_prefixed = VersionGenerator::new(VersionScheme::Sequential).with_prefix("V");
         let v3 = gen_prefixed.next(None);
         assert!(v3.value().starts_with("V_"));
     }

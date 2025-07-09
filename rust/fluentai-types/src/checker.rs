@@ -2,7 +2,7 @@
 
 use crate::{
     environment::TypeEnvironment,
-    inference::{TypeInferencer, TypeError},
+    inference::{TypeError, TypeInferencer},
     types::*,
 };
 use fluentai_core::ast::{EffectType, Graph, NodeId};
@@ -70,11 +70,7 @@ impl std::fmt::Display for TypeCheckError {
         write!(
             f,
             "{}:{}:{}: error: {}\n  {}",
-            self.location.file,
-            self.location.line,
-            self.location.column,
-            self.error,
-            self.context
+            self.location.file, self.location.line, self.location.column, self.error, self.context
         )
     }
 }
@@ -93,10 +89,7 @@ impl std::fmt::Display for TypeCheckWarning {
         write!(
             f,
             "{}:{}:{}: warning: {}",
-            self.location.file,
-            self.location.line,
-            self.location.column,
-            self.message
+            self.location.file, self.location.line, self.location.column, self.message
         )
     }
 }
@@ -182,7 +175,7 @@ impl TypeChecker {
         let warnings = self.generate_warnings(&types, graph);
 
         let success = errors.is_empty();
-        
+
         TypeCheckResult {
             types,
             errors,
@@ -211,18 +204,20 @@ impl TypeChecker {
 
         // Check for forbidden effects
         let forbidden: HashSet<_> = used_effects.difference(allowed_effects).copied().collect();
-        
+
         if !forbidden.is_empty() {
-            let effect_list = forbidden.iter()
+            let effect_list = forbidden
+                .iter()
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
 
             errors.push(TypeCheckError {
                 location: SourceLocation::unknown(),
-                error: TypeError::EffectConstraintViolation(
-                    format!("Forbidden effects used: {}", effect_list)
-                ),
+                error: TypeError::EffectConstraintViolation(format!(
+                    "Forbidden effects used: {}",
+                    effect_list
+                )),
                 context: "Effects must be explicitly allowed".to_string(),
             });
         }
@@ -239,7 +234,8 @@ impl TypeChecker {
 
     /// Get location for a node
     fn get_location(&self, node_id: NodeId) -> SourceLocation {
-        self.locations.get(&node_id)
+        self.locations
+            .get(&node_id)
             .cloned()
             .unwrap_or_else(SourceLocation::unknown)
     }
@@ -268,7 +264,9 @@ impl TypeChecker {
 
             // Warn about implicit effects
             if !ty.is_pure() && !ty.effects.is_empty() {
-                let effect_list = ty.effects.iter()
+                let effect_list = ty
+                    .effects
+                    .iter()
                     .filter(|e| **e != EffectType::Pure)
                     .map(|e| e.to_string())
                     .collect::<Vec<_>>()
@@ -380,12 +378,12 @@ mod tests {
         let graph = parse("(print \"hello\")").unwrap();
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
-        
+
         // Check with no IO allowed
         let allowed = HashSet::new();
         let effect_errors = checker.check_effects(&graph, &result.types, &allowed);
         assert!(!effect_errors.is_empty());
-        
+
         // Check with IO allowed
         let mut allowed = HashSet::new();
         allowed.insert(EffectType::IO);

@@ -1,5 +1,5 @@
 //! Bridge for higher-order functions between stdlib and VM
-//! 
+//!
 //! This module provides the infrastructure for stdlib functions to call
 //! VM functions (like in map, filter, fold operations).
 
@@ -13,16 +13,16 @@ use std::sync::Arc;
 pub trait VMCallback: Send + Sync {
     /// Call a VM function with given arguments
     fn call_function(&mut self, func: &Value, args: &[Value]) -> Result<Value>;
-    
+
     /// Get the current effect context
     fn effect_context(&self) -> Arc<EffectContext>;
-    
+
     /// Call a VM function with a specific effect context
     fn call_function_with_context(
-        &mut self, 
-        func: &Value, 
-        args: &[Value], 
-        context: Arc<EffectContext>
+        &mut self,
+        func: &Value,
+        args: &[Value],
+        context: Arc<EffectContext>,
     ) -> Result<Value> {
         // Default implementation just calls the regular function
         // VMs can override this to properly propagate the context
@@ -35,9 +35,11 @@ pub struct NoOpVMCallback;
 
 impl VMCallback for NoOpVMCallback {
     fn call_function(&mut self, _func: &Value, _args: &[Value]) -> Result<Value> {
-        Err(anyhow::anyhow!("VM callback not available - higher-order functions require VM integration"))
+        Err(anyhow::anyhow!(
+            "VM callback not available - higher-order functions require VM integration"
+        ))
     }
-    
+
     fn effect_context(&self) -> Arc<EffectContext> {
         // Return a default context when no VM is available
         Arc::new(EffectContext::default())
@@ -68,18 +70,18 @@ impl StdlibContext {
             effect_context_override: None,
         }
     }
-    
+
     /// Create a new context with VM callback and effect context
     pub fn with_callback_and_effects(
-        callback: Box<dyn VMCallback>, 
-        effect_context: Arc<EffectContext>
+        callback: Box<dyn VMCallback>,
+        effect_context: Arc<EffectContext>,
     ) -> Self {
         Self {
             vm_callback: Some(callback),
             effect_context_override: Some(effect_context),
         }
     }
-    
+
     /// Get the current effect context
     pub fn effect_context(&self) -> Arc<EffectContext> {
         if let Some(context) = &self.effect_context_override {
@@ -90,7 +92,7 @@ impl StdlibContext {
             Arc::new(EffectContext::default())
         }
     }
-    
+
     /// Call a VM function
     pub fn call_function(&mut self, func: &Value, args: &[Value]) -> Result<Value> {
         if let Some(callback) = &mut self.vm_callback {
@@ -99,7 +101,7 @@ impl StdlibContext {
             Err(anyhow::anyhow!("No VM callback available"))
         }
     }
-    
+
     /// Call a VM function with the current effect context
     pub fn call_function_with_effects(&mut self, func: &Value, args: &[Value]) -> Result<Value> {
         let context = self.effect_context();

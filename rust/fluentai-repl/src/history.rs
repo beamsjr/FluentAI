@@ -1,7 +1,7 @@
 //! Command history management for the REPL
 
-use std::path::PathBuf;
 use crate::error::{ReplError, ReplResult};
+use std::path::PathBuf;
 
 /// History manager for the REPL
 pub struct HistoryManager {
@@ -29,12 +29,12 @@ impl HistoryManager {
         let home = dirs::home_dir()
             .ok_or_else(|| ReplError::History("Could not find home directory".to_string()))?;
         let fluentai_dir = home.join(".fluentai");
-        
+
         // Create directory if it doesn't exist
         if !fluentai_dir.exists() {
             std::fs::create_dir_all(&fluentai_dir)?;
         }
-        
+
         Ok(fluentai_dir.join("repl_history"))
     }
 
@@ -75,11 +75,8 @@ impl HistoryManager {
         }
 
         let content = std::fs::read_to_string(&self.history_file)?;
-        let entries: Vec<String> = content
-            .lines()
-            .map(|s| s.to_string())
-            .collect();
-        
+        let entries: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+
         Ok(entries)
     }
 
@@ -92,7 +89,7 @@ impl HistoryManager {
         // Take only the last max_entries
         let start = entries.len().saturating_sub(self.max_entries);
         let content = entries[start..].join("\n");
-        
+
         std::fs::write(&self.history_file, content)?;
         Ok(())
     }
@@ -108,7 +105,7 @@ impl HistoryManager {
             .create(true)
             .append(true)
             .open(&self.history_file)?;
-        
+
         writeln!(file, "{}", entry)?;
         Ok(())
     }
@@ -137,20 +134,20 @@ mod tests {
     fn test_history_manager() {
         let temp_dir = TempDir::new().unwrap();
         let history_file = temp_dir.path().join("test_history");
-        
+
         let mut manager = HistoryManager::new().unwrap();
         manager.set_history_file(history_file.clone());
-        
+
         // Test append
         manager.append("command 1").unwrap();
         manager.append("command 2").unwrap();
-        
+
         // Test load
         let entries = manager.load().unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0], "command 1");
         assert_eq!(entries[1], "command 2");
-        
+
         // Test save
         let new_entries = vec![
             "command 3".to_string(),
@@ -158,11 +155,11 @@ mod tests {
             "command 5".to_string(),
         ];
         manager.save(&new_entries).unwrap();
-        
+
         let loaded = manager.load().unwrap();
         assert_eq!(loaded.len(), 3);
         assert_eq!(loaded[2], "command 5");
-        
+
         // Test clear
         manager.clear().unwrap();
         assert!(!history_file.exists());

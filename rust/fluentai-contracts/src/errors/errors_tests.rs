@@ -1,8 +1,8 @@
 //! Comprehensive tests for contract error types
 
 use super::*;
-use fluentai_core::ast::NodeId;
 use crate::contract::ContractKind;
+use fluentai_core::ast::NodeId;
 
 // ===== ContractError Tests =====
 
@@ -14,7 +14,7 @@ fn test_contract_error_violation() {
         "x must be positive".to_string(),
         NodeId::new(42).unwrap(),
     );
-    
+
     let error = ContractError::Violation(violation);
     assert!(error.to_string().contains("Contract violation"));
 }
@@ -22,19 +22,28 @@ fn test_contract_error_violation() {
 #[test]
 fn test_contract_error_verification() {
     let error = ContractError::VerificationError("Failed to verify invariant".to_string());
-    assert_eq!(error.to_string(), "Verification error: Failed to verify invariant");
+    assert_eq!(
+        error.to_string(),
+        "Verification error: Failed to verify invariant"
+    );
 }
 
 #[test]
 fn test_contract_error_parse() {
     let error = ContractError::ParseError("Invalid contract syntax".to_string());
-    assert_eq!(error.to_string(), "Contract parsing error: Invalid contract syntax");
+    assert_eq!(
+        error.to_string(),
+        "Contract parsing error: Invalid contract syntax"
+    );
 }
 
 #[test]
 fn test_contract_error_invalid_expression() {
     let error = ContractError::InvalidExpression("Undefined variable 'x'".to_string());
-    assert_eq!(error.to_string(), "Invalid contract expression: Undefined variable 'x'");
+    assert_eq!(
+        error.to_string(),
+        "Invalid contract expression: Undefined variable 'x'"
+    );
 }
 
 #[test]
@@ -52,7 +61,10 @@ fn test_contract_error_timeout() {
 #[test]
 fn test_contract_error_not_implemented() {
     let error = ContractError::NotImplemented("Quantifier elimination".to_string());
-    assert_eq!(error.to_string(), "Feature not implemented: Quantifier elimination");
+    assert_eq!(
+        error.to_string(),
+        "Feature not implemented: Quantifier elimination"
+    );
 }
 
 #[test]
@@ -72,8 +84,11 @@ fn test_precondition_violation_simple() {
         span: None,
         blame_label: None,
     };
-    
-    assert_eq!(violation.to_string(), "Precondition violated: Parameter must be non-null");
+
+    assert_eq!(
+        violation.to_string(),
+        "Precondition violated: Parameter must be non-null"
+    );
 }
 
 #[test]
@@ -85,7 +100,7 @@ fn test_precondition_violation_with_function() {
         span: None,
         blame_label: None,
     };
-    
+
     assert!(violation.to_string().contains("in function 'divide'"));
     assert!(violation.to_string().contains("Divisor must be non-zero"));
 }
@@ -99,7 +114,7 @@ fn test_precondition_violation_with_blame() {
         span: Some((10, 20)),
         blame_label: Some("caller".to_string()),
     };
-    
+
     assert!(violation.to_string().contains("[caller]"));
 }
 
@@ -112,7 +127,7 @@ fn test_postcondition_violation() {
         span: None,
         blame_label: None,
     };
-    
+
     assert!(violation.to_string().contains("Postcondition violated"));
     assert!(violation.to_string().contains("in function 'sort'"));
 }
@@ -126,7 +141,7 @@ fn test_invariant_violation() {
         span: Some((30, 40)),
         blame_label: Some("withdraw".to_string()),
     };
-    
+
     assert!(violation.to_string().contains("Invariant violated"));
     assert!(violation.to_string().contains("[withdraw]"));
 }
@@ -140,7 +155,7 @@ fn test_purity_violation() {
         span: None,
         blame_label: None,
     };
-    
+
     assert!(violation.to_string().contains("Purity violation"));
     assert!(violation.to_string().contains("in function 'compute'"));
 }
@@ -155,9 +170,15 @@ fn test_violation_new_precondition() {
         "Error message".to_string(),
         NodeId::new(10).unwrap(),
     );
-    
+
     match violation {
-        ContractViolation::Precondition { function, message, node_id, span, blame_label } => {
+        ContractViolation::Precondition {
+            function,
+            message,
+            node_id,
+            span,
+            blame_label,
+        } => {
             assert_eq!(function, Some("test".to_string()));
             assert_eq!(message, "Error message");
             assert_eq!(node_id, NodeId::new(10).unwrap());
@@ -176,7 +197,7 @@ fn test_violation_new_postcondition() {
         "Post error".to_string(),
         NodeId::new(20).unwrap(),
     );
-    
+
     match violation {
         ContractViolation::Postcondition { .. } => {}
         _ => panic!("Expected Postcondition variant"),
@@ -191,7 +212,7 @@ fn test_violation_new_invariant() {
         "Invariant error".to_string(),
         NodeId::new(30).unwrap(),
     );
-    
+
     match violation {
         ContractViolation::Invariant { .. } => {}
         _ => panic!("Expected Invariant variant"),
@@ -208,7 +229,7 @@ fn test_violation_with_details() {
         Some((100, 200)),
         Some("test_blame".to_string()),
     );
-    
+
     assert_eq!(violation.span(), Some((100, 200)));
     assert_eq!(violation.blame_label(), Some("test_blame"));
 }
@@ -222,8 +243,9 @@ fn test_with_span() {
         None,
         "Error".to_string(),
         NodeId::new(50).unwrap(),
-    ).with_span((10, 20));
-    
+    )
+    .with_span((10, 20));
+
     assert_eq!(violation.span(), Some((10, 20)));
 }
 
@@ -234,8 +256,9 @@ fn test_with_blame() {
         None,
         "Error".to_string(),
         NodeId::new(60).unwrap(),
-    ).with_blame("caller_function".to_string());
-    
+    )
+    .with_blame("caller_function".to_string());
+
     assert_eq!(violation.blame_label(), Some("caller_function"));
 }
 
@@ -248,7 +271,7 @@ fn test_node_id() {
         span: None,
         blame_label: None,
     };
-    
+
     assert_eq!(violation.node_id(), NodeId::new(70).unwrap());
 }
 
@@ -261,7 +284,7 @@ fn test_function_name() {
         span: None,
         blame_label: None,
     };
-    
+
     let violation2 = ContractViolation::Purity {
         function: "func2".to_string(),
         message: "Error".to_string(),
@@ -269,7 +292,7 @@ fn test_function_name() {
         span: None,
         blame_label: None,
     };
-    
+
     assert_eq!(violation1.function_name(), Some("func1"));
     assert_eq!(violation2.function_name(), Some("func2"));
 }
@@ -284,7 +307,7 @@ fn test_violation_chaining() {
     )
     .with_span((50, 60))
     .with_blame("modifier".to_string());
-    
+
     assert_eq!(violation.function_name(), Some("process"));
     assert_eq!(violation.span(), Some((50, 60)));
     assert_eq!(violation.blame_label(), Some("modifier"));
@@ -301,7 +324,7 @@ fn test_violation_into_contract_error() {
         "Test".to_string(),
         NodeId::new(110).unwrap(),
     );
-    
+
     let error: ContractError = violation.into();
     match error {
         ContractError::Violation(_) => {}

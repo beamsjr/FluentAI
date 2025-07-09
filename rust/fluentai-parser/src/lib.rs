@@ -6,10 +6,10 @@
 //! - Optimized lexer using logos
 //! - Minimal allocations
 
-pub mod lexer;
-pub mod parser;
 pub mod error;
 pub mod iterative_parser;
+pub mod lexer;
+pub mod parser;
 pub mod threaded_parser;
 
 #[cfg(test)]
@@ -36,14 +36,11 @@ mod parsing_strategies_test;
 #[cfg(test)]
 mod lib_tests;
 
-pub use parser::{Parser, ParseResult};
-pub use error::{ParseError, ErrorKind};
+pub use error::{ErrorKind, ParseError};
 pub use iterative_parser::IterativeParser;
+pub use parser::{ParseResult, Parser};
 pub use threaded_parser::{
-    ThreadedParserConfig, 
-    parse_threaded, 
-    parse_with_stack_size,
-    parse_with_stack_and_depth
+    parse_threaded, parse_with_stack_and_depth, parse_with_stack_size, ThreadedParserConfig,
 };
 
 use fluentai_core::ast::Graph;
@@ -55,7 +52,10 @@ pub fn parse(source: &str) -> Result<Graph, ParseError> {
 }
 
 /// Parse with custom allocator for better performance
-pub fn parse_with_arena<'a>(source: &'a str, arena: &'a bumpalo::Bump) -> Result<Graph, ParseError> {
+pub fn parse_with_arena<'a>(
+    source: &'a str,
+    arena: &'a bumpalo::Bump,
+) -> Result<Graph, ParseError> {
     let mut parser = Parser::with_arena(source, arena);
     parser.parse()
 }

@@ -1,28 +1,28 @@
+use fluentai_core::ast::{Node, NodeId};
 use fluentai_optimizer::AdvancedOptimizer;
 use fluentai_parser::parse;
-use fluentai_core::ast::{Node, NodeId};
 
 #[test]
 fn debug_node_mapping_complex() {
     // The exact test case that's failing
     let code = "(let ((x 5) (y (+ x 2))) (* y 3))";
     let ast = parse(code).unwrap();
-    
+
     println!("=== Original AST ===");
     for (id, node) in &ast.nodes {
         println!("{:?}: {:?}", id, node);
     }
     println!("Root: {:?}\n", ast.root_id);
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     println!("=== Optimized AST ===");
     for (id, node) in &optimized.nodes {
         println!("{:?}: {:?}", id, node);
     }
     println!("Root: {:?}\n", optimized.root_id);
-    
+
     // Check all node references
     for (id, node) in &optimized.nodes {
         match node {

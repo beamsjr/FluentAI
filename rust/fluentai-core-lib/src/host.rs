@@ -124,7 +124,7 @@ impl HostRegistry {
     pub fn register(&self, func: HostFunction) -> Result<()> {
         let name = func.qualified_name();
         let mut functions = self.functions.write();
-        
+
         if functions.contains_key(&name) {
             return Err(RuntimeError::host(format!(
                 "Function '{}' is already registered",
@@ -260,11 +260,9 @@ mod tests {
 
     #[test]
     fn test_host_function() {
-        let func = HostFunction::new("add", 2, |args| {
-            match (&args[0], &args[1]) {
-                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
-                _ => Err(RuntimeError::host("Expected two numbers")),
-            }
+        let func = HostFunction::new("add", 2, |args| match (&args[0], &args[1]) {
+            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+            _ => Err(RuntimeError::host("Expected two numbers")),
         });
 
         assert_eq!(func.name, "add");
@@ -272,7 +270,9 @@ mod tests {
         assert!(!func.variadic);
 
         // Test successful call
-        let result = func.call(&[Value::Number(1.0), Value::Number(2.0)]).unwrap();
+        let result = func
+            .call(&[Value::Number(1.0), Value::Number(2.0)])
+            .unwrap();
         assert_eq!(result, Value::Number(3.0));
 
         // Test arity check
@@ -283,18 +283,17 @@ mod tests {
     fn test_host_registry() {
         let registry = HostRegistry::new();
 
-        let add = HostFunction::new("add", 2, |args| {
-            match (&args[0], &args[1]) {
-                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
-                _ => Err(RuntimeError::host("Expected two numbers")),
-            }
-        }).with_module("math");
+        let add = HostFunction::new("add", 2, |args| match (&args[0], &args[1]) {
+            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+            _ => Err(RuntimeError::host("Expected two numbers")),
+        })
+        .with_module("math");
 
         registry.register(add).unwrap();
 
         assert!(registry.contains("math/add"));
         assert!(registry.get_qualified("math", "add").is_some());
-        
+
         let funcs = registry.module_functions("math");
         assert_eq!(funcs.len(), 1);
     }

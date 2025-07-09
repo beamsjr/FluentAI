@@ -1,7 +1,7 @@
 //! Serialization of VM state for visualization
 
-use serde::{Deserialize, Serialize};
 use fluentai_vm::VM;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Snapshot of VM state at a point in time
@@ -9,25 +9,25 @@ use std::collections::HashMap;
 pub struct VMSnapshot {
     /// Current program counter
     pub pc: usize,
-    
+
     /// Current chunk being executed
     pub chunk_id: usize,
-    
+
     /// Stack contents
     pub stack: Vec<String>,
-    
+
     /// Call stack
     pub call_stack: Vec<CallFrame>,
-    
+
     /// Local variables in current scope
     pub locals: HashMap<String, String>,
-    
+
     /// Global variables
     pub globals: HashMap<String, String>,
-    
+
     /// Current instruction
     pub current_instruction: Option<String>,
-    
+
     /// Statistics
     pub stats: VMStats,
 }
@@ -76,34 +76,22 @@ pub fn snapshot_vm(_vm: &VM) -> VMSnapshot {
 #[serde(tag = "type")]
 pub enum VisualizationMessage {
     /// Initial connection established
-    Connected {
-        session_id: String,
-    },
-    
+    Connected { session_id: String },
+
     /// AST graph data
-    ASTGraph {
-        graph: crate::layout::GraphLayout,
-    },
-    
+    ASTGraph { graph: crate::layout::GraphLayout },
+
     /// VM state update
-    VMState {
-        snapshot: VMSnapshot,
-    },
-    
+    VMState { snapshot: VMSnapshot },
+
     /// Debug event
-    DebugEvent {
-        event: crate::debug::DebugEvent,
-    },
-    
+    DebugEvent { event: crate::debug::DebugEvent },
+
     /// Control command from client
-    Control {
-        command: ControlCommand,
-    },
-    
+    Control { command: ControlCommand },
+
     /// Error message
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }
 
 /// Control commands from the client
@@ -112,34 +100,28 @@ pub enum VisualizationMessage {
 pub enum ControlCommand {
     /// Start/resume execution
     Start,
-    
+
     /// Pause execution
     Pause,
-    
+
     /// Step to next instruction
     Step,
-    
+
     /// Step over function call
     StepOver,
-    
+
     /// Step out of current function
     StepOut,
-    
+
     /// Reset VM
     Reset,
-    
+
     /// Set breakpoint
-    SetBreakpoint {
-        pc: usize,
-    },
-    
+    SetBreakpoint { pc: usize },
+
     /// Remove breakpoint
-    RemoveBreakpoint {
-        pc: usize,
-    },
-    
+    RemoveBreakpoint { pc: usize },
+
     /// Load program
-    LoadProgram {
-        source: String,
-    },
+    LoadProgram { source: String },
 }

@@ -1,13 +1,13 @@
 //! Example of using the FluentAi optimizer
 
-use fluentai_optimizer::{OptimizationPipeline, OptimizationConfig};
 use fluentai_optimizer::pipeline::OptimizationLevel;
+use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline};
 use fluentai_parser::parse;
 use std::env;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     let code = if args.len() > 1 {
         args[1].clone()
     } else {
@@ -15,7 +15,8 @@ fn main() {
         r#"
         (let ((x 5) (y 10) (unused 20))
             (+ (* x 2) (* y 3) (if #t 7 (error "unreachable"))))
-        "#.to_string()
+        "#
+        .to_string()
     };
 
     println!("Original program:");
@@ -42,17 +43,24 @@ fn main() {
         OptimizationLevel::Aggressive,
     ] {
         println!("Optimization level: {:?}", level);
-        
+
         let config = OptimizationConfig::for_level(level);
         let mut pipeline = OptimizationPipeline::new(config);
-        
+
         match pipeline.optimize(&graph) {
             Ok(optimized) => {
                 let stats = pipeline.stats();
-                println!("  Nodes: {} -> {} ({:.1}% reduction)",
-                    stats.nodes_before, stats.nodes_after, stats.reduction_percentage());
-                println!("  Time: {:.3}ms", stats.optimization_time_us as f64 / 1000.0);
-                
+                println!(
+                    "  Nodes: {} -> {} ({:.1}% reduction)",
+                    stats.nodes_before,
+                    stats.nodes_after,
+                    stats.reduction_percentage()
+                );
+                println!(
+                    "  Time: {:.3}ms",
+                    stats.optimization_time_us as f64 / 1000.0
+                );
+
                 if stats.total_optimizations() > 0 {
                     println!("  Optimizations performed:");
                     if stats.constant_folded > 0 {
@@ -62,7 +70,10 @@ fn main() {
                         println!("    - Dead code eliminated: {}", stats.dead_code_eliminated);
                     }
                     if stats.pure_expressions_evaluated > 0 {
-                        println!("    - Pure expressions evaluated: {}", stats.pure_expressions_evaluated);
+                        println!(
+                            "    - Pure expressions evaluated: {}",
+                            stats.pure_expressions_evaluated
+                        );
                     }
                     if stats.branches_eliminated > 0 {
                         println!("    - Branches eliminated: {}", stats.branches_eliminated);
@@ -76,7 +87,7 @@ fn main() {
                 eprintln!("  Optimization error: {}", e);
             }
         }
-        
+
         println!();
     }
 }

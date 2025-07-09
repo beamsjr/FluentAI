@@ -6,7 +6,7 @@ use fluentai_vm::{Compiler, VM};
 
 fn benchmark_e2e_simple(c: &mut Criterion) {
     let mut group = c.benchmark_group("e2e_simple");
-    
+
     // Integer literal
     group.bench_function("integer", |b| {
         b.iter(|| {
@@ -18,7 +18,7 @@ fn benchmark_e2e_simple(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     // Simple arithmetic
     group.bench_function("arithmetic", |b| {
         b.iter(|| {
@@ -30,7 +30,7 @@ fn benchmark_e2e_simple(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     // List creation
     group.bench_function("list", |b| {
         b.iter(|| {
@@ -42,13 +42,13 @@ fn benchmark_e2e_simple(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     group.finish();
 }
 
 fn benchmark_e2e_complex(c: &mut Criterion) {
     let mut group = c.benchmark_group("e2e_complex");
-    
+
     // Nested arithmetic
     group.bench_function("nested_math", |b| {
         b.iter(|| {
@@ -60,7 +60,7 @@ fn benchmark_e2e_complex(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     // Lambda definition
     group.bench_function("lambda", |b| {
         b.iter(|| {
@@ -72,7 +72,7 @@ fn benchmark_e2e_complex(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     // Let binding
     group.bench_function("let_binding", |b| {
         b.iter(|| {
@@ -84,7 +84,7 @@ fn benchmark_e2e_complex(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     // Large list
     group.bench_function("large_list", |b| {
         b.iter(|| {
@@ -96,13 +96,13 @@ fn benchmark_e2e_complex(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     group.finish();
 }
 
 fn benchmark_e2e_programs(c: &mut Criterion) {
     let mut group = c.benchmark_group("e2e_programs");
-    
+
     // Factorial-like computation
     group.bench_function("factorial_5", |b| {
         b.iter(|| {
@@ -114,7 +114,7 @@ fn benchmark_e2e_programs(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     // String manipulation
     group.bench_function("string_concat", |b| {
         b.iter(|| {
@@ -126,7 +126,7 @@ fn benchmark_e2e_programs(c: &mut Criterion) {
             vm.run().unwrap()
         });
     });
-    
+
     group.finish();
 }
 

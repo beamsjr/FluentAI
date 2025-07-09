@@ -153,10 +153,10 @@ impl RuntimeContext {
     pub fn create_vm(&self, bytecode: fluentai_vm::bytecode::Bytecode) -> Result<VM> {
         // Create VM with bytecode
         let vm = VM::new(bytecode);
-        
+
         // TODO: Add configuration support when VM builder is available
         // For now, just return the basic VM
-        
+
         Ok(vm)
     }
 
@@ -194,7 +194,7 @@ impl RuntimeContext {
         if let Some(start_time) = self.start_time {
             let elapsed = start_time.elapsed();
             let max_duration = Duration::from_millis(self.config.security.max_execution_time);
-            
+
             if elapsed > max_duration {
                 return Err(RuntimeError::Timeout);
             }
@@ -277,13 +277,13 @@ mod tests {
     #[test]
     fn test_runtime_context() {
         let context = RuntimeContext::new(RuntimeConfig::default());
-        
+
         assert_eq!(context.state(), RuntimeState::Idle);
-        
+
         // Test globals
         context.set_global("x", Value::Number(42.0));
         assert_eq!(context.get_global("x"), Some(Value::Number(42.0)));
-        
+
         // Test state changes
         context.set_state(RuntimeState::Running);
         assert_eq!(context.state(), RuntimeState::Running);
@@ -293,7 +293,7 @@ mod tests {
     fn test_security_checks() {
         let config = RuntimeConfig::sandboxed();
         let context = RuntimeContext::new(config);
-        
+
         assert!(context.check_security("fs_read").is_err());
         assert!(context.check_security("network").is_err());
         assert!(context.check_security("process").is_err());
@@ -302,10 +302,8 @@ mod tests {
 
     #[test]
     fn test_context_builder() {
-        let context = RuntimeContextBuilder::new()
-            .development()
-            .build();
-        
+        let context = RuntimeContextBuilder::new().development().build();
+
         assert!(context.config().debug.enabled);
         assert!(context.config().debug.enable_tracing);
     }

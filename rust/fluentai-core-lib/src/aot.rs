@@ -59,22 +59,18 @@ impl AotCompiler {
     pub fn new(options: AotOptions) -> Result<Self> {
         Ok(Self { options })
     }
-    
+
     /// Compile a program to native code
-    pub fn compile(
-        &mut self,
-        graph: &Graph,
-        output_path: &Path,
-    ) -> Result<()> {
+    pub fn compile(&mut self, graph: &Graph, output_path: &Path) -> Result<()> {
         // For now, we'll use the JIT engine to generate code
         // In a real implementation, this would:
         // 1. Generate all functions using Cranelift
         // 2. Link with the core library
         // 3. Create the final executable
-        
+
         // TODO: Implement actual AOT compilation
         // This is a placeholder that shows the intended API
-        
+
         match self.options.format {
             OutputFormat::Executable => {
                 self.compile_executable(graph, output_path)?;
@@ -89,44 +85,28 @@ impl AotCompiler {
                 self.compile_dynamic_lib(graph, output_path)?;
             }
         }
-        
+
         Ok(())
     }
-    
-    fn compile_executable(
-        &mut self,
-        graph: &Graph,
-        output_path: &Path,
-    ) -> Result<()> {
+
+    fn compile_executable(&mut self, graph: &Graph, output_path: &Path) -> Result<()> {
         // Generate main entry point
         // Link with core library
         // Create executable
         todo!("Implement executable compilation")
     }
-    
-    fn compile_object(
-        &mut self,
-        graph: &Graph,
-        output_path: &Path,
-    ) -> Result<()> {
+
+    fn compile_object(&mut self, graph: &Graph, output_path: &Path) -> Result<()> {
         // Generate object file
         todo!("Implement object file compilation")
     }
-    
-    fn compile_static_lib(
-        &mut self,
-        graph: &Graph,
-        output_path: &Path,
-    ) -> Result<()> {
+
+    fn compile_static_lib(&mut self, graph: &Graph, output_path: &Path) -> Result<()> {
         // Generate static library
         todo!("Implement static library compilation")
     }
-    
-    fn compile_dynamic_lib(
-        &mut self,
-        graph: &Graph,
-        output_path: &Path,
-    ) -> Result<()> {
+
+    fn compile_dynamic_lib(&mut self, graph: &Graph, output_path: &Path) -> Result<()> {
         // Generate dynamic library
         todo!("Implement dynamic library compilation")
     }
@@ -134,7 +114,8 @@ impl AotCompiler {
 
 /// Generate a main function wrapper for standalone executables
 pub fn generate_main_wrapper(entry_point: &str) -> String {
-    format!(r#"
+    format!(
+        r#"
 // Auto-generated main wrapper for FluentAI
 extern crate fluentai_core_lib;
 
@@ -160,7 +141,8 @@ fn main() {{
         }}
     }}
 }}
-"#)
+"#
+    )
 }
 
 /// Initialize the core library

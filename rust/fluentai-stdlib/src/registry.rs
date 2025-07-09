@@ -1,11 +1,11 @@
 //! Function registry for the FluentAi standard library
 
-use rustc_hash::FxHashMap;
 use crate::value::Value;
 use crate::vm_bridge::StdlibContext;
-use fluentai_core::ast::EffectType;
 use anyhow::Result;
+use fluentai_core::ast::EffectType;
 use parking_lot::RwLock;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
 /// Function implementation type
@@ -30,19 +30,19 @@ impl Clone for FunctionImpl {
 pub struct StdlibFunction {
     /// The function implementation
     pub func: FunctionImpl,
-    
+
     /// The function's name
     pub name: String,
-    
+
     /// Minimum number of arguments
     pub min_args: usize,
-    
+
     /// Maximum number of arguments (None for variadic)
     pub max_args: Option<usize>,
-    
+
     /// Effects this function may perform
     pub effects: Vec<EffectType>,
-    
+
     /// Documentation string
     pub doc: String,
 }
@@ -65,7 +65,7 @@ impl StdlibFunction {
             doc: doc.into(),
         }
     }
-    
+
     /// Create a new effectful function
     pub fn effectful(
         name: impl Into<String>,
@@ -84,7 +84,7 @@ impl StdlibFunction {
             doc: doc.into(),
         }
     }
-    
+
     /// Create a new context-aware effectful function
     pub fn effectful_with_context(
         name: impl Into<String>,
@@ -103,39 +103,46 @@ impl StdlibFunction {
             doc: doc.into(),
         }
     }
-    
+
     /// Validate argument count
     pub fn validate_args(&self, arg_count: usize) -> Result<()> {
         if arg_count < self.min_args {
             anyhow::bail!(
                 "{}: expected at least {} arguments, got {}",
-                self.name, self.min_args, arg_count
+                self.name,
+                self.min_args,
+                arg_count
             );
         }
-        
+
         if let Some(max) = self.max_args {
             if arg_count > max {
                 anyhow::bail!(
                     "{}: expected at most {} arguments, got {}",
-                    self.name, max, arg_count
+                    self.name,
+                    max,
+                    arg_count
                 );
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Call the function with argument validation
     pub fn call(&self, args: &[Value]) -> Result<Value> {
         self.validate_args(args.len())?;
         match &self.func {
             FunctionImpl::Simple(f) => f(args),
             FunctionImpl::ContextAware(_) => {
-                anyhow::bail!("{}: context-aware function called without context", self.name)
+                anyhow::bail!(
+                    "{}: context-aware function called without context",
+                    self.name
+                )
             }
         }
     }
-    
+
     /// Call the function with a context
     pub fn call_with_context(&self, context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
         self.validate_args(args.len())?;
@@ -159,12 +166,12 @@ impl StdlibRegistry {
             functions: Arc::new(RwLock::new(FxHashMap::default())),
         }
     }
-    
+
     /// Register a function
     pub fn register(&mut self, func: StdlibFunction) {
         self.functions.write().insert(func.name.clone(), func);
     }
-    
+
     /// Register multiple functions at once
     pub fn register_all(&mut self, funcs: Vec<StdlibFunction>) {
         let mut functions = self.functions.write();
@@ -172,17 +179,17 @@ impl StdlibRegistry {
             functions.insert(func.name.clone(), func);
         }
     }
-    
+
     /// Look up a function by name
     pub fn get(&self, name: &str) -> Option<StdlibFunction> {
         self.functions.read().get(name).cloned()
     }
-    
+
     /// Get all function names
     pub fn function_names(&self) -> Vec<String> {
         self.functions.read().keys().cloned().collect()
     }
-    
+
     /// Check if a function exists
     pub fn contains(&self, name: &str) -> bool {
         self.functions.read().contains_key(name)

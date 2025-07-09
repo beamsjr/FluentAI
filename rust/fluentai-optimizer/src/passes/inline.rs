@@ -1,10 +1,10 @@
 //! Function inlining pass
 
+use crate::analysis::{calculate_node_size, is_recursive_function};
+use crate::passes::OptimizationPass;
+use anyhow::Result;
 use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::{FxHashMap, FxHashSet};
-use anyhow::Result;
-use crate::passes::OptimizationPass;
-use crate::analysis::{calculate_node_size, is_recursive_function};
 
 /// Function inlining pass
 pub struct InlinePass {
@@ -15,7 +15,7 @@ pub struct InlinePass {
 impl InlinePass {
     /// Create new inline pass
     pub fn new(threshold: usize) -> Self {
-        Self { 
+        Self {
             threshold,
             inlined_count: 0,
         }
@@ -28,18 +28,18 @@ impl InlinePass {
             if is_recursive_function(graph, func_id) {
                 return false;
             }
-            
+
             // Check size threshold
             let size = calculate_node_size(graph, *body);
             if size > self.threshold {
                 return false;
             }
-            
+
             // Don't inline functions with too many parameters (complexity)
             if params.len() > 5 {
                 return false;
             }
-            
+
             true
         } else {
             false
@@ -47,30 +47,34 @@ impl InlinePass {
     }
 
     /// Perform beta reduction (substitute arguments in function body)
-    fn beta_reduce(&self, 
-                   graph: &Graph, 
-                   body: NodeId, 
-                   params: &[String], 
-                   args: &[NodeId],
-                   node_mapping: &mut FxHashMap<NodeId, NodeId>,
-                   optimized: &mut Graph) -> Result<NodeId> {
+    fn beta_reduce(
+        &self,
+        graph: &Graph,
+        body: NodeId,
+        params: &[String],
+        args: &[NodeId],
+        node_mapping: &mut FxHashMap<NodeId, NodeId>,
+        optimized: &mut Graph,
+    ) -> Result<NodeId> {
         // Create substitution map
         let mut substitutions = FxHashMap::default();
         for (param, arg) in params.iter().zip(args.iter()) {
             substitutions.insert(param.clone(), *arg);
         }
-        
+
         // Recursively copy and substitute
         self.copy_with_substitution(graph, body, &substitutions, node_mapping, optimized)
     }
 
     /// Copy a node with variable substitution
-    fn copy_with_substitution(&self,
-                              graph: &Graph,
-                              node_id: NodeId,
-                              substitutions: &FxHashMap<String, NodeId>,
-                              node_mapping: &mut FxHashMap<NodeId, NodeId>,
-                              optimized: &mut Graph) -> Result<NodeId> {
+    fn copy_with_substitution(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        substitutions: &FxHashMap<String, NodeId>,
+        node_mapping: &mut FxHashMap<NodeId, NodeId>,
+        optimized: &mut Graph,
+    ) -> Result<NodeId> {
         // Check if already mapped
         if let Some(&mapped_id) = node_mapping.get(&node_id) {
             return Ok(mapped_id);
@@ -96,17 +100,33 @@ impl InlinePass {
                 for param in params {
                     new_subs.remove(param);
                 }
-                
-                let new_body = self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized)?;
+
+                let new_body =
+                    self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized)?;
                 Node::Lambda {
                     params: params.clone(),
                     body: new_body,
                 }
             }
             Node::Application { function, args } => {
-                let new_func = self.copy_with_substitution(graph, *function, substitutions, node_mapping, optimized)?;
-                let new_args: Vec<_> = args.iter()
-                    .map(|&arg| self.copy_with_substitution(graph, arg, substitutions, node_mapping, optimized))
+                let new_func = self.copy_with_substitution(
+                    graph,
+                    *function,
+                    substitutions,
+                    node_mapping,
+                    optimized,
+                )?;
+                let new_args: Vec<_> = args
+                    .iter()
+                    .map(|&arg| {
+                        self.copy_with_substitution(
+                            graph,
+                            arg,
+                            substitutions,
+                            node_mapping,
+                            optimized,
+                        )
+                    })
                     .collect::<Result<Vec<_>, _>>()?;
                 Node::Application {
                     function: new_func,
@@ -117,24 +137,53 @@ impl InlinePass {
                 // Process bindings
                 let mut new_subs = substitutions.clone();
                 let mut new_bindings = Vec::new();
-                
+
                 for (name, value) in bindings {
-                    let new_value = self.copy_with_substitution(graph, *value, &new_subs, node_mapping, optimized)?;
+                    let new_value = self.copy_with_substitution(
+                        graph,
+                        *value,
+                        &new_subs,
+                        node_mapping,
+                        optimized,
+                    )?;
                     new_bindings.push((name.clone(), new_value));
                     // Shadow the binding
                     new_subs.remove(name);
                 }
-                
-                let new_body = self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized)?;
+
+                let new_body =
+                    self.copy_with_substitution(graph, *body, &new_subs, node_mapping, optimized)?;
                 Node::Let {
                     bindings: new_bindings,
                     body: new_body,
                 }
             }
-            Node::If { condition, then_branch, else_branch } => {
-                let new_cond = self.copy_with_substitution(graph, *condition, substitutions, node_mapping, optimized)?;
-                let new_then = self.copy_with_substitution(graph, *then_branch, substitutions, node_mapping, optimized)?;
-                let new_else = self.copy_with_substitution(graph, *else_branch, substitutions, node_mapping, optimized)?;
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let new_cond = self.copy_with_substitution(
+                    graph,
+                    *condition,
+                    substitutions,
+                    node_mapping,
+                    optimized,
+                )?;
+                let new_then = self.copy_with_substitution(
+                    graph,
+                    *then_branch,
+                    substitutions,
+                    node_mapping,
+                    optimized,
+                )?;
+                let new_else = self.copy_with_substitution(
+                    graph,
+                    *else_branch,
+                    substitutions,
+                    node_mapping,
+                    optimized,
+                )?;
                 Node::If {
                     condition: new_cond,
                     then_branch: new_then,
@@ -159,7 +208,7 @@ impl OptimizationPass for InlinePass {
         self.inlined_count = 0;
         let mut optimized = Graph::new();
         let mut node_mapping = FxHashMap::default();
-        
+
         // First pass: identify inline candidates
         let mut inline_candidates = FxHashSet::default();
         for (node_id, node) in &graph.nodes {
@@ -187,25 +236,26 @@ impl OptimizationPass for InlinePass {
                                 };
                                 mapped_args.push(mapped);
                             }
-                            
+
                             // Perform beta reduction
                             let inlined = self.beta_reduce(
-                                graph, 
-                                *body, 
-                                params, 
+                                graph,
+                                *body,
+                                params,
                                 &mapped_args,
                                 &mut node_mapping,
-                                &mut optimized
+                                &mut optimized,
                             )?;
-                            
+
                             node_mapping.insert(*node_id, inlined);
                             self.inlined_count += 1;
                             continue;
                         }
                     }
-                    
+
                     // Regular application - copy with mapping
-                    let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized)?;
+                    let mapped_node =
+                        self.copy_node(graph, *node_id, &node_mapping, &mut optimized)?;
                     node_mapping.insert(*node_id, mapped_node);
                 }
                 _ => {
@@ -214,7 +264,8 @@ impl OptimizationPass for InlinePass {
                         // Don't add this node to the optimized graph
                     } else {
                         // Copy other nodes normally
-                        let mapped_node = self.copy_node(graph, *node_id, &node_mapping, &mut optimized)?;
+                        let mapped_node =
+                            self.copy_node(graph, *node_id, &node_mapping, &mut optimized)?;
                         node_mapping.insert(*node_id, mapped_node);
                     }
                 }
@@ -230,17 +281,23 @@ impl OptimizationPass for InlinePass {
     }
 
     fn stats(&self) -> String {
-        format!("{} pass: {} functions inlined", self.name(), self.inlined_count)
+        format!(
+            "{} pass: {} functions inlined",
+            self.name(),
+            self.inlined_count
+        )
     }
 }
 
 impl InlinePass {
     /// Helper to copy a node with mapping
-    fn copy_node(&self, 
-                 graph: &Graph, 
-                 node_id: NodeId, 
-                 mapping: &FxHashMap<NodeId, NodeId>,
-                 optimized: &mut Graph) -> Result<NodeId> {
+    fn copy_node(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        mapping: &FxHashMap<NodeId, NodeId>,
+        optimized: &mut Graph,
+    ) -> Result<NodeId> {
         if let Some(&mapped) = mapping.get(&node_id) {
             return Ok(mapped);
         }
@@ -253,7 +310,8 @@ impl InlinePass {
         let mapped_node = match node {
             Node::Application { function, args } => {
                 let new_func = mapping.get(function).copied().unwrap_or(*function);
-                let new_args: Vec<_> = args.iter()
+                let new_args: Vec<_> = args
+                    .iter()
                     .map(|&arg| mapping.get(&arg).copied().unwrap_or(arg))
                     .collect();
                 Node::Application {
@@ -269,7 +327,8 @@ impl InlinePass {
                 }
             }
             Node::Let { bindings, body } => {
-                let new_bindings: Vec<_> = bindings.iter()
+                let new_bindings: Vec<_> = bindings
+                    .iter()
                     .map(|(name, value)| {
                         let new_value = mapping.get(value).copied().unwrap_or(*value);
                         (name.clone(), new_value)
@@ -281,7 +340,11 @@ impl InlinePass {
                     body: new_body,
                 }
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 let new_cond = mapping.get(condition).copied().unwrap_or(*condition);
                 let new_then = mapping.get(then_branch).copied().unwrap_or(*then_branch);
                 let new_else = mapping.get(else_branch).copied().unwrap_or(*else_branch);

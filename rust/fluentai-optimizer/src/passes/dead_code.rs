@@ -1,9 +1,9 @@
 //! Dead code elimination pass
 
+use crate::passes::OptimizationPass;
+use anyhow::Result;
 use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::FxHashSet;
-use anyhow::Result;
-use crate::passes::OptimizationPass;
 
 /// Dead code elimination pass
 pub struct DeadCodeEliminationPass {
@@ -13,7 +13,9 @@ pub struct DeadCodeEliminationPass {
 impl DeadCodeEliminationPass {
     /// Create new dead code elimination pass
     pub fn new() -> Self {
-        Self { eliminated_count: 0 }
+        Self {
+            eliminated_count: 0,
+        }
     }
 
     /// Mark node and dependencies as reachable
@@ -36,7 +38,7 @@ impl DeadCodeEliminationPass {
                 Node::Let { bindings, body } => {
                     // First mark the body as reachable
                     self.mark_reachable(graph, *body, reachable);
-                    
+
                     // Then only mark bindings that are used in the reachable set
                     let used_vars = self.find_used_variables(graph, reachable);
                     for (name, value_id) in bindings {
@@ -53,7 +55,11 @@ impl DeadCodeEliminationPass {
                     }
                     self.mark_reachable(graph, *body, reachable);
                 }
-                Node::If { condition, then_branch, else_branch } => {
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
                     self.mark_reachable(graph, *condition, reachable);
                     self.mark_reachable(graph, *then_branch, reachable);
                     self.mark_reachable(graph, *else_branch, reachable);
@@ -94,20 +100,24 @@ impl DeadCodeEliminationPass {
             }
         }
     }
-    
+
     /// Find variables used in the reachable nodes
-    fn find_used_variables(&self, graph: &Graph, reachable: &FxHashSet<NodeId>) -> FxHashSet<String> {
+    fn find_used_variables(
+        &self,
+        graph: &Graph,
+        reachable: &FxHashSet<NodeId>,
+    ) -> FxHashSet<String> {
         let mut used = FxHashSet::default();
-        
+
         for node_id in reachable {
             if let Some(node) = graph.get_node(*node_id) {
                 self.collect_used_vars(node, &mut used);
             }
         }
-        
+
         used
     }
-    
+
     /// Collect variable names used in a node
     fn collect_used_vars(&self, node: &Node, used: &mut FxHashSet<String>) {
         match node {
@@ -117,7 +127,7 @@ impl DeadCodeEliminationPass {
             _ => {}
         }
     }
-    
+
     /// Check if a node has side effects
     fn has_side_effects(&self, graph: &Graph, node_id: NodeId) -> bool {
         if let Some(node) = graph.get_node(node_id) {
@@ -133,7 +143,10 @@ impl DeadCodeEliminationPass {
                     // Check if it's a known effectful function
                     if let Some(Node::Variable { name }) = graph.get_node(*function) {
                         // Known effectful functions
-                        if matches!(name.as_str(), "print" | "println" | "error" | "panic" | "debug" | "log") {
+                        if matches!(
+                            name.as_str(),
+                            "print" | "println" | "error" | "panic" | "debug" | "log"
+                        ) {
                             return true;
                         }
                     }
@@ -142,27 +155,35 @@ impl DeadCodeEliminationPass {
                 }
                 // Let/Letrec might have side effects in their bindings
                 Node::Let { bindings, body } => {
-                    bindings.iter().any(|(_, value_id)| self.has_side_effects(graph, *value_id)) ||
-                    self.has_side_effects(graph, *body)
+                    bindings
+                        .iter()
+                        .any(|(_, value_id)| self.has_side_effects(graph, *value_id))
+                        || self.has_side_effects(graph, *body)
                 }
                 Node::Letrec { bindings, body } => {
-                    bindings.iter().any(|(_, value_id)| self.has_side_effects(graph, *value_id)) ||
-                    self.has_side_effects(graph, *body)
+                    bindings
+                        .iter()
+                        .any(|(_, value_id)| self.has_side_effects(graph, *value_id))
+                        || self.has_side_effects(graph, *body)
                 }
                 // If/Match might have side effects in their branches
-                Node::If { condition, then_branch, else_branch } => {
-                    self.has_side_effects(graph, *condition) ||
-                    self.has_side_effects(graph, *then_branch) ||
-                    self.has_side_effects(graph, *else_branch)
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    self.has_side_effects(graph, *condition)
+                        || self.has_side_effects(graph, *then_branch)
+                        || self.has_side_effects(graph, *else_branch)
                 }
                 Node::Match { expr, branches } => {
-                    self.has_side_effects(graph, *expr) ||
-                    branches.iter().any(|(_, branch)| self.has_side_effects(graph, *branch))
+                    self.has_side_effects(graph, *expr)
+                        || branches
+                            .iter()
+                            .any(|(_, branch)| self.has_side_effects(graph, *branch))
                 }
                 // Lists might have side effects in their elements
-                Node::List(items) => {
-                    items.iter().any(|item| self.has_side_effects(graph, *item))
-                }
+                Node::List(items) => items.iter().any(|item| self.has_side_effects(graph, *item)),
                 // Async might have side effects
                 Node::Async { body } => self.has_side_effects(graph, *body),
                 // Handler nodes might have side effects in their body
@@ -172,7 +193,9 @@ impl DeadCodeEliminationPass {
                         return true;
                     }
                     // Check if any handler function has side effects
-                    handlers.iter().any(|(_, _, handler_fn)| self.has_side_effects(graph, *handler_fn))
+                    handlers
+                        .iter()
+                        .any(|(_, _, handler_fn)| self.has_side_effects(graph, *handler_fn))
                 }
                 // Lambda bodies are not evaluated until called
                 Node::Lambda { .. } => false,
@@ -183,7 +206,7 @@ impl DeadCodeEliminationPass {
                 Node::Import { .. } => false, // Imports themselves don't have side effects
                 Node::Export { .. } => false, // Exports themselves don't have side effects
                 Node::QualifiedVariable { .. } => false, // Just a reference
-                Node::Channel => false, // Channel creation is considered pure
+                Node::Channel => false,       // Channel creation is considered pure
                 Node::Contract { .. } => false, // Contracts themselves don't have side effects
                 Node::Define { value, .. } => self.has_side_effects(graph, *value), // Define has side effects if its value does
                 Node::Begin { exprs } => {
@@ -213,7 +236,7 @@ impl OptimizationPass for DeadCodeEliminationPass {
 
         // Create new graph with only reachable nodes
         let mut optimized = Graph::new();
-        
+
         for node_id in &reachable {
             if let Some(node) = graph.get_node(*node_id) {
                 optimized.nodes.insert(*node_id, node.clone());
@@ -227,6 +250,10 @@ impl OptimizationPass for DeadCodeEliminationPass {
     }
 
     fn stats(&self) -> String {
-        format!("{} pass: {} nodes eliminated", self.name(), self.eliminated_count)
+        format!(
+            "{} pass: {} nodes eliminated",
+            self.name(),
+            self.eliminated_count
+        )
     }
 }

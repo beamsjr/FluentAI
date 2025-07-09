@@ -1,9 +1,9 @@
 //! Correctness-related lint rules
 
 use crate::diagnostic::{LintDiagnostic, Suggestion};
-use crate::visitor::Visitor;
-use crate::rules::{Rule, RuleCategory, DiagnosticCollector};
 use crate::impl_rule;
+use crate::rules::{DiagnosticCollector, Rule, RuleCategory};
+use crate::visitor::Visitor;
 use fluentai_core::ast::{Graph, Node, NodeId};
 
 /// Check for unused variables
@@ -32,22 +32,24 @@ impl Visitor for UnusedVariablesVisitor {
             Node::Let { bindings, body } => {
                 self.current_scope += 1;
                 let scope = self.current_scope;
-                
+
                 // Register bindings
                 for (name, value) in bindings {
                     self.bindings.push((name.clone(), node_id, scope, false));
                     self.visit_node_id(graph, *value);
                 }
-                
+
                 // Visit body
                 self.visit_node_id(graph, *body);
-                
+
                 // Check for unused bindings in this scope
-                let unused: Vec<_> = self.bindings.iter()
+                let unused: Vec<_> = self
+                    .bindings
+                    .iter()
                     .filter(|(_, _, s, used)| *s == scope && !used)
                     .map(|(name, _, _, _)| name.clone())
                     .collect();
-                
+
                 for name in unused {
                     if !name.starts_with('_') {
                         self.collector.add_diagnostic(
@@ -62,7 +64,7 @@ impl Visitor for UnusedVariablesVisitor {
                         );
                     }
                 }
-                
+
                 self.current_scope -= 1;
             }
             Node::Variable { name } => {
@@ -76,31 +78,31 @@ impl Visitor for UnusedVariablesVisitor {
             Node::Lambda { params, body } => {
                 self.current_scope += 1;
                 let scope = self.current_scope;
-                
+
                 // Register parameters
                 for param in params {
                     self.bindings.push((param.clone(), node_id, scope, false));
                 }
-                
+
                 self.visit_node_id(graph, *body);
-                
+
                 // Check unused parameters
-                let unused: Vec<_> = self.bindings.iter()
+                let unused: Vec<_> = self
+                    .bindings
+                    .iter()
                     .filter(|(_, _, s, used)| *s == scope && !used)
                     .map(|(name, _, _, _)| name.clone())
                     .collect();
-                
+
                 for name in unused {
                     if !name.starts_with('_') {
-                        self.collector.add_diagnostic(
-                            LintDiagnostic::warning(
-                                "unused-variables",
-                                format!("Parameter '{}' is never used", name)
-                            )
-                        );
+                        self.collector.add_diagnostic(LintDiagnostic::warning(
+                            "unused-variables",
+                            format!("Parameter '{}' is never used", name),
+                        ));
                     }
                 }
-                
+
                 self.current_scope -= 1;
             }
             _ => {
@@ -112,7 +114,11 @@ impl Visitor for UnusedVariablesVisitor {
                             self.visit_node_id(graph, *arg);
                         }
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         self.visit_node_id(graph, *condition);
                         self.visit_node_id(graph, *then_branch);
                         self.visit_node_id(graph, *else_branch);
@@ -162,30 +168,30 @@ struct UnreachableCodeVisitor {
 impl Visitor for UnreachableCodeVisitor {
     fn visit_node(&mut self, graph: &Graph, _node_id: NodeId, node: &Node) {
         match node {
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 // Check for constant conditions
                 if let Some(Node::Literal(lit)) = graph.get_node(*condition) {
                     match lit {
                         fluentai_core::ast::Literal::Boolean(true) => {
-                            self.collector.add_diagnostic(
-                                LintDiagnostic::warning(
-                                    "unreachable-code",
-                                    "Else branch is unreachable due to constant true condition"
-                                )
-                            );
+                            self.collector.add_diagnostic(LintDiagnostic::warning(
+                                "unreachable-code",
+                                "Else branch is unreachable due to constant true condition",
+                            ));
                         }
                         fluentai_core::ast::Literal::Boolean(false) => {
-                            self.collector.add_diagnostic(
-                                LintDiagnostic::warning(
-                                    "unreachable-code",
-                                    "Then branch is unreachable due to constant false condition"
-                                )
-                            );
+                            self.collector.add_diagnostic(LintDiagnostic::warning(
+                                "unreachable-code",
+                                "Then branch is unreachable due to constant false condition",
+                            ));
                         }
                         _ => {}
                     }
                 }
-                
+
                 self.visit_node_id(graph, *condition);
                 self.visit_node_id(graph, *then_branch);
                 self.visit_node_id(graph, *else_branch);
@@ -255,17 +261,15 @@ impl Visitor for TypeMismatchVisitor {
                 if let Some(func_node) = graph.get_node(*function) {
                     match func_node {
                         Node::Literal(_) | Node::List(_) => {
-                            self.collector.add_diagnostic(
-                                LintDiagnostic::error(
-                                    "type-mismatch",
-                                    "Attempting to call a non-function value"
-                                )
-                            );
+                            self.collector.add_diagnostic(LintDiagnostic::error(
+                                "type-mismatch",
+                                "Attempting to call a non-function value",
+                            ));
                         }
                         _ => {}
                     }
                 }
-                
+
                 self.visit_node_id(graph, *function);
                 for arg in args {
                     self.visit_node_id(graph, *arg);
@@ -283,7 +287,11 @@ impl Visitor for TypeMismatchVisitor {
                         }
                         self.visit_node_id(graph, *body);
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         self.visit_node_id(graph, *condition);
                         self.visit_node_id(graph, *then_branch);
                         self.visit_node_id(graph, *else_branch);

@@ -1,11 +1,11 @@
 //! Database migration system for FluentAi
 
-use std::sync::Arc;
-use crate::error::DbResult;
 use crate::connection::DbConnection;
+use crate::error::DbResult;
 use crate::transaction::Transaction;
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub mod builder;
 pub mod runner;
@@ -38,26 +38,26 @@ pub struct MigrationMetadata {
 pub trait Migration: Send + Sync {
     /// Get migration version
     fn version(&self) -> &str;
-    
+
     /// Get migration name
     fn name(&self) -> &str;
-    
+
     /// Get migration description
     fn description(&self) -> Option<&str> {
         None
     }
-    
+
     /// Execute the up migration
     async fn up(&self, tx: &Transaction) -> DbResult<()>;
-    
+
     /// Execute the down migration
     async fn down(&self, tx: &Transaction) -> DbResult<()>;
-    
+
     /// Get migration checksum
     fn checksum(&self) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         self.version().hash(&mut hasher);
         self.name().hash(&mut hasher);
@@ -89,7 +89,7 @@ impl SqlMigration {
             down_sql: down_sql.into(),
         }
     }
-    
+
     pub fn with_description(mut self, desc: impl Into<String>) -> Self {
         self.description = Some(desc.into());
         self
@@ -101,15 +101,15 @@ impl Migration for SqlMigration {
     fn version(&self) -> &str {
         &self.version
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }
-    
+
     fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
-    
+
     async fn up(&self, tx: &Transaction) -> DbResult<()> {
         // Split SQL by semicolons and execute each statement
         for statement in self.up_sql.split(';').filter(|s| !s.trim().is_empty()) {
@@ -117,7 +117,7 @@ impl Migration for SqlMigration {
         }
         Ok(())
     }
-    
+
     async fn down(&self, tx: &Transaction) -> DbResult<()> {
         // Split SQL by semicolons and execute each statement
         for statement in self.down_sql.split(';').filter(|s| !s.trim().is_empty()) {
@@ -125,11 +125,11 @@ impl Migration for SqlMigration {
         }
         Ok(())
     }
-    
+
     fn checksum(&self) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         self.version.hash(&mut hasher);
         self.name.hash(&mut hasher);
@@ -150,7 +150,7 @@ impl MigrationRepository {
     pub fn new(connection: Arc<DbConnection>) -> Self {
         Self::with_table_name(connection, "_migrations")
     }
-    
+
     /// Create with custom table name
     pub fn with_table_name(connection: Arc<DbConnection>, table_name: impl Into<String>) -> Self {
         Self {
@@ -158,7 +158,7 @@ impl MigrationRepository {
             table_name: table_name.into(),
         }
     }
-    
+
     /// Initialize the migration table
     pub async fn init(&self) -> DbResult<()> {
         let query = format!(
@@ -174,19 +174,22 @@ impl MigrationRepository {
             "#,
             self.table_name
         );
-        
+
         self.connection.execute_raw_unsafe(&query).await?;
         Ok(())
     }
-    
+
     /// Check if migration table exists
     pub async fn table_exists(&self) -> DbResult<bool> {
         // This is database-specific, using a generic approach
-        let result = self.connection.fetch_all(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = ?",
-            vec![fluentai_vm::Value::String(self.table_name.clone())]
-        ).await;
-        
+        let result = self
+            .connection
+            .fetch_all(
+                "SELECT 1 FROM information_schema.tables WHERE table_name = ?",
+                vec![fluentai_vm::Value::String(self.table_name.clone())],
+            )
+            .await;
+
         match result {
             Ok(rows) => Ok(!rows.is_empty()),
             Err(_) => {
@@ -199,7 +202,7 @@ impl MigrationRepository {
             }
         }
     }
-    
+
     /// Get all applied migrations
     pub async fn get_applied_migrations(&self) -> DbResult<Vec<MigrationMetadata>> {
         let query = format!(
@@ -207,46 +210,48 @@ impl MigrationRepository {
              FROM {} ORDER BY version",
             self.table_name
         );
-        
+
         let rows = self.connection.fetch_all(&query, vec![]).await?;
-        
+
         let mut migrations = Vec::new();
         for row in rows {
             use sqlx::Row;
-            
+
             migrations.push(MigrationMetadata {
                 version: row.try_get("version").unwrap_or_default(),
                 name: row.try_get("name").unwrap_or_default(),
                 description: row.try_get("description").ok(),
                 checksum: row.try_get("checksum").unwrap_or_default(),
-                applied_at: row.try_get::<String, _>("applied_at")
+                applied_at: row
+                    .try_get::<String, _>("applied_at")
                     .ok()
                     .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
                     .map(|dt| dt.with_timezone(&Utc)),
-                execution_time_ms: row.try_get::<i64, _>("execution_time_ms")
+                execution_time_ms: row
+                    .try_get::<i64, _>("execution_time_ms")
                     .ok()
                     .map(|i| i as u64),
             });
         }
-        
+
         Ok(migrations)
     }
-    
+
     /// Check if a migration is applied
     pub async fn is_applied(&self, version: &str) -> DbResult<bool> {
-        let query = format!(
-            "SELECT 1 FROM {} WHERE version = ?",
-            self.table_name
-        );
-        
-        let rows = self.connection.fetch_all(
-            &query,
-            vec![fluentai_vm::Value::String(version.to_string())]
-        ).await?;
-        
+        let query = format!("SELECT 1 FROM {} WHERE version = ?", self.table_name);
+
+        let rows = self
+            .connection
+            .fetch_all(
+                &query,
+                vec![fluentai_vm::Value::String(version.to_string())],
+            )
+            .await?;
+
         Ok(!rows.is_empty())
     }
-    
+
     /// Record a migration as applied
     pub async fn record_migration(
         &self,
@@ -260,53 +265,48 @@ impl MigrationRepository {
             "#,
             self.table_name
         );
-        
+
         let params = vec![
             fluentai_vm::Value::String(metadata.version.clone()),
             fluentai_vm::Value::String(metadata.name.clone()),
-            metadata.description.as_ref()
+            metadata
+                .description
+                .as_ref()
                 .map(|d| fluentai_vm::Value::String(d.clone()))
                 .unwrap_or(fluentai_vm::Value::Nil),
             fluentai_vm::Value::String(metadata.checksum.clone()),
-            fluentai_vm::Value::String(
-                metadata.applied_at.unwrap_or_else(Utc::now).to_rfc3339()
-            ),
-            metadata.execution_time_ms
+            fluentai_vm::Value::String(metadata.applied_at.unwrap_or_else(Utc::now).to_rfc3339()),
+            metadata
+                .execution_time_ms
                 .map(|ms| fluentai_vm::Value::Integer(ms as i64))
                 .unwrap_or(fluentai_vm::Value::Nil),
         ];
-        
+
         tx.execute(&query, params).await?;
         Ok(())
     }
-    
+
     /// Remove a migration record
-    pub async fn remove_migration(
-        &self,
-        tx: &Transaction,
-        version: &str,
-    ) -> DbResult<()> {
-        let query = format!(
-            "DELETE FROM {} WHERE version = ?",
-            self.table_name
-        );
-        
+    pub async fn remove_migration(&self, tx: &Transaction, version: &str) -> DbResult<()> {
+        let query = format!("DELETE FROM {} WHERE version = ?", self.table_name);
+
         tx.execute(
             &query,
-            vec![fluentai_vm::Value::String(version.to_string())]
-        ).await?;
+            vec![fluentai_vm::Value::String(version.to_string())],
+        )
+        .await?;
         Ok(())
     }
-    
+
     /// Get the latest applied version
     pub async fn get_latest_version(&self) -> DbResult<Option<String>> {
         let query = format!(
             "SELECT version FROM {} ORDER BY version DESC LIMIT 1",
             self.table_name
         );
-        
+
         let rows = self.connection.fetch_all(&query, vec![]).await?;
-        
+
         if let Some(row) = rows.first() {
             use sqlx::Row;
             Ok(row.try_get("version").ok())
@@ -330,17 +330,17 @@ impl MigrationPlan {
             migrations: Vec::new(),
         }
     }
-    
+
     /// Add a migration to the plan
     pub fn add_migration(&mut self, migration: Arc<dyn Migration>) {
         self.migrations.push(migration);
     }
-    
+
     /// Get the number of migrations in the plan
     pub fn len(&self) -> usize {
         self.migrations.len()
     }
-    
+
     /// Check if the plan is empty
     pub fn is_empty(&self) -> bool {
         self.migrations.is_empty()
@@ -350,67 +350,62 @@ impl MigrationPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_sql_migration() {
         let migration = SqlMigration::new(
             "001",
             "create_users",
             "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(255))",
-            "DROP TABLE users"
+            "DROP TABLE users",
         );
-        
+
         assert_eq!(migration.version(), "001");
         assert_eq!(migration.name(), "create_users");
         assert!(migration.description().is_none());
-        
+
         // Test with description
         let migration = migration.with_description("Create users table");
         assert_eq!(migration.description(), Some("Create users table"));
     }
-    
+
     #[test]
     fn test_migration_checksum() {
         let migration1 = SqlMigration::new(
             "001",
             "create_users",
             "CREATE TABLE users (id INT)",
-            "DROP TABLE users"
+            "DROP TABLE users",
         );
-        
+
         let migration2 = SqlMigration::new(
             "001",
             "create_users",
             "CREATE TABLE users (id INT)", // Same content
-            "DROP TABLE users"
+            "DROP TABLE users",
         );
-        
+
         let migration3 = SqlMigration::new(
             "001",
             "create_users",
             "CREATE TABLE users (id INT, name VARCHAR(255))", // Different content
-            "DROP TABLE users"
+            "DROP TABLE users",
         );
-        
+
         // Same migrations should have same checksum
         assert_eq!(migration1.checksum(), migration2.checksum());
-        
+
         // Different migrations should have different checksums
         assert_ne!(migration1.checksum(), migration3.checksum());
     }
-    
+
     #[test]
     fn test_migration_plan() {
         let mut plan = MigrationPlan::new(Direction::Up);
         assert!(plan.is_empty());
-        
-        let migration = Arc::new(SqlMigration::new(
-            "001",
-            "test",
-            "SELECT 1",
-            "SELECT 0"
-        ));
-        
+
+        let migration = Arc::new(SqlMigration::new("001", "test", "SELECT 1", "SELECT 0"));
+
         plan.add_migration(migration);
         assert_eq!(plan.len(), 1);
         assert!(!plan.is_empty());

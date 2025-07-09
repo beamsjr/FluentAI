@@ -1,24 +1,24 @@
 //! Simple visualization example - just shows the UI
 
 use anyhow::Result;
-use fluentai_viz::{VisualizationServer, ServerConfig};
+use fluentai_viz::{ServerConfig, VisualizationServer};
 use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
-    
+
     // Create server configuration
     let config = ServerConfig {
         host: "127.0.0.1".to_string(),
         port: 8080,
         static_dir: PathBuf::from("fluentai-viz/static"),
     };
-    
+
     // Create and start server
     let server = VisualizationServer::new(config);
-    
+
     println!("===========================================");
     println!("FluentAi Visualizer");
     println!("===========================================");
@@ -32,8 +32,8 @@ async fn main() -> Result<()> {
     println!("===========================================");
     println!();
     println!("Press Ctrl+C to stop the server");
-    
+
     server.run().await?;
-    
+
     Ok(())
 }

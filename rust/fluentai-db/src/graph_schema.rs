@@ -376,7 +376,7 @@ impl SchemaGraphBuilder {
             relationships: Vec::new(),
         }
     }
-    
+
     /// Create a new schema
     pub fn schema(&mut self, name: &str) -> SchemaBuilder {
         // Use a Module node to represent a schema
@@ -385,16 +385,19 @@ impl SchemaGraphBuilder {
             exports: Vec::new(),
             body: NodeId(NonZeroU32::new(1).unwrap()), // placeholder
         };
-        let id = self.graph.add_node(node).expect("Failed to add schema node");
+        let id = self
+            .graph
+            .add_node(node)
+            .expect("Failed to add schema node");
         self.schemas.insert(name.to_string(), id);
-        
+
         SchemaBuilder {
             builder: self,
             schema_name: name.to_string(),
             schema_id: id,
         }
     }
-    
+
     /// Add a relationship between tables
     pub fn relationship<'a>(
         &'a mut self,
@@ -411,8 +414,7 @@ impl SchemaGraphBuilder {
             join_conditions: Vec::new(),
         }
     }
-    
-    
+
     /// Build the final schema graph
     pub fn build(self) -> SchemaGraph {
         SchemaGraph {
@@ -441,10 +443,14 @@ impl<'a> SchemaBuilder<'a> {
             exports: Vec::new(),
             body: NodeId(NonZeroU32::new(1).unwrap()), // placeholder
         };
-        let id = self.builder.graph.add_node(node).expect("Failed to add table node");
+        let id = self
+            .builder
+            .graph
+            .add_node(node)
+            .expect("Failed to add table node");
         // Note: add_edge doesn't exist in the current Graph API
         // We'll need to track relationships differently
-        
+
         TableBuilder {
             builder: self.builder,
             schema_name: self.schema_name.clone(),
@@ -477,14 +483,22 @@ impl<'a> TableBuilder<'a> {
         let col_node = Node::Variable {
             name: format!("Column:{}", name),
         };
-        let col_id = self.builder.graph.add_node(col_node).expect("Failed to add column node");
-        
+        let col_id = self
+            .builder
+            .graph
+            .add_node(col_node)
+            .expect("Failed to add column node");
+
         // Create type node
         let type_node = Node::Variable {
             name: format!("DataType:{}", data_type),
         };
-        let type_id = self.builder.graph.add_node(type_node).expect("Failed to add data type node");
-        
+        let type_id = self
+            .builder
+            .graph
+            .add_node(type_node)
+            .expect("Failed to add data type node");
+
         self.columns.push(ColumnNode {
             id: col_id,
             name: name.to_string(),
@@ -492,16 +506,16 @@ impl<'a> TableBuilder<'a> {
             constraints: Vec::new(),
             statistics: ColumnStatistics::default(),
         });
-        
+
         self
     }
-    
+
     /// Add table hints for optimization
     pub fn with_hints(mut self, hints: TableHints) -> Self {
         self.hints = hints;
         self
     }
-    
+
     /// Build the table
     pub fn build(self) {
         let table = TableNode {
@@ -513,11 +527,10 @@ impl<'a> TableBuilder<'a> {
             constraints: self.constraints,
             hints: self.hints,
         };
-        
-        self.builder.tables.insert(
-            (self.schema_name, self.table_name),
-            table
-        );
+
+        self.builder
+            .tables
+            .insert((self.schema_name, self.table_name), table);
     }
 }
 
@@ -537,38 +550,46 @@ impl<'a> RelationshipBuilder<'a> {
         self.cardinality = Cardinality { min, max };
         self
     }
-    
+
     /// Add a join condition
     pub fn join_on(mut self, left_col: &str, operator: JoinOperator, right_col: &str) -> Self {
         // Create placeholder nodes for columns
         let left_node = Node::Variable {
             name: format!("JoinColumn:{}", left_col),
         };
-        let left_id = self.builder.graph.add_node(left_node).expect("Failed to add left join column node");
-        
+        let left_id = self
+            .builder
+            .graph
+            .add_node(left_node)
+            .expect("Failed to add left join column node");
+
         let right_node = Node::Variable {
             name: format!("JoinColumn:{}", right_col),
         };
-        let right_id = self.builder.graph.add_node(right_node).expect("Failed to add right join column node");
-        
+        let right_id = self
+            .builder
+            .graph
+            .add_node(right_node)
+            .expect("Failed to add right join column node");
+
         self.join_conditions.push(JoinCondition {
             left_column: left_id,
             right_column: right_id,
             operator,
         });
-        
+
         self
     }
-    
+
     /// Build the relationship
     pub fn build(self) {
         // Look up table NodeIds
         let from_key = (self.from_table.0.to_string(), self.from_table.1.to_string());
         let to_key = (self.to_table.0.to_string(), self.to_table.1.to_string());
-        
+
         if let (Some(from), Some(to)) = (
             self.builder.tables.get(&from_key).map(|t| t.id),
-            self.builder.tables.get(&to_key).map(|t| t.id)
+            self.builder.tables.get(&to_key).map(|t| t.id),
         ) {
             self.builder.relationships.push(RelationshipEdge {
                 from_table: from,
@@ -577,7 +598,7 @@ impl<'a> RelationshipBuilder<'a> {
                 cardinality: self.cardinality,
                 join_conditions: self.join_conditions,
             });
-            
+
             // Add edge in graph
             // Note: Graph API doesn't support edges directly
             // We track relationships in our own structure
@@ -589,45 +610,45 @@ impl SchemaGraph {
     /// Analyze schema for optimization opportunities
     pub fn analyze(&self) -> SchemaAnalysis {
         let mut analysis = SchemaAnalysis::default();
-        
+
         // Find denormalization opportunities
         analysis.denormalization_candidates = self.find_denormalization_candidates();
-        
+
         // Identify missing indexes
         analysis.missing_indexes = self.suggest_indexes();
-        
+
         // Find redundant indexes
         analysis.redundant_indexes = self.find_redundant_indexes();
-        
+
         // Analyze join complexity
         analysis.join_complexity = self.calculate_join_complexity();
-        
+
         // Suggest partitioning
         analysis.partitioning_suggestions = self.suggest_partitioning();
-        
+
         analysis
     }
-    
+
     fn find_denormalization_candidates(&self) -> Vec<DenormalizationCandidate> {
         // Analyze frequently joined tables for denormalization opportunities
         Vec::new() // Placeholder
     }
-    
+
     fn suggest_indexes(&self) -> Vec<IndexSuggestion> {
         // Analyze access patterns to suggest missing indexes
         Vec::new() // Placeholder
     }
-    
+
     fn find_redundant_indexes(&self) -> Vec<NodeId> {
         // Find indexes that are subsets of other indexes
         Vec::new() // Placeholder
     }
-    
+
     fn calculate_join_complexity(&self) -> f64 {
         // Calculate average join complexity based on relationships
         0.0 // Placeholder
     }
-    
+
     fn suggest_partitioning(&self) -> Vec<PartitioningSuggestion> {
         // Suggest partitioning for large tables
         Vec::new() // Placeholder

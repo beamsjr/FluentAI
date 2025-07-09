@@ -25,7 +25,7 @@ impl ReplCompleter {
             user_names: HashSet::new(),
             keywords: HashSet::new(),
         };
-        
+
         // Initialize with default completions
         completer.init_defaults();
         completer
@@ -34,49 +34,133 @@ impl ReplCompleter {
     /// Initialize default completions
     fn init_defaults(&mut self) {
         // Built-in functions
-        self.builtins.extend(vec![
-            "+", "-", "*", "/", "=", ">", "<", ">=", "<=",
-            "list", "cons", "car", "cdr", "null?", "list?",
-            "number?", "string?", "boolean?", "procedure?",
-            "map", "filter", "reduce", "fold", "append",
-            "length", "reverse", "sort", "member", "assoc",
-            "print", "println", "format", "error",
-            "read", "write", "open", "close",
-            "let", "let*", "letrec", "define", "lambda",
-            "if", "cond", "case", "and", "or", "not",
-            "begin", "do", "while", "for",
-            "contract", "requires", "ensures", "invariant",
-            "async", "await", "spawn", "yield",
-            "try", "catch", "finally", "throw",
-            "module", "import", "export", "use",
-        ].into_iter().map(String::from));
+        self.builtins.extend(
+            vec![
+                "+",
+                "-",
+                "*",
+                "/",
+                "=",
+                ">",
+                "<",
+                ">=",
+                "<=",
+                "list",
+                "cons",
+                "car",
+                "cdr",
+                "null?",
+                "list?",
+                "number?",
+                "string?",
+                "boolean?",
+                "procedure?",
+                "map",
+                "filter",
+                "reduce",
+                "fold",
+                "append",
+                "length",
+                "reverse",
+                "sort",
+                "member",
+                "assoc",
+                "print",
+                "println",
+                "format",
+                "error",
+                "read",
+                "write",
+                "open",
+                "close",
+                "let",
+                "let*",
+                "letrec",
+                "define",
+                "lambda",
+                "if",
+                "cond",
+                "case",
+                "and",
+                "or",
+                "not",
+                "begin",
+                "do",
+                "while",
+                "for",
+                "contract",
+                "requires",
+                "ensures",
+                "invariant",
+                "async",
+                "await",
+                "spawn",
+                "yield",
+                "try",
+                "catch",
+                "finally",
+                "throw",
+                "module",
+                "import",
+                "export",
+                "use",
+            ]
+            .into_iter()
+            .map(String::from),
+        );
 
         // REPL commands
-        self.commands.extend(vec![
-            ":help", ":h", ":?",
-            ":exit", ":quit", ":q",
-            ":clear", ":cls",
-            ":mode", ":m",
-            ":debug", ":d",
-            ":vars", ":v",
-            ":set", ":s",
-            ":load", ":l",
-            ":save",
-            ":reset",
-            ":time", ":t",
-        ].into_iter().map(String::from));
+        self.commands.extend(
+            vec![
+                ":help", ":h", ":?", ":exit", ":quit", ":q", ":clear", ":cls", ":mode", ":m",
+                ":debug", ":d", ":vars", ":v", ":set", ":s", ":load", ":l", ":save", ":reset",
+                ":time", ":t",
+            ]
+            .into_iter()
+            .map(String::from),
+        );
 
         // Keywords
-        self.keywords.extend(vec![
-            "define", "lambda", "let", "let*", "letrec",
-            "if", "cond", "case", "and", "or", "not",
-            "begin", "do", "while", "for",
-            "contract", "requires", "ensures", "invariant",
-            "async", "await", "spawn", "yield",
-            "try", "catch", "finally", "throw",
-            "module", "import", "export", "use",
-            "true", "false", "nil",
-        ].into_iter().map(String::from));
+        self.keywords.extend(
+            vec![
+                "define",
+                "lambda",
+                "let",
+                "let*",
+                "letrec",
+                "if",
+                "cond",
+                "case",
+                "and",
+                "or",
+                "not",
+                "begin",
+                "do",
+                "while",
+                "for",
+                "contract",
+                "requires",
+                "ensures",
+                "invariant",
+                "async",
+                "await",
+                "spawn",
+                "yield",
+                "try",
+                "catch",
+                "finally",
+                "throw",
+                "module",
+                "import",
+                "export",
+                "use",
+                "true",
+                "false",
+                "nil",
+            ]
+            .into_iter()
+            .map(String::from),
+        );
     }
 
     /// Add a user-defined name
@@ -97,7 +181,7 @@ impl ReplCompleter {
     /// Get all possible completions
     fn get_completions(&self, prefix: &str) -> Vec<String> {
         let mut completions = Vec::new();
-        
+
         // Check if it's a command
         if prefix.starts_with(':') {
             for cmd in &self.commands {
@@ -112,14 +196,14 @@ impl ReplCompleter {
                     completions.push(builtin.clone());
                 }
             }
-            
+
             // Add keywords
             for keyword in &self.keywords {
                 if keyword.starts_with(prefix) {
                     completions.push(keyword.clone());
                 }
             }
-            
+
             // Add user names
             for name in &self.user_names {
                 if name.starts_with(prefix) {
@@ -127,7 +211,7 @@ impl ReplCompleter {
                 }
             }
         }
-        
+
         completions.sort();
         completions.dedup();
         completions
@@ -140,7 +224,7 @@ impl ReplCompleter {
             .rfind(|c: char| c.is_whitespace() || "()[]{}".contains(c))
             .map(|i| i + 1)
             .unwrap_or(0);
-        
+
         (&line[start..pos], start)
     }
 }
@@ -148,14 +232,9 @@ impl ReplCompleter {
 impl Completer for ReplCompleter {
     type Candidate = Pair;
 
-    fn complete(
-        &self,
-        line: &str,
-        pos: usize,
-        _ctx: &Context<'_>,
-    ) -> Result<(usize, Vec<Pair>)> {
+    fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Result<(usize, Vec<Pair>)> {
         let (word, start) = self.extract_word(line, pos);
-        
+
         let completions = self.get_completions(word);
         let pairs: Vec<Pair> = completions
             .into_iter()
@@ -164,7 +243,7 @@ impl Completer for ReplCompleter {
                 replacement: s,
             })
             .collect();
-        
+
         Ok((start, pairs))
     }
 }
@@ -182,18 +261,18 @@ mod tests {
     #[test]
     fn test_completer() {
         let completer = ReplCompleter::new();
-        
+
         // Test builtin completion
         let completions = completer.get_completions("con");
         assert!(completions.contains(&"cons".to_string()));
         assert!(completions.contains(&"cond".to_string()));
         assert!(completions.contains(&"contract".to_string()));
-        
+
         // Test command completion
         let completions = completer.get_completions(":h");
         assert!(completions.contains(&":h".to_string()));
         assert!(completions.contains(&":help".to_string()));
-        
+
         // Test keyword completion
         let completions = completer.get_completions("lam");
         assert!(completions.contains(&"lambda".to_string()));
@@ -202,15 +281,15 @@ mod tests {
     #[test]
     fn test_user_names() {
         let mut completer = ReplCompleter::new();
-        
+
         completer.add_user_name("my-function".to_string());
         completer.add_user_name("my-variable".to_string());
-        
+
         let completions = completer.get_completions("my-");
         assert_eq!(completions.len(), 2);
         assert!(completions.contains(&"my-function".to_string()));
         assert!(completions.contains(&"my-variable".to_string()));
-        
+
         completer.remove_user_name("my-function");
         let completions = completer.get_completions("my-");
         assert_eq!(completions.len(), 1);

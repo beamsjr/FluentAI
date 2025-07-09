@@ -1,23 +1,23 @@
 //! Effect handler implementations
 
-mod io;
-mod state;
-mod error;
-mod time;
-mod random;
-mod network;
 mod async_handler;
 mod concurrent;
 mod dom;
+mod error;
+mod io;
+mod network;
+mod random;
 mod reactive;
+mod state;
+mod time;
 
-pub use io::IOHandler;
-pub use state::StateHandler;
-pub use error::ErrorHandler;
-pub use time::TimeHandler;
-pub use random::RandomHandler;
-pub use network::NetworkHandler;
 pub use async_handler::AsyncHandler;
 pub use concurrent::ConcurrentHandler;
 pub use dom::DomHandler;
+pub use error::ErrorHandler;
+pub use io::IOHandler;
+pub use network::NetworkHandler;
+pub use random::RandomHandler;
 pub use reactive::ReactiveHandler;
+pub use state::StateHandler;
+pub use time::TimeHandler;

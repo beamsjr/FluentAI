@@ -22,11 +22,11 @@ impl UsageTracker {
             stats: HashMap::new(),
         }
     }
-    
+
     pub fn record_execution(&mut self, _chunk_id: usize, _time_ns: u64) {
         // Placeholder implementation
     }
-    
+
     pub fn get_stats(&self, node_id: NodeId) -> Option<UsageStats> {
         self.stats.get(&node_id).cloned()
     }

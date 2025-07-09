@@ -62,21 +62,15 @@ impl ASTLayouter {
     pub fn layout(&self, graph: &Graph) -> GraphLayout {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
-        
+
         if let Some(root_id) = graph.root_id {
             let mut positions = HashMap::new();
             let mut visited = HashSet::new();
-            
+
             // Perform tree layout starting from root
-            let (width, height) = self.layout_subtree(
-                graph,
-                root_id,
-                0.0,
-                0.0,
-                &mut positions,
-                &mut visited,
-            );
-            
+            let (width, height) =
+                self.layout_subtree(graph, root_id, 0.0, 0.0, &mut positions, &mut visited);
+
             // Convert to node layouts
             for (node_id, position) in positions {
                 if let Some(node) = graph.get_node(node_id) {
@@ -88,7 +82,7 @@ impl ASTLayouter {
                         node_type: self.get_node_type(node),
                         children: children.iter().map(|id| id.get()).collect(),
                     });
-                    
+
                     // Create edges
                     for child_id in children {
                         edges.push(Edge {
@@ -99,7 +93,7 @@ impl ASTLayouter {
                     }
                 }
             }
-            
+
             GraphLayout {
                 nodes,
                 edges,
@@ -115,7 +109,7 @@ impl ASTLayouter {
             }
         }
     }
-    
+
     /// Layout a subtree recursively
     fn layout_subtree(
         &self,
@@ -130,12 +124,12 @@ impl ASTLayouter {
             return (0.0, 0.0);
         }
         visited.insert(node_id);
-        
+
         positions.insert(node_id, Position { x, y });
-        
+
         if let Some(node) = graph.get_node(node_id) {
             let children = self.get_children(node);
-            
+
             if children.is_empty() {
                 (self.node_width, self.node_height)
             } else {
@@ -143,21 +137,15 @@ impl ASTLayouter {
                 let child_y = y + self.node_height + self.vertical_spacing;
                 let mut max_height: f64 = 0.0;
                 let mut total_width = 0.0;
-                
+
                 for (i, &child_id) in children.iter().enumerate() {
                     if i > 0 {
                         child_x += self.horizontal_spacing;
                     }
-                    
-                    let (child_width, child_height) = self.layout_subtree(
-                        graph,
-                        child_id,
-                        child_x,
-                        child_y,
-                        positions,
-                        visited,
-                    );
-                    
+
+                    let (child_width, child_height) =
+                        self.layout_subtree(graph, child_id, child_x, child_y, positions, visited);
+
                     child_x += child_width;
                     max_height = max_height.max(child_height);
                     total_width += child_width;
@@ -165,18 +153,21 @@ impl ASTLayouter {
                         total_width += self.horizontal_spacing;
                     }
                 }
-                
+
                 // Center parent node over children
                 let center_x = x + total_width / 2.0 - self.node_width / 2.0;
                 positions.insert(node_id, Position { x: center_x, y });
-                
-                (total_width, self.node_height + self.vertical_spacing + max_height)
+
+                (
+                    total_width,
+                    self.node_height + self.vertical_spacing + max_height,
+                )
             }
         } else {
             (self.node_width, self.node_height)
         }
     }
-    
+
     /// Get children node IDs for a node
     fn get_children(&self, node: &Node) -> Vec<NodeId> {
         match node {
@@ -191,7 +182,11 @@ impl ASTLayouter {
                 children.push(*body);
                 children
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 vec![*condition, *then_branch, *else_branch]
             }
             Node::Application { function, args } => {
@@ -212,7 +207,12 @@ impl ASTLayouter {
             Node::Spawn { expr } => vec![*expr],
             Node::Send { channel, value } => vec![*channel, *value],
             Node::Receive { channel } => vec![*channel],
-            Node::Contract { preconditions, postconditions, invariants, .. } => {
+            Node::Contract {
+                preconditions,
+                postconditions,
+                invariants,
+                ..
+            } => {
                 let mut children = Vec::new();
                 children.extend(preconditions);
                 children.extend(postconditions);
@@ -222,7 +222,7 @@ impl ASTLayouter {
             _ => vec![],
         }
     }
-    
+
     /// Get a display label for a node
     fn get_node_label(&self, node: &Node) -> String {
         match node {
@@ -233,7 +233,11 @@ impl ASTLayouter {
             Node::Letrec { .. } => "letrec".to_string(),
             Node::If { .. } => "if".to_string(),
             Node::Application { .. } => "apply".to_string(),
-            Node::Effect { effect_type, operation, .. } => {
+            Node::Effect {
+                effect_type,
+                operation,
+                ..
+            } => {
                 format!("{}:{}", effect_type, operation)
             }
             Node::List(_) => "list".to_string(),
@@ -241,7 +245,10 @@ impl ASTLayouter {
             Node::Module { name, .. } => format!("module {}", name),
             Node::Import { module_path, .. } => format!("import {}", module_path),
             Node::Export { .. } => "export".to_string(),
-            Node::QualifiedVariable { module_name, variable_name } => {
+            Node::QualifiedVariable {
+                module_name,
+                variable_name,
+            } => {
                 format!("{}.{}", module_name, variable_name)
             }
             Node::Async { .. } => "async".to_string(),
@@ -259,7 +266,7 @@ impl ASTLayouter {
             Node::Begin { .. } => "begin".to_string(),
         }
     }
-    
+
     /// Get the node type as a string
     fn get_node_type(&self, node: &Node) -> String {
         match node {
@@ -287,6 +294,7 @@ impl ASTLayouter {
             Node::Handler { .. } => "handler",
             Node::Define { .. } => "define",
             Node::Begin { .. } => "begin",
-        }.to_string()
+        }
+        .to_string()
     }
 }

@@ -1,10 +1,10 @@
 //! Safety improvements for the VM
-//! 
+//!
 //! This module contains safety-related types and functions to improve
 //! the robustness of the VM implementation.
 
-use std::sync::atomic::{AtomicU64, Ordering};
 use anyhow::{anyhow, Result};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Type-safe ID generation for promises, channels, etc.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -27,15 +27,15 @@ impl IdGenerator {
             counter: AtomicU64::new(1),
         }
     }
-    
+
     pub fn next_promise_id(&self) -> PromiseId {
         PromiseId(self.counter.fetch_add(1, Ordering::Relaxed))
     }
-    
+
     pub fn next_channel_id(&self) -> ChannelId {
         ChannelId(self.counter.fetch_add(1, Ordering::Relaxed))
     }
-    
+
     pub fn next_task_id(&self) -> TaskId {
         TaskId(self.counter.fetch_add(1, Ordering::Relaxed))
     }
@@ -85,25 +85,25 @@ impl std::fmt::Display for TaskId {
 /// Safe arithmetic operations with overflow checking
 pub mod checked_ops {
     use super::*;
-    
+
     #[inline]
     pub fn add_i64(a: i64, b: i64) -> Result<i64> {
         a.checked_add(b)
             .ok_or_else(|| anyhow!("Integer overflow in addition: {} + {}", a, b))
     }
-    
+
     #[inline]
     pub fn sub_i64(a: i64, b: i64) -> Result<i64> {
         a.checked_sub(b)
             .ok_or_else(|| anyhow!("Integer overflow in subtraction: {} - {}", a, b))
     }
-    
+
     #[inline]
     pub fn mul_i64(a: i64, b: i64) -> Result<i64> {
         a.checked_mul(b)
             .ok_or_else(|| anyhow!("Integer overflow in multiplication: {} * {}", a, b))
     }
-    
+
     #[inline]
     pub fn div_i64(a: i64, b: i64) -> Result<i64> {
         if b == 0 {
@@ -115,7 +115,7 @@ pub mod checked_ops {
         }
         Ok(a / b)
     }
-    
+
     #[inline]
     pub fn mod_i64(a: i64, b: i64) -> Result<i64> {
         if b == 0 {
@@ -127,7 +127,7 @@ pub mod checked_ops {
         }
         Ok(a % b)
     }
-    
+
     #[inline]
     pub fn neg_i64(a: i64) -> Result<i64> {
         a.checked_neg()
@@ -174,7 +174,7 @@ impl ResourceLimits {
             channel_buffer_size: 100,
         }
     }
-    
+
     /// Create limits suitable for testing
     pub fn testing() -> Self {
         Self {
@@ -192,7 +192,7 @@ impl ResourceLimits {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_id_generation() {
         let gen = IdGenerator::new();
@@ -202,11 +202,11 @@ mod tests {
         assert_eq!(format!("{}", id1), "promise:1");
         assert_eq!(format!("{}", id2), "promise:2");
     }
-    
+
     #[test]
     fn test_checked_arithmetic() {
         use checked_ops::*;
-        
+
         // Normal operations
         assert_eq!(add_i64(2, 3).unwrap(), 5);
         assert_eq!(sub_i64(5, 3).unwrap(), 2);
@@ -214,17 +214,17 @@ mod tests {
         assert_eq!(div_i64(12, 3).unwrap(), 4);
         assert_eq!(mod_i64(10, 3).unwrap(), 1);
         assert_eq!(neg_i64(5).unwrap(), -5);
-        
+
         // Overflow cases
         assert!(add_i64(i64::MAX, 1).is_err());
         assert!(sub_i64(i64::MIN, 1).is_err());
         assert!(mul_i64(i64::MAX, 2).is_err());
         assert!(neg_i64(i64::MIN).is_err());
-        
+
         // Division by zero
         assert!(div_i64(10, 0).is_err());
         assert!(mod_i64(10, 0).is_err());
-        
+
         // Special division case
         assert!(div_i64(i64::MIN, -1).is_err());
         assert_eq!(mod_i64(i64::MIN, -1).unwrap(), 0);

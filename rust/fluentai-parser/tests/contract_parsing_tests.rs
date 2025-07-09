@@ -1,7 +1,7 @@
 //! Tests for contract parsing variations
 
-use fluentai_parser::parse;
 use fluentai_core::ast::Node;
+use fluentai_parser::parse;
 
 #[test]
 fn test_parse_simple_contract() {
@@ -9,13 +9,20 @@ fn test_parse_simple_contract() {
     let input = r#"(spec:contract factorial
                      :requires [(>= n 0)]
                      :ensures [(>= result 1)])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, invariants, complexity, pure } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            invariants,
+            complexity,
+            pure,
+        } => {
             assert_eq!(function_name, "factorial");
             assert_eq!(preconditions.len(), 1);
             assert_eq!(postconditions.len(), 1);
@@ -34,13 +41,17 @@ fn test_parse_contract_with_complexity() {
                      :requires [(list? input)]
                      :ensures [(sorted? result)]
                      :complexity "O(n log n)")"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, complexity, .. } => {
+        Node::Contract {
+            function_name,
+            complexity,
+            ..
+        } => {
             assert_eq!(function_name, "sort");
             assert_eq!(complexity.as_ref().unwrap(), "O(n log n)");
         }
@@ -55,13 +66,17 @@ fn test_parse_pure_contract() {
                      :requires [true]
                      :ensures [(= result (+ a b))]
                      :pure true)"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, pure, .. } => {
+        Node::Contract {
+            function_name,
+            pure,
+            ..
+        } => {
             assert_eq!(function_name, "add");
             assert!(pure);
         }
@@ -76,13 +91,17 @@ fn test_parse_contract_with_invariants() {
                      :requires [(< (size queue) max-size)]
                      :ensures [(= new-size (+ old-size 1))]
                      :invariant [(>= (size queue) 0)])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, invariants, .. } => {
+        Node::Contract {
+            function_name,
+            invariants,
+            ..
+        } => {
             assert_eq!(function_name, "queue-enqueue");
             assert_eq!(invariants.len(), 1);
         }
@@ -96,13 +115,18 @@ fn test_parse_contract_with_multiple_conditions() {
     let input = r#"(spec:contract binary-search
                      :requires [(sorted? arr) (>= low 0) (<= high (length arr))]
                      :ensures [(or (not-found? result) (= (array-ref arr result) target))])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            ..
+        } => {
             assert_eq!(function_name, "binary-search");
             assert_eq!(preconditions.len(), 3);
             assert_eq!(postconditions.len(), 1);
@@ -117,13 +141,18 @@ fn test_parse_contract_empty_conditions() {
     let input = r#"(spec:contract identity
                      :requires []
                      :ensures [])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            ..
+        } => {
             assert_eq!(function_name, "identity");
             assert!(preconditions.is_empty());
             assert!(postconditions.is_empty());
@@ -137,13 +166,18 @@ fn test_parse_contract_only_requires() {
     // Test contract with only preconditions
     let input = r#"(spec:contract validate-input
                      :requires [(string? input) (> (length input) 0)])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            ..
+        } => {
             assert_eq!(function_name, "validate-input");
             assert_eq!(preconditions.len(), 2);
             assert!(postconditions.is_empty());
@@ -157,13 +191,18 @@ fn test_parse_contract_only_ensures() {
     // Test contract with only postconditions
     let input = r#"(spec:contract get-current-time
                      :ensures [(> result 0)])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            ..
+        } => {
             assert_eq!(function_name, "get-current-time");
             assert!(preconditions.is_empty());
             assert_eq!(postconditions.len(), 1);
@@ -181,19 +220,19 @@ fn test_parse_contract_all_features() {
                      :invariant [(heap-property? h)]
                      :complexity "O(log n)"
                      :pure false)"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { 
-            function_name, 
-            preconditions, 
-            postconditions, 
-            invariants, 
-            complexity, 
-            pure 
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            invariants,
+            complexity,
+            pure,
         } => {
             assert_eq!(function_name, "heap-insert");
             assert_eq!(preconditions.len(), 2);
@@ -215,17 +254,22 @@ fn test_parse_contract_with_complex_expressions() {
                      :ensures [(and (matrix? result)
                                    (= (rows result) (rows A))
                                    (= (cols result) (cols B)))])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            ..
+        } => {
             assert_eq!(function_name, "matrix-multiply");
             assert_eq!(preconditions.len(), 1); // Single complex expression
             assert_eq!(postconditions.len(), 1); // Single complex expression
-            
+
             // The conditions should be parsed as application nodes
             assert!(result.get_node(preconditions[0]).is_some());
             assert!(result.get_node(postconditions[0]).is_some());
@@ -240,13 +284,18 @@ fn test_parse_contract_alternative_keywords() {
     let input = r#"(spec:contract divide
                      :pre [(not= b 0)]
                      :post [(= result (/ a b))])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            ..
+        } => {
             assert_eq!(function_name, "divide");
             assert_eq!(preconditions.len(), 1);
             assert_eq!(postconditions.len(), 1);
@@ -280,7 +329,7 @@ fn test_parse_contract_with_quoted_function_name() {
     let input = r#"(spec:contract 'my-function
                      :requires [(valid? input)]
                      :ensures [(processed? result)])"#;
-    
+
     let result = parse(input);
     // This might or might not parse depending on whether quoted names are supported
     if let Ok(parsed) = result {
@@ -296,19 +345,19 @@ fn test_parse_contract_order_independence() {
                      :ensures [(> result 0)]
                      :complexity "O(1)"
                      :requires [(> x 0)])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { 
-            function_name, 
-            preconditions, 
-            postconditions, 
-            complexity, 
-            pure, 
-            .. 
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            complexity,
+            pure,
+            ..
         } => {
             assert_eq!(function_name, "foo");
             assert_eq!(preconditions.len(), 1);
@@ -326,19 +375,23 @@ fn test_parse_contract_with_let_in_condition() {
     let input = r#"(spec:contract process-data
                      :requires [(let ((size (length data))) (< size 1000))]
                      :ensures [true])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            ..
+        } => {
             assert_eq!(function_name, "process-data");
             assert_eq!(preconditions.len(), 1);
-            
+
             // The condition should be a let expression
             match result.get_node(preconditions[0]).unwrap() {
-                Node::Let { .. } => {},
+                Node::Let { .. } => {}
                 _ => panic!("Expected Let node in precondition"),
             }
         }
@@ -352,13 +405,18 @@ fn test_parse_contract_nested_lists() {
     let input = r#"(spec:contract transform
                      :requires [[(> x 0) (< x 100)] [(valid? y)]]
                      :ensures [[(transformed? result)]])"#;
-    
+
     let result = parse(input).unwrap();
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
-    
+
     match node {
-        Node::Contract { function_name, preconditions, postconditions, .. } => {
+        Node::Contract {
+            function_name,
+            preconditions,
+            postconditions,
+            ..
+        } => {
             assert_eq!(function_name, "transform");
             // Nested lists should be flattened or parsed as list nodes
             assert!(!preconditions.is_empty());

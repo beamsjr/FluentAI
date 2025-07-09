@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
     use crate::parse;
-    use fluentai_core::ast::{Node, Literal};
-    
+    use fluentai_core::ast::{Literal, Node};
+
     // ===== Real-world Code Examples =====
-    
+
     #[test]
     fn test_fibonacci_function() {
         let code = r#"
@@ -14,10 +14,10 @@ mod tests {
                     (+ (fib (- n 1)) (fib (- n 2)))))))
                 (fib 10))
         "#;
-        
+
         let result = parse(code).unwrap();
         assert!(result.root_id.is_some());
-        
+
         // Verify the structure
         let root_id = result.root_id.unwrap();
         match result.get_node(root_id).unwrap() {
@@ -30,8 +30,10 @@ mod tests {
                         assert!(matches!(result.get_node(*function).unwrap(), 
                             Node::Variable { name } if name == "fib"));
                         assert_eq!(args.len(), 1);
-                        assert!(matches!(result.get_node(args[0]).unwrap(), 
-                            Node::Literal(Literal::Integer(10))));
+                        assert!(matches!(
+                            result.get_node(args[0]).unwrap(),
+                            Node::Literal(Literal::Integer(10))
+                        ));
                     }
                     _ => panic!("Expected Application"),
                 }
@@ -39,7 +41,7 @@ mod tests {
             _ => panic!("Expected Letrec"),
         }
     }
-    
+
     #[test]
     fn test_quicksort_implementation() {
         let code = r#"
@@ -54,10 +56,10 @@ mod tests {
                                 (quicksort (filter (lambda (x) (>= x pivot)) rest)))))))))
                 (quicksort [3 1 4 1 5 9 2 6]))
         "#;
-        
+
         assert!(parse(code).is_ok());
     }
-    
+
     #[test]
     fn test_async_await_pattern() {
         let code = r#"
@@ -66,11 +68,11 @@ mod tests {
                     (spawn (send! ch (async (+ 1 2))))
                     (await (recv! ch))))
         "#;
-        
+
         let result = parse(code).unwrap();
         assert!(result.root_id.is_some());
     }
-    
+
     #[test]
     fn test_effect_handlers() {
         let code = r#"
@@ -81,11 +83,11 @@ mod tests {
                         (effect IO:print (cons "Result: " result))
                         result)))
         "#;
-        
+
         let result = parse(code).unwrap();
         assert!(result.root_id.is_some());
     }
-    
+
     #[test]
     fn test_pattern_matching_with_guards() {
         let code = r#"
@@ -94,7 +96,7 @@ mod tests {
                 (1 "one")
                 (n (if (even? n) "even" "odd")))
         "#;
-        
+
         let result = parse(code).unwrap();
         let root_id = result.root_id.unwrap();
         match result.get_node(root_id).unwrap() {
@@ -104,9 +106,9 @@ mod tests {
             _ => panic!("Expected Match"),
         }
     }
-    
+
     // ===== Error Recovery Tests =====
-    
+
     #[test]
     fn test_multiple_top_level_expressions() {
         let code = r#"
@@ -114,13 +116,16 @@ mod tests {
             (define y 20)
             (+ x y)
         "#;
-        
+
         let result = parse(code).unwrap();
         // Multiple expressions should be wrapped in Begin
         let root_id = result.root_id.unwrap();
-        assert!(matches!(result.get_node(root_id).unwrap(), Node::Begin { .. }));
+        assert!(matches!(
+            result.get_node(root_id).unwrap(),
+            Node::Begin { .. }
+        ));
     }
-    
+
     #[test]
     fn test_comments_and_whitespace() {
         let code = r#"
@@ -133,12 +138,12 @@ mod tests {
                             (* n (factorial (- n 1)))))))
                 (factorial 5))  ; Test with 5
         "#;
-        
+
         assert!(parse(code).is_ok());
     }
-    
+
     // ===== Module System Tests =====
-    
+
     #[test]
     fn test_module_with_imports_exports() {
         let code = r#"
@@ -155,25 +160,25 @@ mod tests {
                 (define (gcd a b)
                     (if (= b 0) a (gcd b (% a b)))))
         "#;
-        
+
         // Module parsing might not be fully implemented
         let result = parse(code);
         // Just check it doesn't crash
         assert!(result.is_ok() || result.is_err());
     }
-    
+
     // ===== Edge Cases and Stress Tests =====
-    
+
     #[test]
     fn test_deeply_nested_expressions() {
         let mut expr = "42".to_string();
         for _ in 0..10 {
             expr = format!("(+ 1 {})", expr);
         }
-        
+
         let result = parse(&expr).unwrap();
         assert!(result.root_id.is_some());
-        
+
         // Verify deep nesting
         let mut current = result.root_id.unwrap();
         let mut depth = 0;
@@ -189,16 +194,16 @@ mod tests {
         }
         assert_eq!(depth, 10);
     }
-    
+
     #[test]
     fn test_large_list_literal() {
         let elements: Vec<String> = (0..100).map(|i| i.to_string()).collect();
         let code = format!("[{}]", elements.join(" "));
-        
+
         // List literals are converted to cons operations
         assert!(parse(&code).is_ok());
     }
-    
+
     #[test]
     fn test_unicode_in_strings_and_comments() {
         let code = r#"
@@ -209,13 +214,13 @@ mod tests {
                     (effect IO:print message)
                     emoji))
         "#;
-        
+
         let result = parse(code).unwrap();
         assert!(result.root_id.is_some());
     }
-    
+
     // ===== Special Forms Tests =====
-    
+
     #[test]
     fn test_do_sequence_with_effects() {
         let code = r#"
@@ -227,12 +232,12 @@ mod tests {
                         (effect IO:print (cons "x = " x))
                         x)))
         "#;
-        
+
         let result = parse(code).unwrap();
         // do converts to nested let bindings
         assert!(result.root_id.is_some());
     }
-    
+
     #[test]
     fn test_complex_lambda_with_rest_args() {
         // Note: Rest args might not be implemented
@@ -240,31 +245,31 @@ mod tests {
             (lambda (x y . rest)
                 (cons x (cons y rest)))
         "#;
-        
+
         // This might fail if rest args aren't supported
         let result = parse(code);
         assert!(result.is_ok() || result.is_err());
     }
-    
+
     // ===== Performance Edge Cases =====
-    
+
     #[test]
     fn test_many_small_expressions() {
         let exprs: Vec<String> = (0..50).map(|i| format!("(define x{} {})", i, i)).collect();
         let code = exprs.join("\n");
-        
+
         let result = parse(&code).unwrap();
         assert!(result.root_id.is_some());
     }
-    
+
     #[test]
     fn test_long_symbol_names() {
         let long_name = "a".repeat(100);
         let code = format!("(define {} 42)", long_name);
-        
+
         assert!(parse(&code).is_ok());
     }
-    
+
     #[test]
     fn test_escaped_strings() {
         let code = r#"
@@ -274,12 +279,12 @@ mod tests {
                   (backslash "path\\to\\file"))
                 (list tab newline quote backslash))
         "#;
-        
+
         assert!(parse(code).is_ok());
     }
-    
+
     // ===== Contract/Spec Tests =====
-    
+
     #[test]
     fn test_contract_specifications() {
         let code = r#"
@@ -288,11 +293,17 @@ mod tests {
                 :ensures [(>= result 1)]
                 :pure true)
         "#;
-        
+
         let result = parse(code).unwrap();
         let root_id = result.root_id.unwrap();
         match result.get_node(root_id).unwrap() {
-            Node::Contract { function_name, preconditions, postconditions, pure, .. } => {
+            Node::Contract {
+                function_name,
+                preconditions,
+                postconditions,
+                pure,
+                ..
+            } => {
                 assert_eq!(function_name, "factorial");
                 assert!(!preconditions.is_empty());
                 assert!(!postconditions.is_empty());
@@ -301,9 +312,9 @@ mod tests {
             _ => panic!("Expected Contract"),
         }
     }
-    
+
     // ===== Mixed Syntax Tests =====
-    
+
     #[test]
     fn test_mixed_delimiters() {
         let code = r#"
@@ -311,10 +322,10 @@ mod tests {
                   (vec [4 5 6]))
                 [(car lst) (car vec)])
         "#;
-        
+
         assert!(parse(code).is_ok());
     }
-    
+
     #[test]
     fn test_qualified_and_effect_symbols() {
         let code = r#"
@@ -322,7 +333,7 @@ mod tests {
                   (print io:print))
                 (effect IO:print (sin 3.14)))
         "#;
-        
+
         assert!(parse(code).is_ok());
     }
 }

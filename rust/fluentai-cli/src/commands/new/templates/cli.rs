@@ -1,6 +1,6 @@
 //! Command-line interface template
 
-use super::{Template, TemplateCategory, TemplateOptions, helpers};
+use super::{helpers, Template, TemplateCategory, TemplateOptions};
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -11,31 +11,28 @@ impl Template for CliTemplate {
     fn name(&self) -> &'static str {
         "cli"
     }
-    
+
     fn description(&self) -> &'static str {
         "Command-line tool with argument parsing and subcommands"
     }
-    
+
     fn aliases(&self) -> Vec<&'static str> {
         vec!["command", "cmd", "tool"]
     }
-    
+
     fn category(&self) -> TemplateCategory {
         TemplateCategory::Tool
     }
-    
+
     fn create(&self, path: &Path, name: &str, _options: &TemplateOptions) -> Result<()> {
         // Create project file
         helpers::create_project_file(
             path,
             name,
             "Exe",
-            &[
-                ("FluentAI.CLI", "1.0.0"),
-                ("FluentAI.Console", "1.0.0"),
-            ],
+            &[("FluentAI.CLI", "1.0.0"), ("FluentAI.Console", "1.0.0")],
         )?;
-        
+
         // Create main program
         let program_content = format!(
             r#";; {} CLI
@@ -122,19 +119,17 @@ For more help on a command, use:
 (when (= __name__ "__main__")
   (main (command-line-args)))
 "#,
-            name, name.to_lowercase()
+            name,
+            name.to_lowercase()
         );
         fs::write(path.join("Program.ai"), program_content)?;
-        
+
         // Create directories
-        helpers::create_directories(path, &[
-            "src",
-            "src/commands",
-            "src/utils",
-            "tests",
-            "scripts",
-        ])?;
-        
+        helpers::create_directories(
+            path,
+            &["src", "src/commands", "src/utils", "tests", "scripts"],
+        )?;
+
         // Create commands module
         let commands_content = r#";; CLI Commands
 
@@ -253,7 +248,7 @@ For more help on a command, use:
   (export init build run test clean))
 "#;
         fs::write(path.join("src/commands.ai"), commands_content)?;
-        
+
         // Create spinner utility
         let spinner_content = r#";; Spinner utility for CLI feedback
 
@@ -307,7 +302,7 @@ For more help on a command, use:
   (export start update success warn error))
 "#;
         fs::write(path.join("src/utils/spinner.ai"), spinner_content)?;
-        
+
         // Create config utility
         let config_util = r#";; Configuration utilities
 
@@ -361,7 +356,7 @@ version = \"1.0.0\""))
   (export load save generate-template))
 "#;
         fs::write(path.join("src/utils/config.ai"), config_util)?;
-        
+
         // Create test
         let test_content = r#";; CLI tests
 
@@ -395,7 +390,7 @@ version = \"1.0.0\""))
         (test/expect (:stdout result) :to-contain "Commands")))))
 "#;
         fs::write(path.join("tests/cli.test.ai"), test_content)?;
-        
+
         // Create shell completion script
         let completion_script = format!(
             r#"#!/bin/bash
@@ -449,7 +444,7 @@ complete -F _{} {}
             name.to_lowercase()
         );
         fs::write(path.join("scripts/completion.bash"), completion_script)?;
-        
+
         // Create installation script
         let install_script = format!(
             r#"#!/bin/bash
@@ -487,7 +482,7 @@ echo "  export PATH=\"$INSTALL_DIR:$PATH\""
             name.to_lowercase()
         );
         fs::write(path.join("scripts/install.sh"), install_script)?;
-        
+
         // Make scripts executable
         #[cfg(unix)]
         {
@@ -497,7 +492,7 @@ echo "  export PATH=\"$INSTALL_DIR:$PATH\""
             fs::set_permissions(path.join("scripts/install.sh"), perms.clone())?;
             fs::set_permissions(path.join("scripts/completion.bash"), perms)?;
         }
-        
+
         // Create README
         let readme_content = format!(
             r#"# {}
@@ -601,12 +596,12 @@ MIT
             name.to_lowercase(),
             name.to_lowercase()
         );
-        
+
         fs::write(path.join("README.md"), readme_content)?;
-        
+
         // Create .gitignore
         helpers::create_gitignore(path)?;
-        
+
         Ok(())
     }
 }

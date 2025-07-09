@@ -62,8 +62,8 @@ pub trait TypeTrait {
     fn effects(&self) -> &HashSet<EffectType>;
     /// Check if this type has no effects (is pure)
     fn is_pure(&self) -> bool {
-        self.effects().is_empty() || 
-        (self.effects().len() == 1 && self.effects().contains(&EffectType::Pure))
+        self.effects().is_empty()
+            || (self.effects().len() == 1 && self.effects().contains(&EffectType::Pure))
     }
 }
 
@@ -156,9 +156,9 @@ impl FunctionType {
 
     /// Create a TypedValue from this function type with the given effects
     pub fn with_effects(mut self, effects: HashSet<EffectType>) -> TypedValue {
-        self.is_pure = effects.is_empty() || 
-            (effects.len() == 1 && effects.contains(&EffectType::Pure));
-        
+        self.is_pure =
+            effects.is_empty() || (effects.len() == 1 && effects.contains(&EffectType::Pure));
+
         TypedValue {
             inner: TypedValueInner::Function(self),
             effects,
@@ -168,7 +168,9 @@ impl FunctionType {
 
 impl fmt::Display for FunctionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let params_str = self.params.iter()
+        let params_str = self
+            .params
+            .iter()
             .map(|p| p.to_string())
             .collect::<Vec<_>>()
             .join(" → ");
@@ -192,7 +194,9 @@ impl TupleType {
 
 impl fmt::Display for TupleType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let elements_str = self.elements.iter()
+        let elements_str = self
+            .elements
+            .iter()
             .map(|e| e.to_string())
             .collect::<Vec<_>>()
             .join(", ");
@@ -246,7 +250,9 @@ impl RecordType {
 
 impl fmt::Display for RecordType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let fields_str = self.fields.iter()
+        let fields_str = self
+            .fields
+            .iter()
             .map(|(k, v)| format!("{}: {}", k, v))
             .collect::<Vec<_>>()
             .join(", ");
@@ -278,7 +284,9 @@ impl VariantType {
 
 impl fmt::Display for VariantType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let variants_str = self.variants.iter()
+        let variants_str = self
+            .variants
+            .iter()
             .map(|(tag, payload)| {
                 if let Some(p) = payload {
                     format!("{}({})", tag, p)
@@ -416,7 +424,9 @@ impl fmt::Display for TypeVariable {
         if self.constraints.is_empty() {
             write!(f, "{}", self.name)
         } else {
-            let constraints_str = self.constraints.iter()
+            let constraints_str = self
+                .constraints
+                .iter()
                 .map(|c| c.to_string())
                 .collect::<Vec<_>>()
                 .join(" + ");
@@ -495,20 +505,20 @@ impl TypedValue {
     /// Create a function typed value with inferred effects
     pub fn function(func: FunctionType) -> Self {
         let mut effects = HashSet::new();
-        
+
         // Collect effects from parameters
         for param in &func.params {
             effects.extend(param.effects.iter().copied());
         }
-        
+
         // Collect effects from result
         effects.extend(func.result.effects.iter().copied());
-        
+
         // Add state effect if not pure
         if !func.is_pure {
             effects.insert(EffectType::State);
         }
-        
+
         Self {
             inner: TypedValueInner::Function(func),
             effects,
@@ -521,7 +531,7 @@ impl TypedValue {
         for elem in &tuple.elements {
             effects.extend(elem.effects.iter().copied());
         }
-        
+
         Self {
             inner: TypedValueInner::Tuple(tuple),
             effects,
@@ -543,7 +553,7 @@ impl TypedValue {
         for field_type in record.fields.values() {
             effects.extend(field_type.effects.iter().copied());
         }
-        
+
         Self {
             inner: TypedValueInner::Record(record),
             effects,
@@ -558,7 +568,7 @@ impl TypedValue {
                 effects.extend(p.effects.iter().copied());
             }
         }
-        
+
         Self {
             inner: TypedValueInner::Variant(variant),
             effects,
@@ -569,11 +579,11 @@ impl TypedValue {
     pub fn effect(effect: EffectTypeWrapper) -> Self {
         let mut effects = HashSet::new();
         effects.insert(effect.effect_kind);
-        
+
         if let Some(payload) = &effect.payload_type {
             effects.extend(payload.effects.iter().copied());
         }
-        
+
         Self {
             inner: TypedValueInner::Effect(effect),
             effects,
@@ -584,7 +594,7 @@ impl TypedValue {
     pub fn uncertain(uncertain: UncertainType) -> Self {
         let mut effects = uncertain.base_type.effects.clone();
         effects.insert(EffectType::Random);
-        
+
         Self {
             inner: TypedValueInner::Uncertain(uncertain),
             effects,
@@ -595,7 +605,7 @@ impl TypedValue {
     pub fn temporal(temporal: TemporalType) -> Self {
         let mut effects = temporal.base_type.effects.clone();
         effects.insert(EffectType::Time);
-        
+
         Self {
             inner: TypedValueInner::Temporal(temporal),
             effects,
@@ -628,8 +638,8 @@ impl TypedValue {
 
     /// Check if this type is pure (has no effects)
     pub fn is_pure(&self) -> bool {
-        self.effects.is_empty() || 
-        (self.effects.len() == 1 && self.effects.contains(&EffectType::Pure))
+        self.effects.is_empty()
+            || (self.effects.len() == 1 && self.effects.contains(&EffectType::Pure))
     }
 
     /// Set the effects for this type
@@ -665,7 +675,9 @@ impl fmt::Display for TypedValue {
         };
 
         if !self.is_pure() {
-            let effects_str = self.effects.iter()
+            let effects_str = self
+                .effects
+                .iter()
                 .filter(|e| **e != EffectType::Pure)
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>()
@@ -698,7 +710,7 @@ mod tests {
             ],
             TypedValue::primitive(PrimitiveType::int()),
         );
-        
+
         let typed_func = TypedValue::function(func_type);
         assert_eq!(typed_func.kind(), TypeKind::Function);
         assert_eq!(typed_func.to_string(), "Int → Int → Int");
@@ -708,7 +720,7 @@ mod tests {
     fn test_list_types() {
         let list_type = ListType::new(TypedValue::primitive(PrimitiveType::string()));
         let typed_list = TypedValue::list(list_type);
-        
+
         assert_eq!(typed_list.kind(), TypeKind::List);
         assert_eq!(typed_list.to_string(), "[String]");
     }
@@ -719,19 +731,17 @@ mod tests {
             vec![TypedValue::primitive(PrimitiveType::string())],
             TypedValue::primitive(PrimitiveType::unit()),
         );
-        
-        let typed_func = TypedValue::function(io_func)
-            .add_effect(EffectType::IO);
-        
+
+        let typed_func = TypedValue::function(io_func).add_effect(EffectType::IO);
+
         assert!(!typed_func.is_pure());
         assert_eq!(typed_func.to_string(), "String → Unit ~{IO}");
     }
 
     #[test]
     fn test_type_variables() {
-        let type_var = TypeVariable::new("T")
-            .with_constraint(TypeConstraint::Numeric);
-        
+        let type_var = TypeVariable::new("T").with_constraint(TypeConstraint::Numeric);
+
         let typed_var = TypedValue::variable(type_var);
         assert_eq!(typed_var.kind(), TypeKind::TypeVariable);
         assert_eq!(typed_var.to_string(), "T where T: Num");

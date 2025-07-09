@@ -1,7 +1,7 @@
 //! Provenance tracking for debugging and error reporting
 
-use std::fmt;
 use fluentai_core::ast::NodeId;
+use std::fmt;
 
 /// Source location information
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -112,7 +112,7 @@ impl ProvenanceInfo {
 pub trait HasProvenance {
     /// Get provenance information
     fn provenance(&self) -> Option<&ProvenanceInfo>;
-    
+
     /// Set provenance information
     fn set_provenance(&mut self, provenance: ProvenanceInfo);
 }

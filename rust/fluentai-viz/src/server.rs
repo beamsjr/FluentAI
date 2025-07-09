@@ -1,19 +1,19 @@
 //! HTTP and WebSocket server for visualization
 
 use axum::{
-    extract::{ws::{WebSocket, Message}, WebSocketUpgrade, State},
+    extract::{
+        ws::{Message, WebSocket},
+        State, WebSocketUpgrade,
+    },
     response::{Html, IntoResponse},
     routing::{get, get_service},
     Router,
 };
+use futures_util::{SinkExt, StreamExt};
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
-use tower_http::{
-    cors::CorsLayer,
-    services::ServeDir,
-};
+use tower_http::{cors::CorsLayer, services::ServeDir};
 use tracing::info;
-use futures_util::{SinkExt, StreamExt};
 
 use crate::{
     debug::DebugEventReceiver,
@@ -77,7 +77,7 @@ impl VisualizationServer {
             sessions: Arc::new(RwLock::new(Vec::new())),
             control_tx,
         };
-        
+
         Self {
             config,
             state,
@@ -85,26 +85,23 @@ impl VisualizationServer {
             debug_rx: None,
         }
     }
-    
+
     /// Set the debug event receiver
     pub fn set_debug_receiver(&mut self, receiver: DebugEventReceiver) {
         self.debug_rx = Some(receiver);
     }
-    
+
     /// Get a handle to interact with the server
     pub fn handle(&self) -> ServerHandle {
         ServerHandle {
             state: self.state.clone(),
         }
     }
-    
+
     /// Start the server
     pub async fn run(mut self) -> anyhow::Result<()> {
-        let addr = SocketAddr::new(
-            self.config.host.parse()?,
-            self.config.port,
-        );
-        
+        let addr = SocketAddr::new(self.config.host.parse()?, self.config.port);
+
         // Spawn debug event processor if receiver is set
         if let Some(debug_rx) = self.debug_rx.take() {
             let state = self.state.clone();
@@ -120,7 +117,7 @@ impl VisualizationServer {
                 }
             });
         }
-        
+
         // Spawn control command handler if receiver is set
         if let Some(control_rx) = self.control_rx.take() {
             tokio::spawn(async move {
@@ -131,7 +128,7 @@ impl VisualizationServer {
                 }
             });
         }
-        
+
         // Create router
         let app = Router::new()
             .route("/", get(root_handler))
@@ -142,16 +139,16 @@ impl VisualizationServer {
             )
             .layer(CorsLayer::permissive())
             .with_state(self.state.clone());
-        
+
         info!("Visualization server listening on http://{}", addr);
-        
+
         // Start server
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app).await?;
-        
+
         Ok(())
     }
-    
+
     /// Process debug events and broadcast to clients
     pub async fn process_debug_events(&self, mut receiver: DebugEventReceiver) {
         while let Some(event) = receiver.recv().await {
@@ -159,7 +156,7 @@ impl VisualizationServer {
             self.broadcast_message(message).await;
         }
     }
-    
+
     /// Broadcast a message to all connected clients
     pub async fn broadcast_message(&self, message: VisualizationMessage) {
         let sessions = self.state.sessions.read().await;
@@ -167,7 +164,7 @@ impl VisualizationServer {
             let _ = tx.send(message.clone());
         }
     }
-    
+
     /// Get control command receiver
     pub fn control_receiver(&mut self) -> Option<mpsc::UnboundedReceiver<ControlCommand>> {
         self.control_rx.take()
@@ -190,17 +187,17 @@ async fn websocket_handler(
 /// Handle a WebSocket connection
 async fn handle_socket(socket: WebSocket, state: ServerState) {
     let (tx, mut rx) = mpsc::unbounded_channel();
-    
+
     // Add to sessions
     state.sessions.write().await.push(tx.clone());
-    
+
     // Send connected message
     let session_id = uuid::Uuid::new_v4().to_string();
     let _ = tx.send(VisualizationMessage::Connected { session_id });
-    
+
     // Split socket
     let (mut sender, mut receiver) = socket.split();
-    
+
     // Task to send messages to client
     let tx_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
@@ -211,7 +208,7 @@ async fn handle_socket(socket: WebSocket, state: ServerState) {
             }
         }
     });
-    
+
     // Task to receive messages from client
     let control_tx = state.control_tx.clone();
     let rx_task = tokio::spawn(async move {
@@ -225,12 +222,11 @@ async fn handle_socket(socket: WebSocket, state: ServerState) {
             }
         }
     });
-    
+
     // Wait for tasks to complete
     let _ = tokio::join!(tx_task, rx_task);
-    
+
     // Remove from sessions
     let mut sessions = state.sessions.write().await;
     sessions.retain(|s| !s.same_channel(&tx));
 }
-

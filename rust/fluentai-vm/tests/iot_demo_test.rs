@@ -1,9 +1,9 @@
 //! Integration test for IoT demo functionality
 
-use fluentai_parser::parse;
-use fluentai_vm::{Compiler, CompilerOptions, VM};
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse;
 use fluentai_stdlib::init_stdlib;
+use fluentai_vm::{Compiler, CompilerOptions, VM};
 
 #[test]
 #[ignore = "Stdlib functions not properly loaded"]
@@ -19,9 +19,9 @@ fn test_basic_iot_functionality() {
         ;; Return the count
         (length high-temps)
     "#;
-    
+
     let result = run_code(code).expect("Failed to run code");
-    
+
     // Should find 1 high temperature (45.0)
     match result {
         fluentai_vm::Value::Integer(n) => assert_eq!(n, 1),
@@ -53,9 +53,9 @@ fn test_sensor_reading_simulation() {
         
         (length (filter is-anomaly? sensors))
     "#;
-    
+
     let result = run_code(code).expect("Failed to run code");
-    
+
     match result {
         fluentai_vm::Value::Integer(n) => assert_eq!(n, 1),
         _ => panic!("Expected Int, got {:?}", result),
@@ -76,9 +76,9 @@ fn test_pipeline_concept() {
         (define output (process-data input))
         (length output)
     "#;
-    
+
     let result = run_code(code).expect("Failed to run code");
-    
+
     // After enrichment: 22, 27.5, 33, 38.5
     // After filtering > 30: 33, 38.5
     match result {
@@ -102,9 +102,9 @@ fn test_fold_operations() {
         ;; Return as list for testing
         (list sum avg)
     "#;
-    
+
     let result = run_code(code).expect("Failed to run code");
-    
+
     match result {
         fluentai_vm::Value::List(items) => {
             assert_eq!(items.len(), 2);
@@ -125,13 +125,13 @@ fn test_fold_operations() {
 // Helper function to run FluentAI code
 fn run_code(code: &str) -> Result<fluentai_vm::Value, Box<dyn std::error::Error>> {
     use fluentai_vm::builder::VMBuilder;
-    
+
     // Initialize stdlib
     let stdlib = init_stdlib();
-    
+
     // Parse
     let ast = parse(code)?;
-    
+
     // Compile
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
@@ -139,15 +139,15 @@ fn run_code(code: &str) -> Result<fluentai_vm::Value, Box<dyn std::error::Error>
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&ast)?;
-    
+
     // Build VM with stdlib
     let mut vm = VMBuilder::new()
         .with_bytecode(bytecode)
         .with_stdlib_registry(stdlib)
         .build()?;
-    
+
     // Execute
     let result = vm.run()?;
-    
+
     Ok(result)
 }

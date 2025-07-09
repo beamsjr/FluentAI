@@ -1,13 +1,10 @@
 //! Integration tests for EffectHandlerProvider
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use fluentai_effects::{
-    EffectHandler, EffectHandlerProvider, EffectHandlerBuilder,
-    EffectResult,
-};
-use fluentai_core::{ast::EffectType, value::Value};
 use async_trait::async_trait;
+use fluentai_core::{ast::EffectType, value::Value};
+use fluentai_effects::{EffectHandler, EffectHandlerBuilder, EffectHandlerProvider, EffectResult};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// Test handler that tracks invocation count
 struct CountingHandler {
@@ -22,7 +19,7 @@ impl CountingHandler {
             invocations: Arc::new(AtomicUsize::new(0)),
         }
     }
-    
+
     fn invocation_count(&self) -> usize {
         self.invocations.load(Ordering::SeqCst)
     }
@@ -33,7 +30,7 @@ impl EffectHandler for CountingHandler {
     fn effect_type(&self) -> EffectType {
         self.effect_type
     }
-    
+
     fn handle_sync(&self, operation: &str, _args: &[Value]) -> EffectResult {
         self.invocations.fetch_add(1, Ordering::SeqCst);
         Ok(Value::String(format!("Handled {} with count", operation)))
@@ -45,20 +42,20 @@ fn test_singleton_registration() {
     let provider = EffectHandlerProvider::new();
     let handler = Arc::new(CountingHandler::new(EffectType::IO));
     let handler_clone = handler.clone();
-    
+
     provider.register_singleton(handler);
-    
+
     // Get handler multiple times
     let h1 = provider.get_handler(EffectType::IO).unwrap();
     let h2 = provider.get_handler(EffectType::IO).unwrap();
-    
+
     // Should be the same instance
     assert!(Arc::ptr_eq(&h1, &h2));
-    
+
     // Test invocations
     h1.handle_sync("test", &[]).unwrap();
     h2.handle_sync("test", &[]).unwrap();
-    
+
     assert_eq!(handler_clone.invocation_count(), 2);
 }
 
@@ -67,20 +64,20 @@ fn test_factory_registration() {
     let provider = EffectHandlerProvider::new();
     let creation_count = Arc::new(AtomicUsize::new(0));
     let creation_count_clone = creation_count.clone();
-    
+
     provider.register_factory(EffectType::State, move || {
         creation_count_clone.fetch_add(1, Ordering::SeqCst);
         Arc::new(CountingHandler::new(EffectType::State))
     });
-    
+
     // First call creates handler
     let h1 = provider.get_handler(EffectType::State).unwrap();
     assert_eq!(creation_count.load(Ordering::SeqCst), 1);
-    
+
     // Second call reuses cached handler
     let h2 = provider.get_handler(EffectType::State).unwrap();
     assert_eq!(creation_count.load(Ordering::SeqCst), 1);
-    
+
     // Should be the same instance
     assert!(Arc::ptr_eq(&h1, &h2));
 }
@@ -90,21 +87,21 @@ fn test_hierarchical_resolution() {
     let parent = Arc::new(EffectHandlerProvider::new());
     parent.register_singleton(Arc::new(CountingHandler::new(EffectType::IO)));
     parent.register_singleton(Arc::new(CountingHandler::new(EffectType::State)));
-    
+
     let child = EffectHandlerProvider::create_child(parent.clone());
     child.register_singleton(Arc::new(CountingHandler::new(EffectType::State))); // Override
     child.register_singleton(Arc::new(CountingHandler::new(EffectType::Error))); // New
-    
+
     // Child has its own State handler
     let child_state = child.get_handler(EffectType::State).unwrap();
     let parent_state = parent.get_handler(EffectType::State).unwrap();
     assert!(!Arc::ptr_eq(&child_state, &parent_state));
-    
+
     // Child inherits IO handler from parent
     let child_io = child.get_handler(EffectType::IO).unwrap();
     let parent_io = parent.get_handler(EffectType::IO).unwrap();
     assert!(Arc::ptr_eq(&child_io, &parent_io));
-    
+
     // Parent doesn't have Error handler
     assert!(parent.get_handler(EffectType::Error).is_err());
     assert!(child.get_handler(EffectType::Error).is_ok());
@@ -119,9 +116,9 @@ fn test_create_context() {
             Arc::new(CountingHandler::new(EffectType::Error))
         })
         .build();
-    
+
     let context = provider.create_context().unwrap();
-    
+
     // Test that all handlers are available in context
     assert!(context.perform_sync(EffectType::IO, "test", &[]).is_ok());
     assert!(context.perform_sync(EffectType::State, "test", &[]).is_ok());
@@ -132,13 +129,13 @@ fn test_create_context() {
 fn test_remove_handler() {
     let provider = EffectHandlerProvider::new();
     provider.register_singleton(Arc::new(CountingHandler::new(EffectType::IO)));
-    
+
     // Handler exists
     assert!(provider.get_handler(EffectType::IO).is_ok());
-    
+
     // Remove handler
     provider.remove_handler(EffectType::IO);
-    
+
     // Handler no longer exists
     assert!(provider.get_handler(EffectType::IO).is_err());
 }
@@ -150,14 +147,14 @@ fn test_clear_handlers() {
     provider.register_factory(EffectType::State, || {
         Arc::new(CountingHandler::new(EffectType::State))
     });
-    
+
     // Handlers exist
     assert!(provider.get_handler(EffectType::IO).is_ok());
     assert!(provider.get_handler(EffectType::State).is_ok());
-    
+
     // Clear all handlers
     provider.clear();
-    
+
     // No handlers exist
     assert!(provider.get_handler(EffectType::IO).is_err());
     assert!(provider.get_handler(EffectType::State).is_err());
@@ -165,12 +162,10 @@ fn test_clear_handlers() {
 
 #[test]
 fn test_builder_with_defaults() {
-    let provider = EffectHandlerBuilder::new()
-        .with_defaults()
-        .build();
-    
+    let provider = EffectHandlerBuilder::new().with_defaults().build();
+
     let _context = provider.create_context().unwrap();
-    
+
     // Test that default handlers are registered
     let effect_types = vec![
         EffectType::IO,
@@ -183,10 +178,13 @@ fn test_builder_with_defaults() {
         EffectType::Concurrent,
         EffectType::Dom,
     ];
-    
+
     for effect_type in effect_types {
-        assert!(provider.get_handler(effect_type).is_ok(),
-            "Default handler for {:?} should be registered", effect_type);
+        assert!(
+            provider.get_handler(effect_type).is_ok(),
+            "Default handler for {:?} should be registered",
+            effect_type
+        );
     }
 }
 
@@ -201,7 +199,7 @@ impl ConfigurableHandler {
             config: parking_lot::RwLock::new(config.to_string()),
         }
     }
-    
+
     fn update_config(&self, new_config: &str) {
         *self.config.write() = new_config.to_string();
     }
@@ -212,7 +210,7 @@ impl EffectHandler for ConfigurableHandler {
     fn effect_type(&self) -> EffectType {
         EffectType::IO
     }
-    
+
     fn handle_sync(&self, _operation: &str, _args: &[Value]) -> EffectResult {
         Ok(Value::String(self.config.read().clone()))
     }
@@ -223,19 +221,19 @@ fn test_handler_reconfiguration() {
     let provider = EffectHandlerProvider::new();
     let handler = Arc::new(ConfigurableHandler::new("initial"));
     provider.register_singleton(handler.clone());
-    
+
     let context = provider.create_context().unwrap();
-    
+
     // Initial config
     let result = context.perform_sync(EffectType::IO, "test", &[]).unwrap();
     match result {
         Value::String(s) => assert_eq!(s, "initial"),
         _ => panic!("Expected string value"),
     }
-    
+
     // Update config
     handler.update_config("updated");
-    
+
     // Config change is reflected
     let result = context.perform_sync(EffectType::IO, "test", &[]).unwrap();
     match result {
@@ -249,19 +247,25 @@ fn test_handler_reconfiguration() {
 fn test_di_integration() {
     use fluentai_di::prelude::*;
     use fluentai_effects::provider::di::register_effect_services;
-    
+
     let mut builder = ContainerBuilder::new();
     register_effect_services(&mut builder).unwrap();
-    
+
     let container = builder.build();
-    
+
     // Resolve provider
     let provider = container.resolve::<EffectHandlerProvider>().unwrap();
     assert!(provider.get_handler(EffectType::IO).is_ok());
-    
+
     // Resolve context
-    let context = container.resolve::<fluentai_effects::EffectContext>().unwrap();
-    assert!(context.perform_sync(EffectType::IO, "print", &[
-        Value::String("Test".to_string())
-    ]).is_ok());
+    let context = container
+        .resolve::<fluentai_effects::EffectContext>()
+        .unwrap();
+    assert!(context
+        .perform_sync(
+            EffectType::IO,
+            "print",
+            &[Value::String("Test".to_string())]
+        )
+        .is_ok());
 }

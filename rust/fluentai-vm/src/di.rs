@@ -1,12 +1,12 @@
 //! Dependency injection integration for the VM
 
-use std::sync::Arc;
-use fluentai_di::prelude::*;
-use fluentai_effects::{EffectContext, runtime::EffectRuntime};
-use fluentai_effects::provider::EffectHandlerProvider;
-use fluentai_stdlib::StdlibRegistry;
-use fluentai_modules::{ModuleLoader, ModuleResolver, ModuleConfig};
 use anyhow::Result;
+use fluentai_di::prelude::*;
+use fluentai_effects::provider::EffectHandlerProvider;
+use fluentai_effects::{runtime::EffectRuntime, EffectContext};
+use fluentai_modules::{ModuleConfig, ModuleLoader, ModuleResolver};
+use fluentai_stdlib::StdlibRegistry;
+use std::sync::Arc;
 
 use crate::builder::{VMBuilder, VMConfig};
 
@@ -14,40 +14,40 @@ use crate::builder::{VMBuilder, VMConfig};
 pub trait VMContainerBuilderExt {
     /// Register VM-related services
     fn register_vm_services(&mut self) -> &mut Self;
-    
+
     /// Register VM services with custom configuration
-    fn register_vm_services_with_config<C: VMConfig + Clone + Send + Sync + 'static>(&mut self, config: C) -> &mut Self;
+    fn register_vm_services_with_config<C: VMConfig + Clone + Send + Sync + 'static>(
+        &mut self,
+        config: C,
+    ) -> &mut Self;
 }
 
 impl VMContainerBuilderExt for ContainerBuilder {
     fn register_vm_services(&mut self) -> &mut Self {
         // Register default configurations
         self.register_instance(ModuleConfig::default());
-        
+
         // Register effect context as singleton
-        self.register_singleton(|| {
-            Arc::new(EffectContext::default())
-        });
-        
+        self.register_singleton(|| Arc::new(EffectContext::default()));
+
         // Register effect runtime as singleton
-        self.register_singleton(|| {
-            Arc::new(EffectRuntime::default())
-        });
-        
+        self.register_singleton(|| Arc::new(EffectRuntime::default()));
+
         // Register VM builder factory
-        self.register_transient(|| {
-            VMBuilder::new()
-        });
-        
+        self.register_transient(|| VMBuilder::new());
+
         self
     }
-    
-    fn register_vm_services_with_config<C: VMConfig + Clone + Send + Sync + 'static>(&mut self, config: C) -> &mut Self {
+
+    fn register_vm_services_with_config<C: VMConfig + Clone + Send + Sync + 'static>(
+        &mut self,
+        config: C,
+    ) -> &mut Self {
         self.register_vm_services();
-        
+
         // Register the config as a service
         self.register_instance(config);
-        
+
         self
     }
 }
@@ -56,16 +56,16 @@ impl VMContainerBuilderExt for ContainerBuilder {
 pub trait VMServiceProvider: Send + Sync {
     /// Create a VM builder with injected dependencies
     fn create_vm_builder(&self) -> Result<VMBuilder>;
-    
+
     /// Get the module loader
     fn get_module_loader(&self) -> Result<ModuleLoader>;
-    
+
     /// Get the module resolver
     fn get_module_resolver(&self) -> Result<ModuleResolver>;
-    
+
     /// Get the effect context
     fn get_effect_context(&self) -> Result<Arc<EffectContext>>;
-    
+
     /// Get the effect runtime
     fn get_effect_runtime(&self) -> Result<Arc<EffectRuntime>>;
 }
@@ -84,52 +84,54 @@ impl ContainerVMProvider {
 impl VMServiceProvider for ContainerVMProvider {
     fn create_vm_builder(&self) -> Result<VMBuilder> {
         let mut builder = VMBuilder::new();
-        
+
         // Try to inject optional services
         if let Ok(effect_context) = self.container.resolve::<Arc<EffectContext>>() {
             builder = builder.with_effect_context(effect_context);
         }
-        
+
         if let Ok(effect_runtime) = self.container.resolve::<Arc<EffectRuntime>>() {
             builder = builder.with_effect_runtime(effect_runtime);
         }
-        
+
         // Module config can be resolved from DI
         if let Ok(config) = self.container.resolve::<ModuleConfig>() {
             builder = builder.with_module_config(config);
         }
-        
+
         // Check if effect handler provider is available
         if let Ok(handler_provider) = self.container.resolve::<Arc<EffectHandlerProvider>>() {
             builder = builder.with_effect_handler_provider(handler_provider);
         }
-        
+
         // Check if stdlib registry is available directly
         if let Ok(registry) = self.container.resolve::<StdlibRegistry>() {
             builder = builder.with_stdlib_registry(registry);
         }
-        
+
         Ok(builder)
     }
-    
+
     fn get_module_loader(&self) -> Result<ModuleLoader> {
         // ModuleLoader doesn't implement Clone, so create a new instance
         Ok(ModuleLoader::new(ModuleConfig::default()))
     }
-    
+
     fn get_module_resolver(&self) -> Result<ModuleResolver> {
         // ModuleResolver doesn't implement Clone, so create a new instance
         let loader = ModuleLoader::new(ModuleConfig::default());
         Ok(ModuleResolver::new(loader))
     }
-    
+
     fn get_effect_context(&self) -> Result<Arc<EffectContext>> {
-        self.container.resolve::<Arc<EffectContext>>()
+        self.container
+            .resolve::<Arc<EffectContext>>()
             .map_err(|e| anyhow::anyhow!("Failed to resolve EffectContext: {}", e))
     }
-    
+
     fn get_effect_runtime(&self) -> Result<Arc<EffectRuntime>> {
-        self.container.resolve::<Arc<EffectRuntime>>()
+        self.container
+            .resolve::<Arc<EffectRuntime>>()
             .map_err(|e| anyhow::anyhow!("Failed to resolve EffectRuntime: {}", e))
     }
 }
@@ -152,7 +154,8 @@ impl Default for DevelopmentVMConfig {
 
 impl VMConfig for DevelopmentVMConfig {
     fn configure(&self, builder: &mut VMBuilder) {
-        *builder = builder.clone()
+        *builder = builder
+            .clone()
             .with_trace_mode(self.trace_enabled)
             .with_stack_size(self.stack_size);
     }
@@ -176,7 +179,8 @@ impl Default for ProductionVMConfig {
 
 impl VMConfig for ProductionVMConfig {
     fn configure(&self, builder: &mut VMBuilder) {
-        *builder = builder.clone()
+        *builder = builder
+            .clone()
             .with_trace_mode(false)
             .with_stack_size(self.stack_size);
         // Future: Add optimization flags
@@ -207,55 +211,54 @@ impl VMFactory for DefaultVMFactory {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Bytecode;
-    
+
     #[test]
     fn test_vm_di_registration() {
         let mut builder = ContainerBuilder::new();
         builder.register_vm_services();
-        
+
         let container = Arc::new(builder.build());
-        
+
         // Module loader resolution would require Clone implementation
         // assert!(container.resolve::<ModuleLoader>().is_ok());
-        
+
         // Should be able to resolve effect context
         assert!(container.resolve::<Arc<EffectContext>>().is_ok());
-        
+
         // Should be able to resolve VM builder
         assert!(container.resolve::<VMBuilder>().is_ok());
     }
-    
+
     #[test]
     fn test_vm_provider() {
         let mut builder = ContainerBuilder::new();
         builder.register_vm_services();
-        
+
         let container = Arc::new(builder.build());
         let provider = ContainerVMProvider::new(container);
-        
+
         // Should be able to create VM builder
         let vm_builder = provider.create_vm_builder().unwrap();
-        
+
         // Should be able to build VM with bytecode
         let bytecode = Bytecode::new();
         let vm = vm_builder.with_bytecode(bytecode).build();
         assert!(vm.is_ok());
     }
-    
+
     #[test]
     fn test_vm_factory() {
         let mut builder = ContainerBuilder::new();
         builder.register_vm_services();
-        
+
         let container = Arc::new(builder.build());
         let provider = Arc::new(ContainerVMProvider::new(container.clone()));
         let factory = DefaultVMFactory::new(provider);
-        
+
         // Should be able to create VM through factory
         let bytecode = Bytecode::new();
         let vm = factory.create_vm(bytecode);

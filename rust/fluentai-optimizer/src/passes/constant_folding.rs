@@ -1,8 +1,8 @@
 //! Constant folding optimization pass
 
-use fluentai_core::ast::{Graph, Node, Literal};
-use anyhow::Result;
 use crate::passes::OptimizationPass;
+use anyhow::Result;
+use fluentai_core::ast::{Graph, Literal, Node};
 
 /// Constant folding pass
 pub struct ConstantFoldingPass {
@@ -24,12 +24,12 @@ impl OptimizationPass for ConstantFoldingPass {
     fn run(&mut self, graph: &Graph) -> Result<Graph> {
         self.folded_count = 0;
         let mut optimized = graph.clone();
-        
+
         // Keep folding until no more changes
         loop {
             let mut changed = false;
             let nodes: Vec<_> = optimized.nodes.keys().copied().collect();
-            
+
             for node_id in nodes {
                 if let Some(node) = optimized.get_node(node_id).cloned() {
                     if let Some(folded) = fold_constants_in_optimized(&optimized, &node) {
@@ -39,12 +39,12 @@ impl OptimizationPass for ConstantFoldingPass {
                     }
                 }
             }
-            
+
             if !changed {
                 break;
             }
         }
-        
+
         // Special case: if the root is now a literal, return just that
         if let Some(root_id) = optimized.root_id {
             if let Some(Node::Literal(lit)) = optimized.get_node(root_id) {
@@ -59,7 +59,11 @@ impl OptimizationPass for ConstantFoldingPass {
     }
 
     fn stats(&self) -> String {
-        format!("{} pass: {} constants folded", self.name(), self.folded_count)
+        format!(
+            "{} pass: {} constants folded",
+            self.name(),
+            self.folded_count
+        )
     }
 }
 
@@ -77,7 +81,7 @@ fn fold_constants_in_optimized(graph: &Graph, node: &Node) -> Option<Node> {
                         _ => return None,
                     }
                 }
-                
+
                 // Try to evaluate
                 evaluate_builtin(name, &literals)
             } else {
@@ -91,7 +95,7 @@ fn fold_constants_in_optimized(graph: &Graph, node: &Node) -> Option<Node> {
 /// Evaluate built-in functions
 fn evaluate_builtin(name: &str, args: &[Literal]) -> Option<Node> {
     use Literal::*;
-    
+
     let result = match (name, args) {
         // Arithmetic
         ("+", [Integer(a), Integer(b)]) => Integer(a + b),
@@ -99,23 +103,22 @@ fn evaluate_builtin(name: &str, args: &[Literal]) -> Option<Node> {
         ("*", [Integer(a), Integer(b)]) => Integer(a * b),
         ("/", [Integer(a), Integer(b)]) if *b != 0 => Integer(a / b),
         ("mod", [Integer(a), Integer(b)]) if *b != 0 => Integer(a % b),
-        
+
         // Comparison
         ("<", [Integer(a), Integer(b)]) => Boolean(a < b),
         (">", [Integer(a), Integer(b)]) => Boolean(a > b),
         ("=", [Integer(a), Integer(b)]) => Boolean(a == b),
-        
+
         // Boolean
         ("and", [Boolean(a), Boolean(b)]) => Boolean(*a && *b),
         ("or", [Boolean(a), Boolean(b)]) => Boolean(*a || *b),
         ("not", [Boolean(a)]) => Boolean(!a),
-        
+
         // String operations
         ("str-concat", [String(a), String(b)]) => String(format!("{}{}", a, b)),
-        
+
         _ => return None,
     };
-    
+
     Some(Node::Literal(result))
 }
-

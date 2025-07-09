@@ -1,10 +1,10 @@
 //! Security-related lint rules
 
 use crate::diagnostic::LintDiagnostic;
-use crate::visitor::Visitor;
-use crate::rules::{Rule, RuleCategory, DiagnosticCollector};
 use crate::impl_rule;
-use fluentai_core::ast::{Graph, Node, NodeId, EffectType};
+use crate::rules::{DiagnosticCollector, Rule, RuleCategory};
+use crate::visitor::Visitor;
+use fluentai_core::ast::{EffectType, Graph, Node, NodeId};
 
 /// Check for potentially unsafe effects
 #[derive(Default)]
@@ -25,7 +25,11 @@ struct UnsafeEffectsVisitor {
 impl Visitor for UnsafeEffectsVisitor {
     fn visit_node(&mut self, graph: &Graph, _node_id: NodeId, node: &Node) {
         match node {
-            Node::Effect { effect_type, operation, args } => {
+            Node::Effect {
+                effect_type,
+                operation,
+                args,
+            } => {
                 // Check for unsafe effect patterns
                 match effect_type {
                     EffectType::IO => {
@@ -33,26 +37,24 @@ impl Visitor for UnsafeEffectsVisitor {
                             self.collector.add_diagnostic(
                                 LintDiagnostic::error(
                                     "unsafe-effects",
-                                    format!("Potentially dangerous IO operation: {}", operation)
+                                    format!("Potentially dangerous IO operation: {}", operation),
                                 )
-                                .with_note("System command execution can be a security risk")
+                                .with_note("System command execution can be a security risk"),
                             );
                         }
                     }
                     EffectType::Network => {
                         // Check for unvalidated network operations
                         if args.is_empty() {
-                            self.collector.add_diagnostic(
-                                LintDiagnostic::warning(
-                                    "unsafe-effects",
-                                    "Network operation without explicit parameters"
-                                )
-                            );
+                            self.collector.add_diagnostic(LintDiagnostic::warning(
+                                "unsafe-effects",
+                                "Network operation without explicit parameters",
+                            ));
                         }
                     }
                     _ => {}
                 }
-                
+
                 // Continue traversal
                 for arg in args {
                     self.visit_node_id(graph, *arg);
@@ -76,7 +78,11 @@ impl Visitor for UnsafeEffectsVisitor {
                         }
                         self.visit_node_id(graph, *body);
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         self.visit_node_id(graph, *condition);
                         self.visit_node_id(graph, *then_branch);
                         self.visit_node_id(graph, *else_branch);
@@ -123,27 +129,31 @@ struct UnvalidatedInputVisitor {
 impl Visitor for UnvalidatedInputVisitor {
     fn visit_node(&mut self, graph: &Graph, node_id: NodeId, node: &Node) {
         match node {
-            Node::Effect { effect_type, operation, .. } => {
+            Node::Effect {
+                effect_type,
+                operation,
+                ..
+            } => {
                 // Track input sources
                 if matches!(effect_type, EffectType::IO) && operation.contains("read") {
                     self.input_sources.push(node_id);
                 }
-                
+
                 // Check for direct usage of input in dangerous operations
                 if matches!(effect_type, EffectType::IO | EffectType::Network) {
                     // This is a simplified check - real implementation would do data flow analysis
                     self.collector.add_diagnostic(
                         LintDiagnostic::warning(
                             "unvalidated-input",
-                            "Ensure user input is validated before use in effects"
+                            "Ensure user input is validated before use in effects",
                         )
-                        .with_note("Consider adding input validation")
+                        .with_note("Consider adding input validation"),
                     );
                 }
             }
             _ => {}
         }
-        
+
         // Continue traversal
         match node {
             Node::Lambda { body, .. } => {
@@ -161,7 +171,11 @@ impl Visitor for UnvalidatedInputVisitor {
                 }
                 self.visit_node_id(graph, *body);
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.visit_node_id(graph, *condition);
                 self.visit_node_id(graph, *then_branch);
                 self.visit_node_id(graph, *else_branch);

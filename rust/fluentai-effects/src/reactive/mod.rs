@@ -1,22 +1,22 @@
 //! Reactive state system for FluentAi
-//! 
+//!
 //! This module provides reactive primitives that automatically track dependencies
 //! and trigger updates when state changes, enabling efficient declarative UIs.
 
-pub mod state;
 pub mod computed;
-pub mod watchers;
 pub mod deps;
 pub mod scheduler;
+pub mod state;
+pub mod watchers;
 
-pub use state::{ReactiveState, ReactiveRef};
 pub use computed::{Computed, ComputedValue};
-pub use watchers::{Watcher, WatchCallback};
-pub use deps::{DependencyTracker, DependencyGraph};
-pub use scheduler::{UpdateScheduler, BatchScope};
+pub use deps::{DependencyGraph, DependencyTracker};
+pub use scheduler::{BatchScope, UpdateScheduler};
+pub use state::{ReactiveRef, ReactiveState};
+pub use watchers::{WatchCallback, Watcher};
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 thread_local! {
     /// Global reactive context for the current execution
@@ -43,7 +43,7 @@ impl ReactiveContext {
             scheduler: Arc::new(UpdateScheduler::new()),
         }
     }
-    
+
     /// Run a function within this reactive context
     pub fn with<F, R>(&self, f: F) -> R
     where
@@ -54,21 +54,21 @@ impl ReactiveContext {
             let prev = guard.clone();
             *guard = Some(self.clone());
             drop(guard);
-            
+
             let result = f();
-            
+
             let mut guard = ctx.write();
             *guard = prev;
-            
+
             result
         })
     }
-    
+
     /// Get the current reactive context if any
     pub fn current() -> Option<ReactiveContext> {
         REACTIVE_CONTEXT.with(|ctx| ctx.read().clone())
     }
-    
+
     /// Run a function with a specific computation context
     pub fn with_computation<F, R>(&self, computation_id: String, f: F) -> R
     where

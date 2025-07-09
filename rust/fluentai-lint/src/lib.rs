@@ -6,13 +6,13 @@
 //! - Rich diagnostic output with suggestions
 //! - Configuration via .fluentai-lint.toml
 
-pub mod rules;
-pub mod diagnostic;
 pub mod config;
+pub mod diagnostic;
 pub mod engine;
+pub mod rules;
 pub mod visitor;
 
-pub use engine::{LintEngine, LintResult};
 pub use config::{LintConfig, RuleLevel};
-pub use diagnostic::{LintDiagnostic, DiagnosticKind, Suggestion};
+pub use diagnostic::{DiagnosticKind, LintDiagnostic, Suggestion};
+pub use engine::{LintEngine, LintResult};
 pub use rules::{Rule, RuleCategory};

@@ -1,7 +1,7 @@
 //! Parser tests for multiple top-level expressions
 
-use fluentai_parser::parse;
 use fluentai_core::ast::{Graph, Node};
+use fluentai_parser::parse;
 
 #[test]
 fn test_parse_multiple_expressions() {
@@ -13,25 +13,33 @@ fn test_parse_multiple_expressions() {
         // Mixed types
         (r#"42 "hello" #t"#, 3),
         // With whitespace
-        (r#"
+        (
+            r#"
             1
             
             2
             
             3
-        "#, 3),
+        "#,
+            3,
+        ),
         // Complex expressions
         ("(+ 1 2) (* 3 4) (- 10 5)", 3),
     ];
-    
+
     for (code, expected_count) in cases {
         let graph = parse(code).unwrap();
         let root = graph.root_id.unwrap();
         let root_node = graph.get_node(root).unwrap();
-        
+
         match root_node {
             Node::Begin { exprs } => {
-                assert_eq!(exprs.len(), expected_count, "Wrong expression count for: {}", code);
+                assert_eq!(
+                    exprs.len(),
+                    expected_count,
+                    "Wrong expression count for: {}",
+                    code
+                );
             }
             _ => panic!("Expected Begin node for multiple expressions in: {}", code),
         }
@@ -47,28 +55,33 @@ fn test_parse_single_expression_not_wrapped() {
         "(lambda (x) (* x x))",
         "(let ((x 10)) x)",
     ];
-    
+
     for code in cases {
         let graph = parse(code).unwrap();
         let root = graph.root_id.unwrap();
         let root_node = graph.get_node(root).unwrap();
-        
+
         // Single expressions should NOT be wrapped in Begin
-        assert!(!matches!(root_node, Node::Begin { .. }), 
-            "Single expression should not be wrapped in Begin: {}", code);
+        assert!(
+            !matches!(root_node, Node::Begin { .. }),
+            "Single expression should not be wrapped in Begin: {}",
+            code
+        );
     }
 }
 
 #[test]
 fn test_parse_empty_file() {
     let graph = parse("").unwrap();
-    assert!(graph.root_id.is_none() || {
-        if let Some(root) = graph.root_id {
-            matches!(graph.get_node(root).unwrap(), Node::Begin { exprs } if exprs.is_empty())
-        } else {
-            true
+    assert!(
+        graph.root_id.is_none() || {
+            if let Some(root) = graph.root_id {
+                matches!(graph.get_node(root).unwrap(), Node::Begin { exprs } if exprs.is_empty())
+            } else {
+                true
+            }
         }
-    });
+    );
 }
 
 #[test]
@@ -80,11 +93,11 @@ fn test_parse_with_comments_between_expressions() {
         ;; another comment
         3  ; third expression
     "#;
-    
+
     let graph = parse(code).unwrap();
     let root = graph.root_id.unwrap();
     let root_node = graph.get_node(root).unwrap();
-    
+
     match root_node {
         Node::Begin { exprs } => {
             assert_eq!(exprs.len(), 3);
@@ -98,11 +111,11 @@ fn test_begin_node_children() {
     let code = "(+ 1 2) (* 3 4) (- 10 5)";
     let graph = parse(code).unwrap();
     let root = graph.root_id.unwrap();
-    
+
     // Verify children() method works correctly
     let children = graph.children(root);
     assert_eq!(children.len(), 3);
-    
+
     // Verify each child is an Application node
     for child_id in children {
         let child = graph.get_node(child_id).unwrap();
@@ -119,23 +132,29 @@ fn test_begin_with_nested_structures() {
             (let ((z 3)) z))
         (list 1 2 3)
     "#;
-    
+
     let graph = parse(code).unwrap();
     let root = graph.root_id.unwrap();
     let root_node = graph.get_node(root).unwrap();
-    
+
     match root_node {
         Node::Begin { exprs } => {
             assert_eq!(exprs.len(), 3);
-            
+
             // First should be Let
-            assert!(matches!(graph.get_node(exprs[0]).unwrap(), Node::Let { .. }));
-            
+            assert!(matches!(
+                graph.get_node(exprs[0]).unwrap(),
+                Node::Let { .. }
+            ));
+
             // Second should be If
             assert!(matches!(graph.get_node(exprs[1]).unwrap(), Node::If { .. }));
-            
+
             // Third should be Application (list)
-            assert!(matches!(graph.get_node(exprs[2]).unwrap(), Node::Application { .. }));
+            assert!(matches!(
+                graph.get_node(exprs[2]).unwrap(),
+                Node::Application { .. }
+            ));
         }
         _ => panic!("Expected Begin node"),
     }
@@ -145,7 +164,7 @@ fn test_begin_with_nested_structures() {
 fn test_parser_state_after_multiple_expressions() {
     let code = "1 2 3";
     let graph = parse(code).unwrap();
-    
+
     // Verify parser state is clean after parsing
     assert!(graph.root_id.is_some());
     let root = graph.root_id.unwrap();
@@ -159,14 +178,14 @@ fn test_expression_ordering_preserved() {
         "second"
         "third"
     "#;
-    
+
     let graph = parse(code).unwrap();
     let root = graph.root_id.unwrap();
-    
+
     match graph.get_node(root).unwrap() {
         Node::Begin { exprs } => {
             assert_eq!(exprs.len(), 3);
-            
+
             // Check each expression in order
             for (i, expr_id) in exprs.iter().enumerate() {
                 match graph.get_node(*expr_id).unwrap() {

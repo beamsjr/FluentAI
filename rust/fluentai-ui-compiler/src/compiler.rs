@@ -3,9 +3,9 @@
 use crate::error::{CompilerError, Result};
 use fluentai_core::ast::{Graph, Node, NodeId};
 use fluentai_parser::parse;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use indexmap::IndexMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OutputFormat {
@@ -77,33 +77,32 @@ impl UICompiler {
             component_registry: IndexMap::new(),
         })
     }
-    
+
     /// Compile FluentAi UI code to JavaScript
     pub fn compile(&mut self, source: &str) -> Result<String> {
         // Parse the source
-        let graph = parse(source)
-            .map_err(|e| CompilerError::ParseError(e.to_string()))?;
-        
+        let graph = parse(source).map_err(|e| CompilerError::ParseError(e.to_string()))?;
+
         // Optimize if enabled
         let optimized_graph = if self.options.enable_ui_optimization {
             self.optimize_ui_graph(graph)?
         } else {
             graph
         };
-        
+
         // Extract components and compile
         self.extract_components(&optimized_graph)?;
         let js_code = self.compile_graph(&optimized_graph)?;
-        
+
         // Generate imports
         let imports = self.generate_imports();
-        
+
         // Generate helper functions
         let helpers = self.generate_helpers();
-        
+
         // Generate component definitions
         let components = self.generate_components()?;
-        
+
         // Combine everything
         let mut output = String::new();
         output.push_str(&imports);
@@ -113,19 +112,20 @@ impl UICompiler {
         output.push_str(&components);
         output.push_str("\n\n");
         output.push_str(&js_code);
-        
+
         // Post-process based on output format
         self.post_process(output)
     }
-    
+
     /// Optimize the UI graph for better performance
     fn optimize_ui_graph(&self, graph: Graph) -> Result<Graph> {
         // Use the FluentAi optimizer
         let mut optimizer = fluentai_optimizer::GraphOptimizer::new();
-        optimizer.optimize(&graph)
+        optimizer
+            .optimize(&graph)
             .map_err(|e| CompilerError::OptimizationError(e.to_string()))
     }
-    
+
     /// Extract UI components from the graph
     fn extract_components(&mut self, graph: &Graph) -> Result<()> {
         // Look for UI component definitions in the graph
@@ -144,7 +144,7 @@ impl UICompiler {
         }
         Ok(())
     }
-    
+
     /// Process a component definition
     fn process_component_definition(
         &mut self,
@@ -154,22 +154,24 @@ impl UICompiler {
     ) -> Result<()> {
         if args.len() < 2 {
             return Err(CompilerError::ParseError(
-                "Component definition requires name and template".to_string()
+                "Component definition requires name and template".to_string(),
             ));
         }
-        
+
         // Extract component name
         let name = match graph.get_node(args[0]) {
             Some(Node::Literal(lit)) => lit.to_string(),
             Some(Node::Variable { name }) => name.clone(),
-            _ => return Err(CompilerError::ParseError(
-                "Component name must be a string literal or variable".to_string()
-            )),
+            _ => {
+                return Err(CompilerError::ParseError(
+                    "Component name must be a string literal or variable".to_string(),
+                ))
+            }
         };
-        
+
         // Extract template
         let template = args[1];
-        
+
         // Create component definition
         let component = ComponentDefinition {
             name: name.clone(),
@@ -178,27 +180,31 @@ impl UICompiler {
             styles: None,
             reactive_state: Vec::new(),
         };
-        
+
         self.component_registry.insert(name, component);
         Ok(())
     }
-    
+
     /// Compile the AST graph to JavaScript
     fn compile_graph(&mut self, graph: &Graph) -> Result<String> {
         // Delegate to codegen module based on output format
         match self.options.output_format {
-            OutputFormat::VanillaJS => {
-                crate::codegen::vanilla_js::compile_graph(graph, &mut self.imports, &mut self.helpers)
-            }
+            OutputFormat::VanillaJS => crate::codegen::vanilla_js::compile_graph(
+                graph,
+                &mut self.imports,
+                &mut self.helpers,
+            ),
             OutputFormat::React => {
                 crate::codegen::react::compile_graph(graph, &mut self.imports, &mut self.helpers)
             }
             OutputFormat::Vue => {
                 crate::codegen::vue::compile_graph(graph, &mut self.imports, &mut self.helpers)
             }
-            OutputFormat::WebComponent => {
-                crate::codegen::web_component::compile_graph(graph, &mut self.imports, &mut self.helpers)
-            }
+            OutputFormat::WebComponent => crate::codegen::web_component::compile_graph(
+                graph,
+                &mut self.imports,
+                &mut self.helpers,
+            ),
             OutputFormat::Preact => {
                 // Preact uses React codegen with different imports
                 self.imports.insert("preact".to_string());
@@ -206,59 +212,61 @@ impl UICompiler {
             }
         }
     }
-    
+
     /// Generate import statements
     fn generate_imports(&self) -> String {
         let mut imports = Vec::new();
-        
+
         // Add runtime import
         imports.push(format!(
             "import {{ FluentAiRuntime }} from '{}';",
             self.options.runtime_import
         ));
-        
+
         // Add framework-specific imports
         match self.options.output_format {
             OutputFormat::React => {
                 imports.push("import React from 'react';".to_string());
             }
             OutputFormat::Vue => {
-                imports.push("import { createApp, reactive, computed, watch } from 'vue';".to_string());
+                imports.push(
+                    "import { createApp, reactive, computed, watch } from 'vue';".to_string(),
+                );
             }
             OutputFormat::Preact => {
                 imports.push("import { h, Component } from 'preact';".to_string());
             }
             _ => {}
         }
-        
+
         // Add other imports
         for import in &self.imports {
             imports.push(format!("import '{}';", import));
         }
-        
+
         imports.join("\n")
     }
-    
+
     /// Generate helper functions
     fn generate_helpers(&self) -> String {
         let mut helpers = Vec::new();
-        
+
         // Add common helpers
         if self.helpers.contains("createElement") {
             helpers.push(include_str!("../runtime/helpers/createElement.js").to_string());
         }
-        
+
         if self.helpers.contains("reactive") {
             helpers.push(include_str!("../runtime/helpers/reactive.js").to_string());
         }
-        
+
         helpers.join("\n\n")
     }
-    
+
     /// Generate component definitions
     fn generate_components(&self) -> Result<String> {
         let mut components = Vec::new();
-        
+
         for (name, def) in &self.component_registry {
             let component_code = match self.options.output_format {
                 OutputFormat::React => self.generate_react_component(name, def)?,
@@ -268,10 +276,10 @@ impl UICompiler {
             };
             components.push(component_code);
         }
-        
+
         Ok(components.join("\n\n"))
     }
-    
+
     /// Generate a React component
     fn generate_react_component(&self, name: &str, _def: &ComponentDefinition) -> Result<String> {
         Ok(format!(
@@ -279,7 +287,7 @@ impl UICompiler {
             name
         ))
     }
-    
+
     /// Generate a Vue component
     fn generate_vue_component(&self, name: &str, _def: &ComponentDefinition) -> Result<String> {
         Ok(format!(
@@ -287,17 +295,17 @@ impl UICompiler {
             name, name
         ))
     }
-    
+
     /// Generate a Web Component
     fn generate_web_component(&self, name: &str, _def: &ComponentDefinition) -> Result<String> {
         Ok(format!(
             "class {} extends HTMLElement {{\n  // Component implementation\n}}\ncustomElements.define('{}', {});",
-            name, 
+            name,
             name.to_lowercase().replace("_", "-"),
             name
         ))
     }
-    
+
     /// Generate a vanilla JS component
     fn generate_vanilla_component(&self, name: &str, _def: &ComponentDefinition) -> Result<String> {
         Ok(format!(
@@ -305,7 +313,7 @@ impl UICompiler {
             name
         ))
     }
-    
+
     /// Post-process the output
     fn post_process(&self, output: String) -> Result<String> {
         // Add source maps if requested
@@ -313,7 +321,7 @@ impl UICompiler {
         if self.options.source_maps {
             final_output.push_str("\n//# sourceMappingURL=output.js.map");
         }
-        
+
         Ok(final_output)
     }
 }

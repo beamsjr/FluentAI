@@ -85,10 +85,10 @@ impl RuntimeEngine {
     /// Execute a module
     pub fn execute_module(&mut self, module_name: &str) -> Result<Value> {
         info!("Executing module: {}", module_name);
-        
+
         // Load module
         let module = self.context.prepare_module(module_name)?;
-        
+
         // Execute
         self.execute_compiled_module(&module)
     }
@@ -96,10 +96,10 @@ impl RuntimeEngine {
     /// Execute source code
     pub fn execute(&mut self, source: &str) -> Result<Value> {
         info!("Executing source code");
-        
+
         // Load as anonymous module
         let module = self.context.loader().load_from_source("__main__", source)?;
-        
+
         // Execute
         self.execute_compiled_module(&module)
     }
@@ -143,7 +143,9 @@ impl RuntimeEngine {
             #[cfg(feature = "aot")]
             ExecutionMode::AOT => {
                 debug!("Executing in AOT mode");
-                Err(RuntimeError::not_implemented("AOT execution not yet implemented"))
+                Err(RuntimeError::not_implemented(
+                    "AOT execution not yet implemented",
+                ))
             }
         };
 
@@ -168,10 +170,9 @@ impl RuntimeEngine {
     ) -> Result<Value> {
         // Check timeout before running
         self.context.check_timeout()?;
-        
+
         // Run the VM - it executes to completion
-        vm.run()
-            .map_err(|e| RuntimeError::VmError(e))
+        vm.run().map_err(|e| RuntimeError::VmError(e))
     }
 
     /// Execute with JIT compilation
@@ -203,7 +204,10 @@ impl RuntimeEngine {
 
         // Otherwise, look for it in loaded modules
         // TODO: Implement module function lookup and calling
-        Err(RuntimeError::other(format!("Function '{}' not found", name)))
+        Err(RuntimeError::other(format!(
+            "Function '{}' not found",
+            name
+        )))
     }
 
     /// Reset the runtime
@@ -295,30 +299,28 @@ mod tests {
     #[test]
     fn test_runtime_engine() {
         let mut engine = RuntimeEngine::default();
-        
+
         // Register a simple host function
-        let add = HostFunction::new("add", 2, |args| {
-            match (&args[0], &args[1]) {
-                (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
-                _ => Err(RuntimeError::host("Expected two numbers")),
-            }
+        let add = HostFunction::new("add", 2, |args| match (&args[0], &args[1]) {
+            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
+            _ => Err(RuntimeError::host("Expected two numbers")),
         });
-        
+
         engine.register_function(add).unwrap();
-        
+
         // Test execution
         let result = engine.execute("(+ 1 2)").unwrap();
         assert_eq!(result, Value::Number(3.0));
     }
 
-    #[test] 
+    #[test]
     fn test_engine_builder() {
         let engine = RuntimeEngineBuilder::new()
             .debug(true)
             .sandboxed(true)
             .timeout(5000)
             .build();
-        
+
         assert!(engine.context.config().debug.enabled);
         assert!(engine.context.config().security.enable_sandbox);
         assert_eq!(engine.context.config().security.max_execution_time, 5000);

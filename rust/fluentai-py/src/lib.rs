@@ -1,11 +1,11 @@
 //! Python bindings for FluentAi Rust implementation
 
-use pyo3::prelude::*;
-use pyo3::exceptions::PyValueError;
-use pyo3::types::{PyList, PyDict};
+use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_parser::parse as rust_parse;
-use fluentai_core::ast::{Graph, Node, Literal};
 use fluentai_vm::{compiler::Compiler, vm::VM, Value};
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 use std::collections::HashMap;
 
 /// Python wrapper for AST Graph
@@ -23,15 +23,16 @@ impl PyGraph {
             inner: Graph::new(),
         }
     }
-    
+
     #[getter]
     fn root_id(&self) -> Option<String> {
         self.inner.root_id.map(|id| id.to_string())
     }
-    
+
     #[getter]
     fn nodes(&self) -> HashMap<String, PyNode> {
-        self.inner.nodes
+        self.inner
+            .nodes
             .iter()
             .map(|(id, node)| (id.to_string(), PyNode::from_node(node.clone())))
             .collect()
@@ -52,23 +53,28 @@ impl PyNode {
             let mut data = HashMap::new();
             let node_type = match &node {
                 Node::Literal(lit) => {
-                    data.insert("literal_type".to_string(), 
+                    data.insert(
+                        "literal_type".to_string(),
                         match lit {
                             Literal::Integer(_) => "int",
                             Literal::Float(_) => "float",
                             Literal::String(_) => "string",
                             Literal::Boolean(_) => "bool",
                             Literal::Nil => "nil",
-                        }.to_object(py));
-                    
-                    data.insert("value".to_string(), 
+                        }
+                        .to_object(py),
+                    );
+
+                    data.insert(
+                        "value".to_string(),
                         match lit {
                             Literal::Integer(n) => n.to_object(py),
                             Literal::Float(f) => f.to_object(py),
                             Literal::String(s) => s.to_object(py),
                             Literal::Boolean(b) => b.to_object(py),
                             Literal::Nil => py.None(),
-                        });
+                        },
+                    );
                     "Literal"
                 }
                 Node::Variable { name } => {
@@ -94,28 +100,61 @@ impl PyNode {
                     data.insert("body_id".to_string(), body.to_string().to_object(py));
                     "Let"
                 }
-                Node::If { condition, then_branch, else_branch } => {
-                    data.insert("condition_id".to_string(), condition.to_string().to_object(py));
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    data.insert(
+                        "condition_id".to_string(),
+                        condition.to_string().to_object(py),
+                    );
                     data.insert("then_id".to_string(), then_branch.to_string().to_object(py));
                     data.insert("else_id".to_string(), else_branch.to_string().to_object(py));
                     "If"
                 }
                 Node::Application { function, args } => {
-                    data.insert("function_id".to_string(), function.to_string().to_object(py));
-                    data.insert("argument_ids".to_string(), 
-                        args.iter().map(|id| id.to_string()).collect::<Vec<_>>().to_object(py));
+                    data.insert(
+                        "function_id".to_string(),
+                        function.to_string().to_object(py),
+                    );
+                    data.insert(
+                        "argument_ids".to_string(),
+                        args.iter()
+                            .map(|id| id.to_string())
+                            .collect::<Vec<_>>()
+                            .to_object(py),
+                    );
                     "Application"
                 }
-                Node::Effect { effect_type, operation, args } => {
-                    data.insert("effect_type".to_string(), effect_type.to_string().to_object(py));
+                Node::Effect {
+                    effect_type,
+                    operation,
+                    args,
+                } => {
+                    data.insert(
+                        "effect_type".to_string(),
+                        effect_type.to_string().to_object(py),
+                    );
                     data.insert("operation".to_string(), operation.to_object(py));
-                    data.insert("argument_ids".to_string(), 
-                        args.iter().map(|id| id.to_string()).collect::<Vec<_>>().to_object(py));
+                    data.insert(
+                        "argument_ids".to_string(),
+                        args.iter()
+                            .map(|id| id.to_string())
+                            .collect::<Vec<_>>()
+                            .to_object(py),
+                    );
                     "Effect"
                 }
                 Node::List(elements) => {
-                    data.insert("elements".to_string(), 
-                        elements.iter().map(|id| id.to_string()).collect::<Vec<_>>().to_object(py));
+                    data.insert(
+                        "elements".to_string(),
+                        elements
+                            .iter()
+                            .map(|id| id.to_string())
+                            .collect::<Vec<_>>()
+                            .to_object(py),
+                    );
                     "List"
                 }
                 Node::Match { expr, branches } => {
@@ -136,9 +175,7 @@ impl PyNode {
                     data.insert("expr_id".to_string(), expr.to_string().to_object(py));
                     "Spawn"
                 }
-                Node::Channel => {
-                    "Channel"
-                }
+                Node::Channel => "Channel",
                 Node::Send { channel, value } => {
                     data.insert("channel_id".to_string(), channel.to_string().to_object(py));
                     data.insert("value_id".to_string(), value.to_string().to_object(py));
@@ -149,7 +186,8 @@ impl PyNode {
                     "Receive"
                 }
                 Node::Letrec { bindings, body } => {
-                    let py_bindings: Vec<HashMap<String, String>> = bindings.iter()
+                    let py_bindings: Vec<HashMap<String, String>> = bindings
+                        .iter()
                         .map(|(name, id)| {
                             let mut binding = HashMap::new();
                             binding.insert("name".to_string(), name.clone());
@@ -161,13 +199,21 @@ impl PyNode {
                     data.insert("body_id".to_string(), body.to_string().to_object(py));
                     "Letrec"
                 }
-                Node::Module { name, exports, body } => {
+                Node::Module {
+                    name,
+                    exports,
+                    body,
+                } => {
                     data.insert("name".to_string(), name.to_object(py));
                     data.insert("exports".to_string(), exports.to_object(py));
                     data.insert("body_id".to_string(), body.to_string().to_object(py));
                     "Module"
                 }
-                Node::Import { module_path, import_list, import_all } => {
+                Node::Import {
+                    module_path,
+                    import_list,
+                    import_all,
+                } => {
                     data.insert("module_path".to_string(), module_path.to_object(py));
                     data.insert("import_list".to_string(), import_list.len().to_object(py));
                     data.insert("import_all".to_string(), import_all.to_object(py));
@@ -177,15 +223,31 @@ impl PyNode {
                     data.insert("export_list".to_string(), export_list.len().to_object(py));
                     "Export"
                 }
-                Node::QualifiedVariable { module_name, variable_name } => {
+                Node::QualifiedVariable {
+                    module_name,
+                    variable_name,
+                } => {
                     data.insert("module".to_string(), module_name.to_object(py));
                     data.insert("name".to_string(), variable_name.to_object(py));
                     "QualifiedVariable"
                 }
-                Node::Contract { function_name, preconditions, postconditions, invariants, complexity, pure } => {
+                Node::Contract {
+                    function_name,
+                    preconditions,
+                    postconditions,
+                    invariants,
+                    complexity,
+                    pure,
+                } => {
                     data.insert("function_name".to_string(), function_name.to_object(py));
-                    data.insert("preconditions".to_string(), preconditions.len().to_object(py));
-                    data.insert("postconditions".to_string(), postconditions.len().to_object(py));
+                    data.insert(
+                        "preconditions".to_string(),
+                        preconditions.len().to_object(py),
+                    );
+                    data.insert(
+                        "postconditions".to_string(),
+                        postconditions.len().to_object(py),
+                    );
                     data.insert("invariants".to_string(), invariants.len().to_object(py));
                     data.insert("complexity".to_string(), complexity.to_object(py));
                     data.insert("pure".to_string(), pure.to_object(py));
@@ -193,7 +255,8 @@ impl PyNode {
                 }
                 Node::Handler { handlers, body: _ } => {
                     data.insert("handler_count".to_string(), handlers.len().to_object(py));
-                    let handler_types: Vec<String> = handlers.iter()
+                    let handler_types: Vec<String> = handlers
+                        .iter()
                         .map(|(effect_type, _, _)| format!("{:?}", effect_type))
                         .collect();
                     data.insert("effect_types".to_string(), handler_types.to_object(py));
@@ -205,12 +268,18 @@ impl PyNode {
                     "Define"
                 }
                 Node::Begin { exprs } => {
-                    data.insert("expression_ids".to_string(), 
-                        exprs.iter().map(|id| id.to_string()).collect::<Vec<_>>().to_object(py));
+                    data.insert(
+                        "expression_ids".to_string(),
+                        exprs
+                            .iter()
+                            .map(|id| id.to_string())
+                            .collect::<Vec<_>>()
+                            .to_object(py),
+                    );
                     "Begin"
                 }
             };
-            
+
             Self {
                 node_type: node_type.to_string(),
                 data,
@@ -225,13 +294,17 @@ impl PyNode {
     fn node_type(&self) -> &str {
         &self.node_type
     }
-    
+
     fn get(&self, key: &str) -> Option<PyObject> {
         self.data.get(key).cloned()
     }
-    
+
     fn __repr__(&self) -> String {
-        format!("RustNode(type={}, data={:?})", self.node_type, self.data.keys().collect::<Vec<_>>())
+        format!(
+            "RustNode(type={}, data={:?})",
+            self.node_type,
+            self.data.keys().collect::<Vec<_>>()
+        )
     }
 }
 
@@ -249,14 +322,15 @@ fn parse(source: &str) -> PyResult<PyGraph> {
 fn evaluate(source: &str) -> PyResult<PyObject> {
     Python::with_gil(|py| {
         // Parse the source
-        let graph = rust_parse(source)
-            .map_err(|e| PyValueError::new_err(format!("Parse error: {}", e)))?;
-        
+        let graph =
+            rust_parse(source).map_err(|e| PyValueError::new_err(format!("Parse error: {}", e)))?;
+
         // Compile to bytecode
         let compiler = Compiler::new();
-        let bytecode = compiler.compile(&graph)
+        let bytecode = compiler
+            .compile(&graph)
             .map_err(|e| PyValueError::new_err(format!("Compilation error: {}", e)))?;
-        
+
         // Create VM and execute
         let mut vm = VM::new(bytecode);
         match vm.run() {
@@ -270,14 +344,15 @@ fn evaluate(source: &str) -> PyResult<PyObject> {
 #[pyfunction]
 fn compile(source: &str) -> PyResult<Vec<u8>> {
     // Parse the source
-    let graph = rust_parse(source)
-        .map_err(|e| PyValueError::new_err(format!("Parse error: {}", e)))?;
-    
+    let graph =
+        rust_parse(source).map_err(|e| PyValueError::new_err(format!("Parse error: {}", e)))?;
+
     // Compile to bytecode
     let compiler = Compiler::new();
-    let bytecode = compiler.compile(&graph)
+    let bytecode = compiler
+        .compile(&graph)
         .map_err(|e| PyValueError::new_err(format!("Compilation error: {}", e)))?;
-    
+
     // Serialize bytecode (simplified - just return opcode bytes)
     let mut bytes = Vec::new();
     for chunk in &bytecode.chunks {
@@ -286,7 +361,7 @@ fn compile(source: &str) -> PyResult<Vec<u8>> {
             bytes.extend_from_slice(&instruction.arg.to_le_bytes());
         }
     }
-    
+
     Ok(bytes)
 }
 
@@ -346,7 +421,9 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
             }
             Ok(py_list.to_object(py))
         }
-        Value::NativeFunction { name, .. } => Ok(format!("<native-function:{}>", name).to_object(py)),
+        Value::NativeFunction { name, .. } => {
+            Ok(format!("<native-function:{}>", name).to_object(py))
+        }
     }
 }
 
@@ -468,13 +545,14 @@ fn opcode_to_u8(opcode: &fluentai_vm::bytecode::Opcode) -> u8 {
 #[pyfunction]
 fn benchmark_parser(source: &str, iterations: usize) -> PyResult<f64> {
     use std::time::Instant;
-    
+
     let start = Instant::now();
     for _ in 0..iterations {
-        let _ = rust_parse(source).map_err(|e| PyValueError::new_err(format!("Parse error: {}", e)))?;
+        let _ =
+            rust_parse(source).map_err(|e| PyValueError::new_err(format!("Parse error: {}", e)))?;
     }
     let elapsed = start.elapsed();
-    
+
     Ok(elapsed.as_secs_f64() / iterations as f64)
 }
 

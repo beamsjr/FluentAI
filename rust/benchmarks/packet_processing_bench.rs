@@ -1,13 +1,13 @@
 //! Benchmarks for packet processing optimizations
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use fluentai_parser::parse;
-use fluentai_vm::{VM, VMBuilder, Compiler, VMConfig};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, VMBuilder, VMConfig, VM};
 
 fn benchmark_tail_recursion(c: &mut Criterion) {
     let mut group = c.benchmark_group("tail_recursion");
-    
+
     // Tail-recursive packet counter
     let tail_recursive_code = r#"
     (letrec ((count-packets
@@ -17,7 +17,7 @@ fn benchmark_tail_recursion(c: &mut Criterion) {
                     (count-packets (rest packets) (+ acc 1))))))
       (count-packets (list 1 2 3 4 5 6 7 8 9 10) 0))
     "#;
-    
+
     // Non-tail-recursive version
     let non_tail_recursive_code = r#"
     (letrec ((count-packets
@@ -27,7 +27,7 @@ fn benchmark_tail_recursion(c: &mut Criterion) {
                     (+ 1 (count-packets (rest packets)))))))
       (count-packets (list 1 2 3 4 5 6 7 8 9 10)))
     "#;
-    
+
     group.bench_function("tail_recursive", |b| {
         let ast = parse(tail_recursive_code).unwrap();
         let bytecode = Compiler::new().compile(&ast).unwrap();
@@ -39,7 +39,7 @@ fn benchmark_tail_recursion(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         })
     });
-    
+
     group.bench_function("non_tail_recursive", |b| {
         let ast = parse(non_tail_recursive_code).unwrap();
         let bytecode = Compiler::new().compile(&ast).unwrap();
@@ -51,13 +51,13 @@ fn benchmark_tail_recursion(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         })
     });
-    
+
     group.finish();
 }
 
 fn benchmark_unboxed_arithmetic(c: &mut Criterion) {
     let mut group = c.benchmark_group("unboxed_arithmetic");
-    
+
     // Checksum calculation with specialized ops
     let optimized_code = r#"
     (let ((sum 0))
@@ -71,7 +71,7 @@ fn benchmark_unboxed_arithmetic(c: &mut Criterion) {
       (set! sum (+int sum 0x00))
       sum)
     "#;
-    
+
     // Generic arithmetic
     let generic_code = r#"
     (let ((sum 0))
@@ -85,7 +85,7 @@ fn benchmark_unboxed_arithmetic(c: &mut Criterion) {
       (set! sum (+ sum 0x00))
       sum)
     "#;
-    
+
     group.bench_function("specialized_int", |b| {
         let ast = parse(optimized_code).unwrap();
         let bytecode = Compiler::new().compile(&ast).unwrap();
@@ -97,7 +97,7 @@ fn benchmark_unboxed_arithmetic(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         })
     });
-    
+
     group.bench_function("generic_add", |b| {
         let ast = parse(generic_code).unwrap();
         let bytecode = Compiler::new().compile(&ast).unwrap();
@@ -109,51 +109,50 @@ fn benchmark_unboxed_arithmetic(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         })
     });
-    
+
     group.finish();
 }
 
 fn benchmark_channel_types(c: &mut Criterion) {
     let mut group = c.benchmark_group("channels");
-    
+
     // Test different channel implementations
     let channel_code = r#"
     (let ((ch (chan)))
       (spawn (send! ch 42))
       (recv! ch))
     "#;
-    
+
     for size in [0, 10, 100].iter() {
-        group.bench_with_input(
-            BenchmarkId::new("buffered", size),
-            size,
-            |b, &size| {
-                let code = if size == 0 {
-                    channel_code.to_string()
-                } else {
-                    format!("(let ((ch (chan {}))) (spawn (send! ch 42)) (recv! ch))", size)
-                };
-                
-                let ast = parse(&code).unwrap();
-                let bytecode = Compiler::new().compile(&ast).unwrap();
-                
-                b.iter(|| {
-                    let mut vm = VMBuilder::new()
-                        .with_bytecode(bytecode.clone())
-                        .build()
-                        .unwrap();
-                    black_box(vm.run().unwrap())
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("buffered", size), size, |b, &size| {
+            let code = if size == 0 {
+                channel_code.to_string()
+            } else {
+                format!(
+                    "(let ((ch (chan {}))) (spawn (send! ch 42)) (recv! ch))",
+                    size
+                )
+            };
+
+            let ast = parse(&code).unwrap();
+            let bytecode = Compiler::new().compile(&ast).unwrap();
+
+            b.iter(|| {
+                let mut vm = VMBuilder::new()
+                    .with_bytecode(bytecode.clone())
+                    .build()
+                    .unwrap();
+                black_box(vm.run().unwrap())
+            })
+        });
     }
-    
+
     group.finish();
 }
 
 fn benchmark_optimization_levels(c: &mut Criterion) {
     let mut group = c.benchmark_group("optimization_levels");
-    
+
     // Complex code that benefits from optimization
     let code = r#"
     (letrec ((factorial
@@ -169,9 +168,9 @@ fn benchmark_optimization_levels(c: &mut Criterion) {
                                    (+ acc (factorial n 1)))))))
       (sum-factorials 10 0))
     "#;
-    
+
     let ast = parse(code).unwrap();
-    
+
     for level in [
         OptimizationLevel::None,
         OptimizationLevel::Basic,
@@ -183,14 +182,12 @@ fn benchmark_optimization_levels(c: &mut Criterion) {
             &level,
             |b, &level| {
                 let config = VMConfig::default().with_optimization_level(level);
-                let compiler = Compiler::with_options(
-                    fluentai_vm::CompilerOptions {
-                        optimization_level: level,
-                        debug_info: false,
-                    }
-                );
+                let compiler = Compiler::with_options(fluentai_vm::CompilerOptions {
+                    optimization_level: level,
+                    debug_info: false,
+                });
                 let bytecode = compiler.compile(&ast).unwrap();
-                
+
                 b.iter(|| {
                     let mut vm = VMBuilder::new()
                         .with_config(config.clone())
@@ -202,7 +199,7 @@ fn benchmark_optimization_levels(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 

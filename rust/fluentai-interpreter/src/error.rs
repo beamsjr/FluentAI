@@ -62,7 +62,7 @@ pub enum InterpreterError {
     /// Async error
     #[error("Async error: {0}")]
     AsyncError(String),
-    
+
     /// Module error
     #[error("Module error: {0}")]
     ModuleError(String),

@@ -1,25 +1,20 @@
 //! Debug event system for VM visualization
 
-use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 use fluentai_vm::bytecode::Instruction;
 use fluentai_vm::Value;
+use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
 
 /// Debug events emitted by the VM during execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum DebugEvent {
     /// VM started execution
-    Started {
-        timestamp: u64,
-    },
-    
+    Started { timestamp: u64 },
+
     /// VM stopped execution
-    Stopped {
-        timestamp: u64,
-        reason: StopReason,
-    },
-    
+    Stopped { timestamp: u64, reason: StopReason },
+
     /// About to execute an instruction
     InstructionPre {
         timestamp: u64,
@@ -27,7 +22,7 @@ pub enum DebugEvent {
         instruction: InstructionInfo,
         stack_size: usize,
     },
-    
+
     /// Finished executing an instruction
     InstructionPost {
         timestamp: u64,
@@ -35,20 +30,20 @@ pub enum DebugEvent {
         stack_size: usize,
         stack_top: Option<String>, // Serialized top value
     },
-    
+
     /// Stack operation
     StackPush {
         timestamp: u64,
         value: String, // Serialized value
         stack_size: usize,
     },
-    
+
     StackPop {
         timestamp: u64,
         value: String, // Serialized value
         stack_size: usize,
     },
-    
+
     /// Function call
     FunctionCall {
         timestamp: u64,
@@ -56,13 +51,13 @@ pub enum DebugEvent {
         arg_count: usize,
         call_depth: usize,
     },
-    
+
     FunctionReturn {
         timestamp: u64,
         value: String, // Serialized return value
         call_depth: usize,
     },
-    
+
     /// Variable binding
     VariableBind {
         timestamp: u64,
@@ -70,14 +65,14 @@ pub enum DebugEvent {
         value: String, // Serialized value
         scope: usize,
     },
-    
+
     /// Error occurred
     Error {
         timestamp: u64,
         message: String,
         pc: Option<usize>,
     },
-    
+
     /// Breakpoint hit
     BreakpointHit {
         timestamp: u64,
@@ -129,7 +124,8 @@ pub fn serialize_value(value: &Value) -> String {
         Value::Float(f) => f.to_string(),
         Value::String(s) => format!("\"{}\"", s),
         Value::List(items) => {
-            let items_str: Vec<String> = items.iter()
+            let items_str: Vec<String> = items
+                .iter()
                 .take(5) // Limit to first 5 items
                 .map(serialize_value)
                 .collect();
@@ -140,15 +136,14 @@ pub fn serialize_value(value: &Value) -> String {
             format!("<function:chunk_{}>", chunk_id)
         }
         Value::Tagged { tag, values } => {
-            let values_str: Vec<String> = values.iter()
-                .map(serialize_value)
-                .collect();
+            let values_str: Vec<String> = values.iter().map(serialize_value).collect();
             format!("{}({})", tag, values_str.join(", "))
         }
         Value::Cell(_) => "<cell>".to_string(),
         Value::Module { name, .. } => format!("<module:{}>", name),
         Value::Map(map) => {
-            let items: Vec<String> = map.iter()
+            let items: Vec<String> = map
+                .iter()
                 .take(3)
                 .map(|(k, v)| format!("{}: {}", k, serialize_value(v)))
                 .collect();
@@ -161,7 +156,8 @@ pub fn serialize_value(value: &Value) -> String {
         Value::Symbol(s) => format!(":{}", s),
         Value::Procedure(_) => "<procedure>".to_string(),
         Value::Vector(items) => {
-            let items_str: Vec<String> = items.iter()
+            let items_str: Vec<String> = items
+                .iter()
                 .take(5) // Limit to first 5 items
                 .map(serialize_value)
                 .collect();

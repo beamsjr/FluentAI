@@ -1,11 +1,11 @@
 //! Counterexample generation for contract failures
-//! 
+//!
 //! This module provides detailed counterexample generation when contracts fail,
 //! including minimal test cases, execution traces, and debugging information.
 
-use crate::symbolic_execution::{SymbolicValue, SymbolicState, PathConstraint};
-use crate::symbolic_verification::SymbolicViolation;
 use crate::errors::ContractResult;
+use crate::symbolic_execution::{PathConstraint, SymbolicState, SymbolicValue};
+use crate::symbolic_verification::SymbolicViolation;
 use fluentai_core::ast::{Graph, Literal};
 use std::collections::HashMap;
 
@@ -87,7 +87,7 @@ impl CounterexampleGenerator {
             max_trace_length: 100,
         }
     }
-    
+
     /// Create a generator with custom configuration
     pub fn with_config(minimize: bool, generate_traces: bool) -> Self {
         Self {
@@ -96,7 +96,7 @@ impl CounterexampleGenerator {
             max_trace_length: 100,
         }
     }
-    
+
     /// Generate a counterexample from a contract violation
     pub fn generate_counterexample(
         &self,
@@ -106,34 +106,39 @@ impl CounterexampleGenerator {
     ) -> ContractResult<Counterexample> {
         // Generate concrete inputs
         let inputs = self.generate_concrete_inputs(&violation.violating_state, param_names)?;
-        
+
         // Minimize constraints if requested
         let minimal_constraints = if self.minimize {
             self.minimize_constraints(&violation.violating_state.path_constraints)?
         } else {
             violation.violating_state.path_constraints.clone()
         };
-        
+
         // Generate execution trace if requested
         let execution_trace = if self.generate_traces {
             self.generate_execution_trace(&violation.violating_state, &inputs, graph)?
         } else {
             Vec::new()
         };
-        
+
         // Extract failed assertion
-        let failed_assertion = format!("{:?}: {}", 
+        let failed_assertion = format!(
+            "{:?}: {}",
             violation.condition_type,
-            violation.condition.message.as_ref().unwrap_or(&"Unknown".to_string())
+            violation
+                .condition
+                .message
+                .as_ref()
+                .unwrap_or(&"Unknown".to_string())
         );
-        
+
         // Generate debug info
         let debug_info = self.generate_debug_info(
             &violation.violating_state,
             &minimal_constraints,
             &execution_trace,
         )?;
-        
+
         Ok(Counterexample {
             inputs,
             execution_trace,
@@ -142,7 +147,7 @@ impl CounterexampleGenerator {
             debug_info,
         })
     }
-    
+
     /// Generate concrete inputs from symbolic state
     fn generate_concrete_inputs(
         &self,
@@ -150,17 +155,17 @@ impl CounterexampleGenerator {
         param_names: &[String],
     ) -> ContractResult<HashMap<String, Literal>> {
         let mut inputs = HashMap::new();
-        
+
         #[cfg(feature = "static")]
         {
             // Try to use Z3 to generate concrete values
             use z3::Context;
             let context = Context::new(&z3::Config::new());
             let mut solver = IncrementalSolver::new(&context);
-            
+
             if solver.check_state_incremental(state)? {
                 let model = solver.get_model()?;
-                
+
                 for param in param_names {
                     if let Some(&value) = model.get(param) {
                         inputs.insert(param.clone(), Literal::Integer(value));
@@ -177,11 +182,11 @@ impl CounterexampleGenerator {
                         }
                     }
                 }
-                
+
                 return Ok(inputs);
             }
         }
-        
+
         // Fallback: use heuristics
         for param in param_names {
             if let Some(sym_value) = state.bindings.get(param) {
@@ -189,17 +194,18 @@ impl CounterexampleGenerator {
                     inputs.insert(param.clone(), lit);
                 } else {
                     // Analyze constraints to infer value
-                    let value = self.infer_value_from_constraints(param, &state.path_constraints)?;
+                    let value =
+                        self.infer_value_from_constraints(param, &state.path_constraints)?;
                     inputs.insert(param.clone(), value);
                 }
             } else {
                 inputs.insert(param.clone(), Literal::Integer(0));
             }
         }
-        
+
         Ok(inputs)
     }
-    
+
     /// Extract literal from symbolic value if possible
     fn extract_literal(&self, value: &SymbolicValue) -> Option<Literal> {
         match value {
@@ -207,7 +213,7 @@ impl CounterexampleGenerator {
             _ => None,
         }
     }
-    
+
     /// Infer a value from constraints
     fn infer_value_from_constraints(
         &self,
@@ -223,7 +229,11 @@ impl CounterexampleGenerator {
                     match (op.as_str(), constraint.expected) {
                         ("=", true) => {
                             // x = value
-                            if let (SymbolicValue::Symbolic { name, .. }, SymbolicValue::Concrete(lit)) = (left.as_ref(), right.as_ref()) {
+                            if let (
+                                SymbolicValue::Symbolic { name, .. },
+                                SymbolicValue::Concrete(lit),
+                            ) = (left.as_ref(), right.as_ref())
+                            {
                                 if name == param {
                                     return Ok(lit.clone());
                                 }
@@ -231,7 +241,11 @@ impl CounterexampleGenerator {
                         }
                         ("<", true) => {
                             // x < value, so use value - 1
-                            if let (SymbolicValue::Symbolic { name, .. }, SymbolicValue::Concrete(Literal::Integer(n))) = (left.as_ref(), right.as_ref()) {
+                            if let (
+                                SymbolicValue::Symbolic { name, .. },
+                                SymbolicValue::Concrete(Literal::Integer(n)),
+                            ) = (left.as_ref(), right.as_ref())
+                            {
                                 if name == param {
                                     return Ok(Literal::Integer(n - 1));
                                 }
@@ -239,7 +253,11 @@ impl CounterexampleGenerator {
                         }
                         (">", true) => {
                             // x > value, so use value + 1
-                            if let (SymbolicValue::Symbolic { name, .. }, SymbolicValue::Concrete(Literal::Integer(n))) = (left.as_ref(), right.as_ref()) {
+                            if let (
+                                SymbolicValue::Symbolic { name, .. },
+                                SymbolicValue::Concrete(Literal::Integer(n)),
+                            ) = (left.as_ref(), right.as_ref())
+                            {
                                 if name == param {
                                     return Ok(Literal::Integer(n + 1));
                                 }
@@ -250,11 +268,11 @@ impl CounterexampleGenerator {
                 }
             }
         }
-        
+
         // Default value
         Ok(Literal::Integer(0))
     }
-    
+
     /// Check if a symbolic value involves a parameter
     fn involves_parameter(&self, value: &SymbolicValue, param: &str) -> bool {
         match value {
@@ -266,7 +284,7 @@ impl CounterexampleGenerator {
             _ => false,
         }
     }
-    
+
     /// Minimize the constraint set
     fn minimize_constraints(
         &self,
@@ -274,22 +292,22 @@ impl CounterexampleGenerator {
     ) -> ContractResult<Vec<PathConstraint>> {
         // Delta debugging approach: try to find minimal failing set
         let minimal = constraints.to_vec();
-        
+
         // Try removing each constraint
         let mut i = 0;
         while i < minimal.len() {
             let mut test_set = minimal.clone();
             test_set.remove(i);
-            
+
             // Check if the reduced set still leads to the failure
             // For now, we'll keep all constraints
             // In a full implementation, we'd re-run symbolic execution
             i += 1;
         }
-        
+
         Ok(minimal)
     }
-    
+
     /// Generate execution trace
     fn generate_execution_trace(
         &self,
@@ -299,12 +317,13 @@ impl CounterexampleGenerator {
     ) -> ContractResult<Vec<ExecutionStep>> {
         let mut trace = Vec::new();
         let mut step_count = 0;
-        
+
         // Initial state
-        let mut current_state: HashMap<String, String> = inputs.iter()
+        let mut current_state: HashMap<String, String> = inputs
+            .iter()
             .map(|(k, v)| (k.clone(), format!("{:?}", v)))
             .collect();
-        
+
         trace.push(ExecutionStep {
             step: step_count,
             location: Some("Function entry".to_string()),
@@ -312,23 +331,25 @@ impl CounterexampleGenerator {
             state: current_state.clone(),
             is_critical: true,
         });
-        
+
         // Trace through constraints
         for (i, constraint) in state.path_constraints.iter().enumerate() {
             step_count += 1;
-            
+
             let operation = self.describe_constraint(constraint);
-            
+
             // Update state based on constraint
             // This is simplified - in reality we'd trace actual execution
             if let SymbolicValue::BinOp { op, left, right } = &constraint.constraint {
                 if op == "=" && constraint.expected {
-                    if let (SymbolicValue::Symbolic { name, .. }, SymbolicValue::Concrete(lit)) = (left.as_ref(), right.as_ref()) {
+                    if let (SymbolicValue::Symbolic { name, .. }, SymbolicValue::Concrete(lit)) =
+                        (left.as_ref(), right.as_ref())
+                    {
                         current_state.insert(name.clone(), format!("{:?}", lit));
                     }
                 }
             }
-            
+
             trace.push(ExecutionStep {
                 step: step_count,
                 location: Some(format!("Branch {}", i + 1)),
@@ -336,15 +357,15 @@ impl CounterexampleGenerator {
                 state: current_state.clone(),
                 is_critical: i >= state.path_constraints.len().saturating_sub(3), // Last few are often critical
             });
-            
+
             if trace.len() >= self.max_trace_length {
                 break;
             }
         }
-        
+
         Ok(trace)
     }
-    
+
     /// Describe a constraint in human-readable form
     fn describe_constraint(&self, constraint: &PathConstraint) -> String {
         let base = self.format_symbolic_value(&constraint.constraint);
@@ -354,14 +375,15 @@ impl CounterexampleGenerator {
             format!("Assert: not ({})", base)
         }
     }
-    
+
     /// Format symbolic value
     fn format_symbolic_value(&self, value: &SymbolicValue) -> String {
         match value {
             SymbolicValue::Concrete(lit) => format!("{:?}", lit),
             SymbolicValue::Symbolic { name, .. } => name.clone(),
             SymbolicValue::BinOp { op, left, right } => {
-                format!("{} {} {}", 
+                format!(
+                    "{} {} {}",
                     self.format_symbolic_value(left),
                     op,
                     self.format_symbolic_value(right)
@@ -373,7 +395,7 @@ impl CounterexampleGenerator {
             _ => "...".to_string(),
         }
     }
-    
+
     /// Generate debugging information
     fn generate_debug_info(
         &self,
@@ -382,11 +404,12 @@ impl CounterexampleGenerator {
         trace: &[ExecutionStep],
     ) -> ContractResult<DebugInfo> {
         // Simplify path condition
-        let path_condition = minimal_constraints.iter()
+        let path_condition = minimal_constraints
+            .iter()
             .map(|c| self.describe_constraint(c))
             .collect::<Vec<_>>()
             .join(" AND ");
-        
+
         // Find relevant variables
         let mut relevant_variables = Vec::new();
         for constraint in minimal_constraints {
@@ -394,10 +417,10 @@ impl CounterexampleGenerator {
         }
         relevant_variables.sort();
         relevant_variables.dedup();
-        
+
         // Generate suggestions
         let suggestions = self.generate_suggestions(state, minimal_constraints)?;
-        
+
         // Calculate complexity metrics
         let complexity = ComplexityMetrics {
             branch_count: minimal_constraints.len(),
@@ -405,7 +428,7 @@ impl CounterexampleGenerator {
             loop_iterations: self.estimate_loop_iterations(trace),
             constraint_count: minimal_constraints.len(),
         };
-        
+
         Ok(DebugInfo {
             path_condition,
             relevant_variables,
@@ -413,7 +436,7 @@ impl CounterexampleGenerator {
             complexity,
         })
     }
-    
+
     /// Collect variables from symbolic value
     fn collect_variables(&self, value: &SymbolicValue, vars: &mut Vec<String>) {
         match value {
@@ -428,7 +451,7 @@ impl CounterexampleGenerator {
             _ => {}
         }
     }
-    
+
     /// Generate suggestions for fixing the contract violation
     fn generate_suggestions(
         &self,
@@ -436,7 +459,7 @@ impl CounterexampleGenerator {
         constraints: &[PathConstraint],
     ) -> ContractResult<Vec<String>> {
         let mut suggestions = Vec::new();
-        
+
         // Look for common patterns
         for constraint in constraints {
             if let SymbolicValue::BinOp { op, left: _, right } = &constraint.constraint {
@@ -455,21 +478,21 @@ impl CounterexampleGenerator {
                 }
             }
         }
-        
+
         // Generic suggestions
         if constraints.len() > 5 {
             suggestions.push("Complex path - consider simplifying logic".to_string());
         }
-        
+
         Ok(suggestions)
     }
-    
+
     /// Estimate recursion depth from trace
     fn estimate_recursion_depth(&self, trace: &[ExecutionStep]) -> usize {
         // Simple heuristic: count repeated operations
         let mut max_depth: usize = 0;
         let mut current_depth: usize = 0;
-        
+
         for i in 1..trace.len() {
             if trace[i].operation.contains("recursive call") {
                 current_depth += 1;
@@ -478,16 +501,16 @@ impl CounterexampleGenerator {
                 current_depth = current_depth.saturating_sub(1);
             }
         }
-        
+
         max_depth
     }
-    
+
     /// Estimate loop iterations from trace
     fn estimate_loop_iterations(&self, trace: &[ExecutionStep]) -> usize {
         // Count branch repetitions
         let mut iterations = 0;
         let mut seen_branches = std::collections::HashSet::new();
-        
+
         for step in trace {
             if let Some(loc) = &step.location {
                 if loc.contains("Branch") {
@@ -497,7 +520,7 @@ impl CounterexampleGenerator {
                 }
             }
         }
-        
+
         iterations
     }
 }
@@ -505,28 +528,39 @@ impl CounterexampleGenerator {
 /// Format a counterexample for display
 pub fn format_counterexample(counterexample: &Counterexample) -> String {
     let mut output = String::new();
-    
+
     // Header
     output.push_str("=== CONTRACT VIOLATION COUNTEREXAMPLE ===\n\n");
-    
+
     // Failed assertion
-    output.push_str(&format!("Failed Assertion: {}\n\n", counterexample.failed_assertion));
-    
+    output.push_str(&format!(
+        "Failed Assertion: {}\n\n",
+        counterexample.failed_assertion
+    ));
+
     // Inputs
     output.push_str("Inputs that cause failure:\n");
     for (param, value) in &counterexample.inputs {
         output.push_str(&format!("  {} = {:?}\n", param, value));
     }
     output.push('\n');
-    
+
     // Path condition
     output.push_str("Path Condition:\n");
-    output.push_str(&format!("  {}\n\n", counterexample.debug_info.path_condition));
-    
+    output.push_str(&format!(
+        "  {}\n\n",
+        counterexample.debug_info.path_condition
+    ));
+
     // Execution trace (abbreviated)
     if !counterexample.execution_trace.is_empty() {
         output.push_str("Execution Trace:\n");
-        for step in counterexample.execution_trace.iter().filter(|s| s.is_critical).take(10) {
+        for step in counterexample
+            .execution_trace
+            .iter()
+            .filter(|s| s.is_critical)
+            .take(10)
+        {
             output.push_str(&format!("  Step {}: {}\n", step.step, step.operation));
             if step.state.len() <= 3 {
                 for (var, val) in &step.state {
@@ -539,11 +573,14 @@ pub fn format_counterexample(counterexample: &Counterexample) -> String {
         }
         output.push('\n');
     }
-    
+
     // Relevant variables
     output.push_str("Relevant Variables:\n");
-    output.push_str(&format!("  {}\n\n", counterexample.debug_info.relevant_variables.join(", ")));
-    
+    output.push_str(&format!(
+        "  {}\n\n",
+        counterexample.debug_info.relevant_variables.join(", ")
+    ));
+
     // Complexity metrics
     output.push_str("Complexity Metrics:\n");
     let metrics = &counterexample.debug_info.complexity;
@@ -556,7 +593,7 @@ pub fn format_counterexample(counterexample: &Counterexample) -> String {
         output.push_str(&format!("  Loop iterations: {}\n", metrics.loop_iterations));
     }
     output.push('\n');
-    
+
     // Suggestions
     if !counterexample.debug_info.suggestions.is_empty() {
         output.push_str("Suggestions:\n");
@@ -564,7 +601,7 @@ pub fn format_counterexample(counterexample: &Counterexample) -> String {
             output.push_str(&format!("  - {}\n", suggestion));
         }
     }
-    
+
     output
 }
 
@@ -572,27 +609,30 @@ pub fn format_counterexample(counterexample: &Counterexample) -> String {
 mod tests {
     use super::*;
     use crate::symbolic_execution::{SymbolicState, SymbolicType};
-    use crate::symbolic_verification::{SymbolicViolation, ContractConditionType};
+    use crate::symbolic_verification::{ContractConditionType, SymbolicViolation};
     use fluentai_core::ast::{Node, NodeId};
     use std::num::NonZeroU32;
-    
+
     #[test]
     fn test_counterexample_generation() {
         let mut state = SymbolicState::new();
-        
+
         // Add some constraints
-        let x = SymbolicValue::Symbolic { name: "x".to_string(), ty: Some(SymbolicType::Integer) };
+        let x = SymbolicValue::Symbolic {
+            name: "x".to_string(),
+            ty: Some(SymbolicType::Integer),
+        };
         let zero = SymbolicValue::Concrete(Literal::Integer(0));
-        
+
         state.add_constraint(
             SymbolicValue::BinOp {
                 op: ">".to_string(),
                 left: Box::new(x.clone()),
                 right: Box::new(zero),
             },
-            true
+            true,
         );
-        
+
         let violation = SymbolicViolation {
             condition_type: ContractConditionType::Postcondition,
             condition: crate::contract::ContractCondition {
@@ -605,27 +645,30 @@ mod tests {
             violating_state: state,
             path_description: "x > 0".to_string(),
         };
-        
+
         // Create a graph with a node for the condition
         let mut graph = Graph::new();
-        let condition_node = graph.add_node(Node::Literal(Literal::Boolean(true))).expect("Failed to add literal node");
-        
+        let condition_node = graph
+            .add_node(Node::Literal(Literal::Boolean(true)))
+            .expect("Failed to add literal node");
+
         // Update the violation to use the actual node
         let mut updated_violation = violation;
         updated_violation.condition.expression = condition_node;
-        
+
         let generator = CounterexampleGenerator::new();
-        let counterexample = generator.generate_counterexample(
-            &updated_violation,
-            &["x".to_string()],
-            &graph,
-        ).unwrap();
-        
+        let counterexample = generator
+            .generate_counterexample(&updated_violation, &["x".to_string()], &graph)
+            .unwrap();
+
         // Check that we generated inputs
         assert!(counterexample.inputs.contains_key("x"));
-        
+
         // Check debug info
         assert!(!counterexample.debug_info.relevant_variables.is_empty());
-        assert!(counterexample.debug_info.relevant_variables.contains(&"x".to_string()));
+        assert!(counterexample
+            .debug_info
+            .relevant_variables
+            .contains(&"x".to_string()));
     }
 }

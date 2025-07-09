@@ -8,7 +8,7 @@ pub trait Lifecycle {
     fn on_create(&mut self) -> DiResult<()> {
         Ok(())
     }
-    
+
     /// Called before the service is disposed
     fn on_dispose(&mut self) -> DiResult<()> {
         Ok(())
@@ -35,12 +35,12 @@ impl DisposableScope {
             disposables: Vec::new(),
         }
     }
-    
+
     /// Add a disposable to the scope
     pub fn add<T: Disposable + Send + 'static>(&mut self, disposable: T) {
         self.disposables.push(Box::new(disposable));
     }
-    
+
     /// Manually dispose all resources
     pub fn dispose(&mut self) {
         for mut disposable in self.disposables.drain(..) {

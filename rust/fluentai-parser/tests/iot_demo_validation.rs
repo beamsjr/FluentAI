@@ -22,11 +22,11 @@ fn test_functions() {
 fn test_iot_specific_syntax() {
     // Tagged values
     assert!(parse(r#"(make-tagged "sensor-reading" "id" 1000 25.5 meta)"#).is_ok());
-    
+
     // Effect syntax
     assert!(parse(r#"(effect io print-line "Hello")"#).is_ok());
     assert!(parse(r#"(effect io print "World")"#).is_ok());
-    
+
     // String formatting
     assert!(parse(r#"(string-format "Value: {}" x)"#).is_ok());
 }
@@ -42,7 +42,7 @@ fn test_module_syntax() {
           (define (make-sensor-reading id time val meta)
             (list 'reading id time val meta)))
     "#;
-    
+
     assert!(parse(module_code).is_ok());
 }
 
@@ -54,7 +54,7 @@ fn test_complex_functions() {
             (let ((anomalies (filter detect-anomalies enriched)))
               (map log-anomalies anomalies))))
     "#;
-    
+
     assert!(parse(process_fn).is_ok());
 }
 
@@ -62,7 +62,7 @@ fn test_complex_functions() {
 fn test_stream_operations() {
     // Pipe operator
     assert!(parse(r#"(|> stream (stream-map f) (stream-filter p))"#).is_ok());
-    
+
     // Channel operations
     assert!(parse("(make-channel)").is_ok());
     assert!(parse("(send ch value)").is_ok());
@@ -78,7 +78,7 @@ fn test_pattern_matching() {
           ((eq? type "pressure") (check-pressure value))
           (else (default-check value)))
     "#;
-    
+
     assert!(parse(cond_expr).is_ok());
 }
 
@@ -101,9 +101,9 @@ fn test_demo_snippets() {
         (define high-temps (filter (lambda (x) (> x 40.0)) readings))
         (define sum (fold-left + 0 readings))
     "#;
-    
+
     assert!(parse(minimal_code).is_ok());
-    
+
     // From iot-types.fl
     let types_code = r#"
         (define (sensor-reading? val)
@@ -111,6 +111,6 @@ fn test_demo_snippets() {
                (eq? (tagged-tag val) "sensor-reading")
                (= (length (tagged-values val)) 4)))
     "#;
-    
+
     assert!(parse(types_code).is_ok());
 }

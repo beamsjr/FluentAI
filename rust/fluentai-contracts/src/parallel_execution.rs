@@ -1,15 +1,15 @@
 //! Parallel symbolic execution for improved performance
-//! 
+//!
 //! This module provides parallel exploration of symbolic execution paths
 //! using Rust's concurrency primitives for significant speedup on multi-core systems.
 
-use crate::symbolic_execution::{SymbolicState, SymbolicValue, ExecutionResult};
 use crate::errors::{ContractError, ContractResult};
+use crate::symbolic_execution::{ExecutionResult, SymbolicState, SymbolicValue};
 use fluentai_core::ast::{Graph, NodeId};
-use std::sync::{Arc, Mutex, mpsc};
-use std::thread;
-use std::collections::VecDeque;
 use rayon::prelude::*;
+use std::collections::VecDeque;
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 
 /// Configuration for parallel execution
 #[derive(Debug, Clone)]
@@ -74,7 +74,7 @@ impl ParallelSymbolicExecutor {
             graph: Arc::new(graph),
         }
     }
-    
+
     /// Create with custom configuration
     pub fn with_config(graph: Graph, config: ParallelConfig) -> Self {
         Self {
@@ -82,7 +82,7 @@ impl ParallelSymbolicExecutor {
             graph: Arc::new(graph),
         }
     }
-    
+
     /// Execute a function symbolically in parallel
     pub fn execute_function(
         &self,
@@ -91,14 +91,14 @@ impl ParallelSymbolicExecutor {
     ) -> ContractResult<Vec<SymbolicState>> {
         // Initialize the work queue
         let work_queue: WorkQueue = Arc::new(Mutex::new(VecDeque::new()));
-        
+
         // Create initial state
         let mut initial_state = SymbolicState::new();
         for param in param_names {
             let sym_value = initial_state.fresh_symbol(param);
             initial_state.bindings.insert(param.clone(), sym_value);
         }
-        
+
         // Add initial work item
         {
             let mut queue = work_queue.lock().unwrap();
@@ -108,68 +108,62 @@ impl ParallelSymbolicExecutor {
                 depth: 0,
             });
         }
-        
+
         // Create channels for results
         let (result_tx, result_rx) = mpsc::channel();
         let (stats_tx, stats_rx) = mpsc::channel();
-        
+
         // Spawn worker threads
         let mut handles = Vec::new();
-        
+
         for worker_id in 0..self.config.num_threads {
             let work_queue = Arc::clone(&work_queue);
             let graph = Arc::clone(&self.graph);
             let config = self.config.clone();
             let result_tx = result_tx.clone();
             let stats_tx = stats_tx.clone();
-            
+
             let handle = thread::spawn(move || {
-                worker_thread(
-                    worker_id,
-                    work_queue,
-                    graph,
-                    config,
-                    result_tx,
-                    stats_tx,
-                )
+                worker_thread(worker_id, work_queue, graph, config, result_tx, stats_tx)
             });
-            
+
             handles.push(handle);
         }
-        
+
         // Drop original senders so we can detect when all workers are done
         drop(result_tx);
         drop(stats_tx);
-        
+
         // Collect results
         let mut final_states = Vec::new();
         for state in result_rx {
             final_states.push(state);
         }
-        
+
         // Collect statistics
         let mut _total_explored = 0;
         for stats in stats_rx {
             _total_explored += stats;
         }
-        
+
         // Wait for all workers to finish
         for handle in handles {
-            handle.join().map_err(|_| ContractError::Other("Worker thread panicked".to_string()))?;
+            handle
+                .join()
+                .map_err(|_| ContractError::Other("Worker thread panicked".to_string()))?;
         }
-        
+
         Ok(final_states)
     }
-    
+
     /// Execute multiple functions in parallel
     pub fn execute_functions_batch(
         &self,
         functions: Vec<(NodeId, Vec<String>)>,
     ) -> ContractResult<Vec<Vec<SymbolicState>>> {
-        functions.into_par_iter()
-            .map(|(function_id, param_names)| {
-                self.execute_function(function_id, &param_names)
-            })
+        functions
+            .into_par_iter()
+            .map(|(function_id, param_names)| self.execute_function(function_id, &param_names))
             .collect()
     }
 }
@@ -186,7 +180,7 @@ fn worker_thread(
     let mut local_queue = VecDeque::new();
     let mut states_explored = 0;
     let mut states_produced = 0;
-    
+
     loop {
         // Try to get work
         let work_item = if let Some(item) = local_queue.pop_front() {
@@ -194,7 +188,7 @@ fn worker_thread(
         } else {
             // Try to steal work from shared queue
             let mut queue = work_queue.lock().unwrap();
-            
+
             if queue.is_empty() {
                 // Check if other workers might produce more work
                 if local_queue.is_empty() {
@@ -212,7 +206,7 @@ fn worker_thread(
                         break;
                     }
                 }
-                
+
                 // Keep first item, add rest to local queue
                 if !batch.is_empty() {
                     let first = batch.remove(0);
@@ -223,13 +217,13 @@ fn worker_thread(
                 }
             }
         };
-        
+
         if let Some(work) = work_item {
             // Check depth limit
             if work.depth >= config.max_depth {
                 continue;
             }
-            
+
             // Check states limit
             if states_produced >= config.max_states_per_worker {
                 // Put work back in shared queue
@@ -237,9 +231,9 @@ fn worker_thread(
                 queue.push_back(work);
                 break;
             }
-            
+
             states_explored += 1;
-            
+
             // Execute the work item
             match execute_node(&graph, &work.state, work.node_id) {
                 Ok(ExecutionResult::Value(state, _)) => {
@@ -249,34 +243,40 @@ fn worker_thread(
                     }
                     states_produced += 1;
                 }
-                Ok(ExecutionResult::Branch { condition, then_state, else_state, then_node, else_node }) => {
+                Ok(ExecutionResult::Branch {
+                    condition,
+                    then_state,
+                    else_state,
+                    then_node,
+                    else_node,
+                }) => {
                     // Create work items for both branches
                     let mut then_state = then_state;
                     then_state.add_constraint(condition.clone(), true);
-                    
+
                     let mut else_state = else_state;
                     else_state.add_constraint(condition, false);
-                    
+
                     let then_work = WorkItem {
                         state: then_state,
                         node_id: then_node,
                         depth: work.depth + 1,
                     };
-                    
+
                     let else_work = WorkItem {
                         state: else_state,
                         node_id: else_node,
                         depth: work.depth + 1,
                     };
-                    
+
                     // Add to local queue
                     local_queue.push_back(then_work);
                     local_queue.push_back(else_work);
-                    
+
                     // Share work if local queue is large
                     if local_queue.len() > config.work_stealing_threshold {
                         let mut queue = work_queue.lock().unwrap();
-                        
+
                         // Move half of local queue to shared queue
                         let share_count = local_queue.len() / 2;
                         for _ in 0..share_count {
@@ -302,12 +302,12 @@ fn worker_thread(
         } else {
             // No work available, yield to other threads
             thread::yield_now();
-            
+
             // Small sleep to avoid busy waiting
             thread::sleep(std::time::Duration::from_micros(100));
         }
     }
-    
+
     // Send statistics
     let _ = stats_tx.send(states_explored);
 }
@@ -319,39 +319,53 @@ fn execute_node(
     node_id: NodeId,
 ) -> ContractResult<ExecutionResult> {
     use fluentai_core::ast::Node;
-    
-    let node = graph.get_node(node_id)
+
+    let node = graph
+        .get_node(node_id)
         .ok_or_else(|| ContractError::Other(format!("Node {} not found", node_id)))?;
-    
+
     match node {
-        Node::Literal(lit) => {
-            Ok(ExecutionResult::Value(state.clone(), SymbolicValue::Concrete(lit.clone())))
-        }
-        
+        Node::Literal(lit) => Ok(ExecutionResult::Value(
+            state.clone(),
+            SymbolicValue::Concrete(lit.clone()),
+        )),
+
         Node::Variable { name } => {
-            let value = state.bindings.get(name)
+            let value = state
+                .bindings
+                .get(name)
                 .cloned()
-                .unwrap_or(SymbolicValue::Symbolic { 
-                    name: name.clone(), 
-                    ty: None 
+                .unwrap_or(SymbolicValue::Symbolic {
+                    name: name.clone(),
+                    ty: None,
                 });
             Ok(ExecutionResult::Value(state.clone(), value))
         }
-        
-        Node::If { condition: _, then_branch, else_branch } => {
+
+        Node::If {
+            condition: _,
+            then_branch,
+            else_branch,
+        } => {
             // For parallel execution, we create branch work items
             Ok(ExecutionResult::Branch {
-                condition: SymbolicValue::Symbolic { name: "condition".to_string(), ty: None },
+                condition: SymbolicValue::Symbolic {
+                    name: "condition".to_string(),
+                    ty: None,
+                },
                 then_state: state.clone(),
                 else_state: state.clone(),
                 then_node: *then_branch,
                 else_node: *else_branch,
             })
         }
-        
+
         _ => {
             // For other nodes, simplified handling
-            Ok(ExecutionResult::Value(state.clone(), SymbolicValue::Unknown))
+            Ok(ExecutionResult::Value(
+                state.clone(),
+                SymbolicValue::Unknown,
+            ))
         }
     }
 }
@@ -373,15 +387,15 @@ pub fn benchmark_parallel_execution(
     param_names: &[String],
 ) -> ContractResult<ParallelExecutionStats> {
     use std::time::Instant;
-    
+
     // Run parallel execution
     let start = Instant::now();
-    
+
     let parallel_executor = ParallelSymbolicExecutor::new(graph.clone());
     let states = parallel_executor.execute_function(function_id, param_names)?;
-    
+
     let duration = start.elapsed();
-    
+
     let stats = ParallelExecutionStats {
         total_states: states.len(),
         total_time: duration,
@@ -389,52 +403,72 @@ pub fn benchmark_parallel_execution(
         thread_efficiency: 1.0, // Simplified
         work_distribution: vec![states.len() / num_cpus::get(); num_cpus::get()],
     };
-    
+
     Ok(stats)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_core::ast::{Node, Literal};
-    
+    use fluentai_core::ast::{Literal, Node};
+
     #[test]
     fn test_parallel_execution() {
         // Create a simple test graph instead of parsing
         let mut graph = Graph::new();
-        
+
         // Create a simple conditional: if x > 0 then 'positive else 'negative
-        let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add x variable");
-        let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add zero literal");
-        let gt_op = graph.add_node(Node::Variable { name: ">".to_string() }).expect("Failed to add > operator");
-        
+        let x_var = graph
+            .add_node(Node::Variable {
+                name: "x".to_string(),
+            })
+            .expect("Failed to add x variable");
+        let zero = graph
+            .add_node(Node::Literal(Literal::Integer(0)))
+            .expect("Failed to add zero literal");
+        let gt_op = graph
+            .add_node(Node::Variable {
+                name: ">".to_string(),
+            })
+            .expect("Failed to add > operator");
+
         // Create the condition (> x 0)
-        let condition = graph.add_node(Node::Application {
-            function: gt_op,
-            args: vec![x_var, zero],
-        }).expect("Failed to add condition");
-        
+        let condition = graph
+            .add_node(Node::Application {
+                function: gt_op,
+                args: vec![x_var, zero],
+            })
+            .expect("Failed to add condition");
+
         // Create the branches
-        let positive = graph.add_node(Node::Literal(Literal::String("positive".to_string()))).expect("Failed to add positive literal");
-        let negative = graph.add_node(Node::Literal(Literal::String("negative".to_string()))).expect("Failed to add negative literal");
-        
+        let positive = graph
+            .add_node(Node::Literal(Literal::String("positive".to_string())))
+            .expect("Failed to add positive literal");
+        let negative = graph
+            .add_node(Node::Literal(Literal::String("negative".to_string())))
+            .expect("Failed to add negative literal");
+
         // Create the if expression
-        let if_expr = graph.add_node(Node::If {
-            condition,
-            then_branch: positive,
-            else_branch: negative,
-        }).expect("Failed to add if expression");
-        
+        let if_expr = graph
+            .add_node(Node::If {
+                condition,
+                then_branch: positive,
+                else_branch: negative,
+            })
+            .expect("Failed to add if expression");
+
         // Make it the root
         graph.root_id = Some(if_expr);
-        
+
         let executor = ParallelSymbolicExecutor::new(graph);
-        let states = executor.execute_function(if_expr, &["x".to_string()]).unwrap();
-        
+        let states = executor
+            .execute_function(if_expr, &["x".to_string()])
+            .unwrap();
+
         // Should explore at least one path (simplified test)
         assert!(states.len() >= 1);
     }
-    
+
     #[test]
     fn test_work_stealing() {
         let config = ParallelConfig {
@@ -442,7 +476,7 @@ mod tests {
             work_stealing_threshold: 5,
             ..Default::default()
         };
-        
+
         // Config should enable work stealing
         assert_eq!(config.num_threads, 4);
         assert_eq!(config.work_stealing_threshold, 5);

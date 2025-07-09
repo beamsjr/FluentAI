@@ -1,5 +1,8 @@
-use fluentai_vm::{Value, VM, compiler::{Compiler, CompilerOptions}};
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_vm::{
+    compiler::{Compiler, CompilerOptions},
+    Value, VM,
+};
 
 fn compile_and_run(code: &str) -> Result<Value, Box<dyn std::error::Error>> {
     let graph = fluentai_parser::parse(code)?;
@@ -20,7 +23,7 @@ fn test_define_simple_value() {
             (define x 42)
             x)
     "#;
-    
+
     let result = compile_and_run(code).unwrap();
     assert_eq!(result, Value::Integer(42));
 }
@@ -32,7 +35,7 @@ fn test_define_function() {
             (define add (lambda (x y) (+ x y)))
             (add 10 20))
     "#;
-    
+
     let result = compile_and_run(code).unwrap();
     assert_eq!(result, Value::Integer(30));
 }
@@ -44,7 +47,7 @@ fn test_define_nested_syntax() {
             (define (square x) (* x x))
             (square 5))
     "#;
-    
+
     let result = compile_and_run(code).unwrap();
     assert_eq!(result, Value::Integer(25));
 }
@@ -58,7 +61,7 @@ fn test_multiple_defines() {
             (define sum (+ x y))
             sum)
     "#;
-    
+
     let result = compile_and_run(code).unwrap();
     assert_eq!(result, Value::Integer(30));
 }
@@ -66,7 +69,7 @@ fn test_multiple_defines() {
 #[test]
 fn test_define_returns_nil() {
     let code = r#"(define x 42)"#;
-    
+
     let result = compile_and_run(code).unwrap();
     assert_eq!(result, Value::Nil);
 }
@@ -81,7 +84,7 @@ fn test_define_function_recursive() {
                     (* n (factorial (- n 1)))))
             (factorial 5))
     "#;
-    
+
     let result = compile_and_run(code).unwrap();
     assert_eq!(result, Value::Integer(120));
 }
@@ -89,12 +92,15 @@ fn test_define_function_recursive() {
 #[test]
 fn test_top_level_define() {
     // Test that define works at the top level without explicit begin
-    let graph = fluentai_parser::parse(r#"
+    let graph = fluentai_parser::parse(
+        r#"
         (define x 10)
         (define y 20)
         (+ x y)
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         ..Default::default()
@@ -103,6 +109,6 @@ fn test_top_level_define() {
     let bytecode = compiler.compile(&graph).unwrap();
     let mut vm = VM::new(bytecode);
     let result = vm.run().unwrap();
-    
+
     assert_eq!(result, Value::Integer(30));
 }

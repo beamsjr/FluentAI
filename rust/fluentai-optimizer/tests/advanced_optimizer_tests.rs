@@ -1,8 +1,8 @@
 //! Comprehensive tests for the advanced optimizer to catch edge cases and bugs
 
+use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_optimizer::*;
 use fluentai_parser::parse;
-use fluentai_core::ast::{Graph, Node, NodeId, Literal};
 use std::num::NonZeroU32;
 
 #[test]
@@ -10,14 +10,14 @@ fn test_cycle_detection_simple() {
     // Test direct self-reference: (letrec ((f f)) f)
     let code = "(letrec ((f f)) f)";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
-    
+
     // Should not panic or stack overflow
     assert!(result.is_ok());
     let optimized = result.unwrap();
-    
+
     // Verify the cycle was handled
     assert!(optimized.nodes.len() > 0);
 }
@@ -27,13 +27,13 @@ fn test_cycle_detection_mutual_recursion() {
     // Test mutual recursion: (letrec ((f g) (g f)) f)
     let code = "(letrec ((f g) (g f)) f)";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
-    
+
     assert!(result.is_ok());
     let optimized = result.unwrap();
-    
+
     // Should preserve the mutual recursion structure
     assert!(optimized.nodes.len() >= 3); // At least f, g, and letrec
 }
@@ -43,10 +43,10 @@ fn test_cycle_detection_complex() {
     // Test complex cycle through let bindings
     let code = "(let ((a (let ((b a)) b))) a)";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
-    
+
     assert!(result.is_ok());
 }
 
@@ -55,10 +55,10 @@ fn test_node_id_mapping_consistency() {
     // Test that node IDs are properly mapped between original and optimized graphs
     let code = "(let ((x 5) (y (+ x 2))) (* y 3))";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // Verify all node references are valid
     for (id, node) in &optimized.nodes {
         verify_node_references(&optimized, *id, node);
@@ -76,12 +76,12 @@ fn test_deep_nested_optimization() {
         code.push_str(" 1)");
     }
     code.push_str(" 1)");
-    
+
     let ast = parse(&code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
-    
+
     match &result {
         Ok(_) => assert!(true),
         Err(e) => {
@@ -105,10 +105,10 @@ fn test_memoization_correctness() {
           (+ x (+ y z)))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // All three (+ 2 3) should be optimized to the same value
     let stats = optimizer.stats();
     assert!(stats.pure_expressions_evaluated > 0);
@@ -119,10 +119,10 @@ fn test_substitution_preserves_semantics() {
     // Test that substitution doesn't create dangling references
     let code = "((lambda (x y) (+ x y)) 5 10)";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // Verify all nodes are reachable and valid
     if let Some(root) = optimized.root_id {
         let reachable = count_reachable_nodes(&optimized, root);
@@ -135,10 +135,10 @@ fn test_let_binding_shadowing() {
     // Test that variable shadowing is handled correctly
     let code = "(let ((x 5)) (let ((x 10)) x))";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // The result should optimize to 10, not 5
     verify_optimization_result(&optimized, 10);
 }
@@ -151,10 +151,10 @@ fn test_effect_preservation() {
           (+ 1 2))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // The print should still be in the graph
     let has_print = optimized.nodes.values().any(|node| {
         matches!(node, Node::Application { function, .. } if {
@@ -171,10 +171,10 @@ fn test_constant_propagation_through_let() {
     // Test constant propagation through let bindings
     let code = "(let ((x 5) (y 10)) (let ((z (+ x y))) (* z 2)))";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // Should optimize to 30
     let stats = optimizer.stats();
     assert!(stats.pure_expressions_evaluated >= 2); // At least (+ x y) and (* z 2)
@@ -185,10 +185,10 @@ fn test_if_constant_condition_elimination() {
     // Test that if with constant condition is eliminated
     let code = "(if #t (+ 1 2) (error \"unreachable\"))";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // Should not contain the error branch
     let has_error = optimized.nodes.values().any(|node| {
         matches!(node, Node::Application { function, .. } if {
@@ -198,7 +198,7 @@ fn test_if_constant_condition_elimination() {
         })
     });
     assert!(!has_error);
-    
+
     let stats = optimizer.stats();
     assert!(stats.branches_eliminated > 0);
 }
@@ -214,10 +214,10 @@ fn test_tail_call_detection() {
           (factorial 5 1))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     let stats = optimizer.stats();
     assert!(stats.tail_calls_optimized > 0);
 }
@@ -231,12 +231,12 @@ fn test_dead_code_elimination_preserves_root() {
           (used 5))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     assert!(optimized.root_id.is_some());
-    
+
     // The unused lambda should be eliminated
     let stats = optimizer.stats();
     assert!(stats.dead_code_eliminated > 0);
@@ -250,18 +250,18 @@ fn test_inline_threshold_respected() {
         large_body.push_str(&format!(" {}", i));
     }
     large_body.push(')');
-    
+
     let code = format!("((lambda (x) {}) 5)", large_body);
     let ast = parse(&code).unwrap();
-    
-    let mut optimizer = AdvancedOptimizer::new()
-        .with_inline_threshold(10); // Small threshold
+
+    let mut optimizer = AdvancedOptimizer::new().with_inline_threshold(10); // Small threshold
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // Large lambda should not be inlined
-    let has_lambda = optimized.nodes.values().any(|node| {
-        matches!(node, Node::Lambda { .. })
-    });
+    let has_lambda = optimized
+        .nodes
+        .values()
+        .any(|node| matches!(node, Node::Lambda { .. }));
     assert!(has_lambda, "Large lambda should not have been inlined");
 }
 
@@ -277,28 +277,35 @@ fn test_recursion_depth_limit() {
         code.push(')');
     }
     code.push(')');
-    
+
     // The parser itself may hit depth limits first
     match parse(&code) {
         Ok(ast) => {
             let mut optimizer = AdvancedOptimizer::new();
             let result = optimizer.optimize(&ast);
-            
+
             // Should either succeed or fail with recursion depth error, not stack overflow
             match result {
                 Ok(_) => assert!(true),
                 Err(e) => {
                     let error_str = e.to_string();
-                    assert!(error_str.contains("recursion depth") || error_str.contains("MaxDepthExceeded"),
-                            "Expected recursion depth error, got: {}", error_str);
+                    assert!(
+                        error_str.contains("recursion depth")
+                            || error_str.contains("MaxDepthExceeded"),
+                        "Expected recursion depth error, got: {}",
+                        error_str
+                    );
                 }
             }
         }
         Err(e) => {
             // Parser hitting depth limit is also acceptable
             let error_str = e.to_string();
-            assert!(error_str.contains("MaxDepthExceeded") || error_str.contains("depth"),
-                    "Expected depth limit error from parser, got: {}", error_str);
+            assert!(
+                error_str.contains("MaxDepthExceeded") || error_str.contains("depth"),
+                "Expected depth limit error from parser, got: {}",
+                error_str
+            );
         }
     }
 }
@@ -312,33 +319,37 @@ fn test_cse_with_side_effects() {
           (+ x y))
     "#;
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     // Both prints should remain
-    let print_count = optimized.nodes.values().filter(|node| {
-        matches!(node, Node::Application { function, .. } if {
-            optimized.get_node(*function)
-                .map(|n| matches!(n, Node::Variable { name } if name == "print"))
-                .unwrap_or(false)
+    let print_count = optimized
+        .nodes
+        .values()
+        .filter(|node| {
+            matches!(node, Node::Application { function, .. } if {
+                optimized.get_node(*function)
+                    .map(|n| matches!(n, Node::Variable { name } if name == "print"))
+                    .unwrap_or(false)
+            })
         })
-    }).count();
+        .count();
     assert_eq!(print_count, 2);
 }
 
-#[test] 
+#[test]
 fn test_regression_cse_stack_overflow() {
     // Regression test for the original stack overflow issue
     let code = "(let ((x 5)) (+ (* x 2) (* x 2) (* x 2)))";
     let ast = parse(code).unwrap();
-    
+
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
-    
+
     assert!(result.is_ok());
     let optimized = result.unwrap();
-    
+
     // Should have optimized the repeated (* x 2) expressions
     let stats = optimizer.stats();
     assert!(stats.pure_expressions_evaluated > 0 || stats.nodes_after < stats.nodes_before);
@@ -349,32 +360,69 @@ fn test_regression_cse_stack_overflow() {
 fn verify_node_references(graph: &Graph, node_id: NodeId, node: &Node) {
     match node {
         Node::Application { function, args } => {
-            assert!(graph.get_node(*function).is_some(), 
-                    "Node {:?} has invalid function reference {:?}", node_id, function);
+            assert!(
+                graph.get_node(*function).is_some(),
+                "Node {:?} has invalid function reference {:?}",
+                node_id,
+                function
+            );
             for arg in args {
-                assert!(graph.get_node(*arg).is_some(),
-                        "Node {:?} has invalid arg reference {:?}", node_id, arg);
+                assert!(
+                    graph.get_node(*arg).is_some(),
+                    "Node {:?} has invalid arg reference {:?}",
+                    node_id,
+                    arg
+                );
             }
         }
         Node::Lambda { body, .. } => {
-            assert!(graph.get_node(*body).is_some(),
-                    "Node {:?} has invalid body reference {:?}", node_id, body);
+            assert!(
+                graph.get_node(*body).is_some(),
+                "Node {:?} has invalid body reference {:?}",
+                node_id,
+                body
+            );
         }
         Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
             for (name, value_id) in bindings {
-                assert!(graph.get_node(*value_id).is_some(),
-                        "Node {:?} has invalid binding '{}' reference {:?}", node_id, name, value_id);
+                assert!(
+                    graph.get_node(*value_id).is_some(),
+                    "Node {:?} has invalid binding '{}' reference {:?}",
+                    node_id,
+                    name,
+                    value_id
+                );
             }
-            assert!(graph.get_node(*body).is_some(),
-                    "Node {:?} has invalid body reference {:?}", node_id, body);
+            assert!(
+                graph.get_node(*body).is_some(),
+                "Node {:?} has invalid body reference {:?}",
+                node_id,
+                body
+            );
         }
-        Node::If { condition, then_branch, else_branch } => {
-            assert!(graph.get_node(*condition).is_some(),
-                    "Node {:?} has invalid condition reference {:?}", node_id, condition);
-            assert!(graph.get_node(*then_branch).is_some(),
-                    "Node {:?} has invalid then reference {:?}", node_id, then_branch);
-            assert!(graph.get_node(*else_branch).is_some(),
-                    "Node {:?} has invalid else reference {:?}", node_id, else_branch);
+        Node::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            assert!(
+                graph.get_node(*condition).is_some(),
+                "Node {:?} has invalid condition reference {:?}",
+                node_id,
+                condition
+            );
+            assert!(
+                graph.get_node(*then_branch).is_some(),
+                "Node {:?} has invalid then reference {:?}",
+                node_id,
+                then_branch
+            );
+            assert!(
+                graph.get_node(*else_branch).is_some(),
+                "Node {:?} has invalid else reference {:?}",
+                node_id,
+                else_branch
+            );
         }
         _ => {}
     }
@@ -384,12 +432,12 @@ fn count_reachable_nodes(graph: &Graph, root: NodeId) -> usize {
     use rustc_hash::FxHashSet;
     let mut visited = FxHashSet::default();
     let mut stack = vec![root];
-    
+
     while let Some(node_id) = stack.pop() {
         if !visited.insert(node_id) {
             continue;
         }
-        
+
         if let Some(node) = graph.get_node(node_id) {
             match node {
                 Node::Application { function, args } => {
@@ -403,7 +451,11 @@ fn count_reachable_nodes(graph: &Graph, root: NodeId) -> usize {
                     }
                     stack.push(*body);
                 }
-                Node::If { condition, then_branch, else_branch } => {
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
                     stack.push(*condition);
                     stack.push(*then_branch);
                     stack.push(*else_branch);
@@ -412,7 +464,7 @@ fn count_reachable_nodes(graph: &Graph, root: NodeId) -> usize {
             }
         }
     }
-    
+
     visited.len()
 }
 

@@ -5,8 +5,8 @@ use clap::Parser;
 use tracing::info;
 use tracing_subscriber;
 
-mod server;
 mod handlers;
+mod server;
 mod transport;
 
 use server::McpServer;
@@ -19,7 +19,7 @@ struct Args {
     /// Transport type to use
     #[arg(short, long, value_enum, default_value = "stdio")]
     transport: TransportMode,
-    
+
     /// Port to listen on (for HTTP transport)
     #[arg(short, long, default_value = "3000")]
     port: u16,
@@ -37,12 +37,12 @@ enum TransportMode {
 async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
-    
+
     // Parse command line arguments
     let args = Args::parse();
-    
+
     info!("Starting FluentAi MCP Server");
-    
+
     // Create the appropriate transport
     let transport_type = match args.transport {
         TransportMode::Stdio => {
@@ -54,12 +54,12 @@ async fn main() -> Result<()> {
             TransportType::Http { port: args.port }
         }
     };
-    
+
     let transport = transport_type.create().await?;
-    
+
     // Create and run the MCP server
     let server = McpServer::new(transport).await?;
     server.run().await?;
-    
+
     Ok(())
 }

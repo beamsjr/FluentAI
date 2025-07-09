@@ -1,6 +1,6 @@
 //! Optimization statistics tracking
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Statistics about optimizations performed
@@ -49,15 +49,15 @@ impl OptimizationStats {
 
     /// Get total optimizations performed
     pub fn total_optimizations(&self) -> usize {
-        self.constant_folded +
-        self.dead_code_eliminated +
-        self.pure_expressions_evaluated +
-        self.branches_eliminated +
-        self.inlined_expressions +
-        self.tail_calls_optimized +
-        self.cse_eliminated +
-        self.loops_unrolled +
-        self.operations_fused
+        self.constant_folded
+            + self.dead_code_eliminated
+            + self.pure_expressions_evaluated
+            + self.branches_eliminated
+            + self.inlined_expressions
+            + self.tail_calls_optimized
+            + self.cse_eliminated
+            + self.loops_unrolled
+            + self.operations_fused
     }
 
     /// Merge stats from another instance
@@ -78,11 +78,20 @@ impl OptimizationStats {
 impl fmt::Display for OptimizationStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Optimization Statistics:")?;
-        writeln!(f, "  Nodes: {} -> {} ({:.1}% reduction)", 
-            self.nodes_before, self.nodes_after, self.reduction_percentage())?;
+        writeln!(
+            f,
+            "  Nodes: {} -> {} ({:.1}% reduction)",
+            self.nodes_before,
+            self.nodes_after,
+            self.reduction_percentage()
+        )?;
         writeln!(f, "  Constant folding: {}", self.constant_folded)?;
         writeln!(f, "  Dead code eliminated: {}", self.dead_code_eliminated)?;
-        writeln!(f, "  Pure expressions evaluated: {}", self.pure_expressions_evaluated)?;
+        writeln!(
+            f,
+            "  Pure expressions evaluated: {}",
+            self.pure_expressions_evaluated
+        )?;
         writeln!(f, "  Branches eliminated: {}", self.branches_eliminated)?;
         writeln!(f, "  Expressions inlined: {}", self.inlined_expressions)?;
         writeln!(f, "  Tail calls optimized: {}", self.tail_calls_optimized)?;
@@ -90,7 +99,11 @@ impl fmt::Display for OptimizationStats {
         writeln!(f, "  Loops unrolled: {}", self.loops_unrolled)?;
         writeln!(f, "  Operations fused: {}", self.operations_fused)?;
         writeln!(f, "  Total optimizations: {}", self.total_optimizations())?;
-        writeln!(f, "  Time: {:.3}ms", self.optimization_time_us as f64 / 1000.0)?;
+        writeln!(
+            f,
+            "  Time: {:.3}ms",
+            self.optimization_time_us as f64 / 1000.0
+        )?;
         Ok(())
     }
 }

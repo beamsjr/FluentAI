@@ -1,6 +1,6 @@
 //! Program analysis infrastructure for optimizations
 
-use fluentai_core::ast::{Graph, Node, NodeId, EffectType};
+use fluentai_core::ast::{EffectType, Graph, Node, NodeId};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Control flow graph representation
@@ -46,13 +46,13 @@ impl ControlFlowGraph {
         // Use iterative approach with explicit stack to avoid stack overflow
         let mut work_stack = vec![(node_id, pred)];
         let mut visited = FxHashSet::default();
-        
+
         while let Some((current_id, predecessor)) = work_stack.pop() {
             // Skip if already visited
             if !visited.insert(current_id) {
                 continue;
             }
-            
+
             // Add predecessor relationship
             if let Some(p) = predecessor {
                 self.predecessors.entry(current_id).or_default().insert(p);
@@ -61,7 +61,11 @@ impl ControlFlowGraph {
 
             if let Some(node) = graph.get_node(current_id) {
                 match node {
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         // Add branches to work stack in reverse order (LIFO)
                         work_stack.push((*else_branch, Some(current_id)));
                         work_stack.push((*then_branch, Some(current_id)));
@@ -99,7 +103,11 @@ impl ControlFlowGraph {
                     }
                     _ => {
                         // Leaf nodes are potential exits
-                        if self.successors.get(&current_id).map_or(true, |s| s.is_empty()) {
+                        if self
+                            .successors
+                            .get(&current_id)
+                            .map_or(true, |s| s.is_empty())
+                        {
                             self.exits.insert(current_id);
                         }
                     }
@@ -121,8 +129,11 @@ impl ControlFlowGraph {
         // Simple loop detection - mark nodes with back edges
         for (node, preds) in &self.predecessors {
             for pred in preds {
-                if self.dominators.get(pred)
-                    .map_or(false, |doms| doms.contains(node)) {
+                if self
+                    .dominators
+                    .get(pred)
+                    .map_or(false, |doms| doms.contains(node))
+                {
                     self.loop_headers.insert(*node);
                 }
             }
@@ -212,13 +223,15 @@ impl DataFlowAnalysis {
 
             // Process nodes in reverse topological order
             for (node_id, _) in &self.definitions {
-                let mut new_live_in = self.uses.get(node_id).cloned()
-                    .unwrap_or_default();
+                let mut new_live_in = self.uses.get(node_id).cloned().unwrap_or_default();
 
                 if let Some(live_out) = self.live_out.get(node_id) {
                     for var in live_out {
-                        if !self.definitions.get(node_id)
-                            .map_or(false, |defs| defs.contains(var)) {
+                        if !self
+                            .definitions
+                            .get(node_id)
+                            .map_or(false, |defs| defs.contains(var))
+                        {
                             new_live_in.insert(var.clone());
                         }
                     }
@@ -302,30 +315,37 @@ impl EffectAnalysis {
 
         // Use a shared cache to avoid recomputing effects for the same node
         let mut effect_cache = FxHashMap::default();
-        
+
         // First pass: Analyze effects for each node
         for (node_id, node) in &graph.nodes {
             let mut visited = FxHashSet::default();
-            let effects = analysis.analyze_node_effects_with_cache(graph, *node_id, node, &mut visited, &mut effect_cache);
+            let effects = analysis.analyze_node_effects_with_cache(
+                graph,
+                *node_id,
+                node,
+                &mut visited,
+                &mut effect_cache,
+            );
             analysis.node_effects.insert(*node_id, effects);
         }
-        
+
         // Second pass: Mark pure nodes
         for (node_id, effects) in &analysis.node_effects {
             if effects.is_empty() {
                 analysis.pure_nodes.insert(*node_id);
             }
         }
-        
+
         // Third pass: Check const evaluable (needs pure_nodes to be populated)
         // May need multiple iterations to handle nested const evaluable expressions
         let mut changed = true;
         while changed {
             changed = false;
             for (node_id, node) in &graph.nodes {
-                if analysis.pure_nodes.contains(node_id) && 
-                   !analysis.const_evaluable.contains(node_id) &&
-                   analysis.is_const_evaluable(graph, *node_id, node) {
+                if analysis.pure_nodes.contains(node_id)
+                    && !analysis.const_evaluable.contains(node_id)
+                    && analysis.is_const_evaluable(graph, *node_id, node)
+                {
                     analysis.const_evaluable.insert(*node_id);
                     changed = true;
                 }
@@ -335,8 +355,14 @@ impl EffectAnalysis {
         analysis
     }
 
-
-    fn analyze_node_effects_with_cache(&self, graph: &Graph, node_id: NodeId, node: &Node, visited: &mut FxHashSet<NodeId>, cache: &mut FxHashMap<NodeId, FxHashSet<EffectType>>) -> FxHashSet<EffectType> {
+    fn analyze_node_effects_with_cache(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        node: &Node,
+        visited: &mut FxHashSet<NodeId>,
+        cache: &mut FxHashMap<NodeId, FxHashSet<EffectType>>,
+    ) -> FxHashSet<EffectType> {
         // Check for cycles
         if !visited.insert(node_id) {
             // We've already visited this node - check cache
@@ -348,17 +374,18 @@ impl EffectAnalysis {
             effects.insert(EffectType::Pure);
             return effects;
         }
-        
+
         let mut effects = FxHashSet::default();
-        
+
         // Helper to analyze child nodes with caching
         let mut analyze_child = |child_id: NodeId| -> FxHashSet<EffectType> {
             if let Some(cached) = cache.get(&child_id) {
                 return cached.clone();
             }
-            
+
             if let Some(child_node) = graph.get_node(child_id) {
-                let child_effects = self.analyze_node_effects_with_cache(graph, child_id, child_node, visited, cache);
+                let child_effects = self
+                    .analyze_node_effects_with_cache(graph, child_id, child_node, visited, cache);
                 cache.insert(child_id, child_effects.clone());
                 child_effects
             } else {
@@ -386,14 +413,18 @@ impl EffectAnalysis {
                         effects.insert(effect_type);
                     }
                 }
-                
+
                 // Collect effects from function and arguments
                 effects.extend(analyze_child(*function));
                 for arg in args {
                     effects.extend(analyze_child(*arg));
                 }
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 effects.extend(analyze_child(*condition));
                 effects.extend(analyze_child(*then_branch));
                 effects.extend(analyze_child(*else_branch));
@@ -438,10 +469,10 @@ impl EffectAnalysis {
                         // Check if all arguments are const evaluable
                         return args.iter().all(|arg_id| {
                             // Either already marked as const evaluable, or is a literal
-                            self.const_evaluable.contains(arg_id) ||
-                            graph.get_node(*arg_id).map_or(false, |n| {
-                                matches!(n, Node::Literal(_))
-                            })
+                            self.const_evaluable.contains(arg_id)
+                                || graph
+                                    .get_node(*arg_id)
+                                    .map_or(false, |n| matches!(n, Node::Literal(_)))
                         });
                     }
                 }
@@ -454,14 +485,35 @@ impl EffectAnalysis {
 
 /// Check if a function name is a pure primitive
 fn is_pure_primitive(name: &str) -> bool {
-    matches!(name,
-        "+" | "-" | "*" | "/" | "mod" |
-        "<" | ">" | "<=" | ">=" | "=" | "!=" |
-        "and" | "or" | "not" |
-        "car" | "cdr" | "cons" | "list" |
-        "list-len" | "list-empty?" |
-        "str-len" | "str-concat" | "str-upper" | "str-lower" |
-        "abs" | "min" | "max" | "sqrt"
+    matches!(
+        name,
+        "+" | "-"
+            | "*"
+            | "/"
+            | "mod"
+            | "<"
+            | ">"
+            | "<="
+            | ">="
+            | "="
+            | "!="
+            | "and"
+            | "or"
+            | "not"
+            | "car"
+            | "cdr"
+            | "cons"
+            | "list"
+            | "list-len"
+            | "list-empty?"
+            | "str-len"
+            | "str-concat"
+            | "str-upper"
+            | "str-lower"
+            | "abs"
+            | "min"
+            | "max"
+            | "sqrt"
     )
 }
 
@@ -469,39 +521,41 @@ fn is_pure_primitive(name: &str) -> bool {
 pub fn is_effect_primitive(name: &str) -> Option<EffectType> {
     match name {
         // IO effects
-        "print" | "println" | "display" | "newline" |
-        "read-line" | "read-file" | "write-file" | "append-file" |
-        "delete-file" | "file-exists?" => Some(EffectType::IO),
-        
+        "print" | "println" | "display" | "newline" | "read-line" | "read-file" | "write-file"
+        | "append-file" | "delete-file" | "file-exists?" => Some(EffectType::IO),
+
         // State effects
-        "set!" | "ref" | "ref-set!" | "ref-get" |
-        "atom" | "swap!" | "reset!" | "compare-and-set!" |
-        "set-car!" | "set-cdr!" | "vector-set!" => Some(EffectType::State),
-        
+        "set!" | "ref" | "ref-set!" | "ref-get" | "atom" | "swap!" | "reset!"
+        | "compare-and-set!" | "set-car!" | "set-cdr!" | "vector-set!" => Some(EffectType::State),
+
         // Error effects
         "raise" | "error" | "throw" | "assert" | "panic" => Some(EffectType::Error),
-        
+
         // Time effects
         "sleep" | "current-time" | "current-milliseconds" => Some(EffectType::Time),
-        
+
         // Random effects
         "random" | "random-int" | "random-float" | "random-seed!" => Some(EffectType::Random),
-        
+
         // Network effects
-        "http-get" | "http-post" | "http-put" | "http-delete" |
-        "fetch" | "websocket-connect" | "tcp-connect" => Some(EffectType::Network),
-        
+        "http-get" | "http-post" | "http-put" | "http-delete" | "fetch" | "websocket-connect"
+        | "tcp-connect" => Some(EffectType::Network),
+
         // Async effects
         "spawn" | "await" | "promise" | "future" | "async" => Some(EffectType::Async),
-        
+
         // Concurrent effects
-        "channel" | "chan-send!" | "chan-receive" |
-        "mutex" | "lock!" | "unlock!" | "thread-spawn" => Some(EffectType::Concurrent),
-        
+        "channel" | "chan-send!" | "chan-receive" | "mutex" | "lock!" | "unlock!"
+        | "thread-spawn" => Some(EffectType::Concurrent),
+
         // DOM effects
-        "dom-get-element" | "dom-create-element" | "dom-set-attribute" |
-        "dom-add-event-listener" | "dom-remove-element" | "dom-query-selector" => Some(EffectType::Dom),
-        
+        "dom-get-element"
+        | "dom-create-element"
+        | "dom-set-attribute"
+        | "dom-add-event-listener"
+        | "dom-remove-element"
+        | "dom-query-selector" => Some(EffectType::Dom),
+
         _ => None,
     }
 }
@@ -530,7 +584,9 @@ impl AliasAnalysis {
                     let mut found_set = None;
                     for (set_idx, set) in analysis.alias_sets.iter().enumerate() {
                         for other_id in set {
-                            if let Some(Node::Variable { name: other_name }) = graph.get_node(*other_id) {
+                            if let Some(Node::Variable { name: other_name }) =
+                                graph.get_node(*other_id)
+                            {
                                 if name == other_name {
                                     found_set = Some(set_idx);
                                     break;
@@ -569,7 +625,9 @@ impl AliasAnalysis {
 
     /// Check if two nodes may alias
     pub fn may_alias(&self, node1: NodeId, node2: NodeId) -> bool {
-        if let (Some(set1), Some(set2)) = (self.node_to_set.get(&node1), self.node_to_set.get(&node2)) {
+        if let (Some(set1), Some(set2)) =
+            (self.node_to_set.get(&node1), self.node_to_set.get(&node2))
+        {
             set1 == set2
         } else {
             false
@@ -585,13 +643,18 @@ pub fn calculate_node_size(graph: &Graph, node_id: NodeId) -> usize {
     size
 }
 
-fn calculate_node_size_helper(graph: &Graph, node_id: NodeId, size: &mut usize, visited: &mut FxHashSet<NodeId>) {
+fn calculate_node_size_helper(
+    graph: &Graph,
+    node_id: NodeId,
+    size: &mut usize,
+    visited: &mut FxHashSet<NodeId>,
+) {
     if !visited.insert(node_id) {
         return; // Already visited
     }
-    
+
     *size += 1;
-    
+
     if let Some(node) = graph.get_node(node_id) {
         match node {
             Node::Application { function, args } => {
@@ -609,7 +672,11 @@ fn calculate_node_size_helper(graph: &Graph, node_id: NodeId, size: &mut usize, 
                 }
                 calculate_node_size_helper(graph, *body, size, visited);
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 calculate_node_size_helper(graph, *condition, size, visited);
                 calculate_node_size_helper(graph, *then_branch, size, visited);
                 calculate_node_size_helper(graph, *else_branch, size, visited);
@@ -641,15 +708,20 @@ pub fn is_recursive_function(graph: &Graph, func_id: NodeId) -> bool {
     }
 }
 
-fn contains_reference_to(graph: &Graph, node_id: NodeId, target_id: NodeId, visited: &mut FxHashSet<NodeId>) -> bool {
+fn contains_reference_to(
+    graph: &Graph,
+    node_id: NodeId,
+    target_id: NodeId,
+    visited: &mut FxHashSet<NodeId>,
+) -> bool {
     if !visited.insert(node_id) {
         return false; // Already visited
     }
-    
+
     if node_id == target_id {
         return true;
     }
-    
+
     if let Some(node) = graph.get_node(node_id) {
         match node {
             Node::Application { function, args } => {
@@ -673,10 +745,14 @@ fn contains_reference_to(graph: &Graph, node_id: NodeId, target_id: NodeId, visi
                 }
                 return contains_reference_to(graph, *body, target_id, visited);
             }
-            Node::If { condition, then_branch, else_branch } => {
-                return contains_reference_to(graph, *condition, target_id, visited) ||
-                       contains_reference_to(graph, *then_branch, target_id, visited) ||
-                       contains_reference_to(graph, *else_branch, target_id, visited);
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                return contains_reference_to(graph, *condition, target_id, visited)
+                    || contains_reference_to(graph, *then_branch, target_id, visited)
+                    || contains_reference_to(graph, *else_branch, target_id, visited);
             }
             Node::Match { expr, branches } => {
                 if contains_reference_to(graph, *expr, target_id, visited) {
@@ -699,7 +775,7 @@ fn contains_reference_to(graph: &Graph, node_id: NodeId, target_id: NodeId, visi
             _ => {} // Leaf nodes
         }
     }
-    
+
     false
 }
 
@@ -787,10 +863,12 @@ impl TypeAnalysis {
                         vec![ConcreteType::Integer, ConcreteType::Integer],
                         Box::new(ConcreteType::Integer),
                     ))),
-                    "<" | ">" | "=" | "<=" | ">=" => Some(TypeInfo::Concrete(ConcreteType::Function(
-                        vec![ConcreteType::Integer, ConcreteType::Integer],
-                        Box::new(ConcreteType::Boolean),
-                    ))),
+                    "<" | ">" | "=" | "<=" | ">=" => {
+                        Some(TypeInfo::Concrete(ConcreteType::Function(
+                            vec![ConcreteType::Integer, ConcreteType::Integer],
+                            Box::new(ConcreteType::Boolean),
+                        )))
+                    }
                     "and" | "or" => Some(TypeInfo::Concrete(ConcreteType::Function(
                         vec![ConcreteType::Boolean, ConcreteType::Boolean],
                         Box::new(ConcreteType::Boolean),
@@ -819,7 +897,7 @@ impl TypeAnalysis {
         let mut changed = true;
         while changed {
             changed = false;
-            
+
             for (node_id, node) in &graph.nodes {
                 if self.node_types.contains_key(node_id) {
                     continue;
@@ -828,18 +906,27 @@ impl TypeAnalysis {
                 match node {
                     Node::Application { function, args: _ } => {
                         // Try to infer result type from function type
-                        if let Some(TypeInfo::Concrete(ConcreteType::Function(_, result))) = 
-                            self.node_types.get(function) {
-                            self.node_types.insert(*node_id, TypeInfo::Concrete((**result).clone()));
+                        if let Some(TypeInfo::Concrete(ConcreteType::Function(_, result))) =
+                            self.node_types.get(function)
+                        {
+                            self.node_types
+                                .insert(*node_id, TypeInfo::Concrete((**result).clone()));
                             changed = true;
                         }
                     }
-                    Node::If { condition: _, then_branch, else_branch } => {
+                    Node::If {
+                        condition: _,
+                        then_branch,
+                        else_branch,
+                    } => {
                         // If both branches have the same type, the if expression has that type
-                        if let (Some(then_type), Some(else_type)) = 
-                            (self.node_types.get(then_branch), self.node_types.get(else_branch)) {
-                            if matches!((then_type, else_type), 
-                                       (TypeInfo::Concrete(t1), TypeInfo::Concrete(t2)) if t1 == t2) {
+                        if let (Some(then_type), Some(else_type)) = (
+                            self.node_types.get(then_branch),
+                            self.node_types.get(else_branch),
+                        ) {
+                            if matches!((then_type, else_type),
+                                       (TypeInfo::Concrete(t1), TypeInfo::Concrete(t2)) if t1 == t2)
+                            {
                                 self.node_types.insert(*node_id, then_type.clone());
                                 changed = true;
                             }

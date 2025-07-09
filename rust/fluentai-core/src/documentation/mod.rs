@@ -1,12 +1,15 @@
 //! Documentation system for FluentAi
 
-pub mod traits;
+pub mod builtins;
 pub mod impls;
 pub mod registry;
-pub mod builtins;
+pub mod traits;
 
 #[cfg(test)]
 mod tests;
 
-pub use traits::{Documentation, DocumentedNode, DocumentationCategory, DocumentationVisibility, OperatorDoc, KeywordDoc, BuiltinDoc, Associativity, UserFacingFeature};
 pub use registry::DocumentationRegistry;
+pub use traits::{
+    Associativity, BuiltinDoc, Documentation, DocumentationCategory, DocumentationVisibility,
+    DocumentedNode, KeywordDoc, OperatorDoc, UserFacingFeature,
+};

@@ -44,10 +44,10 @@ pub struct MemoryConfig {
 impl Default for MemoryConfig {
     fn default() -> Self {
         Self {
-            initial_heap_size: 1024 * 1024,     // 1MB
-            max_heap_size: 0,                   // Unlimited
-            stack_size: 65536,                  // 64K slots
-            gc_threshold: 0.8,                  // 80%
+            initial_heap_size: 1024 * 1024, // 1MB
+            max_heap_size: 0,               // Unlimited
+            stack_size: 65536,              // 64K slots
+            gc_threshold: 0.8,              // 80%
         }
     }
 }
@@ -180,7 +180,7 @@ impl RuntimeConfig {
         Self {
             execution_mode: ExecutionMode::default(),
             memory: MemoryConfig {
-                initial_heap_size: 16 * 1024 * 1024,  // 16MB
+                initial_heap_size: 16 * 1024 * 1024, // 16MB
                 ..Default::default()
             },
             ..Default::default()
@@ -195,7 +195,7 @@ impl RuntimeConfig {
                 allow_fs: false,
                 allow_network: false,
                 allow_process: false,
-                max_execution_time: 30000,  // 30 seconds
+                max_execution_time: 30000, // 30 seconds
             },
             ..Default::default()
         }

@@ -1,7 +1,7 @@
 //! Functional query DSL for FluentAi
 
-use fluentai_vm::Value;
 use crate::error::DbResult;
+use fluentai_vm::Value;
 
 /// Parameter value for safe query building
 #[derive(Debug, Clone)]
@@ -26,15 +26,9 @@ pub enum QueryExpr {
         right: Box<QueryExpr>,
     },
     /// Unary operation
-    UnaryOp {
-        op: UnaryOp,
-        expr: Box<QueryExpr>,
-    },
+    UnaryOp { op: UnaryOp, expr: Box<QueryExpr> },
     /// Function call
-    Function {
-        name: String,
-        args: Vec<QueryExpr>,
-    },
+    Function { name: String, args: Vec<QueryExpr> },
     /// Aggregate function
     Aggregate {
         func: AggregateFunc,
@@ -53,15 +47,27 @@ pub enum QueryExpr {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinOp {
     // Comparison
-    Eq, Ne, Lt, Le, Gt, Ge,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
     // Logical
-    And, Or,
+    And,
+    Or,
     // Arithmetic
-    Add, Sub, Mul, Div, Mod,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
     // String
-    Like, NotLike,
+    Like,
+    NotLike,
     // Set
-    In, NotIn,
+    In,
+    NotIn,
 }
 
 /// Unary operators
@@ -135,7 +141,7 @@ impl Query {
             offset: None,
         }
     }
-    
+
     /// Convert to parameterized SQL string
     pub fn to_parameterized_sql(&mut self) -> DbResult<(String, Vec<Value>)> {
         let mut builder = SqlBuilder::new();
@@ -155,11 +161,11 @@ impl SqlBuilder {
             parameters: Vec::new(),
         }
     }
-    
+
     /// Build SQL with parameter placeholders
     fn build_sql(&mut self, query: &Query) -> DbResult<String> {
         let mut sql = String::new();
-        
+
         // SELECT clause
         if query.select.is_empty() {
             sql.push_str("SELECT *");
@@ -176,13 +182,13 @@ impl SqlBuilder {
                 }
             }
         }
-        
+
         // FROM clause
         if let Some(from) = &query.from {
             sql.push_str(" FROM ");
             sql.push_str(&self.expr_to_sql(from)?);
         }
-        
+
         // JOIN clauses
         for (join_type, table, condition) in &query.joins {
             match join_type {
@@ -195,13 +201,13 @@ impl SqlBuilder {
             sql.push_str(" ON ");
             sql.push_str(&self.expr_to_sql(condition)?);
         }
-        
+
         // WHERE clause
         if let Some(where_clause) = &query.where_clause {
             sql.push_str(" WHERE ");
             sql.push_str(&self.expr_to_sql(where_clause)?);
         }
-        
+
         // GROUP BY clause
         if !query.group_by.is_empty() {
             sql.push_str(" GROUP BY ");
@@ -212,13 +218,13 @@ impl SqlBuilder {
                 sql.push_str(&self.expr_to_sql(expr)?);
             }
         }
-        
+
         // HAVING clause
         if let Some(having) = &query.having {
             sql.push_str(" HAVING ");
             sql.push_str(&self.expr_to_sql(having)?);
         }
-        
+
         // ORDER BY clause
         if !query.order_by.is_empty() {
             sql.push_str(" ORDER BY ");
@@ -233,20 +239,20 @@ impl SqlBuilder {
                 }
             }
         }
-        
+
         // LIMIT clause
         if let Some(limit) = query.limit {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
-        
+
         // OFFSET clause
         if let Some(offset) = query.offset {
             sql.push_str(&format!(" OFFSET {}", offset));
         }
-        
+
         Ok(sql)
     }
-    
+
     /// Convert expression to SQL with parameter placeholders
     fn expr_to_sql(&mut self, expr: &QueryExpr) -> DbResult<String> {
         match expr {
@@ -258,31 +264,31 @@ impl SqlBuilder {
                 // Could be adapted for specific databases ($1, $2 for Postgres, etc)
                 Ok("?".to_string())
             }
-            QueryExpr::BinOp { op, left, right } => {
-                Ok(format!(
-                    "({} {} {})",
-                    self.expr_to_sql(left)?,
-                    binop_to_sql(*op),
-                    self.expr_to_sql(right)?
-                ))
-            }
-            QueryExpr::UnaryOp { op, expr } => {
-                match op {
-                    UnaryOp::Not => Ok(format!("NOT ({})", self.expr_to_sql(expr)?)),
-                    UnaryOp::IsNull => Ok(format!("({} IS NULL)", self.expr_to_sql(expr)?)),
-                    UnaryOp::IsNotNull => Ok(format!("({} IS NOT NULL)", self.expr_to_sql(expr)?)),
-                }
-            }
+            QueryExpr::BinOp { op, left, right } => Ok(format!(
+                "({} {} {})",
+                self.expr_to_sql(left)?,
+                binop_to_sql(*op),
+                self.expr_to_sql(right)?
+            )),
+            QueryExpr::UnaryOp { op, expr } => match op {
+                UnaryOp::Not => Ok(format!("NOT ({})", self.expr_to_sql(expr)?)),
+                UnaryOp::IsNull => Ok(format!("({} IS NULL)", self.expr_to_sql(expr)?)),
+                UnaryOp::IsNotNull => Ok(format!("({} IS NOT NULL)", self.expr_to_sql(expr)?)),
+            },
             QueryExpr::Function { name, args } => {
-                let args_sql: Result<Vec<_>, _> = args.iter()
-                    .map(|arg| self.expr_to_sql(arg))
-                    .collect();
+                let args_sql: Result<Vec<_>, _> =
+                    args.iter().map(|arg| self.expr_to_sql(arg)).collect();
                 Ok(format!("{}({})", name, args_sql?.join(", ")))
             }
-            QueryExpr::Aggregate { func, expr } => {
-                Ok(format!("{}({})", aggregate_to_sql(*func), self.expr_to_sql(expr)?))
-            }
-            QueryExpr::Case { conditions, else_expr } => {
+            QueryExpr::Aggregate { func, expr } => Ok(format!(
+                "{}({})",
+                aggregate_to_sql(*func),
+                self.expr_to_sql(expr)?
+            )),
+            QueryExpr::Case {
+                conditions,
+                else_expr,
+            } => {
                 let mut sql = String::from("CASE");
                 for (cond, result) in conditions {
                     sql.push_str(&format!(
@@ -359,7 +365,7 @@ impl QueryBuilder {
             param_counter: 0,
         }
     }
-    
+
     pub fn next_param(&mut self, value: Value) -> QueryExpr {
         let param = Parameter {
             index: self.param_counter,
@@ -368,51 +374,55 @@ impl QueryBuilder {
         self.param_counter += 1;
         QueryExpr::Parameter(param)
     }
-    
+
     pub fn from(mut self, table: &str) -> Self {
         self.query.from = Some(QueryExpr::Table(table.to_string()));
         self
     }
-    
+
     pub fn select(mut self, columns: Vec<&str>) -> Self {
-        self.query.select = columns.into_iter()
+        self.query.select = columns
+            .into_iter()
             .map(|col| (QueryExpr::Column(col.to_string()), None))
             .collect();
         self
     }
-    
+
     pub fn select_expr(mut self, expr: QueryExpr, alias: Option<String>) -> Self {
         self.query.select.push((expr, alias));
         self
     }
-    
+
     pub fn where_clause(mut self, expr: QueryExpr) -> Self {
         self.query.where_clause = Some(expr);
         self
     }
-    
+
     pub fn group_by(mut self, columns: Vec<&str>) -> Self {
-        self.query.group_by = columns.into_iter()
+        self.query.group_by = columns
+            .into_iter()
             .map(|col| QueryExpr::Column(col.to_string()))
             .collect();
         self
     }
-    
+
     pub fn order_by(mut self, column: &str, dir: OrderDir) -> Self {
-        self.query.order_by.push((QueryExpr::Column(column.to_string()), dir));
+        self.query
+            .order_by
+            .push((QueryExpr::Column(column.to_string()), dir));
         self
     }
-    
+
     pub fn limit(mut self, limit: usize) -> Self {
         self.query.limit = Some(limit);
         self
     }
-    
+
     pub fn offset(mut self, offset: usize) -> Self {
         self.query.offset = Some(offset);
         self
     }
-    
+
     pub fn build(self) -> Query {
         self.query
     }
@@ -459,18 +469,22 @@ pub fn safe_user_query(age_threshold: i64, active: bool) -> Query {
     QueryBuilder::new()
         .from("users")
         .select(vec!["id", "name", "email"])
-        .where_clause(
-            and(
-                gt(col("age"), QueryExpr::Parameter(Parameter {
+        .where_clause(and(
+            gt(
+                col("age"),
+                QueryExpr::Parameter(Parameter {
                     index: 0,
                     value: Value::Integer(age_threshold),
-                })),
-                eq(col("active"), QueryExpr::Parameter(Parameter {
+                }),
+            ),
+            eq(
+                col("active"),
+                QueryExpr::Parameter(Parameter {
                     index: 1,
                     value: Value::Boolean(active),
-                }))
-            )
-        )
+                }),
+            ),
+        ))
         .order_by("created_at", OrderDir::Desc)
         .limit(100)
         .build()

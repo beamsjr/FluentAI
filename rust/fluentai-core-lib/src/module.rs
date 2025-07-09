@@ -1,7 +1,7 @@
 //! Module representation and management
 
-use fluentai_core::value::Value;
 use fluentai_core::ast::Graph as AstGraph;
+use fluentai_core::value::Value;
 use fluentai_vm::bytecode::Bytecode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -75,13 +75,13 @@ pub struct SourceMapping {
 pub trait Module: Send + Sync {
     /// Get module metadata
     fn metadata(&self) -> &ModuleMetadata;
-    
+
     /// Get exported value by name
     fn get_export(&self, name: &str) -> Option<&Value>;
-    
+
     /// Get all exports
     fn exports(&self) -> &HashMap<String, Value>;
-    
+
     /// Check if module exports a name
     fn has_export(&self, name: &str) -> bool {
         self.get_export(name).is_some()
@@ -92,11 +92,11 @@ impl Module for CompiledModule {
     fn metadata(&self) -> &ModuleMetadata {
         &self.metadata
     }
-    
+
     fn get_export(&self, name: &str) -> Option<&Value> {
         self.exports.get(name)
     }
-    
+
     fn exports(&self) -> &HashMap<String, Value> {
         &self.exports
     }
@@ -135,49 +135,51 @@ impl ModuleBuilder {
             path: None,
         }
     }
-    
+
     /// Set module version
     pub fn version(mut self, version: impl Into<String>) -> Self {
         self.metadata.version = Some(version.into());
         self
     }
-    
+
     /// Set module description
     pub fn description(mut self, desc: impl Into<String>) -> Self {
         self.metadata.description = Some(desc.into());
         self
     }
-    
+
     /// Add a dependency
     pub fn dependency(mut self, dep: impl Into<String>) -> Self {
         self.metadata.dependencies.push(dep.into());
         self
     }
-    
+
     /// Add multiple dependencies
     pub fn dependencies(mut self, deps: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        self.metadata.dependencies.extend(deps.into_iter().map(|d| d.into()));
+        self.metadata
+            .dependencies
+            .extend(deps.into_iter().map(|d| d.into()));
         self
     }
-    
+
     /// Set source code
     pub fn source(mut self, source: impl Into<String>) -> Self {
         self.source = Some(source.into());
         self
     }
-    
+
     /// Set source path
     pub fn path(mut self, path: impl Into<PathBuf>) -> Self {
         self.path = Some(path.into());
         self
     }
-    
+
     /// Build source module
     pub fn build_source(self) -> Result<SourceModule> {
-        let source = self.source.ok_or_else(|| {
-            RuntimeError::module("Module source is required")
-        })?;
-        
+        let source = self
+            .source
+            .ok_or_else(|| RuntimeError::module("Module source is required"))?;
+
         Ok(SourceModule {
             metadata: self.metadata,
             source,
@@ -193,24 +195,27 @@ pub fn resolve_module_path(name: &str, search_paths: &[PathBuf]) -> Option<PathB
     if path.exists() && path.is_file() {
         return Some(path.to_path_buf());
     }
-    
+
     // Convert module name to path (e.g., "foo/bar" -> "foo/bar.fl")
     let module_path = format!("{}.fl", name.replace('/', std::path::MAIN_SEPARATOR_STR));
-    
+
     // Search in search paths
     for search_path in search_paths {
         let full_path = search_path.join(&module_path);
         if full_path.exists() && full_path.is_file() {
             return Some(full_path);
         }
-        
+
         // Also try .ai extension
-        let ai_path = search_path.join(format!("{}.ai", name.replace('/', std::path::MAIN_SEPARATOR_STR)));
+        let ai_path = search_path.join(format!(
+            "{}.ai",
+            name.replace('/', std::path::MAIN_SEPARATOR_STR)
+        ));
         if ai_path.exists() && ai_path.is_file() {
             return Some(ai_path);
         }
     }
-    
+
     None
 }
 
@@ -224,14 +229,14 @@ pub fn load_module_source(path: &Path) -> Result<String> {
 pub fn parse_module_metadata(source: &str) -> Result<ModuleMetadata> {
     // This is a simplified version - in a real implementation,
     // we'd parse module declarations from the source
-    
+
     // Look for module declaration comments
     let mut name = None;
     let mut version = None;
     let mut description = None;
     let mut dependencies = Vec::new();
     let mut exports = Vec::new();
-    
+
     for line in source.lines() {
         let line = line.trim();
         if line.starts_with(";; @module") {
@@ -256,9 +261,9 @@ pub fn parse_module_metadata(source: &str) -> Result<ModuleMetadata> {
             }
         }
     }
-    
+
     let name = name.ok_or_else(|| RuntimeError::module("Module name not found"))?;
-    
+
     Ok(ModuleMetadata {
         name,
         version,
@@ -271,7 +276,7 @@ pub fn parse_module_metadata(source: &str) -> Result<ModuleMetadata> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_module_builder() {
         let module = ModuleBuilder::new("test")
@@ -281,13 +286,13 @@ mod tests {
             .source("(define x 42)")
             .build_source()
             .unwrap();
-        
+
         assert_eq!(module.metadata.name, "test");
         assert_eq!(module.metadata.version.as_deref(), Some("1.0.0"));
         assert_eq!(module.metadata.dependencies, vec!["core"]);
         assert_eq!(module.source, "(define x 42)");
     }
-    
+
     #[test]
     fn test_parse_module_metadata() {
         let source = r#"
@@ -301,7 +306,7 @@ mod tests {
 (define add (lambda (a b) (+ a b)))
 (define multiply (lambda (a b) (* a b)))
 "#;
-        
+
         let metadata = parse_module_metadata(source).unwrap();
         assert_eq!(metadata.name, "math");
         assert_eq!(metadata.version.as_deref(), Some("1.0.0"));

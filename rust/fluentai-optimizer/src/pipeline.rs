@@ -1,11 +1,11 @@
 //! Optimization pipeline management
 
-use fluentai_core::ast::Graph;
-use anyhow::Result;
-use crate::stats::OptimizationStats;
-use crate::passes::OptimizationPass;
-use crate::graph_optimizer::GraphOptimizer;
 use crate::advanced_optimizer::AdvancedOptimizer;
+use crate::graph_optimizer::GraphOptimizer;
+use crate::passes::OptimizationPass;
+use crate::stats::OptimizationStats;
+use anyhow::Result;
+use fluentai_core::ast::Graph;
 use std::time::Instant;
 
 /// Optimization level
@@ -138,7 +138,7 @@ impl OptimizationPipeline {
 
         // Add passes based on configuration
         pipeline.configure_passes();
-        
+
         pipeline
     }
 
@@ -149,40 +149,52 @@ impl OptimizationPipeline {
         self.passes.clear();
 
         if self.config.constant_folding {
-            self.passes.push(Box::new(constant_folding::ConstantFoldingPass::new()));
+            self.passes
+                .push(Box::new(constant_folding::ConstantFoldingPass::new()));
         }
 
         if self.config.dead_code_elimination {
-            self.passes.push(Box::new(dead_code::DeadCodeEliminationPass::new()));
+            self.passes
+                .push(Box::new(dead_code::DeadCodeEliminationPass::new()));
         }
 
         if self.config.cse {
-            self.passes.push(Box::new(cse::CommonSubexpressionEliminationPass::new()));
+            self.passes
+                .push(Box::new(cse::CommonSubexpressionEliminationPass::new()));
         }
 
         if self.config.inline {
-            self.passes.push(Box::new(inline::InlinePass::new(self.config.inline_threshold)));
+            self.passes.push(Box::new(inline::InlinePass::new(
+                self.config.inline_threshold,
+            )));
         }
 
         if self.config.tail_call_optimization {
-            self.passes.push(Box::new(tail_call::TailCallOptimizationPass::new()));
+            self.passes
+                .push(Box::new(tail_call::TailCallOptimizationPass::new()));
         }
 
         if self.config.loop_optimization {
-            self.passes.push(Box::new(loop_opts::LoopOptimizationPass::new()));
+            self.passes
+                .push(Box::new(loop_opts::LoopOptimizationPass::new()));
         }
 
         if self.config.beta_reduction {
-            self.passes.push(Box::new(beta_reduction::BetaReductionPass::new()));
+            self.passes
+                .push(Box::new(beta_reduction::BetaReductionPass::new()));
         }
 
         if self.config.partial_evaluation {
-            self.passes.push(Box::new(partial_eval::PartialEvaluationPass::new()));
+            self.passes
+                .push(Box::new(partial_eval::PartialEvaluationPass::new()));
         }
 
         // Add effect-aware optimization for Standard and Aggressive levels
-        if self.config.level == OptimizationLevel::Standard || self.config.level == OptimizationLevel::Aggressive {
-            self.passes.push(Box::new(effect_aware::EffectAwarePass::new()));
+        if self.config.level == OptimizationLevel::Standard
+            || self.config.level == OptimizationLevel::Aggressive
+        {
+            self.passes
+                .push(Box::new(effect_aware::EffectAwarePass::new()));
         }
     }
 
@@ -221,8 +233,8 @@ impl OptimizationPipeline {
             }
             OptimizationLevel::Standard | OptimizationLevel::Aggressive => {
                 // Use advanced optimizer
-                let mut optimizer = AdvancedOptimizer::new()
-                    .with_inline_threshold(self.config.inline_threshold);
+                let mut optimizer =
+                    AdvancedOptimizer::new().with_inline_threshold(self.config.inline_threshold);
                 optimized = optimizer.optimize(&optimized)?;
                 self.stats.merge(&optimizer.stats());
 
@@ -233,7 +245,7 @@ impl OptimizationPipeline {
                 // if self.config.level == OptimizationLevel::Aggressive {
                 //     for _iteration in 0..self.config.max_iterations {
                 //         let before = optimized.nodes.len();
-                //         
+                //
                 //         // Run individual passes
                 //         for pass in &mut self.passes {
                 //             if pass.is_applicable(&optimized) {
@@ -242,7 +254,7 @@ impl OptimizationPipeline {
                 //         }
                 //
                 //         let after = optimized.nodes.len();
-                //         
+                //
                 //         // Stop if no changes
                 //         if before == after {
                 //             break;
@@ -262,10 +274,9 @@ impl OptimizationPipeline {
     pub fn stats(&self) -> &OptimizationStats {
         &self.stats
     }
-    
+
     /// Merge stats from a pass stats string
     fn merge_pass_stats_str(&mut self, stats_str: &str) {
-        
         // Look for specific patterns in the stats string
         if stats_str.contains("Dead Code Elimination") {
             // Extract eliminated count from "Dead Code Elimination pass: N nodes eliminated"

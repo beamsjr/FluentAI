@@ -1,7 +1,7 @@
 //! Tests for effect handler functionality
 
 use fluentai_parser::parse;
-use fluentai_vm::{Compiler, VM, Value};
+use fluentai_vm::{Compiler, Value, VM};
 
 #[test]
 fn test_handler_parsing_and_compilation() {
@@ -11,16 +11,18 @@ fn test_handler_parsing_and_compilation() {
             ((error (lambda (err) "default")))
             (+ 1 2))
     "#;
-    
+
     let graph = parse(code).expect("Should parse handler syntax");
-    let bytecode = Compiler::new().compile(&graph).expect("Should compile handler");
-    
+    let bytecode = Compiler::new()
+        .compile(&graph)
+        .expect("Should compile handler");
+
     let mut vm = VM::new(bytecode);
     let result = vm.run().expect("Should execute handler");
-    
+
     // The body should execute normally
     match result {
-        Value::Integer(3) => {}, // Expected
+        Value::Integer(3) => {} // Expected
         _ => panic!("Expected 3, got {:?}", result),
     }
 }
@@ -34,16 +36,18 @@ fn test_handler_without_actual_effects() {
             ((io (lambda (op) "intercepted")))
             (+ 10 20))
     "#;
-    
+
     let graph = parse(code).expect("Should parse handler");
-    let bytecode = Compiler::new().compile(&graph).expect("Should compile handler");
-    
+    let bytecode = Compiler::new()
+        .compile(&graph)
+        .expect("Should compile handler");
+
     let mut vm = VM::new(bytecode);
     let result = vm.run().expect("Should execute handler");
-    
+
     // The body should execute normally even with handler installed
     match result {
-        Value::Integer(30) => {}, // Expected
+        Value::Integer(30) => {} // Expected
         _ => panic!("Expected 30, got {:?}", result),
     }
 }
@@ -58,16 +62,18 @@ fn test_nested_handlers() {
                 ((error (lambda (e) "inner")))
                 42))
     "#;
-    
+
     let graph = parse(code).expect("Should parse nested handlers");
-    let bytecode = Compiler::new().compile(&graph).expect("Should compile nested handlers");
-    
+    let bytecode = Compiler::new()
+        .compile(&graph)
+        .expect("Should compile nested handlers");
+
     let mut vm = VM::new(bytecode);
     let result = vm.run().expect("Should execute nested handlers");
-    
+
     // Body should return 42
     match result {
-        Value::Integer(42) => {}, // Expected
+        Value::Integer(42) => {} // Expected
         _ => panic!("Expected 42, got {:?}", result),
     }
 }

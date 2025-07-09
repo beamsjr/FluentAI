@@ -8,23 +8,18 @@ fn test_iot_demo_parses() {
     let test_cases = vec![
         // Basic function call
         r#"(make-tagged "sensor-reading" "temp-001" 1000 25.5)"#,
-        
         // Function definition with define
         r#"(define process-stream (lambda (data) data))"#,
-        
         // Let bindings
         r#"(let ((x 1) (y 2)) (+ x y))"#,
-        
         // Lambda expression
         r#"(lambda (acc reading) acc)"#,
-        
         // If expression
         r#"(if (> temp 40) "hot" "normal")"#,
-        
         // Nested function calls
         r#"(fold-left (lambda (acc x) (+ acc x)) 0 numbers)"#,
     ];
-    
+
     for (i, code) in test_cases.iter().enumerate() {
         match parse(code) {
             Ok(ast) => {
@@ -54,12 +49,12 @@ fn test_iot_demo_full_module() {
   (lambda (readings)
     (map enrich-reading readings)))
 "#;
-    
+
     match parse(code) {
         Ok(ast) => {
             println!("Code parsed successfully");
             println!("AST has {} nodes", ast.nodes.len());
-            
+
             // Check that it parsed successfully
             if let Some(root_id) = ast.root_id {
                 if ast.nodes.get(&root_id).is_some() {
@@ -88,11 +83,14 @@ fn test_sensor_data_operations() {
 ;; Count anomalies
 (length anomalies)
 "#;
-    
+
     match parse(code) {
         Ok(ast) => {
             println!("Sensor operations parsed successfully");
-            assert!(ast.nodes.len() >= 3, "Should have at least 3 top-level expressions");
+            assert!(
+                ast.nodes.len() >= 3,
+                "Should have at least 3 top-level expressions"
+            );
         }
         Err(e) => {
             panic!("Failed to parse sensor operations: {}", e);

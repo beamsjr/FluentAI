@@ -1,11 +1,11 @@
 //! High-performance channel implementation using lock-free queues
 
 use crate::concurrent::{BoundedQueue, LockFreeQueue};
-use fluentai_core::value::Value;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use parking_lot::{Mutex, Condvar};
 use anyhow::{anyhow, Result};
+use fluentai_core::value::Value;
+use parking_lot::{Condvar, Mutex};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 
 /// Channel mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,10 +88,10 @@ impl FastChannel {
                 closed: Arc::new(AtomicBool::new(false)),
             }),
         };
-        
+
         Self { _mode: mode, inner }
     }
-    
+
     /// Send a value on the channel
     pub fn send(&self, value: Value) -> Result<()> {
         match &self.inner {
@@ -100,7 +100,7 @@ impl FastChannel {
             ChannelInner::Unbounded(ch) => ch.send(value),
         }
     }
-    
+
     /// Try to send without blocking
     pub fn try_send(&self, value: Value) -> Result<()> {
         match &self.inner {
@@ -109,7 +109,7 @@ impl FastChannel {
             ChannelInner::Unbounded(ch) => ch.send(value), // Always succeeds
         }
     }
-    
+
     /// Receive a value from the channel
     pub fn recv(&self) -> Result<Value> {
         match &self.inner {
@@ -118,7 +118,7 @@ impl FastChannel {
             ChannelInner::Unbounded(ch) => ch.recv(),
         }
     }
-    
+
     /// Try to receive without blocking
     pub fn try_recv(&self) -> Result<Option<Value>> {
         match &self.inner {
@@ -127,7 +127,7 @@ impl FastChannel {
             ChannelInner::Unbounded(ch) => ch.try_recv(),
         }
     }
-    
+
     /// Close the channel
     pub fn close(&self) {
         match &self.inner {
@@ -136,7 +136,7 @@ impl FastChannel {
             ChannelInner::Unbounded(ch) => ch.close(),
         }
     }
-    
+
     /// Check if channel is closed
     pub fn is_closed(&self) -> bool {
         match &self.inner {
@@ -152,46 +152,46 @@ impl SyncChannel {
         if self.closed.load(Ordering::Acquire) {
             return Err(anyhow!("Channel closed"));
         }
-        
+
         let mut slot = self.value.lock();
-        
+
         // Wait for receiver to be ready
         while slot.is_some() && !self.closed.load(Ordering::Acquire) {
             self.has_receiver.wait(&mut slot);
         }
-        
+
         if self.closed.load(Ordering::Acquire) {
             return Err(anyhow!("Channel closed"));
         }
-        
+
         *slot = Some(value);
         self.has_sender.notify_one();
         Ok(())
     }
-    
+
     fn try_send(&self, value: Value) -> Result<()> {
         if self.closed.load(Ordering::Acquire) {
             return Err(anyhow!("Channel closed"));
         }
-        
+
         let mut slot = self.value.lock();
         if slot.is_some() {
             return Err(anyhow!("Channel full"));
         }
-        
+
         *slot = Some(value);
         self.has_sender.notify_one();
         Ok(())
     }
-    
+
     fn recv(&self) -> Result<Value> {
         let mut slot = self.value.lock();
-        
+
         // Wait for sender to provide value
         while slot.is_none() && !self.closed.load(Ordering::Acquire) {
             self.has_sender.wait(&mut slot);
         }
-        
+
         match slot.take() {
             Some(value) => {
                 self.has_receiver.notify_one();
@@ -200,7 +200,7 @@ impl SyncChannel {
             None => Err(anyhow!("Channel closed")),
         }
     }
-    
+
     fn try_recv(&self) -> Result<Option<Value>> {
         let mut slot = self.value.lock();
         match slot.take() {
@@ -217,7 +217,7 @@ impl SyncChannel {
             }
         }
     }
-    
+
     fn close(&self) {
         self.closed.store(true, Ordering::Release);
         self.has_sender.notify_all();
@@ -231,12 +231,12 @@ impl BufferedChannel {
             if self.closed.load(Ordering::Acquire) {
                 return Err(anyhow!("Channel closed"));
             }
-            
+
             if self.queue.try_push(value.clone()) {
                 self.not_empty.notify_one();
                 return Ok(());
             }
-            
+
             // Queue is full, wait
             let mut guard = self.mutex.lock();
             if self.queue.is_full() && !self.closed.load(Ordering::Acquire) {
@@ -244,12 +244,12 @@ impl BufferedChannel {
             }
         }
     }
-    
+
     fn try_send(&self, value: Value) -> Result<()> {
         if self.closed.load(Ordering::Acquire) {
             return Err(anyhow!("Channel closed"));
         }
-        
+
         if self.queue.try_push(value) {
             self.not_empty.notify_one();
             Ok(())
@@ -257,18 +257,18 @@ impl BufferedChannel {
             Err(anyhow!("Channel full"))
         }
     }
-    
+
     fn recv(&self) -> Result<Value> {
         loop {
             if let Some(value) = self.queue.try_pop() {
                 self.not_full.notify_one();
                 return Ok(value);
             }
-            
+
             if self.closed.load(Ordering::Acquire) && self.queue.is_empty() {
                 return Err(anyhow!("Channel closed"));
             }
-            
+
             // Queue is empty, wait
             let mut guard = self.mutex.lock();
             if self.queue.is_empty() && !self.closed.load(Ordering::Acquire) {
@@ -276,7 +276,7 @@ impl BufferedChannel {
             }
         }
     }
-    
+
     fn try_recv(&self) -> Result<Option<Value>> {
         if let Some(value) = self.queue.try_pop() {
             self.not_full.notify_one();
@@ -287,7 +287,7 @@ impl BufferedChannel {
             Ok(None)
         }
     }
-    
+
     fn close(&self) {
         self.closed.store(true, Ordering::Release);
         self.not_empty.notify_all();
@@ -300,26 +300,26 @@ impl UnboundedChannel {
         if self.closed.load(Ordering::Acquire) {
             return Err(anyhow!("Channel closed"));
         }
-        
+
         self.queue.enqueue(value);
         Ok(())
     }
-    
+
     fn recv(&self) -> Result<Value> {
         // Spin-wait for unbounded channel (could be improved with parking)
         loop {
             if let Some(value) = self.queue.dequeue() {
                 return Ok(value);
             }
-            
+
             if self.closed.load(Ordering::Acquire) && self.queue.is_empty() {
                 return Err(anyhow!("Channel closed"));
             }
-            
+
             std::hint::spin_loop();
         }
     }
-    
+
     fn try_recv(&self) -> Result<Option<Value>> {
         if let Some(value) = self.queue.dequeue() {
             Ok(Some(value))
@@ -329,7 +329,7 @@ impl UnboundedChannel {
             Ok(None)
         }
     }
-    
+
     fn close(&self) {
         self.closed.store(true, Ordering::Release);
     }
@@ -344,7 +344,7 @@ impl Sender {
     pub fn send(&self, value: Value) -> Result<()> {
         self.channel.send(value)
     }
-    
+
     pub fn try_send(&self, value: Value) -> Result<()> {
         self.channel.try_send(value)
     }
@@ -362,7 +362,9 @@ impl Clone for Sender {
             }
             _ => {}
         }
-        Self { channel: self.channel.clone() }
+        Self {
+            channel: self.channel.clone(),
+        }
     }
 }
 
@@ -394,7 +396,7 @@ impl Receiver {
     pub fn recv(&self) -> Result<Value> {
         self.channel.recv()
     }
-    
+
     pub fn try_recv(&self) -> Result<Option<Value>> {
         self.channel.try_recv()
     }
@@ -404,7 +406,9 @@ impl Receiver {
 pub fn channel(mode: ChannelMode) -> (Sender, Receiver) {
     let channel = Arc::new(FastChannel::new(mode));
     (
-        Sender { channel: channel.clone() },
+        Sender {
+            channel: channel.clone(),
+        },
         Receiver { channel },
     )
 }
@@ -413,45 +417,45 @@ pub fn channel(mode: ChannelMode) -> (Sender, Receiver) {
 mod tests {
     use super::*;
     use std::thread;
-    
+
     #[test]
     fn test_sync_channel() {
         let (tx, rx) = channel(ChannelMode::Sync);
-        
+
         thread::spawn(move || {
             tx.send(Value::Integer(42)).unwrap();
         });
-        
+
         assert_eq!(rx.recv().unwrap(), Value::Integer(42));
     }
-    
+
     #[test]
     fn test_buffered_channel() {
         let (tx, rx) = channel(ChannelMode::Buffered(4));
-        
+
         // Fill buffer
         for i in 0..4 {
             tx.send(Value::Integer(i)).unwrap();
         }
-        
+
         // Should block on 5th
         assert!(tx.try_send(Value::Integer(5)).is_err());
-        
+
         // Receive all
         for i in 0..4 {
             assert_eq!(rx.recv().unwrap(), Value::Integer(i));
         }
     }
-    
+
     #[test]
     fn test_unbounded_channel() {
         let (tx, rx) = channel(ChannelMode::Unbounded);
-        
+
         // Send many values
         for i in 0..1000 {
             tx.send(Value::Integer(i)).unwrap();
         }
-        
+
         // Receive all
         for i in 0..1000 {
             assert_eq!(rx.recv().unwrap(), Value::Integer(i));

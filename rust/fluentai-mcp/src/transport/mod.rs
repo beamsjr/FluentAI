@@ -3,15 +3,15 @@
 //! This module provides a common interface for different transport mechanisms
 //! (stdio, HTTP/SSE) to support the Model Context Protocol.
 
+use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use anyhow::Result;
 
-pub mod stdio;
 pub mod http;
+pub mod stdio;
 #[cfg(test)]
 pub mod test;
 
@@ -66,19 +66,19 @@ pub trait RequestHandler: Send + Sync + 'static {
 pub trait Transport: Send + Sync + 'static {
     /// Start the transport and begin listening for requests
     async fn start(&mut self, handler: Arc<dyn RequestHandler>) -> Result<()>;
-    
+
     /// Send a response back to the client
     async fn send_response(&self, response: JsonRpcResponse) -> Result<()>;
-    
+
     /// Send a notification to the client
     async fn send_notification(&self, notification: JsonRpcNotification) -> Result<()>;
-    
+
     /// Receive the next request from the client
     async fn receive_request(&mut self) -> Result<Option<JsonRpcRequest>>;
-    
+
     /// Check if the transport is still connected
     fn is_connected(&self) -> bool;
-    
+
     /// Gracefully shutdown the transport
     async fn shutdown(&mut self) -> Result<()>;
 }

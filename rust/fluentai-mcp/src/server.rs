@@ -8,11 +8,14 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info};
 
 use fluentai_core::documentation::DocumentationRegistry;
-use fluentai_vm::{VM, Bytecode};
 use fluentai_stdlib::StdlibRegistry;
+use fluentai_vm::{Bytecode, VM};
 
-use crate::handlers::{handle_eval, handle_search_docs, handle_get_syntax, handle_list_features, handle_reset_interpreter};
-use crate::transport::{Transport, JsonRpcRequest, JsonRpcResponse, JsonRpcError};
+use crate::handlers::{
+    handle_eval, handle_get_syntax, handle_list_features, handle_reset_interpreter,
+    handle_search_docs,
+};
+use crate::transport::{JsonRpcError, JsonRpcRequest, JsonRpcResponse, Transport};
 
 /// MCP Server state
 pub struct ServerState {
@@ -36,12 +39,14 @@ pub struct McpRequestHandler {
 
 #[async_trait::async_trait]
 impl crate::transport::RequestHandler for McpRequestHandler {
-    async fn handle_request(&self, request: crate::transport::JsonRpcRequest) -> crate::transport::JsonRpcResponse {
+    async fn handle_request(
+        &self,
+        request: crate::transport::JsonRpcRequest,
+    ) -> crate::transport::JsonRpcResponse {
         // Call the static handler function directly without creating a server instance
         handle_request_static(&self.state, request).await
     }
 }
-
 
 #[derive(Debug, Serialize)]
 struct Tool {
@@ -78,7 +83,7 @@ impl McpServer {
             state: self.state.clone(),
         };
         let handler = Arc::new(handler) as Arc<dyn crate::transport::RequestHandler>;
-        
+
         self.transport.start(handler).await?;
         info!("MCP Server started");
 
@@ -111,7 +116,10 @@ impl McpServer {
 }
 
 /// Static handler function that doesn't require a full server instance
-async fn handle_request_static(state: &Arc<Mutex<ServerState>>, request: JsonRpcRequest) -> JsonRpcResponse {
+async fn handle_request_static(
+    state: &Arc<Mutex<ServerState>>,
+    request: JsonRpcRequest,
+) -> JsonRpcResponse {
     let result = match request.method.as_str() {
         "initialize" => handle_initialize_static().await,
         "initialized" => Ok(json!({})),
@@ -139,7 +147,6 @@ async fn handle_request_static(state: &Arc<Mutex<ServerState>>, request: JsonRpc
         },
     }
 }
-
 
 // Static handler functions
 
@@ -221,9 +228,13 @@ async fn handle_list_tools_static(_state: &Arc<Mutex<ServerState>>) -> Result<Js
     Ok(json!({ "tools": tools }))
 }
 
-async fn handle_tool_call_static(state: &Arc<Mutex<ServerState>>, params: Option<JsonValue>) -> Result<JsonValue> {
+async fn handle_tool_call_static(
+    state: &Arc<Mutex<ServerState>>,
+    params: Option<JsonValue>,
+) -> Result<JsonValue> {
     let params = params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
-    let tool_name = params.get("name")
+    let tool_name = params
+        .get("name")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow::anyhow!("Missing tool name"))?;
     let arguments = params.get("arguments");

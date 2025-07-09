@@ -1,7 +1,7 @@
 //! Debug stack overflow issue
 
-use fluentai_optimizer::{OptimizationPipeline, OptimizationConfig};
 use fluentai_optimizer::pipeline::OptimizationLevel;
+use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline};
 use fluentai_parser::parse;
 
 fn main() {
@@ -11,11 +11,11 @@ fn main() {
                 (+ x y)
                 (error "unreachable")))
     "#;
-    
+
     println!("Parsing code...");
     let graph = parse(code).unwrap();
     println!("Graph has {} nodes", graph.nodes.len());
-    
+
     // First try with AdvancedOptimizer directly
     println!("\nTrying AdvancedOptimizer directly...");
     let mut adv_opt = fluentai_optimizer::AdvancedOptimizer::new();
@@ -27,11 +27,11 @@ fn main() {
             println!("AdvancedOptimizer failed: {}", e);
         }
     }
-    
+
     println!("\nTrying Aggressive optimization pipeline...");
     let config = OptimizationConfig::for_level(OptimizationLevel::Aggressive);
     let mut pipeline = OptimizationPipeline::new(config);
-    
+
     println!("Starting optimization...");
     match pipeline.optimize(&graph) {
         Ok(optimized) => {

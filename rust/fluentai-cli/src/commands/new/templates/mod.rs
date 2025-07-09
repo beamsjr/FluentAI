@@ -17,21 +17,21 @@ pub mod worker;
 pub trait Template {
     /// Get the template name
     fn name(&self) -> &'static str;
-    
+
     /// Get the template description
     fn description(&self) -> &'static str;
-    
+
     /// Get template aliases (alternative names)
     fn aliases(&self) -> Vec<&'static str> {
         vec![]
     }
-    
+
     /// Get template category
     fn category(&self) -> TemplateCategory;
-    
+
     /// Create a new project from this template
     fn create(&self, path: &Path, name: &str, options: &TemplateOptions) -> Result<()>;
-    
+
     /// Get available options for this template
     fn options(&self) -> Vec<TemplateOption> {
         vec![]
@@ -101,30 +101,34 @@ impl TemplateRegistry {
             Box::new(cli::CliTemplate),
             Box::new(worker::WorkerTemplate),
         ];
-        
+
         Self { templates }
     }
-    
+
     /// Find a template by name or alias
     pub fn find(&self, name: &str) -> Option<&dyn Template> {
         let name_lower = name.to_lowercase();
-        
-        self.templates.iter()
+
+        self.templates
+            .iter()
             .find(|t| {
-                t.name().to_lowercase() == name_lower ||
-                t.aliases().iter().any(|alias| alias.to_lowercase() == name_lower)
+                t.name().to_lowercase() == name_lower
+                    || t.aliases()
+                        .iter()
+                        .any(|alias| alias.to_lowercase() == name_lower)
             })
             .map(|t| t.as_ref())
     }
-    
+
     /// Get all templates
     pub fn all(&self) -> &[Box<dyn Template>] {
         &self.templates
     }
-    
+
     /// Get templates by category
     pub fn by_category(&self, category: TemplateCategory) -> Vec<&dyn Template> {
-        self.templates.iter()
+        self.templates
+            .iter()
             .filter(|t| t.category() == category)
             .map(|t| t.as_ref())
             .collect()
@@ -135,7 +139,7 @@ impl TemplateRegistry {
 pub mod helpers {
     use super::*;
     use std::fs;
-    
+
     /// Create a project file (.aiproj)
     pub fn create_project_file(
         path: &Path,
@@ -152,7 +156,7 @@ pub mod helpers {
   </PropertyGroup>"#,
             output_type, name
         );
-        
+
         if !packages.is_empty() {
             content.push_str("\n  \n  <ItemGroup>");
             for (package, version) in packages {
@@ -163,13 +167,13 @@ pub mod helpers {
             }
             content.push_str("\n  </ItemGroup>");
         }
-        
+
         content.push_str("\n</Project>\n");
-        
+
         fs::write(path.join(format!("{}.aiproj", name)), content)?;
         Ok(())
     }
-    
+
     /// Create a gitignore file
     pub fn create_gitignore(path: &Path) -> Result<()> {
         let content = r#"# FluentAI
@@ -209,7 +213,7 @@ build/
         fs::write(path.join(".gitignore"), content)?;
         Ok(())
     }
-    
+
     /// Create a README file
     pub fn create_readme(path: &Path, name: &str, description: &str) -> Result<()> {
         let content = format!(
@@ -267,11 +271,11 @@ This project is licensed under the MIT License.
 "#,
             name, description
         );
-        
+
         fs::write(path.join("README.md"), content)?;
         Ok(())
     }
-    
+
     /// Create standard directory structure
     pub fn create_directories(path: &Path, dirs: &[&str]) -> Result<()> {
         for dir in dirs {

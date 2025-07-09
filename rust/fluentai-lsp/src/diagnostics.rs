@@ -4,24 +4,24 @@ use fluentai_core::ast::{Graph, Node, NodeId};
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 
 /// Compute diagnostics for an AST
-/// 
+///
 /// This function runs in <1ms for typical files to ensure
 /// real-time error feedback in the IDE.
 pub fn compute_diagnostics(ast: &Graph, _content: &str) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
-    
+
     // Check for common issues
     if let Some(root_id) = ast.root_id {
         check_node(&ast, root_id, &mut diagnostics);
     }
-    
+
     // TODO: Add more sophisticated checks:
     // - Type checking
     // - Effect analysis
     // - Contract verification
     // - Unused variables
     // - Unreachable code
-    
+
     diagnostics
 }
 
@@ -33,8 +33,14 @@ fn check_node(graph: &Graph, node_id: NodeId, diagnostics: &mut Vec<Diagnostic>)
                 if is_undefined_variable(name) {
                     diagnostics.push(Diagnostic {
                         range: Range {
-                            start: Position { line: 0, character: 0 },
-                            end: Position { line: 0, character: 0 },
+                            start: Position {
+                                line: 0,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: 0,
+                                character: 0,
+                            },
                         },
                         severity: Some(DiagnosticSeverity::ERROR),
                         message: format!("Undefined variable: {}", name),
@@ -55,8 +61,14 @@ fn check_node(graph: &Graph, node_id: NodeId, diagnostics: &mut Vec<Diagnostic>)
                     if !seen.insert(param) {
                         diagnostics.push(Diagnostic {
                             range: Range {
-                                start: Position { line: 0, character: 0 },
-                                end: Position { line: 0, character: 0 },
+                                start: Position {
+                                    line: 0,
+                                    character: 0,
+                                },
+                                end: Position {
+                                    line: 0,
+                                    character: 0,
+                                },
                             },
                             severity: Some(DiagnosticSeverity::ERROR),
                             message: format!("Duplicate parameter: {}", param),
@@ -73,7 +85,11 @@ fn check_node(graph: &Graph, node_id: NodeId, diagnostics: &mut Vec<Diagnostic>)
                 }
                 check_node(graph, *body, diagnostics);
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 check_node(graph, *condition, diagnostics);
                 check_node(graph, *then_branch, diagnostics);
                 check_node(graph, *else_branch, diagnostics);
@@ -90,13 +106,33 @@ fn check_node(graph: &Graph, node_id: NodeId, diagnostics: &mut Vec<Diagnostic>)
 
 fn is_undefined_variable(name: &str) -> bool {
     // Built-in functions and special forms are always defined
-    !matches!(name, 
-        "+" | "-" | "*" | "/" | "%" |
-        "=" | "==" | "!=" | "<>" | "<" | "<=" | ">" | ">=" |
-        "and" | "or" | "not" |
-        "cons" | "list-len" | "list-empty?" |
-        "str-len" | "str-concat" | "str-upper" | "str-lower" |
-        "lambda" | "let" | "if"
+    !matches!(
+        name,
+        "+" | "-"
+            | "*"
+            | "/"
+            | "%"
+            | "="
+            | "=="
+            | "!="
+            | "<>"
+            | "<"
+            | "<="
+            | ">"
+            | ">="
+            | "and"
+            | "or"
+            | "not"
+            | "cons"
+            | "list-len"
+            | "list-empty?"
+            | "str-len"
+            | "str-concat"
+            | "str-upper"
+            | "str-lower"
+            | "lambda"
+            | "let"
+            | "if"
     ) && !name.starts_with("__builtin__")
 }
 
@@ -104,7 +140,7 @@ fn is_undefined_variable(name: &str) -> bool {
 mod tests {
     use super::*;
     use fluentai_parser::parse;
-    
+
     #[test]
     fn test_no_diagnostics_for_valid_code() {
         let code = "(+ 1 2)";
@@ -112,7 +148,7 @@ mod tests {
         let diagnostics = compute_diagnostics(&ast, code);
         assert!(diagnostics.is_empty());
     }
-    
+
     #[test]
     fn test_undefined_variable_diagnostic() {
         let code = "undefined_var";

@@ -1,6 +1,6 @@
 //! RESTful API template
 
-use super::{Template, TemplateCategory, TemplateOptions, TemplateOption, helpers};
+use super::{helpers, Template, TemplateCategory, TemplateOption, TemplateOptions};
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -11,19 +11,19 @@ impl Template for ApiTemplate {
     fn name(&self) -> &'static str {
         "api"
     }
-    
+
     fn description(&self) -> &'static str {
         "RESTful API with authentication, database, and OpenAPI documentation"
     }
-    
+
     fn aliases(&self) -> Vec<&'static str> {
         vec!["rest", "restful"]
     }
-    
+
     fn category(&self) -> TemplateCategory {
         TemplateCategory::Service
     }
-    
+
     fn options(&self) -> Vec<TemplateOption> {
         vec![
             TemplateOption {
@@ -40,11 +40,11 @@ impl Template for ApiTemplate {
             },
         ]
     }
-    
+
     fn create(&self, path: &Path, name: &str, options: &TemplateOptions) -> Result<()> {
         let auth_type = options.auth.as_deref().unwrap_or("jwt");
         let db_type = options.database.as_deref().unwrap_or("postgres");
-        
+
         // Create project file
         let mut packages = vec![
             ("FluentAI.Http", "1.0.0"),
@@ -52,17 +52,17 @@ impl Template for ApiTemplate {
             ("FluentAI.Validation", "1.0.0"),
             ("FluentAI.OpenAPI", "1.0.0"),
         ];
-        
+
         if auth_type != "none" {
             packages.push(("FluentAI.Auth", "1.0.0"));
         }
-        
+
         if db_type != "none" {
             packages.push(("FluentAI.Database", "1.0.0"));
         }
-        
+
         helpers::create_project_file(path, name, "Exe", &packages)?;
-        
+
         // Create main program
         let program_content = format!(
             r#";; {} API
@@ -118,27 +118,38 @@ impl Template for ApiTemplate {
   (main (command-line-args)))
 "#,
             name,
-            if db_type != "none" { "(db/connect)" } else { ";; No database" },
+            if db_type != "none" {
+                "(db/connect)"
+            } else {
+                ";; No database"
+            },
             name,
-            if auth_type != "none" { "(http/use app (middleware/authenticate))" } else { "" },
+            if auth_type != "none" {
+                "(http/use app (middleware/authenticate))"
+            } else {
+                ""
+            },
             name
         );
         fs::write(path.join("Program.ai"), program_content)?;
-        
+
         // Create directories
-        helpers::create_directories(path, &[
-            "src",
-            "src/models",
-            "src/routes",
-            "src/services",
-            "src/validators",
-            "tests",
-            "tests/integration",
-            "tests/unit",
-            "migrations",
-            "scripts",
-        ])?;
-        
+        helpers::create_directories(
+            path,
+            &[
+                "src",
+                "src/models",
+                "src/routes",
+                "src/services",
+                "src/validators",
+                "tests",
+                "tests/integration",
+                "tests/unit",
+                "migrations",
+                "scripts",
+            ],
+        )?;
+
         // Create config module
         let config_content = r#";; Configuration management
 
@@ -169,10 +180,11 @@ impl Template for ApiTemplate {
   (export load get production?))
 "#;
         fs::write(path.join("src/config.ai"), config_content)?;
-        
+
         // Create database module
         let db_content = if db_type != "none" {
-            format!(r#";; Database connection and queries
+            format!(
+                r#";; Database connection and queries
 
 (module database
   (import "fluentai/db" :as db)
@@ -205,7 +217,9 @@ impl Template for ApiTemplate {
     (db/with-transaction (conn) f))
   
   (export connect conn query execute! with-transaction))
-"#, db_type)
+"#,
+                db_type
+            )
         } else {
             r#";; Database module (no database configured)
 
@@ -213,13 +227,15 @@ impl Template for ApiTemplate {
   ;; Placeholder for database operations
   (define connect () nil)
   (export connect))
-"#.to_string()
+"#
+            .to_string()
         };
         fs::write(path.join("src/database.ai"), db_content)?;
-        
+
         // Create auth module
         let auth_content = if auth_type != "none" {
-            format!(r#";; Authentication module
+            format!(
+                r#";; Authentication module
 
 (module auth
   (import "fluentai/auth" :as auth)
@@ -275,7 +291,9 @@ impl Template for ApiTemplate {
   
   (export init generate-token verify-token authenticate-request 
           require-auth require-role))
-"#, auth_type, auth_type)
+"#,
+                auth_type, auth_type
+            )
         } else {
             r#";; Authentication module (no auth configured)
 
@@ -283,10 +301,11 @@ impl Template for ApiTemplate {
   (define init () nil)
   (define require-auth (handler) handler)
   (export init require-auth))
-"#.to_string()
+"#
+            .to_string()
         };
         fs::write(path.join("src/auth.ai"), auth_content)?;
-        
+
         // Create middleware
         let middleware_content = r#";; API middleware
 
@@ -353,7 +372,7 @@ impl Template for ApiTemplate {
   (export error-handler request-logger cors authenticate validate))
 "#;
         fs::write(path.join("src/middleware.ai"), middleware_content)?;
-        
+
         // Create routes
         let routes_content = r#";; API Routes
 
@@ -381,7 +400,7 @@ impl Template for ApiTemplate {
   (export api-v1))
 "#;
         fs::write(path.join("src/routes.ai"), routes_content)?;
-        
+
         // Create health route
         let health_route = r#";; Health check endpoint
 
@@ -402,7 +421,7 @@ impl Template for ApiTemplate {
   (export check))
 "#;
         fs::write(path.join("src/routes/health.ai"), health_route)?;
-        
+
         // Create users route
         let users_route = r#";; User routes
 
@@ -470,7 +489,7 @@ impl Template for ApiTemplate {
   (export list get create update delete))
 "#;
         fs::write(path.join("src/routes/users.ai"), users_route)?;
-        
+
         // Create user service
         let user_service = r#";; User service
 
@@ -529,7 +548,7 @@ impl Template for ApiTemplate {
   (export find-all find-by-id find-by-email create update delete))
 "#;
         fs::write(path.join("src/services/users.ai"), user_service)?;
-        
+
         // Create user validator
         let user_validator = r#";; User validation schemas
 
@@ -552,7 +571,7 @@ impl Template for ApiTemplate {
   (export create-schema update-schema))
 "#;
         fs::write(path.join("src/validators/user.ai"), user_validator)?;
-        
+
         // Create user model
         let user_model = r#";; User model
 
@@ -588,7 +607,7 @@ impl Template for ApiTemplate {
   (export schema create-table-sql indexes))
 "#;
         fs::write(path.join("src/models/user.ai"), user_model)?;
-        
+
         // Create migration
         let migration = r#";; Initial database migration
 
@@ -610,7 +629,7 @@ impl Template for ApiTemplate {
 (export up down)
 "#;
         fs::write(path.join("migrations/001_create_users.ai"), migration)?;
-        
+
         // Create test
         let test_content = r#";; API integration tests
 
@@ -658,7 +677,7 @@ impl Template for ApiTemplate {
         (test/expect (:body res) :to-be-array)))))
 "#;
         fs::write(path.join("tests/integration/api.test.ai"), test_content)?;
-        
+
         // Create .env.example
         let env_example = format!(
             r#"# Environment configuration
@@ -684,15 +703,16 @@ LOG_LEVEL=info
                 "mysql" => "mysql://user:password@localhost/dbname",
                 "sqlite" => "sqlite:./database.db",
                 "mongodb" => "mongodb://localhost:27017/dbname",
-                _ => ""
+                _ => "",
             }
         );
         fs::write(path.join(".env.example"), env_example)?;
-        
+
         // Create docker-compose.yml if database is configured
         if db_type != "none" && options.docker {
             let docker_compose = match db_type {
-                "postgres" => r#"version: '3.8'
+                "postgres" => {
+                    r#"version: '3.8'
 
 services:
   db:
@@ -708,8 +728,10 @@ services:
 
 volumes:
   postgres_data:
-"#,
-                "mysql" => r#"version: '3.8'
+"#
+                }
+                "mysql" => {
+                    r#"version: '3.8'
 
 services:
   db:
@@ -726,28 +748,29 @@ services:
 
 volumes:
   mysql_data:
-"#,
+"#
+                }
                 _ => "",
             };
-            
+
             if !docker_compose.is_empty() {
                 fs::write(path.join("docker-compose.yml"), docker_compose)?;
             }
         }
-        
+
         // Create README
-        let db_prerequisite = if db_type != "none" { 
+        let db_prerequisite = if db_type != "none" {
             format!("- {} Database", capitalize(db_type))
-        } else { 
+        } else {
             String::new()
         };
-        
-        let db_setup = if db_type != "none" && options.docker { 
-            "4. Start the database:\n\n```bash\ndocker-compose up -d\n```\n\n5. Run migrations:\n\n```bash\nfluentai db migrate\n```" 
-        } else { 
-            "" 
+
+        let db_setup = if db_type != "none" && options.docker {
+            "4. Start the database:\n\n```bash\ndocker-compose up -d\n```\n\n5. Run migrations:\n\n```bash\nfluentai db migrate\n```"
+        } else {
+            ""
         };
-        
+
         let readme_content = format!(
             r#"# {} API
 
@@ -837,12 +860,12 @@ MIT
             db_prerequisite,
             db_setup
         );
-        
+
         fs::write(path.join("README.md"), readme_content)?;
-        
+
         // Create .gitignore
         helpers::create_gitignore(path)?;
-        
+
         Ok(())
     }
 }

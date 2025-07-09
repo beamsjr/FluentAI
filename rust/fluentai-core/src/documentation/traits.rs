@@ -45,23 +45,23 @@ pub enum DocumentationCategory {
 /// Trait that all AST nodes must implement for documentation
 pub trait DocumentedNode {
     fn name() -> &'static str;
-    
+
     fn syntax() -> &'static str;
-    
+
     fn description() -> &'static str;
-    
+
     fn examples() -> &'static [&'static str];
-    
+
     fn category() -> DocumentationCategory;
-    
+
     fn visibility() -> DocumentationVisibility {
         DocumentationVisibility::Public
     }
-    
+
     fn see_also() -> &'static [&'static str] {
         &[]
     }
-    
+
     fn get_docs() -> Documentation {
         Documentation {
             name: Self::name().to_string(),
@@ -131,7 +131,7 @@ impl OperatorDoc {
             examples,
         }
     }
-    
+
     pub fn to_documentation(&self) -> Documentation {
         Documentation {
             name: self.name.to_string(),
@@ -160,7 +160,7 @@ impl KeywordDoc {
             examples,
         }
     }
-    
+
     pub fn to_documentation(&self) -> Documentation {
         Documentation {
             name: self.keyword.to_string(),
@@ -179,16 +179,16 @@ impl KeywordDoc {
 pub trait UserFacingFeature {
     /// Get the documentation for this feature
     fn documentation() -> Documentation;
-    
+
     /// Validate that documentation is complete and appropriate for users
     fn validate_documentation() -> Result<(), &'static str> {
         let doc = Self::documentation();
-        
+
         // Ensure visibility is Public
         if doc.visibility != DocumentationVisibility::Public {
             return Err("User-facing features must have Public visibility");
         }
-        
+
         // Ensure required fields are non-empty
         if doc.name.is_empty() {
             return Err("Documentation must have a name");
@@ -202,7 +202,7 @@ pub trait UserFacingFeature {
         if doc.examples.is_empty() {
             return Err("Documentation must have at least one example");
         }
-        
+
         Ok(())
     }
 }
@@ -224,7 +224,7 @@ impl BuiltinDoc {
             module,
         }
     }
-    
+
     pub fn to_documentation(&self) -> Documentation {
         Documentation {
             name: self.name.to_string(),

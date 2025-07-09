@@ -8,10 +8,10 @@ use std::path::{Path, PathBuf};
 pub struct Config {
     #[serde(default)]
     pub visualization: VisualizationConfig,
-    
+
     #[serde(default)]
     pub repl: ReplConfig,
-    
+
     #[serde(default)]
     pub package: PackageConfig,
 }
@@ -20,13 +20,13 @@ pub struct Config {
 pub struct VisualizationConfig {
     #[serde(default = "default_viz_port")]
     pub port: u16,
-    
+
     #[serde(default = "default_true")]
     pub auto_open_browser: bool,
-    
+
     #[serde(default = "default_theme")]
     pub theme: String,
-    
+
     #[serde(default)]
     pub delay_ms: u64,
 }
@@ -35,10 +35,10 @@ pub struct VisualizationConfig {
 pub struct ReplConfig {
     #[serde(default = "default_true")]
     pub show_ast: bool,
-    
+
     #[serde(default)]
     pub history_file: Option<PathBuf>,
-    
+
     #[serde(default = "default_prompt")]
     pub prompt: String,
 }
@@ -47,10 +47,10 @@ pub struct ReplConfig {
 pub struct PackageConfig {
     #[serde(default = "default_registry")]
     pub registry: String,
-    
+
     #[serde(default)]
     pub offline: bool,
-    
+
     #[serde(default)]
     pub cache_dir: Option<PathBuf>,
 }
@@ -96,11 +96,21 @@ impl Default for PackageConfig {
     }
 }
 
-fn default_viz_port() -> u16 { 8080 }
-fn default_true() -> bool { true }
-fn default_theme() -> String { "dark".to_string() }
-fn default_prompt() -> String { "claude> ".to_string() }
-fn default_registry() -> String { "https://registry.fluentai.org".to_string() }
+fn default_viz_port() -> u16 {
+    8080
+}
+fn default_true() -> bool {
+    true
+}
+fn default_theme() -> String {
+    "dark".to_string()
+}
+fn default_prompt() -> String {
+    "claude> ".to_string()
+}
+fn default_registry() -> String {
+    "https://registry.fluentai.org".to_string()
+}
 
 /// Load configuration from file or use defaults
 pub fn load_config(path: Option<PathBuf>) -> Result<Config> {

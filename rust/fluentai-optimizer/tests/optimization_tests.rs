@@ -1,13 +1,13 @@
+use fluentai_core::ast::NodeId;
 use fluentai_optimizer::*;
 use fluentai_parser::parse;
-use fluentai_vm::{Compiler, VM, CompilerOptions};
-use fluentai_core::ast::NodeId;
+use fluentai_vm::{Compiler, CompilerOptions, VM};
 
 #[test]
 fn test_constant_folding() {
     let code = "(+ 2 3)";
     let ast = parse(code).unwrap();
-    
+
     let config = OptimizationConfig {
         constant_folding: true,
         dead_code_elimination: false,
@@ -22,10 +22,10 @@ fn test_constant_folding() {
         debug_mode: false,
         level: OptimizationLevel::Basic,
     };
-    
+
     let mut pipeline = OptimizationPipeline::new(config);
     let optimized = pipeline.optimize(&ast).unwrap();
-    
+
     // The optimized graph should have fewer nodes (constant folded)
     assert!(optimized.nodes.len() < ast.nodes.len());
 }
@@ -34,7 +34,7 @@ fn test_constant_folding() {
 fn test_dead_code_elimination() {
     let code = "(let ((x 10) (y 20)) x)"; // y is dead code
     let ast = parse(code).unwrap();
-    
+
     let config = OptimizationConfig {
         constant_folding: false,
         dead_code_elimination: true,
@@ -49,10 +49,10 @@ fn test_dead_code_elimination() {
         debug_mode: false,
         level: OptimizationLevel::Basic,
     };
-    
+
     let mut pipeline = OptimizationPipeline::new(config);
     let optimized = pipeline.optimize(&ast).unwrap();
-    
+
     // Should have eliminated the dead binding
     assert!(optimized.nodes.len() < ast.nodes.len());
 }
@@ -61,7 +61,7 @@ fn test_dead_code_elimination() {
 fn test_inline_optimization() {
     let code = "((lambda (x) (+ x 1)) 5)";
     let ast = parse(code).unwrap();
-    
+
     let config = OptimizationConfig {
         constant_folding: false,
         dead_code_elimination: false,
@@ -76,10 +76,10 @@ fn test_inline_optimization() {
         debug_mode: false,
         level: OptimizationLevel::Standard,
     };
-    
+
     let mut pipeline = OptimizationPipeline::new(config);
     let optimized = pipeline.optimize(&ast).unwrap();
-    
+
     // Function should be inlined
     // Resulting code should be equivalent to (+ 5 1)
     assert!(optimized.nodes.len() < ast.nodes.len());
@@ -93,40 +93,43 @@ fn test_performance_improvement() {
               (mul (lambda (x y) (* x y))))
           (+ (add 2 3) (mul 4 5)))
     "#;
-    
+
     let ast = parse(code).unwrap();
-    
+
     // Compile without optimization
     let unopt_compiler = Compiler::with_options(CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,
     });
     let unopt_bytecode = unopt_compiler.compile(&ast).unwrap();
-    
+
     // First optimize the AST
     let config = OptimizationConfig::for_level(OptimizationLevel::Aggressive);
     let mut pipeline = OptimizationPipeline::new(config);
     let optimized_ast = pipeline.optimize(&ast).unwrap();
-    
+
     // Debug: print AST sizes
     println!("Original AST nodes: {}", ast.nodes.len());
     println!("Optimized AST nodes: {}", optimized_ast.nodes.len());
-    
+
     // Debug: print all nodes in optimized AST
     println!("\nOptimized AST nodes:");
     for (id, node) in &optimized_ast.nodes {
         println!("  {:?}: {:?}", id, node);
     }
     println!("Root: {:?}", optimized_ast.root_id);
-    
+
     // Debug: check for invalid references
     for (id, node) in &optimized_ast.nodes {
         let check_ref = |ref_id: NodeId, context: &str| {
             if !optimized_ast.nodes.contains_key(&ref_id) {
-                println!("ERROR: Node {:?} has invalid {} reference to {:?}", id, context, ref_id);
+                println!(
+                    "ERROR: Node {:?} has invalid {} reference to {:?}",
+                    id, context, ref_id
+                );
             }
         };
-        
+
         match node {
             fluentai_core::ast::Node::Application { function, args } => {
                 check_ref(*function, "function");
@@ -146,33 +149,40 @@ fn test_performance_improvement() {
             _ => {}
         }
     }
-    
+
     // Compile with optimization
     let opt_compiler = Compiler::with_options(CompilerOptions {
         optimization_level: OptimizationLevel::Aggressive,
         debug_info: false,
     });
     let opt_bytecode = opt_compiler.compile(&optimized_ast).unwrap();
-    
+
     // Optimized bytecode should be smaller
-    let unopt_size: usize = unopt_bytecode.chunks.iter()
+    let unopt_size: usize = unopt_bytecode
+        .chunks
+        .iter()
         .map(|chunk| chunk.instructions.len())
         .sum();
-    let opt_size: usize = opt_bytecode.chunks.iter()
+    let opt_size: usize = opt_bytecode
+        .chunks
+        .iter()
         .map(|chunk| chunk.instructions.len())
         .sum();
-    
+
     println!("Unoptimized bytecode size: {}", unopt_size);
     println!("Optimized bytecode size: {}", opt_size);
-    assert!(opt_size <= unopt_size, "Optimized bytecode should not be larger");
-    
+    assert!(
+        opt_size <= unopt_size,
+        "Optimized bytecode should not be larger"
+    );
+
     // Both should produce the same result
     let mut unopt_vm = VM::new(unopt_bytecode);
     let unopt_result = unopt_vm.run().unwrap();
-    
+
     let mut opt_vm = VM::new(opt_bytecode);
     let opt_result = opt_vm.run().unwrap();
-    
+
     assert_eq!(format!("{}", unopt_result), format!("{}", opt_result));
 }
 
@@ -180,7 +190,7 @@ fn test_performance_improvement() {
 fn test_partial_evaluation() {
     let code = "(if #t (+ 1 2) (- 4 5))";
     let ast = parse(code).unwrap();
-    
+
     let config = OptimizationConfig {
         constant_folding: true,
         dead_code_elimination: false,
@@ -195,10 +205,10 @@ fn test_partial_evaluation() {
         debug_mode: false,
         level: OptimizationLevel::Standard,
     };
-    
+
     let mut pipeline = OptimizationPipeline::new(config);
     let optimized = pipeline.optimize(&ast).unwrap();
-    
+
     // Should have evaluated the if with constant condition
     assert!(optimized.nodes.len() < ast.nodes.len());
 }
@@ -211,9 +221,9 @@ fn test_optimization_levels() {
               (add (lambda (a b) (+ a b))))
           (add x y))
     "#;
-    
+
     let ast = parse(code).unwrap();
-    
+
     // Test each optimization level
     for level in [
         OptimizationLevel::None,
@@ -224,7 +234,7 @@ fn test_optimization_levels() {
         let config = OptimizationConfig::for_level(level);
         let mut pipeline = OptimizationPipeline::new(config);
         let optimized = pipeline.optimize(&ast).unwrap();
-        
+
         // Higher levels should optimize more
         match level {
             OptimizationLevel::None => {
@@ -234,7 +244,7 @@ fn test_optimization_levels() {
                 assert!(optimized.nodes.len() <= ast.nodes.len());
             }
         }
-        
+
         // All levels should preserve correctness
         let compiler = Compiler::with_options(CompilerOptions {
             optimization_level: level,

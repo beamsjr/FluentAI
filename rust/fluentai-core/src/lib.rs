@@ -10,10 +10,10 @@
 pub mod ast;
 pub mod documentation;
 pub mod error;
-pub mod value;
-pub mod traits;
 pub mod thread_pool;
+pub mod traits;
+pub mod value;
 
-pub use error::{Error, Result};
-pub use thread_pool::{ThreadPool, ThreadPoolConfig, ThreadPoolBuilder};
 pub use ast::{AstHashMap, AstHashSet};
+pub use error::{Error, Result};
+pub use thread_pool::{ThreadPool, ThreadPoolBuilder, ThreadPoolConfig};

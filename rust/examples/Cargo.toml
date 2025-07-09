@@ -12,5 +12,5 @@ fluentai-stdlib = { path = "../fluentai-stdlib" }
 anyhow = "1.0"
 
 [[bin]]
-name = "test_stdlib_integration"
-path = "iot_pipeline/test_stdlib_integration.rs"
+name = "test_cons_nil_patterns"
+path = "test_cons_nil_patterns.rs"

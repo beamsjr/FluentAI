@@ -1,39 +1,39 @@
 //! Temporal contracts for expressing properties over time
-//! 
+//!
 //! This module provides support for temporal logic operators in contracts,
 //! allowing you to express properties like "eventually", "always", "until", etc.
 //! Based on Linear Temporal Logic (LTL) and Computation Tree Logic (CTL).
 
-use std::collections::HashMap;
 use crate::{
     contract::ContractCondition,
     errors::{ContractError, ContractResult},
 };
+use std::collections::HashMap;
 
 /// Temporal operators for contract specifications
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TemporalOperator {
     /// Always (□ or G) - property holds in all future states
     Always(Box<TemporalFormula>),
-    
+
     /// Eventually (◇ or F) - property holds in some future state
     Eventually(Box<TemporalFormula>),
-    
+
     /// Next (○ or X) - property holds in the next state
     Next(Box<TemporalFormula>),
-    
+
     /// Until (U) - first property holds until second becomes true
     Until(Box<TemporalFormula>, Box<TemporalFormula>),
-    
+
     /// Weak Until (W) - like Until but second property may never hold
     WeakUntil(Box<TemporalFormula>, Box<TemporalFormula>),
-    
+
     /// Release (R) - dual of Until
     Release(Box<TemporalFormula>, Box<TemporalFormula>),
-    
+
     /// Since (S) - past-time operator
     Since(Box<TemporalFormula>, Box<TemporalFormula>),
-    
+
     /// Previously (P) - past-time version of Next
     Previously(Box<TemporalFormula>),
 }
@@ -43,19 +43,19 @@ pub enum TemporalOperator {
 pub enum TemporalFormula {
     /// Atomic proposition (basic contract condition)
     Atomic(ContractCondition),
-    
+
     /// Temporal operator application
     Temporal(TemporalOperator),
-    
+
     /// Logical negation
     Not(Box<TemporalFormula>),
-    
+
     /// Logical conjunction
     And(Vec<TemporalFormula>),
-    
+
     /// Logical disjunction
     Or(Vec<TemporalFormula>),
-    
+
     /// Logical implication
     Implies(Box<TemporalFormula>, Box<TemporalFormula>),
 }
@@ -65,19 +65,19 @@ pub enum TemporalFormula {
 pub struct TemporalContract {
     /// Name of the contract
     pub name: String,
-    
+
     /// Temporal formula to be satisfied
     pub formula: TemporalFormula,
-    
+
     /// Fairness constraints (for liveness properties)
     pub fairness_constraints: Vec<TemporalFormula>,
-    
+
     /// Safety properties (must always hold)
     pub safety_properties: Vec<TemporalFormula>,
-    
+
     /// Liveness properties (must eventually hold)
     pub liveness_properties: Vec<TemporalFormula>,
-    
+
     /// Maximum bound for bounded model checking
     pub bound: Option<usize>,
 }
@@ -87,13 +87,13 @@ pub struct TemporalContract {
 pub struct TemporalState {
     /// Unique state identifier
     pub id: usize,
-    
+
     /// Variable bindings at this state
     pub bindings: HashMap<String, serde_json::Value>,
-    
+
     /// Active contracts at this state
     pub active_contracts: Vec<String>,
-    
+
     /// Timestamp (for real-time properties)
     pub timestamp: Option<u64>,
 }
@@ -103,10 +103,10 @@ pub struct TemporalState {
 pub struct ExecutionTrace {
     /// Sequence of states
     pub states: Vec<TemporalState>,
-    
+
     /// Transitions between states
     pub transitions: Vec<(usize, usize, String)>, // (from, to, action)
-    
+
     /// Current position in trace
     pub current: usize,
 }
@@ -115,10 +115,10 @@ pub struct ExecutionTrace {
 pub struct TemporalVerifier {
     /// Registered temporal contracts
     contracts: HashMap<String, TemporalContract>,
-    
+
     /// Execution traces for verification
     traces: Vec<ExecutionTrace>,
-    
+
     /// Configuration for bounded model checking
     pub config: TemporalVerificationConfig,
 }
@@ -128,13 +128,13 @@ pub struct TemporalVerifier {
 pub struct TemporalVerificationConfig {
     /// Maximum trace length to consider
     pub max_trace_length: usize,
-    
+
     /// Enable past-time operators
     pub enable_past_time: bool,
-    
+
     /// Use symbolic execution
     pub symbolic_execution: bool,
-    
+
     /// Timeout for verification (ms)
     pub timeout_ms: Option<u64>,
 }
@@ -159,17 +159,17 @@ impl TemporalVerifier {
             config,
         }
     }
-    
+
     /// Register a temporal contract
     pub fn register_contract(&mut self, contract: TemporalContract) {
         self.contracts.insert(contract.name.clone(), contract);
     }
-    
+
     /// Add an execution trace for verification
     pub fn add_trace(&mut self, trace: ExecutionTrace) {
         self.traces.push(trace);
     }
-    
+
     /// Verify a temporal formula against a trace
     pub fn verify_formula(
         &self,
@@ -182,15 +182,11 @@ impl TemporalVerifier {
                 // Evaluate atomic proposition at current state
                 self.evaluate_condition(condition, &trace.states[position])
             }
-            
-            TemporalFormula::Temporal(op) => {
-                self.verify_temporal_operator(op, trace, position)
-            }
-            
-            TemporalFormula::Not(f) => {
-                Ok(!self.verify_formula(f, trace, position)?)
-            }
-            
+
+            TemporalFormula::Temporal(op) => self.verify_temporal_operator(op, trace, position),
+
+            TemporalFormula::Not(f) => Ok(!self.verify_formula(f, trace, position)?),
+
             TemporalFormula::And(formulas) => {
                 for f in formulas {
                     if !self.verify_formula(f, trace, position)? {
@@ -199,7 +195,7 @@ impl TemporalVerifier {
                 }
                 Ok(true)
             }
-            
+
             TemporalFormula::Or(formulas) => {
                 for f in formulas {
                     if self.verify_formula(f, trace, position)? {
@@ -208,14 +204,13 @@ impl TemporalVerifier {
                 }
                 Ok(false)
             }
-            
-            TemporalFormula::Implies(antecedent, consequent) => {
-                Ok(!self.verify_formula(antecedent, trace, position)? 
-                    || self.verify_formula(consequent, trace, position)?)
-            }
+
+            TemporalFormula::Implies(antecedent, consequent) => Ok(!self
+                .verify_formula(antecedent, trace, position)?
+                || self.verify_formula(consequent, trace, position)?),
         }
     }
-    
+
     /// Verify a temporal operator
     fn verify_temporal_operator(
         &self,
@@ -233,7 +228,7 @@ impl TemporalVerifier {
                 }
                 Ok(true)
             }
-            
+
             TemporalOperator::Eventually(formula) => {
                 // Check if formula holds in some future state
                 for i in position..trace.states.len() {
@@ -243,7 +238,7 @@ impl TemporalVerifier {
                 }
                 Ok(false)
             }
-            
+
             TemporalOperator::Next(formula) => {
                 // Check if formula holds in next state
                 if position + 1 < trace.states.len() {
@@ -252,7 +247,7 @@ impl TemporalVerifier {
                     Ok(false) // No next state
                 }
             }
-            
+
             TemporalOperator::Until(f1, f2) => {
                 // f1 holds until f2 becomes true
                 for i in position..trace.states.len() {
@@ -268,7 +263,7 @@ impl TemporalVerifier {
                 }
                 Ok(false) // f2 never holds
             }
-            
+
             TemporalOperator::WeakUntil(f1, f2) => {
                 // Like Until but f2 may never hold
                 for i in position..trace.states.len() {
@@ -288,7 +283,7 @@ impl TemporalVerifier {
                 }
                 Ok(true) // f1 held throughout
             }
-            
+
             TemporalOperator::Release(f1, f2) => {
                 // f2 holds until and including when f1 becomes true
                 for i in position..trace.states.len() {
@@ -307,15 +302,15 @@ impl TemporalVerifier {
                 }
                 Ok(true) // f2 held throughout
             }
-            
+
             TemporalOperator::Since(f1, f2) => {
                 // Past-time: f1 has held since f2 was true
                 if !self.config.enable_past_time {
                     return Err(ContractError::Other(
-                        "Past-time operators not enabled".to_string()
+                        "Past-time operators not enabled".to_string(),
                     ));
                 }
-                
+
                 for i in (0..=position).rev() {
                     if self.verify_formula(f2, trace, i)? {
                         // f2 holds, check f1 held since then
@@ -329,15 +324,15 @@ impl TemporalVerifier {
                 }
                 Ok(false)
             }
-            
+
             TemporalOperator::Previously(formula) => {
                 // Past-time: formula held in previous state
                 if !self.config.enable_past_time {
                     return Err(ContractError::Other(
-                        "Past-time operators not enabled".to_string()
+                        "Past-time operators not enabled".to_string(),
                     ));
                 }
-                
+
                 if position > 0 {
                     self.verify_formula(formula, trace, position - 1)
                 } else {
@@ -346,7 +341,7 @@ impl TemporalVerifier {
             }
         }
     }
-    
+
     /// Evaluate an atomic condition in a state
     fn evaluate_condition(
         &self,
@@ -357,18 +352,19 @@ impl TemporalVerifier {
         // For now, return a placeholder
         Ok(true)
     }
-    
+
     /// Verify all registered contracts against all traces
     pub fn verify_all(&self) -> HashMap<String, Vec<TemporalVerificationResult>> {
         let mut results = HashMap::new();
-        
+
         for (name, contract) in &self.contracts {
             let mut contract_results = Vec::new();
-            
+
             for (trace_idx, trace) in self.traces.iter().enumerate() {
-                let verified = self.verify_formula(&contract.formula, trace, 0)
+                let verified = self
+                    .verify_formula(&contract.formula, trace, 0)
                     .unwrap_or(false);
-                
+
                 contract_results.push(TemporalVerificationResult {
                     contract_name: name.clone(),
                     trace_id: trace_idx,
@@ -380,13 +376,13 @@ impl TemporalVerifier {
                     },
                 });
             }
-            
+
             results.insert(name.clone(), contract_results);
         }
-        
+
         results
     }
-    
+
     /// Generate a counterexample for a failed verification
     fn generate_counterexample(
         &self,
@@ -406,13 +402,13 @@ impl TemporalVerifier {
 pub struct TemporalVerificationResult {
     /// Contract that was verified
     pub contract_name: String,
-    
+
     /// Trace ID that was checked
     pub trace_id: usize,
-    
+
     /// Whether verification succeeded
     pub verified: bool,
-    
+
     /// Counterexample if verification failed
     pub counterexample: Option<TemporalCounterexample>,
 }
@@ -422,10 +418,10 @@ pub struct TemporalVerificationResult {
 pub struct TemporalCounterexample {
     /// States where property fails
     pub failing_states: Vec<usize>,
-    
+
     /// Path leading to violation
     pub violation_path: Vec<usize>,
-    
+
     /// Minimal unsatisfiable core
     pub unsat_core: Vec<TemporalFormula>,
 }
@@ -452,43 +448,43 @@ impl TemporalContractBuilder {
             bound: None,
         }
     }
-    
+
     /// Set the main temporal formula
     pub fn formula(mut self, formula: TemporalFormula) -> Self {
         self.formula = Some(formula);
         self
     }
-    
+
     /// Add a fairness constraint
     pub fn fairness(mut self, constraint: TemporalFormula) -> Self {
         self.fairness.push(constraint);
         self
     }
-    
+
     /// Add a safety property
     pub fn safety(mut self, property: TemporalFormula) -> Self {
         self.safety.push(property);
         self
     }
-    
+
     /// Add a liveness property
     pub fn liveness(mut self, property: TemporalFormula) -> Self {
         self.liveness.push(property);
         self
     }
-    
+
     /// Set verification bound
     pub fn bound(mut self, bound: usize) -> Self {
         self.bound = Some(bound);
         self
     }
-    
+
     /// Build the temporal contract
     pub fn build(self) -> ContractResult<TemporalContract> {
         let formula = self.formula.ok_or_else(|| {
             ContractError::Other("Temporal contract must have a formula".to_string())
         })?;
-        
+
         Ok(TemporalContract {
             name: self.name,
             formula,
@@ -503,47 +499,47 @@ impl TemporalContractBuilder {
 /// Helper functions for creating temporal formulas
 pub mod temporal_dsl {
     use super::*;
-    
+
     /// Create an "always" formula
     pub fn always(formula: TemporalFormula) -> TemporalFormula {
         TemporalFormula::Temporal(TemporalOperator::Always(Box::new(formula)))
     }
-    
+
     /// Create an "eventually" formula
     pub fn eventually(formula: TemporalFormula) -> TemporalFormula {
         TemporalFormula::Temporal(TemporalOperator::Eventually(Box::new(formula)))
     }
-    
+
     /// Create a "next" formula
     pub fn next(formula: TemporalFormula) -> TemporalFormula {
         TemporalFormula::Temporal(TemporalOperator::Next(Box::new(formula)))
     }
-    
+
     /// Create an "until" formula
     pub fn until(f1: TemporalFormula, f2: TemporalFormula) -> TemporalFormula {
         TemporalFormula::Temporal(TemporalOperator::Until(Box::new(f1), Box::new(f2)))
     }
-    
+
     /// Create atomic proposition from condition
     pub fn atom(condition: ContractCondition) -> TemporalFormula {
         TemporalFormula::Atomic(condition)
     }
-    
+
     /// Negation
     pub fn not(formula: TemporalFormula) -> TemporalFormula {
         TemporalFormula::Not(Box::new(formula))
     }
-    
+
     /// Conjunction
     pub fn and(formulas: Vec<TemporalFormula>) -> TemporalFormula {
         TemporalFormula::And(formulas)
     }
-    
+
     /// Disjunction
     pub fn or(formulas: Vec<TemporalFormula>) -> TemporalFormula {
         TemporalFormula::Or(formulas)
     }
-    
+
     /// Implication
     pub fn implies(antecedent: TemporalFormula, consequent: TemporalFormula) -> TemporalFormula {
         TemporalFormula::Implies(Box::new(antecedent), Box::new(consequent))
@@ -552,22 +548,20 @@ pub mod temporal_dsl {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::temporal_dsl::*;
+    use super::*;
     use crate::ContractKind;
     use fluentai_core::ast::NodeId;
     use std::num::NonZeroU32;
-    
+
     #[test]
     fn test_temporal_formula_creation() {
         // Create a simple temporal formula: always(x > 0)
-        let condition = ContractCondition::new(
-            NodeId(NonZeroU32::new(1).unwrap()),
-            ContractKind::Invariant,
-        );
-        
+        let condition =
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant);
+
         let formula = always(atom(condition));
-        
+
         match formula {
             TemporalFormula::Temporal(TemporalOperator::Always(_)) => {
                 // Success
@@ -575,15 +569,17 @@ mod tests {
             _ => panic!("Expected Always operator"),
         }
     }
-    
+
     #[test]
     fn test_until_formula() {
         // Create: (x > 0) until (y == 1)
-        let cond1 = ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant);
-        let cond2 = ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Invariant);
-        
+        let cond1 =
+            ContractCondition::new(NodeId(NonZeroU32::new(1).unwrap()), ContractKind::Invariant);
+        let cond2 =
+            ContractCondition::new(NodeId(NonZeroU32::new(2).unwrap()), ContractKind::Invariant);
+
         let formula = until(atom(cond1), atom(cond2));
-        
+
         match formula {
             TemporalFormula::Temporal(TemporalOperator::Until(_, _)) => {
                 // Success

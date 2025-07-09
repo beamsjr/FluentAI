@@ -52,7 +52,7 @@ impl TypeEnvironment {
                 return Some(ty);
             }
         }
-        
+
         // Check global type definitions
         self.type_definitions.get(name)
     }
@@ -89,7 +89,7 @@ impl TypeEnvironment {
     /// Get all bindings in the current scope
     pub fn current_bindings(&self) -> Vec<(String, TypedValue)> {
         let mut bindings = Vec::new();
-        
+
         // Collect bindings from all scopes, innermost first
         for scope in self.scopes.iter().rev() {
             for (name, ty) in scope {
@@ -99,7 +99,7 @@ impl TypeEnvironment {
                 }
             }
         }
-        
+
         bindings
     }
 
@@ -170,17 +170,16 @@ mod tests {
     #[test]
     fn test_environment_basics() {
         let mut env = TypeEnvironment::new();
-        
+
         // Primitive types should be available
         assert!(env.lookup("Int").is_some());
         assert!(env.lookup("String").is_some());
-        
+
         // Add a binding
-        let list_type = TypedValue::list(ListType::new(
-            TypedValue::primitive(PrimitiveType::int())
-        ));
+        let list_type =
+            TypedValue::list(ListType::new(TypedValue::primitive(PrimitiveType::int())));
         env.bind("xs", list_type.clone());
-        
+
         // Should be able to look it up
         assert_eq!(env.lookup("xs"), Some(&list_type));
     }
@@ -188,19 +187,19 @@ mod tests {
     #[test]
     fn test_scoping() {
         let mut env = TypeEnvironment::new();
-        
+
         // Add binding in outer scope
         env.bind("x", TypedValue::primitive(PrimitiveType::int()));
-        
+
         // Push new scope
         env.push_scope();
-        
+
         // Should still see outer binding
         assert!(env.lookup("x").is_some());
-        
+
         // Shadow with new binding
         env.bind("x", TypedValue::primitive(PrimitiveType::string()));
-        
+
         // Should see inner binding
         if let Some(ty) = env.lookup("x") {
             match &ty.inner {
@@ -210,10 +209,10 @@ mod tests {
                 _ => panic!("Expected primitive type"),
             }
         }
-        
+
         // Pop scope
         env.pop_scope();
-        
+
         // Should see outer binding again
         if let Some(ty) = env.lookup("x") {
             match &ty.inner {
@@ -228,10 +227,10 @@ mod tests {
     #[test]
     fn test_fresh_type_vars() {
         let mut env = TypeEnvironment::new();
-        
+
         let var1 = env.fresh_type_var("T");
         let var2 = env.fresh_type_var("T");
-        
+
         // Should generate different names
         assert_ne!(var1.name, var2.name);
         assert!(var1.name.starts_with("T"));
@@ -242,7 +241,7 @@ mod tests {
     fn test_global_type_vars() {
         let var1 = fresh_global_type_var("G");
         let var2 = fresh_global_type_var("G");
-        
+
         // Should be globally unique
         assert_ne!(var1.name, var2.name);
     }

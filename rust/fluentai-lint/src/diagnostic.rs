@@ -82,7 +82,7 @@ impl LintDiagnostic {
             notes: Vec::new(),
         }
     }
-    
+
     /// Create a new warning diagnostic
     pub fn warning(rule_id: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
@@ -94,19 +94,19 @@ impl LintDiagnostic {
             notes: Vec::new(),
         }
     }
-    
+
     /// Set the location
     pub fn with_location(mut self, location: Location) -> Self {
         self.location = location;
         self
     }
-    
+
     /// Add a suggestion
     pub fn with_suggestion(mut self, suggestion: Suggestion) -> Self {
         self.suggestions.push(suggestion);
         self
     }
-    
+
     /// Add a note
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.notes.push(note.into());
@@ -119,22 +119,43 @@ impl Location {
     pub fn unknown() -> Self {
         Self {
             file: None,
-            start: Position { line: 0, column: 0, offset: 0 },
-            end: Position { line: 0, column: 0, offset: 0 },
+            start: Position {
+                line: 0,
+                column: 0,
+                offset: 0,
+            },
+            end: Position {
+                line: 0,
+                column: 0,
+                offset: 0,
+            },
             node_id: None,
         }
     }
-    
+
     /// Create from line/column positions
-    pub fn from_positions(start_line: usize, start_col: usize, end_line: usize, end_col: usize) -> Self {
+    pub fn from_positions(
+        start_line: usize,
+        start_col: usize,
+        end_line: usize,
+        end_col: usize,
+    ) -> Self {
         Self {
             file: None,
-            start: Position { line: start_line, column: start_col, offset: 0 },
-            end: Position { line: end_line, column: end_col, offset: 0 },
+            start: Position {
+                line: start_line,
+                column: start_col,
+                offset: 0,
+            },
+            end: Position {
+                line: end_line,
+                column: end_col,
+                offset: 0,
+            },
             node_id: None,
         }
     }
-    
+
     /// Convert to miette source span
     pub fn to_source_span(&self) -> SourceSpan {
         SourceSpan::from((self.start.offset, self.end.offset - self.start.offset))
@@ -180,7 +201,7 @@ impl Diagnostic for MietteDiagnostic {
     fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
         Some(Box::new(&self.0.rule_id))
     }
-    
+
     fn severity(&self) -> Option<miette::Severity> {
         match self.0.kind {
             DiagnosticKind::Error => Some(miette::Severity::Error),
@@ -189,7 +210,7 @@ impl Diagnostic for MietteDiagnostic {
             DiagnosticKind::Help => Some(miette::Severity::Advice),
         }
     }
-    
+
     fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
         if self.0.suggestions.is_empty() {
             None

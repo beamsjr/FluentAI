@@ -15,9 +15,12 @@ impl ContainerBuilder {
             container: ServiceContainer::new(),
         }
     }
-    
+
     /// Register a singleton service
-    pub fn register_singleton<T>(&mut self, factory: impl Fn() -> T + Send + Sync + 'static) -> &mut Self
+    pub fn register_singleton<T>(
+        &mut self,
+        factory: impl Fn() -> T + Send + Sync + 'static,
+    ) -> &mut Self
     where
         T: Service + 'static,
     {
@@ -25,20 +28,27 @@ impl ContainerBuilder {
         self.container.register(descriptor);
         self
     }
-    
+
     /// Register a singleton service with explicit interface
-    pub fn register_singleton_as<TService, TImpl>(&mut self, factory: impl Fn() -> TImpl + Send + Sync + 'static) -> &mut Self
+    pub fn register_singleton_as<TService, TImpl>(
+        &mut self,
+        factory: impl Fn() -> TImpl + Send + Sync + 'static,
+    ) -> &mut Self
     where
         TService: Service + ?Sized + 'static,
         TImpl: Service + 'static,
     {
-        let descriptor = ServiceDescriptor::new::<TService, TImpl, _>(ServiceLifetime::Singleton, factory);
+        let descriptor =
+            ServiceDescriptor::new::<TService, TImpl, _>(ServiceLifetime::Singleton, factory);
         self.container.register(descriptor);
         self
     }
-    
+
     /// Register a transient service
-    pub fn register_transient<T>(&mut self, factory: impl Fn() -> T + Send + Sync + 'static) -> &mut Self
+    pub fn register_transient<T>(
+        &mut self,
+        factory: impl Fn() -> T + Send + Sync + 'static,
+    ) -> &mut Self
     where
         T: Service + 'static,
     {
@@ -46,20 +56,27 @@ impl ContainerBuilder {
         self.container.register(descriptor);
         self
     }
-    
+
     /// Register a transient service with explicit interface
-    pub fn register_transient_as<TService, TImpl>(&mut self, factory: impl Fn() -> TImpl + Send + Sync + 'static) -> &mut Self
+    pub fn register_transient_as<TService, TImpl>(
+        &mut self,
+        factory: impl Fn() -> TImpl + Send + Sync + 'static,
+    ) -> &mut Self
     where
         TService: Service + ?Sized + 'static,
         TImpl: Service + 'static,
     {
-        let descriptor = ServiceDescriptor::new::<TService, TImpl, _>(ServiceLifetime::Transient, factory);
+        let descriptor =
+            ServiceDescriptor::new::<TService, TImpl, _>(ServiceLifetime::Transient, factory);
         self.container.register(descriptor);
         self
     }
-    
+
     /// Register a scoped service
-    pub fn register_scoped<T>(&mut self, factory: impl Fn() -> T + Send + Sync + 'static) -> &mut Self
+    pub fn register_scoped<T>(
+        &mut self,
+        factory: impl Fn() -> T + Send + Sync + 'static,
+    ) -> &mut Self
     where
         T: Service + 'static,
     {
@@ -67,18 +84,22 @@ impl ContainerBuilder {
         self.container.register(descriptor);
         self
     }
-    
+
     /// Register a scoped service with explicit interface
-    pub fn register_scoped_as<TService, TImpl>(&mut self, factory: impl Fn() -> TImpl + Send + Sync + 'static) -> &mut Self
+    pub fn register_scoped_as<TService, TImpl>(
+        &mut self,
+        factory: impl Fn() -> TImpl + Send + Sync + 'static,
+    ) -> &mut Self
     where
         TService: Service + ?Sized + 'static,
         TImpl: Service + 'static,
     {
-        let descriptor = ServiceDescriptor::new::<TService, TImpl, _>(ServiceLifetime::Scoped, factory);
+        let descriptor =
+            ServiceDescriptor::new::<TService, TImpl, _>(ServiceLifetime::Scoped, factory);
         self.container.register(descriptor);
         self
     }
-    
+
     /// Register an existing instance as a singleton
     pub fn register_instance<T>(&mut self, instance: T) -> &mut Self
     where
@@ -86,33 +107,40 @@ impl ContainerBuilder {
     {
         self.register_singleton(move || instance.clone())
     }
-    
+
     /// Register a raw instance by type name
-    pub fn register_instance_raw(&mut self, type_name: &str, instance: Box<dyn Service>) -> &mut Self {
+    pub fn register_instance_raw(
+        &mut self,
+        type_name: &str,
+        instance: Box<dyn Service>,
+    ) -> &mut Self {
         // This is a simplified implementation - in production, we'd need proper type handling
         // For now, we'll register it as Any type
-        self.container.register_raw(type_name, ServiceLifetime::Singleton, instance);
+        self.container
+            .register_raw(type_name, ServiceLifetime::Singleton, instance);
         self
     }
-    
+
     /// Register a raw transient service by type name
     pub fn register_transient_raw<F>(&mut self, type_name: &str, factory: F) -> &mut Self
     where
         F: Fn() -> Box<dyn Service> + Send + Sync + 'static,
     {
-        self.container.register_raw_factory(type_name, ServiceLifetime::Transient, factory);
+        self.container
+            .register_raw_factory(type_name, ServiceLifetime::Transient, factory);
         self
     }
-    
+
     /// Register a raw scoped service by type name
     pub fn register_scoped_raw<F>(&mut self, type_name: &str, factory: F) -> &mut Self
     where
         F: Fn() -> Box<dyn Service> + Send + Sync + 'static,
     {
-        self.container.register_raw_factory(type_name, ServiceLifetime::Scoped, factory);
+        self.container
+            .register_raw_factory(type_name, ServiceLifetime::Scoped, factory);
         self
     }
-    
+
     /// Build the container
     pub fn build(self) -> Container {
         self.container.build()
@@ -135,7 +163,7 @@ impl ContainerBuilder {
         configure(&mut self);
         self
     }
-    
+
     /// Add services from another module
     pub fn add_module<M: Module>(mut self, module: M) -> Self {
         module.configure(&mut self);

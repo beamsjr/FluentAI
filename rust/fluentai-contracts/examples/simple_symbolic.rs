@@ -1,7 +1,7 @@
 //! Simple example demonstrating symbolic execution
 
-use fluentai_parser::parse;
 use fluentai_contracts::{SymbolicExecutor, SymbolicValue};
+use fluentai_parser::parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Simple arithmetic function with branches
@@ -13,22 +13,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   (- 0 x)
                   x))
         "#;
-        
+
         let graph = parse(program)?;
-        
+
         // Create symbolic executor
         let executor = SymbolicExecutor::new();
-        
+
         // Execute symbolically
         let states = executor.execute_function_by_name(&graph, "abs")?;
-        
+
         println!("Explored {} execution paths", states.len());
-        
+
         for (i, state) in states.iter().enumerate() {
             println!("\nPath {}:", i + 1);
             println!("  Path constraints:");
             for constraint in &state.path_constraints {
-                println!("    {:?} should be {}", constraint.constraint, constraint.expected);
+                println!(
+                    "    {:?} should be {}",
+                    constraint.constraint, constraint.expected
+                );
             }
             println!("  Final bindings:");
             for (var, value) in &state.bindings {
@@ -36,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     // Example 2: Function with multiple branches
     println!("\n\n=== Example 2: Sign Function ===");
     {
@@ -48,27 +51,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                       1
                       0)))
         "#;
-        
+
         let graph = parse(program)?;
         let executor = SymbolicExecutor::new();
         let states = executor.execute_function_by_name(&graph, "sign")?;
-        
+
         println!("Explored {} execution paths", states.len());
-        
+
         for (i, state) in states.iter().enumerate() {
             println!("\nPath {}:", i + 1);
             println!("  Path constraints:");
             for constraint in &state.path_constraints {
                 match &constraint.constraint {
                     SymbolicValue::BinOp { op, left, right } => {
-                        println!("    {:?} {} {:?} should be {}", left, op, right, constraint.expected);
+                        println!(
+                            "    {:?} {} {:?} should be {}",
+                            left, op, right, constraint.expected
+                        );
                     }
-                    _ => println!("    {:?} should be {}", constraint.constraint, constraint.expected),
+                    _ => println!(
+                        "    {:?} should be {}",
+                        constraint.constraint, constraint.expected
+                    ),
                 }
             }
         }
     }
-    
+
     // Example 3: Max function
     println!("\n\n=== Example 3: Max Function ===");
     {
@@ -78,16 +87,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   a
                   b))
         "#;
-        
+
         let graph = parse(program)?;
         let executor = SymbolicExecutor::new();
         let states = executor.execute_function_by_name(&graph, "max")?;
-        
+
         println!("Explored {} execution paths", states.len());
-        
+
         for (i, state) in states.iter().enumerate() {
             println!("\nPath {}:", i + 1);
-            
+
             // Show constraints
             for constraint in &state.path_constraints {
                 match &constraint.constraint {
@@ -100,13 +109,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             SymbolicValue::Symbolic { name, .. } => name.clone(),
                             _ => format!("{:?}", right),
                         };
-                        println!("  Constraint: {} {} {} = {}", left_str, op, right_str, constraint.expected);
+                        println!(
+                            "  Constraint: {} {} {} = {}",
+                            left_str, op, right_str, constraint.expected
+                        );
                     }
-                    _ => println!("  Constraint: {:?} = {}", constraint.constraint, constraint.expected),
+                    _ => println!(
+                        "  Constraint: {:?} = {}",
+                        constraint.constraint, constraint.expected
+                    ),
                 }
             }
         }
     }
-    
+
     Ok(())
 }

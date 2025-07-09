@@ -12,8 +12,8 @@ use std::time::SystemTime;
 use crate::config::RuntimeConfig;
 use crate::error::{Result, RuntimeError};
 use crate::module::{
-    CacheEntry, CompiledModule, ModuleMetadata, SourceModule,
-    load_module_source, parse_module_metadata, resolve_module_path,
+    load_module_source, parse_module_metadata, resolve_module_path, CacheEntry, CompiledModule,
+    ModuleMetadata, SourceModule,
 };
 
 /// Module loader
@@ -57,7 +57,7 @@ impl ModuleLoader {
 
         // Load and compile
         let module = self.load_from_path(&path)?;
-        
+
         // Cache if enabled
         if self.config.modules.enable_cache {
             self.cache_module(name, &module, &path)?;
@@ -74,7 +74,7 @@ impl ModuleLoader {
     pub fn load_from_path(&self, path: &Path) -> Result<CompiledModule> {
         let source = load_module_source(path)?;
         let metadata = parse_module_metadata(&source)?;
-        
+
         let source_module = SourceModule {
             metadata,
             source,
@@ -114,7 +114,8 @@ impl ModuleLoader {
 
         // Parse source
         let mut parser = Parser::new(&source.source);
-        let ast = parser.parse()
+        let ast = parser
+            .parse()
             .map_err(|e| RuntimeError::ParseError(format!("{:?}", e)))?;
 
         // Optimize if not in debug mode
@@ -122,7 +123,8 @@ impl ModuleLoader {
             ast
         } else {
             let mut optimizer = GraphOptimizer::new();
-            optimizer.optimize(&ast)
+            optimizer
+                .optimize(&ast)
                 .map_err(|e| RuntimeError::other(format!("Optimization error: {}", e)))?
         };
 
@@ -134,7 +136,8 @@ impl ModuleLoader {
 
         // Compile to bytecode
         let compiler = Compiler::new();
-        let bytecode = compiler.compile(&ast)
+        let bytecode = compiler
+            .compile(&ast)
             .map_err(|e| RuntimeError::other(format!("Compilation error: {}", e)))?;
 
         // Dump bytecode if requested
@@ -174,7 +177,8 @@ impl ModuleLoader {
 
     /// Cache a module
     fn cache_module(&self, name: &str, module: &CompiledModule, path: &Path) -> Result<()> {
-        let last_modified = path.metadata()
+        let last_modified = path
+            .metadata()
             .and_then(|m| m.modified())
             .unwrap_or_else(|_| SystemTime::now());
 
@@ -215,7 +219,7 @@ impl ModuleLoader {
         // Remove from cache and loaded modules
         self.cache.remove(name);
         self.modules.remove(name);
-        
+
         // Load again
         self.load(name)
     }
@@ -224,27 +228,34 @@ impl ModuleLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_module_loader() {
         let temp_dir = TempDir::new().unwrap();
         let module_path = temp_dir.path().join("test.fl");
-        
-        fs::write(&module_path, r#"
+
+        fs::write(
+            &module_path,
+            r#"
 ;; @module test
 ;; @version 1.0.0
 
 (define x 42)
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let mut config = RuntimeConfig::default();
-        config.modules.search_paths.push(temp_dir.path().to_path_buf());
-        
+        config
+            .modules
+            .search_paths
+            .push(temp_dir.path().to_path_buf());
+
         let loader = ModuleLoader::new(Arc::new(config));
         let module = loader.load("test").unwrap();
-        
+
         assert_eq!(module.metadata.name, "test");
         assert_eq!(module.metadata.version.as_deref(), Some("1.0.0"));
     }
@@ -253,7 +264,7 @@ mod tests {
     fn test_load_from_source() {
         let config = RuntimeConfig::default();
         let loader = ModuleLoader::new(Arc::new(config));
-        
+
         let module = loader.load_from_source("inline", "(define x 42)").unwrap();
         assert_eq!(module.metadata.name, "inline");
     }

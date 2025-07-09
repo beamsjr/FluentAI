@@ -1,17 +1,17 @@
 //! UI Compiler for FluentAi
-//! 
+//!
 //! This module compiles FluentAi UI code to JavaScript that can run in browsers.
 //! It supports various output formats including standalone JS, React components,
 //! and Web Components.
 
-pub mod compiler;
 pub mod codegen;
+pub mod compiler;
 // Modules to be implemented later
 // pub mod optimizer;
 // pub mod runtime;
 pub mod error;
 
-pub use compiler::{UICompiler, CompilerOptions, OutputFormat};
+pub use compiler::{CompilerOptions, OutputFormat, UICompiler};
 pub use error::{CompilerError, Result};
 
 #[cfg(test)]

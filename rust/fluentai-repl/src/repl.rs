@@ -1,15 +1,15 @@
 //! Main REPL implementation
 
-use rustyline::{Editor, Config, EditMode, CompletionType};
-use rustyline::error::ReadlineError;
 use colored::*;
+use rustyline::error::ReadlineError;
+use rustyline::{CompletionType, Config, EditMode, Editor};
 use std::path::PathBuf;
 
-use crate::error::ReplResult;
-use crate::environment::ReplEnvironment;
 use crate::commands::{CommandRegistry, CommandResult};
-use crate::history::HistoryManager;
+use crate::environment::ReplEnvironment;
+use crate::error::ReplResult;
 use crate::highlighter::ReplHelper;
+use crate::history::HistoryManager;
 
 /// REPL configuration
 #[derive(Debug, Clone)]
@@ -71,12 +71,12 @@ impl Repl {
         let env = ReplEnvironment::new()?;
         let commands = CommandRegistry::new();
         let mut history = HistoryManager::new()?;
-        
+
         // Set custom history file if provided
         if let Some(ref path) = config.history_file {
             history.set_history_file(path.clone());
         }
-        
+
         Ok(Self {
             config,
             env,
@@ -170,11 +170,7 @@ impl Repl {
 
         // Save history
         if self.history.is_enabled() {
-            let entries: Vec<String> = editor
-                .history()
-                .iter()
-                .map(|s| s.to_string())
-                .collect();
+            let entries: Vec<String> = editor.history().iter().map(|s| s.to_string()).collect();
             let _ = self.history.save(&entries);
         }
 
@@ -215,16 +211,14 @@ impl Repl {
         // Parse and execute
         use fluentai_parser::parse;
         match parse(&input) {
-            Ok(graph) => {
-                match self.env.execute(&graph) {
-                    Ok(result) => {
-                        println!("{}", result.cyan());
-                    }
-                    Err(e) => {
-                        eprintln!("{}: {}", "Runtime error".red().bold(), e);
-                    }
+            Ok(graph) => match self.env.execute(&graph) {
+                Ok(result) => {
+                    println!("{}", result.cyan());
                 }
-            }
+                Err(e) => {
+                    eprintln!("{}: {}", "Runtime error".red().bold(), e);
+                }
+            },
             Err(e) => {
                 eprintln!("{}: {}", "Parse error".red().bold(), e);
             }
@@ -236,7 +230,7 @@ impl Repl {
     /// Handle a command
     fn handle_command(&mut self, input: &str) -> ReplResult<bool> {
         let cmd_input = &input[1..]; // Remove the ':'
-        
+
         match self.commands.execute(&mut self.env, cmd_input)? {
             CommandResult::Success(msg) => {
                 println!("{}", msg);
@@ -276,7 +270,7 @@ impl Repl {
                 _ => {}
             }
         }
-        
+
         // Don't let it go negative
         if self.paren_depth < 0 {
             self.paren_depth = 0;
@@ -285,16 +279,26 @@ impl Repl {
 
     /// Print the banner
     fn print_banner(&self) {
-        println!("{}", "╔═══════════════════════════════════════╗".bright_blue());
-        println!("{} {} {}", 
+        println!(
+            "{}",
+            "╔═══════════════════════════════════════╗".bright_blue()
+        );
+        println!(
+            "{} {} {}",
             "║".bright_blue(),
-            "      FluentAi Interactive REPL      ".bright_white().bold(),
+            "      FluentAi Interactive REPL      "
+                .bright_white()
+                .bold(),
             "║".bright_blue()
         );
-        println!("{}", "╚═══════════════════════════════════════╝".bright_blue());
+        println!(
+            "{}",
+            "╚═══════════════════════════════════════╝".bright_blue()
+        );
         println!();
-        println!("Type {} for help, {} to exit", 
-            ":help".bright_cyan(), 
+        println!(
+            "Type {} for help, {} to exit",
+            ":help".bright_cyan(),
             ":exit".bright_cyan()
         );
         println!();
@@ -304,22 +308,23 @@ impl Repl {
     fn print_help(&self) {
         println!("{}", "Available commands:".bright_white().bold());
         println!();
-        
+
         for cmd in self.commands.all_commands() {
             let aliases = if cmd.aliases.is_empty() {
                 String::new()
             } else {
                 format!(" ({})", cmd.aliases.join(", "))
             };
-            
-            println!("  {}{} - {}", 
+
+            println!(
+                "  {}{} - {}",
                 cmd.name.bright_cyan(),
                 aliases.bright_black(),
                 cmd.description
             );
             println!("    {}", cmd.usage.bright_black());
         }
-        
+
         println!();
         println!("{}", "Keyboard shortcuts:".bright_white().bold());
         println!("  {} - Exit REPL", "Ctrl-D".bright_cyan());
@@ -349,13 +354,13 @@ mod tests {
     fn test_paren_depth() {
         let config = ReplConfig::default();
         let mut repl = Repl::new(config).unwrap();
-        
+
         repl.update_paren_depth("(+ 1");
         assert_eq!(repl.paren_depth, 1);
-        
+
         repl.update_paren_depth("(* 2 3))");
         assert_eq!(repl.paren_depth, 0); // 1 open - 2 close = -1, but clamped to 0
-        
+
         repl.paren_depth = 0;
         repl.update_paren_depth("(let ((x 1) (y 2))");
         assert_eq!(repl.paren_depth, 1);

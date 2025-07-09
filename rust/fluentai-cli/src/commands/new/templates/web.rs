@@ -1,6 +1,6 @@
 //! Full-stack web application template
 
-use super::{Template, TemplateCategory, TemplateOptions, TemplateOption, helpers};
+use super::{helpers, Template, TemplateCategory, TemplateOption, TemplateOptions};
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -11,29 +11,27 @@ impl Template for WebTemplate {
     fn name(&self) -> &'static str {
         "web"
     }
-    
+
     fn description(&self) -> &'static str {
         "Full-stack web application with server-side rendering"
     }
-    
+
     fn category(&self) -> TemplateCategory {
         TemplateCategory::Application
     }
-    
+
     fn options(&self) -> Vec<TemplateOption> {
-        vec![
-            TemplateOption {
-                name: "frontend",
-                description: "Frontend framework",
-                default: Some("htmx"),
-                choices: vec!["htmx", "alpine", "vue", "react"],
-            },
-        ]
+        vec![TemplateOption {
+            name: "frontend",
+            description: "Frontend framework",
+            default: Some("htmx"),
+            choices: vec!["htmx", "alpine", "vue", "react"],
+        }]
     }
-    
+
     fn create(&self, path: &Path, name: &str, options: &TemplateOptions) -> Result<()> {
         let frontend = options.frontend.as_deref().unwrap_or("htmx");
-        
+
         // Create project file
         helpers::create_project_file(
             path,
@@ -46,7 +44,7 @@ impl Template for WebTemplate {
                 ("FluentAI.Static", "1.0.0"),
             ],
         )?;
-        
+
         // Create main program
         let program_content = r#";; Full-stack Web Application
 
@@ -98,23 +96,26 @@ impl Template for WebTemplate {
   (main (command-line-args)))
 "#;
         fs::write(path.join("Program.ai"), program_content)?;
-        
+
         // Create directories
-        helpers::create_directories(path, &[
-            "src",
-            "src/controllers",
-            "src/models",
-            "src/services",
-            "views",
-            "views/layouts",
-            "views/partials",
-            "public",
-            "public/css",
-            "public/js",
-            "public/images",
-            "tests",
-        ])?;
-        
+        helpers::create_directories(
+            path,
+            &[
+                "src",
+                "src/controllers",
+                "src/models",
+                "src/services",
+                "views",
+                "views/layouts",
+                "views/partials",
+                "public",
+                "public/css",
+                "public/js",
+                "public/images",
+                "tests",
+            ],
+        )?;
+
         // Create config
         let config_content = r#";; Application configuration
 
@@ -131,7 +132,7 @@ impl Template for WebTemplate {
   (export get production?))
 "#;
         fs::write(path.join("src/config.ai"), config_content)?;
-        
+
         // Create routes
         let routes_content = r#";; Application routes
 
@@ -172,7 +173,7 @@ impl Template for WebTemplate {
   (export all not-found server-error))
 "#;
         fs::write(path.join("src/routes.ai"), routes_content)?;
-        
+
         // Create home controller
         let home_controller = r#";; Home controller
 
@@ -187,7 +188,7 @@ impl Template for WebTemplate {
   (export index))
 "#;
         fs::write(path.join("src/controllers/home.ai"), home_controller)?;
-        
+
         // Create about controller
         let about_controller = r#";; About controller
 
@@ -202,7 +203,7 @@ impl Template for WebTemplate {
   (export index))
 "#;
         fs::write(path.join("src/controllers/about.ai"), about_controller)?;
-        
+
         // Create contact controller
         let contact_controller = r#";; Contact controller
 
@@ -245,7 +246,7 @@ impl Template for WebTemplate {
   (export index submit))
 "#;
         fs::write(path.join("src/controllers/contact.ai"), contact_controller)?;
-        
+
         // Create base layout
         let layout_content = r#"<!DOCTYPE html>
 <html lang="en">
@@ -291,7 +292,7 @@ impl Template for WebTemplate {
 </html>
 "#;
         fs::write(path.join("views/layouts/base.html"), layout_content)?;
-        
+
         // Create home view
         let home_view = r#"{% extends "layouts/base.html" %}
 
@@ -314,7 +315,7 @@ impl Template for WebTemplate {
 {% endblock %}
 "#;
         fs::write(path.join("views/home.html"), home_view)?;
-        
+
         // Create about view
         let about_view = r#"{% extends "layouts/base.html" %}
 
@@ -324,7 +325,7 @@ impl Template for WebTemplate {
 {% endblock %}
 "#;
         fs::write(path.join("views/about.html"), about_view)?;
-        
+
         // Create contact view
         let contact_view = r#"{% extends "layouts/base.html" %}
 
@@ -363,7 +364,7 @@ impl Template for WebTemplate {
 {% endblock %}
 "#;
         fs::write(path.join("views/contact.html"), contact_view)?;
-        
+
         // Create 404 page
         let not_found_view = r#"{% extends "layouts/base.html" %}
 
@@ -376,7 +377,7 @@ impl Template for WebTemplate {
 {% endblock %}
 "#;
         fs::write(path.join("views/404.html"), not_found_view)?;
-        
+
         // Create 500 page
         let error_view = r#"{% extends "layouts/base.html" %}
 
@@ -389,7 +390,7 @@ impl Template for WebTemplate {
 {% endblock %}
 "#;
         fs::write(path.join("views/500.html"), error_view)?;
-        
+
         // Create CSS
         let css_content = r#"/* Base styles */
 :root {
@@ -587,30 +588,38 @@ footer {
 }
 "#;
         fs::write(path.join("public/css/style.css"), css_content)?;
-        
+
         // Create JavaScript file based on frontend choice
         let js_content = match frontend {
-            "htmx" => r#"// HTMX is loaded via CDN in the layout
+            "htmx" => {
+                r#"// HTMX is loaded via CDN in the layout
 // Add any custom JavaScript here
-"#,
-            "alpine" => r#"// Alpine.js is loaded via CDN in the layout
+"#
+            }
+            "alpine" => {
+                r#"// Alpine.js is loaded via CDN in the layout
 // Add Alpine components here
-"#,
-            _ => r#"// Add your JavaScript here
+"#
+            }
+            _ => {
+                r#"// Add your JavaScript here
 document.addEventListener('DOMContentLoaded', function() {
     console.log('FluentAI Web Application loaded');
 });
-"#,
+"#
+            }
         };
         fs::write(path.join("public/js/app.js"), js_content)?;
-        
+
         // Update layout for frontend framework
         if frontend == "htmx" || frontend == "alpine" {
             let layout_path = path.join("views/layouts/base.html");
             let layout = fs::read_to_string(&layout_path)?;
             let cdn_script = match frontend {
                 "htmx" => r#"    <script src="https://unpkg.com/htmx.org@1.9.10"></script>"#,
-                "alpine" => r#"    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>"#,
+                "alpine" => {
+                    r#"    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>"#
+                }
                 _ => "",
             };
             let updated_layout = layout.replace(
@@ -619,7 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
             );
             fs::write(layout_path, updated_layout)?;
         }
-        
+
         // Create .env.example
         let env_example = r#"# Environment configuration
 ENVIRONMENT=development
@@ -627,7 +636,7 @@ PORT=3000
 SESSION_SECRET=your-secret-key-change-in-production
 "#;
         fs::write(path.join(".env.example"), env_example)?;
-        
+
         // Create test
         let test_content = r#";; Web application tests
 
@@ -656,17 +665,20 @@ SESSION_SECRET=your-secret-key-change-in-production
         (test/expect (:body res) :to-contain "error")))))
 "#;
         fs::write(path.join("tests/web.test.ai"), test_content)?;
-        
+
         // Create README
         helpers::create_readme(
             path,
             name,
-            &format!("A full-stack web application built with FluentAI and {}.", frontend)
+            &format!(
+                "A full-stack web application built with FluentAI and {}.",
+                frontend
+            ),
         )?;
-        
+
         // Create .gitignore
         helpers::create_gitignore(path)?;
-        
+
         Ok(())
     }
 }

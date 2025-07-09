@@ -5,8 +5,8 @@ use crate::{
     types::*,
     unification::{Substitution, Unifier},
 };
-use fluentai_core::ast::{Graph, Literal, Node, NodeId, Pattern};
 use anyhow::{anyhow, Result};
+use fluentai_core::ast::{Graph, Literal, Node, NodeId, Pattern};
 use rustc_hash::FxHashMap;
 
 /// Type inference engine
@@ -29,7 +29,7 @@ pub enum TypeError {
     /// Variable is not bound in the current scope
     #[error("Unbound variable: {0}")]
     UnboundVariable(String),
-    
+
     /// Type mismatch between expected and found types
     #[error("Type mismatch: expected {expected}, found {found}")]
     TypeMismatch {
@@ -38,11 +38,11 @@ pub enum TypeError {
         /// The type that was found
         found: String,
     },
-    
+
     /// Type unification failed between two types
     #[error("Cannot unify types: {0} and {1}")]
     UnificationFailure(String, String),
-    
+
     /// Wrong number of arguments provided to a function
     #[error("Wrong number of arguments: expected {expected}, found {found}")]
     ArityMismatch {
@@ -51,15 +51,15 @@ pub enum TypeError {
         /// The actual number of arguments found
         found: usize,
     },
-    
+
     /// Invalid literal type encountered
     #[error("Invalid literal type")]
     InvalidLiteral,
-    
+
     /// Pattern matching failed
     #[error("Pattern match failure: {0}")]
     PatternMatchFailure(String),
-    
+
     /// Effect constraint was violated
     #[error("Effect constraint violation: {0}")]
     EffectConstraintViolation(String),
@@ -113,7 +113,8 @@ impl TypeInferencer {
             return Ok(ty.clone());
         }
 
-        let node = graph.get_node(node_id)
+        let node = graph
+            .get_node(node_id)
             .ok_or_else(|| anyhow!("Invalid node ID: {:?}", node_id))?;
 
         let inferred_type = match node {
@@ -125,14 +126,18 @@ impl TypeInferencer {
             }
             Node::Let { bindings, body } => self.infer_let(graph, bindings, *body)?,
             Node::Letrec { bindings, body } => self.infer_letrec(graph, bindings, *body)?,
-            Node::If { condition, then_branch, else_branch } => {
-                self.infer_if(graph, *condition, *then_branch, *else_branch)?
-            }
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => self.infer_if(graph, *condition, *then_branch, *else_branch)?,
             Node::List(elements) => self.infer_list(graph, elements)?,
             Node::Match { expr, branches } => self.infer_match(graph, *expr, branches)?,
-            Node::Effect { effect_type, operation, args } => {
-                self.infer_effect(*effect_type, operation, graph, args)?
-            }
+            Node::Effect {
+                effect_type,
+                operation,
+                args,
+            } => self.infer_effect(*effect_type, operation, graph, args)?,
             Node::Async { body } => self.infer_async(graph, *body)?,
             Node::Await { expr } => self.infer_await(graph, *expr)?,
             Node::Spawn { expr } => self.infer_spawn(graph, *expr)?,
@@ -166,11 +171,11 @@ impl TypeInferencer {
                     TypedValue::primitive(PrimitiveType::unit())
                 } else {
                     // Infer types for all expressions (for side effects/error checking)
-                    for expr in &exprs[..exprs.len()-1] {
+                    for expr in &exprs[..exprs.len() - 1] {
                         self.infer_node(graph, *expr)?;
                     }
                     // Return the type of the last expression
-                    self.infer_node(graph, exprs[exprs.len()-1])?
+                    self.infer_node(graph, exprs[exprs.len() - 1])?
                 }
             }
         };
@@ -203,7 +208,8 @@ impl TypeInferencer {
             // Instantiate type scheme (handle polymorphism)
             Ok(self.instantiate(ty.clone()))
         } else {
-            self.errors.push(TypeError::UnboundVariable(name.to_string()));
+            self.errors
+                .push(TypeError::UnboundVariable(name.to_string()));
             Err(anyhow!("Unbound variable: {}", name))
         }
     }
@@ -217,9 +223,9 @@ impl TypeInferencer {
     ) -> Result<TypedValue> {
         // Create fresh type variables for parameters
         let mut param_types = Vec::new();
-        
+
         self.env.push_scope();
-        
+
         for param in params {
             let param_type = self.env.fresh_type("t");
             param_types.push(param_type.clone());
@@ -228,11 +234,14 @@ impl TypeInferencer {
 
         // Infer body type
         let body_type = self.infer_node(graph, body)?;
-        
+
         self.env.pop_scope();
 
         // Create function type
-        Ok(TypedValue::function(FunctionType::new(param_types, body_type)))
+        Ok(TypedValue::function(FunctionType::new(
+            param_types,
+            body_type,
+        )))
     }
 
     /// Infer type of function application
@@ -250,7 +259,7 @@ impl TypeInferencer {
                 }
             }
         }
-        
+
         // Infer function type
         let func_type = self.infer_node(graph, function)?;
 
@@ -264,9 +273,8 @@ impl TypeInferencer {
         let result_type = self.env.fresh_type("r");
 
         // Create expected function type
-        let expected_func_type = TypedValue::function(
-            FunctionType::new(arg_types.clone(), result_type.clone())
-        );
+        let expected_func_type =
+            TypedValue::function(FunctionType::new(arg_types.clone(), result_type.clone()));
 
         // Unify with actual function type
         match self.unifier.unify(&func_type, &expected_func_type) {
@@ -306,9 +314,9 @@ impl TypeInferencer {
 
         // Infer body type
         let body_type = self.infer_node(graph, body)?;
-        
+
         self.env.pop_scope();
-        
+
         Ok(body_type)
     }
 
@@ -346,9 +354,9 @@ impl TypeInferencer {
 
         // Infer body type
         let body_type = self.infer_node(graph, body)?;
-        
+
         self.env.pop_scope();
-        
+
         Ok(body_type)
     }
 
@@ -363,7 +371,7 @@ impl TypeInferencer {
         // Condition must be boolean
         let cond_type = self.infer_node(graph, condition)?;
         let bool_type = TypedValue::primitive(PrimitiveType::bool());
-        
+
         match self.unifier.unify(&cond_type, &bool_type) {
             Ok(new_subst) => self.subst.compose(&new_subst),
             Err(_) => {
@@ -402,7 +410,7 @@ impl TypeInferencer {
         } else {
             // Infer first element type
             let first_type = self.infer_node(graph, elements[0])?;
-            
+
             // All elements must have same type
             for &elem_id in &elements[1..] {
                 let elem_type = self.infer_node(graph, elem_id)?;
@@ -416,8 +424,10 @@ impl TypeInferencer {
                     }
                 }
             }
-            
-            Ok(TypedValue::list(ListType::new(self.subst.apply_type(&first_type))))
+
+            Ok(TypedValue::list(ListType::new(
+                self.subst.apply_type(&first_type),
+            )))
         }
     }
 
@@ -430,20 +440,20 @@ impl TypeInferencer {
     ) -> Result<TypedValue> {
         // Infer type of matched expression
         let expr_type = self.infer_node(graph, expr)?;
-        
+
         // Create fresh result type
         let result_type = self.env.fresh_type("match_result");
-        
+
         // Check each branch
         for (pattern, body_id) in branches {
             self.env.push_scope();
-            
+
             // Pattern matching adds bindings
             self.check_pattern(pattern, &expr_type)?;
-            
+
             // Infer body type
             let body_type = self.infer_node(graph, *body_id)?;
-            
+
             // Unify with result type
             match self.unifier.unify(&result_type, &body_type) {
                 Ok(new_subst) => self.subst.compose(&new_subst),
@@ -454,10 +464,10 @@ impl TypeInferencer {
                     });
                 }
             }
-            
+
             self.env.pop_scope();
         }
-        
+
         Ok(self.subst.apply_type(&result_type))
     }
 
@@ -476,23 +486,29 @@ impl TypeInferencer {
                         Ok(())
                     }
                     Err(_) => {
-                        self.errors.push(TypeError::PatternMatchFailure(
-                            format!("Pattern type {} doesn't match expected {}", 
-                                    lit_type, expected_type)
-                        ));
+                        self.errors.push(TypeError::PatternMatchFailure(format!(
+                            "Pattern type {} doesn't match expected {}",
+                            lit_type, expected_type
+                        )));
                         Err(anyhow!("Pattern type mismatch"))
                     }
                 }
             }
-            Pattern::Constructor { name: _, patterns: _ } => {
+            Pattern::Constructor {
+                name: _,
+                patterns: _,
+            } => {
                 // TODO: Implement constructor pattern matching
                 self.errors.push(TypeError::PatternMatchFailure(
-                    "Constructor patterns not yet implemented".to_string()
+                    "Constructor patterns not yet implemented".to_string(),
                 ));
                 Err(anyhow!("Constructor patterns not yet implemented"))
             }
             Pattern::Wildcard => Ok(()),
-            Pattern::Guard { pattern, condition: _ } => {
+            Pattern::Guard {
+                pattern,
+                condition: _,
+            } => {
                 // For guard patterns, check the inner pattern
                 // The condition will be checked separately during evaluation
                 self.check_pattern(pattern, expected_type)
@@ -512,26 +528,29 @@ impl TypeInferencer {
             Pattern::Range(_) => {
                 // Range patterns only work with numeric types
                 match &expected_type.inner {
-                    TypedValueInner::Primitive(prim) => {
-                        match prim.name.as_str() {
-                            "Int" | "Float" => Ok(()),
-                            _ => {
-                                self.errors.push(TypeError::PatternMatchFailure(
-                                    format!("Range patterns can only match numeric types, not {}", expected_type)
-                                ));
-                                Err(anyhow!("Range pattern type mismatch"))
-                            }
+                    TypedValueInner::Primitive(prim) => match prim.name.as_str() {
+                        "Int" | "Float" => Ok(()),
+                        _ => {
+                            self.errors.push(TypeError::PatternMatchFailure(format!(
+                                "Range patterns can only match numeric types, not {}",
+                                expected_type
+                            )));
+                            Err(anyhow!("Range pattern type mismatch"))
                         }
-                    }
+                    },
                     _ => {
-                        self.errors.push(TypeError::PatternMatchFailure(
-                            format!("Range patterns can only match numeric types, not {}", expected_type)
-                        ));
+                        self.errors.push(TypeError::PatternMatchFailure(format!(
+                            "Range patterns can only match numeric types, not {}",
+                            expected_type
+                        )));
                         Err(anyhow!("Range pattern type mismatch"))
                     }
                 }
             }
-            Pattern::View { function: _, pattern } => {
+            Pattern::View {
+                function: _,
+                pattern,
+            } => {
                 // For view patterns, we would need to infer the function type
                 // and check that the pattern matches the function's return type
                 // For now, just check the inner pattern
@@ -556,7 +575,7 @@ impl TypeInferencer {
 
         // Get effect handler type
         let effect_ty = self.get_effect_type(effect_type, operation, &arg_types)?;
-        
+
         // Add effect to the result
         Ok(effect_ty.add_effect(effect_type))
     }
@@ -570,10 +589,12 @@ impl TypeInferencer {
     /// Infer type of await expression
     fn infer_await(&mut self, graph: &Graph, expr: NodeId) -> Result<TypedValue> {
         let expr_type = self.infer_node(graph, expr)?;
-        
+
         // Remove async effect if present
         let mut result = expr_type.clone();
-        result.effects.remove(&fluentai_core::ast::EffectType::Async);
+        result
+            .effects
+            .remove(&fluentai_core::ast::EffectType::Async);
         Ok(result)
     }
 
@@ -587,10 +608,8 @@ impl TypeInferencer {
     fn infer_channel(&mut self) -> Result<TypedValue> {
         // Channel[T] where T is a fresh type variable
         let elem_type = self.env.fresh_type("chan");
-        let channel_type = TypedValue::variant(
-            VariantType::new()
-                .with_variant("Channel", Some(elem_type))
-        );
+        let channel_type =
+            TypedValue::variant(VariantType::new().with_variant("Channel", Some(elem_type)));
         Ok(channel_type.add_effect(fluentai_core::ast::EffectType::Concurrent))
     }
 
@@ -598,9 +617,9 @@ impl TypeInferencer {
     fn infer_send(&mut self, graph: &Graph, channel: NodeId, value: NodeId) -> Result<TypedValue> {
         let _channel_type = self.infer_node(graph, channel)?;
         let _value_type = self.infer_node(graph, value)?;
-        
+
         // TODO: Validate channel and value types match
-        
+
         Ok(TypedValue::primitive(PrimitiveType::unit())
             .add_effect(fluentai_core::ast::EffectType::Concurrent))
     }
@@ -608,39 +627,31 @@ impl TypeInferencer {
     /// Infer type of receive operation
     fn infer_receive(&mut self, graph: &Graph, channel: NodeId) -> Result<TypedValue> {
         let _channel_type = self.infer_node(graph, channel)?;
-        
+
         // Extract element type from channel
         // TODO: Proper channel type extraction
         let elem_type = self.env.fresh_type("recv");
-        
+
         Ok(elem_type.add_effect(fluentai_core::ast::EffectType::Concurrent))
     }
 
     /// Get built-in function type
     fn get_builtin_type(&mut self, name: &str) -> Option<TypedValue> {
         use PrimitiveType as P;
-        
+
         let int = || TypedValue::primitive(P::int());
         let float = || TypedValue::primitive(P::float());
         let bool = || TypedValue::primitive(P::bool());
         let string = || TypedValue::primitive(P::string());
         let unit = || TypedValue::primitive(P::unit());
-        
-        let binary_int = || TypedValue::function(FunctionType::new(
-            vec![int(), int()],
-            int()
-        ));
-        
-        let binary_float = || TypedValue::function(FunctionType::new(
-            vec![float(), float()],
-            float()
-        ));
-        
-        let comparison = || TypedValue::function(FunctionType::new(
-            vec![int(), int()],
-            bool()
-        ));
-        
+
+        let binary_int = || TypedValue::function(FunctionType::new(vec![int(), int()], int()));
+
+        let binary_float =
+            || TypedValue::function(FunctionType::new(vec![float(), float()], float()));
+
+        let comparison = || TypedValue::function(FunctionType::new(vec![int(), int()], bool()));
+
         match name {
             // Arithmetic
             "+" => Some(binary_int()),
@@ -648,13 +659,13 @@ impl TypeInferencer {
             "*" => Some(binary_int()),
             "/" => Some(binary_int()),
             "mod" => Some(binary_int()),
-            
+
             // Float arithmetic
             "+." => Some(binary_float()),
             "-." => Some(binary_float()),
             "*." => Some(binary_float()),
             "/." => Some(binary_float()),
-            
+
             // Comparison
             "<" => Some(comparison()),
             ">" => Some(comparison()),
@@ -662,27 +673,27 @@ impl TypeInferencer {
             ">=" => Some(comparison()),
             "=" | "==" => Some(comparison()),
             "!=" | "<>" => Some(comparison()),
-            
+
             // Boolean
             "and" => Some(TypedValue::function(FunctionType::new(
                 vec![bool(), bool()],
-                bool()
+                bool(),
             ))),
             "or" => Some(TypedValue::function(FunctionType::new(
                 vec![bool(), bool()],
-                bool()
+                bool(),
             ))),
             "not" => Some(TypedValue::function(FunctionType::new(
                 vec![bool()],
-                bool()
+                bool(),
             ))),
-            
+
             // List operations
             "car" | "head" | "first" => {
                 let a = self.env.fresh_type("a");
                 Some(TypedValue::function(FunctionType::new(
                     vec![TypedValue::list(ListType::new(a.clone()))],
-                    a
+                    a,
                 )))
             }
             "cdr" | "tail" | "rest" => {
@@ -690,7 +701,7 @@ impl TypeInferencer {
                 let list_a = TypedValue::list(ListType::new(a));
                 Some(TypedValue::function(FunctionType::new(
                     vec![list_a.clone()],
-                    list_a
+                    list_a,
                 )))
             }
             "cons" => {
@@ -698,48 +709,48 @@ impl TypeInferencer {
                 let list_a = TypedValue::list(ListType::new(a.clone()));
                 Some(TypedValue::function(FunctionType::new(
                     vec![a, list_a.clone()],
-                    list_a
+                    list_a,
                 )))
             }
             "list-len" | "length" => {
                 let a = self.env.fresh_type("a");
                 Some(TypedValue::function(FunctionType::new(
                     vec![TypedValue::list(ListType::new(a))],
-                    int()
+                    int(),
                 )))
             }
             "list-empty?" | "empty?" => {
                 let a = self.env.fresh_type("a");
                 Some(TypedValue::function(FunctionType::new(
                     vec![TypedValue::list(ListType::new(a))],
-                    bool()
+                    bool(),
                 )))
             }
-            
+
             // String operations
             "str-len" | "string-length" => Some(TypedValue::function(FunctionType::new(
                 vec![string()],
-                int()
+                int(),
             ))),
             "str-concat" | "string-append" => Some(TypedValue::function(FunctionType::new(
                 vec![string(), string()],
-                string()
+                string(),
             ))),
             "str-upper" | "string-upcase" => Some(TypedValue::function(FunctionType::new(
                 vec![string()],
-                string()
+                string(),
             ))),
             "str-lower" | "string-downcase" => Some(TypedValue::function(FunctionType::new(
                 vec![string()],
-                string()
+                string(),
             ))),
-            
+
             // IO operations
-            "print" => Some(TypedValue::function(FunctionType::new(
-                vec![self.env.fresh_type("a")],
-                unit()
-            )).add_effect(fluentai_core::ast::EffectType::IO)),
-            
+            "print" => Some(
+                TypedValue::function(FunctionType::new(vec![self.env.fresh_type("a")], unit()))
+                    .add_effect(fluentai_core::ast::EffectType::IO),
+            ),
+
             _ => None,
         }
     }
@@ -752,14 +763,10 @@ impl TypeInferencer {
         _arg_types: &[TypedValue],
     ) -> Result<TypedValue> {
         use PrimitiveType as P;
-        
+
         match (effect, operation) {
-            (fluentai_core::ast::EffectType::IO, "print") => {
-                Ok(TypedValue::primitive(P::unit()))
-            }
-            (fluentai_core::ast::EffectType::IO, "read") => {
-                Ok(TypedValue::primitive(P::string()))
-            }
+            (fluentai_core::ast::EffectType::IO, "print") => Ok(TypedValue::primitive(P::unit())),
+            (fluentai_core::ast::EffectType::IO, "read") => Ok(TypedValue::primitive(P::string())),
             _ => {
                 let result = self.env.fresh_type("effect");
                 Ok(result)
@@ -803,7 +810,7 @@ mod tests {
         let graph = parse(code)?;
         let mut inferencer = TypeInferencer::new();
         let types = inferencer.infer_graph(&graph)?;
-        
+
         if let Some(root_id) = graph.root_id {
             Ok(types.get(&root_id).unwrap().clone())
         } else {
@@ -835,19 +842,20 @@ mod tests {
     fn test_if_inference() {
         assert_eq!(infer_code("(if #t 1 2)").unwrap().to_string(), "Int");
         assert_eq!(
-            infer_code("(if (< 1 2) \"yes\" \"no\")").unwrap().to_string(),
+            infer_code("(if (< 1 2) \"yes\" \"no\")")
+                .unwrap()
+                .to_string(),
             "String"
         );
     }
 
     #[test]
     fn test_let_inference() {
+        assert_eq!(infer_code("(let ((x 42)) x)").unwrap().to_string(), "Int");
         assert_eq!(
-            infer_code("(let ((x 42)) x)").unwrap().to_string(),
-            "Int"
-        );
-        assert_eq!(
-            infer_code("(let ((x 42) (y 3)) (+ x y))").unwrap().to_string(),
+            infer_code("(let ((x 42) (y 3)) (+ x y))")
+                .unwrap()
+                .to_string(),
             "Int"
         );
     }
@@ -856,7 +864,7 @@ mod tests {
     fn test_lambda_inference() {
         let result = infer_code("(lambda (x) x)").unwrap();
         assert!(result.to_string().contains("→"));
-        
+
         assert_eq!(
             infer_code("((lambda (x) (+ x 1)) 5)").unwrap().to_string(),
             "Int"
@@ -867,7 +875,7 @@ mod tests {
     fn test_list_inference() {
         let result = infer_code("(list 1 2 3)").unwrap();
         assert_eq!(result.to_string(), "[Int]");
-        
+
         let result = infer_code("(car (list 1 2 3))").unwrap();
         assert_eq!(result.to_string(), "Int");
     }

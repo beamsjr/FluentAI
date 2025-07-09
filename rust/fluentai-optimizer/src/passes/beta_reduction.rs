@@ -1,8 +1,8 @@
 //! Beta reduction pass
 
-use fluentai_core::ast::Graph;
-use anyhow::Result;
 use crate::passes::OptimizationPass;
+use anyhow::Result;
+use fluentai_core::ast::Graph;
 
 /// Beta reduction pass
 pub struct BetaReductionPass {
@@ -23,14 +23,18 @@ impl OptimizationPass for BetaReductionPass {
 
     fn run(&mut self, graph: &Graph) -> Result<Graph> {
         self.reduced_count = 0;
-        
-        // For now, just return a clone - beta reduction is already 
+
+        // For now, just return a clone - beta reduction is already
         // handled by the AdvancedOptimizer's inline_small_functions method
         // This is a placeholder for more sophisticated beta reduction
         Ok(graph.clone())
     }
 
     fn stats(&self) -> String {
-        format!("{} pass: {} reductions performed", self.name(), self.reduced_count)
+        format!(
+            "{} pass: {} reductions performed",
+            self.name(),
+            self.reduced_count
+        )
     }
 }

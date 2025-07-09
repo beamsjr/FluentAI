@@ -3,12 +3,12 @@
 //! This transport communicates via stdin/stdout, which is the traditional
 //! method for MCP servers.
 
-use super::{Transport, JsonRpcRequest, JsonRpcResponse, JsonRpcNotification};
-use async_trait::async_trait;
+use super::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, Transport};
 use anyhow::Result;
+use async_trait::async_trait;
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::Mutex;
-use std::sync::Arc;
 use tracing::{debug, error};
 
 /// Stdio transport for MCP communication
@@ -36,7 +36,7 @@ impl Transport for StdioTransport {
         debug!("Stdio transport started");
         Ok(())
     }
-    
+
     async fn send_response(&self, response: JsonRpcResponse) -> Result<()> {
         let json = serde_json::to_string(&response)?;
         let mut stdout = self.stdout.lock().await;
@@ -46,7 +46,7 @@ impl Transport for StdioTransport {
         debug!("Sent response: {}", json);
         Ok(())
     }
-    
+
     async fn send_notification(&self, notification: JsonRpcNotification) -> Result<()> {
         let json = serde_json::to_string(&notification)?;
         let mut stdout = self.stdout.lock().await;
@@ -56,11 +56,11 @@ impl Transport for StdioTransport {
         debug!("Sent notification: {}", json);
         Ok(())
     }
-    
+
     async fn receive_request(&mut self) -> Result<Option<JsonRpcRequest>> {
         let mut stdin = self.stdin.lock().await;
         let mut line = String::new();
-        
+
         match stdin.read_line(&mut line).await {
             Ok(0) => {
                 // EOF reached
@@ -72,9 +72,9 @@ impl Transport for StdioTransport {
                 if line.is_empty() {
                     return Ok(None);
                 }
-                
+
                 debug!("Received: {}", line);
-                
+
                 match serde_json::from_str::<JsonRpcRequest>(line) {
                     Ok(request) => Ok(Some(request)),
                     Err(e) => {
@@ -90,14 +90,12 @@ impl Transport for StdioTransport {
             }
         }
     }
-    
+
     fn is_connected(&self) -> bool {
         // This will block briefly but should be fine for stdio
-        futures::executor::block_on(async {
-            *self.connected.lock().await
-        })
+        futures::executor::block_on(async { *self.connected.lock().await })
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         *self.connected.lock().await = false;
         debug!("Stdio transport shutdown");
@@ -110,17 +108,17 @@ mod tests {
     use super::*;
     use crate::transport::RequestHandler;
     use serde_json::Value as JsonValue;
-    
+
     #[tokio::test]
     async fn test_stdio_transport_lifecycle() {
         let mut transport = StdioTransport::new();
-        
+
         // Initially not connected
         assert!(!transport.is_connected());
-        
+
         // Create a mock handler
         struct MockHandler;
-        
+
         #[async_trait]
         impl RequestHandler for MockHandler {
             async fn handle_request(&self, _request: JsonRpcRequest) -> JsonRpcResponse {
@@ -132,13 +130,13 @@ mod tests {
                 }
             }
         }
-        
+
         // Start transport with handler
         let handler = Arc::new(MockHandler);
         let result = transport.start(handler).await;
         assert!(result.is_ok());
         assert!(transport.is_connected());
-        
+
         // Shutdown transport
         let shutdown_result = transport.shutdown().await;
         assert!(shutdown_result.is_ok());

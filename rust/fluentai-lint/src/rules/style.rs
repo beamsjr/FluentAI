@@ -1,12 +1,12 @@
 //! Style-related lint rules
 
 use crate::diagnostic::LintDiagnostic;
-use crate::visitor::Visitor;
-use crate::rules::{Rule, RuleCategory, DiagnosticCollector};
 use crate::impl_rule;
+use crate::rules::{DiagnosticCollector, Rule, RuleCategory};
+use crate::visitor::Visitor;
 use fluentai_core::ast::{Graph, Node, NodeId};
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 /// Check naming conventions for variables and functions
 #[derive(Default)]
@@ -39,21 +39,19 @@ impl Visitor for NamingVisitor {
                     self.collector.add_diagnostic(
                         LintDiagnostic::warning(
                             "naming-conventions",
-                            format!("Variable '{}' does not follow naming conventions", name)
+                            format!("Variable '{}' does not follow naming conventions", name),
                         )
-                        .with_note("FluentAi uses kebab-case for identifiers by default")
+                        .with_note("FluentAi uses kebab-case for identifiers by default"),
                     );
                 }
             }
             Node::Lambda { params, body } => {
                 for param in params {
                     if !is_valid_name(param, self.allow_snake_case, self.allow_kebab_case) {
-                        self.collector.add_diagnostic(
-                            LintDiagnostic::warning(
-                                "naming-conventions",
-                                format!("Parameter '{}' does not follow naming conventions", param)
-                            )
-                        );
+                        self.collector.add_diagnostic(LintDiagnostic::warning(
+                            "naming-conventions",
+                            format!("Parameter '{}' does not follow naming conventions", param),
+                        ));
                     }
                 }
                 self.visit_node_id(graph, *body);
@@ -70,12 +68,13 @@ impl Visitor for NamingVisitor {
                     Node::Let { bindings, body } => {
                         for (name, value) in bindings {
                             if !is_valid_name(name, self.allow_snake_case, self.allow_kebab_case) {
-                                self.collector.add_diagnostic(
-                                    LintDiagnostic::warning(
-                                        "naming-conventions",
-                                        format!("Binding '{}' does not follow naming conventions", name)
-                                    )
-                                );
+                                self.collector.add_diagnostic(LintDiagnostic::warning(
+                                    "naming-conventions",
+                                    format!(
+                                        "Binding '{}' does not follow naming conventions",
+                                        name
+                                    ),
+                                ));
                             }
                             self.visit_node_id(graph, *value);
                         }
@@ -97,20 +96,20 @@ impl NamingVisitor {
 fn is_valid_name(name: &str, allow_snake: bool, allow_kebab: bool) -> bool {
     static KEBAB_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-z][a-z0-9-]*$").unwrap());
     static SNAKE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-z][a-z0-9_]*$").unwrap());
-    
+
     // Special cases
     if name.starts_with('_') || name == "*" {
         return true;
     }
-    
+
     if allow_kebab && KEBAB_RE.is_match(name) {
         return true;
     }
-    
+
     if allow_snake && SNAKE_RE.is_match(name) {
         return true;
     }
-    
+
     // Default to kebab-case
     KEBAB_RE.is_match(name)
 }
@@ -133,7 +132,11 @@ impl LineLength {
     fn visitor(&self) -> LineLengthVisitor {
         LineLengthVisitor {
             collector: DiagnosticCollector::new("line-length"),
-            _max_length: if self.max_length == 0 { 100 } else { self.max_length },
+            _max_length: if self.max_length == 0 {
+                100
+            } else {
+                self.max_length
+            },
         }
     }
 }
@@ -188,7 +191,8 @@ impl Visitor for UnusedImportsVisitor {
     fn visit_node(&mut self, graph: &Graph, node_id: NodeId, node: &Node) {
         match node {
             Node::Import { import_list, .. } => {
-                let names: Vec<String> = import_list.iter()
+                let names: Vec<String> = import_list
+                    .iter()
                     .map(|item| item.alias.as_ref().unwrap_or(&item.name).clone())
                     .collect();
                 self.imports.push((node_id, names));
@@ -198,7 +202,7 @@ impl Visitor for UnusedImportsVisitor {
             }
             _ => {}
         }
-        
+
         // Continue traversal
         match node {
             Node::Lambda { body, .. } => {
@@ -216,7 +220,11 @@ impl Visitor for UnusedImportsVisitor {
                 }
                 self.visit_node_id(graph, *body);
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.visit_node_id(graph, *condition);
                 self.visit_node_id(graph, *then_branch);
                 self.visit_node_id(graph, *else_branch);
@@ -237,16 +245,14 @@ impl UnusedImportsVisitor {
         for (_node_id, import_names) in self.imports {
             for name in import_names {
                 if !self.used_names.contains(&name) {
-                    self.collector.add_diagnostic(
-                        LintDiagnostic::warning(
-                            "unused-imports",
-                            format!("Unused import: '{}'", name)
-                        )
-                    );
+                    self.collector.add_diagnostic(LintDiagnostic::warning(
+                        "unused-imports",
+                        format!("Unused import: '{}'", name),
+                    ));
                 }
             }
         }
-        
+
         self.collector.finish()
     }
 }

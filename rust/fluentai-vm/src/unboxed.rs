@@ -1,12 +1,12 @@
 //! Unboxed value representation for high-performance numeric operations
 
-use std::fmt;
+use crate::safety::{ChannelId, PromiseId};
 use fluentai_core::value::Value;
-use crate::safety::{PromiseId, ChannelId};
 use rustc_hash::FxHashMap;
+use std::fmt;
 
 /// Unboxed value representation using NaN-boxing and tagged pointers
-/// 
+///
 /// This representation allows us to store common values directly without heap allocation:
 /// - Small integers (up to 61 bits) using tagged pointers
 /// - Floats using NaN-boxing
@@ -63,7 +63,7 @@ impl UnboxedValue {
             _ => true,
         }
     }
-    
+
     /// Convert from old Value type
     pub fn from_value(value: Value) -> Self {
         match value {
@@ -93,7 +93,10 @@ impl UnboxedValue {
             }
             Value::NativeFunction { name, .. } => {
                 // Native functions are not supported in unboxed representation
-                UnboxedValue::Boxed(Box::new(BoxedValue::String(format!("<native-function: {}>", name))))
+                UnboxedValue::Boxed(Box::new(BoxedValue::String(format!(
+                    "<native-function: {}>",
+                    name
+                ))))
             }
             Value::Function { chunk_id, env } => {
                 let unboxed_env = env.into_iter().map(UnboxedValue::from_value).collect();
@@ -114,7 +117,8 @@ impl UnboxedValue {
                 }))
             }
             Value::Module { name, exports } => {
-                let unboxed_exports = exports.into_iter()
+                let unboxed_exports = exports
+                    .into_iter()
                     .map(|(k, v)| (k, UnboxedValue::from_value(v)))
                     .collect();
                 UnboxedValue::Boxed(Box::new(BoxedValue::Module {
@@ -129,7 +133,7 @@ impl UnboxedValue {
             }
         }
     }
-    
+
     /// Convert to old Value type
     pub fn to_value(self) -> Value {
         match self {
@@ -143,7 +147,11 @@ impl UnboxedValue {
                     let values = items.into_iter().map(|v| v.to_value()).collect();
                     Value::List(values)
                 }
-                BoxedValue::Closure { chunk_id, captured_env, param_count: _ } => {
+                BoxedValue::Closure {
+                    chunk_id,
+                    captured_env,
+                    param_count: _,
+                } => {
                     let env = captured_env.into_iter().map(|v| v.to_value()).collect();
                     Value::Function { chunk_id, env }
                 }
@@ -155,16 +163,20 @@ impl UnboxedValue {
                     Value::Tagged { tag, values: vals }
                 }
                 BoxedValue::Module { name, exports } => {
-                    let exps = exports.into_iter()
+                    let exps = exports
+                        .into_iter()
                         .map(|(k, v)| (k, v.to_value()))
                         .collect();
-                    Value::Module { name, exports: exps }
+                    Value::Module {
+                        name,
+                        exports: exps,
+                    }
                 }
                 BoxedValue::NativeFunc { .. } => {
                     // Can't convert back - return nil
                     Value::Nil
                 }
-            }
+            },
         }
     }
 }
@@ -200,7 +212,11 @@ impl fmt::Display for UnboxedValue {
                     }
                     write!(f, "]")
                 }
-                BoxedValue::Closure { chunk_id, param_count, .. } => {
+                BoxedValue::Closure {
+                    chunk_id,
+                    param_count,
+                    ..
+                } => {
                     write!(f, "<closure:{} params:{}>", chunk_id, param_count)
                 }
                 BoxedValue::NativeFunc { name, arity, .. } => {
@@ -219,7 +235,7 @@ impl fmt::Display for UnboxedValue {
                 BoxedValue::Module { name, exports } => {
                     write!(f, "<module {} with {} exports>", name, exports.len())
                 }
-            }
+            },
         }
     }
 }
@@ -237,44 +253,52 @@ impl UnboxedValue {
                 }
             }
             (UnboxedValue::Float(a), UnboxedValue::Float(b)) => Ok(UnboxedValue::Float(a + b)),
-            (UnboxedValue::Int(a), UnboxedValue::Float(b)) => Ok(UnboxedValue::Float(*a as f64 + b)),
-            (UnboxedValue::Float(a), UnboxedValue::Int(b)) => Ok(UnboxedValue::Float(a + *b as f64)),
+            (UnboxedValue::Int(a), UnboxedValue::Float(b)) => {
+                Ok(UnboxedValue::Float(*a as f64 + b))
+            }
+            (UnboxedValue::Float(a), UnboxedValue::Int(b)) => {
+                Ok(UnboxedValue::Float(a + *b as f64))
+            }
             _ => Err("Type error: can only add numbers".to_string()),
         }
     }
-    
+
     /// Subtract two values
     pub fn sub(&self, other: &UnboxedValue) -> Result<UnboxedValue, String> {
         match (self, other) {
-            (UnboxedValue::Int(a), UnboxedValue::Int(b)) => {
-                match a.checked_sub(*b) {
-                    Some(result) => Ok(UnboxedValue::Int(result)),
-                    None => Ok(UnboxedValue::Float(*a as f64 - *b as f64)),
-                }
-            }
+            (UnboxedValue::Int(a), UnboxedValue::Int(b)) => match a.checked_sub(*b) {
+                Some(result) => Ok(UnboxedValue::Int(result)),
+                None => Ok(UnboxedValue::Float(*a as f64 - *b as f64)),
+            },
             (UnboxedValue::Float(a), UnboxedValue::Float(b)) => Ok(UnboxedValue::Float(a - b)),
-            (UnboxedValue::Int(a), UnboxedValue::Float(b)) => Ok(UnboxedValue::Float(*a as f64 - b)),
-            (UnboxedValue::Float(a), UnboxedValue::Int(b)) => Ok(UnboxedValue::Float(a - *b as f64)),
+            (UnboxedValue::Int(a), UnboxedValue::Float(b)) => {
+                Ok(UnboxedValue::Float(*a as f64 - b))
+            }
+            (UnboxedValue::Float(a), UnboxedValue::Int(b)) => {
+                Ok(UnboxedValue::Float(a - *b as f64))
+            }
             _ => Err("Type error: can only subtract numbers".to_string()),
         }
     }
-    
+
     /// Multiply two values
     pub fn mul(&self, other: &UnboxedValue) -> Result<UnboxedValue, String> {
         match (self, other) {
-            (UnboxedValue::Int(a), UnboxedValue::Int(b)) => {
-                match a.checked_mul(*b) {
-                    Some(result) => Ok(UnboxedValue::Int(result)),
-                    None => Ok(UnboxedValue::Float(*a as f64 * *b as f64)),
-                }
-            }
+            (UnboxedValue::Int(a), UnboxedValue::Int(b)) => match a.checked_mul(*b) {
+                Some(result) => Ok(UnboxedValue::Int(result)),
+                None => Ok(UnboxedValue::Float(*a as f64 * *b as f64)),
+            },
             (UnboxedValue::Float(a), UnboxedValue::Float(b)) => Ok(UnboxedValue::Float(a * b)),
-            (UnboxedValue::Int(a), UnboxedValue::Float(b)) => Ok(UnboxedValue::Float(*a as f64 * b)),
-            (UnboxedValue::Float(a), UnboxedValue::Int(b)) => Ok(UnboxedValue::Float(a * *b as f64)),
+            (UnboxedValue::Int(a), UnboxedValue::Float(b)) => {
+                Ok(UnboxedValue::Float(*a as f64 * b))
+            }
+            (UnboxedValue::Float(a), UnboxedValue::Int(b)) => {
+                Ok(UnboxedValue::Float(a * *b as f64))
+            }
             _ => Err("Type error: can only multiply numbers".to_string()),
         }
     }
-    
+
     /// Compare two values for equality
     pub fn eq(&self, other: &UnboxedValue) -> bool {
         match (self, other) {

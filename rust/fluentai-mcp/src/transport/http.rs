@@ -2,15 +2,17 @@
 //!
 //! This transport implements the MCP HTTP/SSE specification for web-based clients.
 
-use super::{Transport, JsonRpcRequest, JsonRpcResponse, JsonRpcNotification, SessionManager, RequestHandler};
-use async_trait::async_trait;
+use super::{
+    JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, RequestHandler, SessionManager, Transport,
+};
 use anyhow::Result;
+use async_trait::async_trait;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::{
         sse::{Event, KeepAlive, Sse},
-        Json, IntoResponse,
+        IntoResponse, Json,
     },
     routing::{get, post},
     Router,
@@ -66,7 +68,7 @@ impl HttpTransport {
     pub fn new(port: u16) -> Self {
         let response_channels = Arc::new(DashMap::new());
         let (notification_sender, _) = broadcast::channel(100);
-        
+
         Self {
             port,
             request_receiver: None,
@@ -76,39 +78,36 @@ impl HttpTransport {
             server_handle: None,
         }
     }
-    
+
     /// Start the HTTP server
-    async fn start_server(
-        &mut self,
-        handler: Arc<dyn super::RequestHandler>,
-    ) -> Result<()> {
+    async fn start_server(&mut self, handler: Arc<dyn super::RequestHandler>) -> Result<()> {
         let state = HttpServerState {
             request_handler: handler,
             notification_sender: self.notification_sender.clone(),
             sessions: super::create_session_manager(),
         };
-        
+
         let app = Router::new()
             .route("/sessions", post(create_session))
             .route("/sessions/:session_id/messages", post(handle_message))
             .route("/sessions/:session_id/sse", get(sse_handler))
             .layer(CorsLayer::permissive())
             .with_state(state);
-        
+
         let addr = format!("0.0.0.0:{}", self.port);
         info!("Starting HTTP server on {}", addr);
-        
+
         let listener = tokio::net::TcpListener::bind(&addr).await?;
-        
+
         // Spawn the server task
         let server_handle = tokio::spawn(async move {
             axum::serve(listener, app)
                 .await
                 .expect("HTTP server failed");
         });
-        
+
         self.server_handle = Some(server_handle);
-        
+
         Ok(())
     }
 }
@@ -119,41 +118,41 @@ impl Transport for HttpTransport {
         if self.request_handler.is_some() {
             return Err(anyhow::anyhow!("Transport already started"));
         }
-        
+
         self.request_handler = Some(handler.clone());
-        
+
         self.start_server(handler).await?;
         Ok(())
     }
-    
+
     async fn send_response(&self, response: JsonRpcResponse) -> Result<()> {
         let id = match &response.id {
             serde_json::Value::String(s) => s.clone(),
             other => other.to_string(),
         };
-        
+
         if let Some((_, sender)) = self.response_channels.remove(&id) {
             let _ = sender.send(response);
         }
-        
+
         Ok(())
     }
-    
+
     async fn send_notification(&self, notification: JsonRpcNotification) -> Result<()> {
         let _ = self.notification_sender.send(notification);
         Ok(())
     }
-    
+
     async fn receive_request(&mut self) -> Result<Option<JsonRpcRequest>> {
         // For HTTP transport, requests are received through the web server
         // This method is not used in the traditional sense
         Ok(None)
     }
-    
+
     fn is_connected(&self) -> bool {
         self.server_handle.is_some()
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         if let Some(handle) = self.server_handle.take() {
             handle.abort();
@@ -168,7 +167,7 @@ async fn create_session(
     Json(req): Json<CreateSessionRequest>,
 ) -> impl IntoResponse {
     let session_id = Uuid::new_v4().to_string();
-    
+
     // Create new session
     {
         let mut sessions = state.sessions.write().await;
@@ -182,12 +181,12 @@ async fn create_session(
         };
         sessions.insert(session_id.clone(), new_session);
     }
-    
+
     let response = CreateSessionResponse {
         session_id: session_id.clone(),
         sse_endpoint: format!("/sessions/{}/sse", session_id),
     };
-    
+
     Json(response)
 }
 
@@ -204,7 +203,7 @@ async fn handle_message(
             return (StatusCode::NOT_FOUND, "Session not found").into_response();
         }
     }
-    
+
     // Handle the request directly
     let response = state.request_handler.handle_request(request).await;
     Json(response).into_response()
@@ -220,15 +219,17 @@ async fn sse_handler(
         let sessions = state.sessions.read().await;
         sessions.contains_key(&session_id)
     };
-    
+
     if !valid_session {
         // Return empty stream for invalid session
         let stream = futures::stream::empty::<Result<Event, std::convert::Infallible>>();
-        return Sse::new(stream).keep_alive(KeepAlive::default()).into_response();
+        return Sse::new(stream)
+            .keep_alive(KeepAlive::default())
+            .into_response();
     }
-    
+
     let mut notification_receiver = state.notification_sender.subscribe();
-    
+
     let stream = async_stream::stream! {
         loop {
             match notification_receiver.recv().await {
@@ -247,8 +248,10 @@ async fn sse_handler(
             }
         }
     };
-    
-    Sse::new(stream).keep_alive(KeepAlive::default()).into_response()
+
+    Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response()
 }
 
 #[cfg(test)]
@@ -256,20 +259,20 @@ mod tests {
     use super::*;
     use crate::transport::SessionState;
     use serde_json::Value as JsonValue;
-    
+
     #[test]
     fn test_http_transport_creation() {
         let transport = HttpTransport::new(3000);
         assert!(!transport.is_connected());
     }
-    
+
     #[tokio::test]
     async fn test_http_transport_double_start() {
         let mut transport = HttpTransport::new(0);
-        
+
         // Create a mock handler
         struct MockHandler;
-        
+
         #[async_trait]
         impl RequestHandler for MockHandler {
             async fn handle_request(&self, _request: JsonRpcRequest) -> JsonRpcResponse {
@@ -281,19 +284,19 @@ mod tests {
                 }
             }
         }
-        
+
         let handler = Arc::new(MockHandler);
-        
+
         // First start should succeed
         let result1 = transport.start(handler.clone()).await;
         assert!(result1.is_ok());
-        
+
         // Second start should fail
         let result2 = transport.start(handler).await;
         assert!(result2.is_err());
         assert!(result2.unwrap_err().to_string().contains("already started"));
     }
-    
+
     #[test]
     fn test_session_state_default() {
         let session = SessionState::default();

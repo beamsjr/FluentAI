@@ -6,4 +6,4 @@ pub mod serializer;
 pub mod server;
 
 pub use debug::{DebugEvent, DebugEventReceiver, DebugEventSender};
-pub use server::{VisualizationServer, ServerConfig, ServerHandle};
+pub use server::{ServerConfig, ServerHandle, VisualizationServer};

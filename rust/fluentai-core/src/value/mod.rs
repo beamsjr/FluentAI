@@ -12,68 +12,62 @@ use std::sync::Arc;
 pub enum Value {
     /// Integer value
     Integer(i64),
-    
+
     /// Floating point value
     Float(f64),
-    
+
     /// String value
     String(String),
-    
+
     /// Symbol value
     Symbol(String),
-    
+
     /// Boolean value
     Boolean(bool),
-    
+
     /// Nil/null value
     Nil,
-    
+
     /// List of values
     List(Vec<Value>),
-    
+
     /// Procedure (closure)
     Procedure(Arc<Procedure>),
-    
+
     /// Vector (mutable array)
     Vector(Vec<Value>),
-    
+
     /// Hash table
     Map(FxHashMap<String, Value>),
-    
+
     /// Native function
     NativeFunction {
         name: String,
         arity: usize,
         function: Arc<dyn Fn(&[Value]) -> Result<Value, ValueError> + Send + Sync>,
     },
-    
+
     /// Tagged value for ADTs
-    Tagged {
-        tag: String,
-        values: Vec<Value>,
-    },
-    
+    Tagged { tag: String, values: Vec<Value> },
+
     /// VM function (bytecode chunk with environment)
-    Function {
-        chunk_id: usize,
-        env: Vec<Value>,
-    },
-    
+    Function { chunk_id: usize, env: Vec<Value> },
+
     /// Promise for async operations
     Promise(u64),
-    
+
     /// Channel for concurrent communication
     Channel(u64),
-    
+
     /// Mutable cell reference
     Cell(usize),
-    
+
     /// Module with exports
     Module {
         name: String,
         exports: FxHashMap<String, Value>,
     },
-    
+
     /// Garbage collected handle (VM internal use)
     GcHandle(Arc<dyn std::any::Any + Send + Sync>),
 }
@@ -83,13 +77,13 @@ pub enum Value {
 pub struct Procedure {
     /// Optional function name (for debugging)
     pub name: Option<String>,
-    
+
     /// Parameter names
     pub params: Vec<String>,
-    
+
     /// Function body (AST node ID)
     pub body: crate::ast::NodeId,
-    
+
     /// Captured environment (optional)
     pub env: Option<FxHashMap<String, Value>>,
 }
@@ -99,79 +93,82 @@ impl Value {
     pub fn is_integer(&self) -> bool {
         matches!(self, Value::Integer(_))
     }
-    
+
     pub fn is_float(&self) -> bool {
         matches!(self, Value::Float(_))
     }
-    
+
     pub fn is_number(&self) -> bool {
         matches!(self, Value::Integer(_) | Value::Float(_))
     }
-    
+
     pub fn is_string(&self) -> bool {
         matches!(self, Value::String(_))
     }
-    
+
     pub fn is_symbol(&self) -> bool {
         matches!(self, Value::Symbol(_))
     }
-    
+
     pub fn is_boolean(&self) -> bool {
         matches!(self, Value::Boolean(_))
     }
-    
+
     pub fn is_nil(&self) -> bool {
         matches!(self, Value::Nil)
     }
-    
+
     pub fn is_list(&self) -> bool {
         matches!(self, Value::List(_))
     }
-    
+
     pub fn is_vector(&self) -> bool {
         matches!(self, Value::Vector(_))
     }
-    
+
     pub fn is_map(&self) -> bool {
         matches!(self, Value::Map(_))
     }
-    
+
     pub fn is_procedure(&self) -> bool {
         matches!(self, Value::Procedure(_))
     }
-    
+
     pub fn is_callable(&self) -> bool {
-        matches!(self, Value::Procedure(_) | Value::NativeFunction { .. } | Value::Function { .. })
+        matches!(
+            self,
+            Value::Procedure(_) | Value::NativeFunction { .. } | Value::Function { .. }
+        )
     }
-    
+
     pub fn is_tagged(&self) -> bool {
         matches!(self, Value::Tagged { .. })
     }
-    
+
     pub fn is_function(&self) -> bool {
         matches!(self, Value::Function { .. })
     }
-    
+
     pub fn is_promise(&self) -> bool {
         matches!(self, Value::Promise(_))
     }
-    
+
     pub fn is_channel(&self) -> bool {
         matches!(self, Value::Channel(_))
     }
-    
+
     pub fn is_cell(&self) -> bool {
         matches!(self, Value::Cell(_))
     }
-    
+
     pub fn is_module(&self) -> bool {
         matches!(self, Value::Module { .. })
     }
-    
+
     pub fn is_gc_handle(&self) -> bool {
         matches!(self, Value::GcHandle(_))
     }
-    
+
     /// Type conversion helpers
     pub fn as_integer(&self) -> ValueResult<i64> {
         match self {
@@ -182,7 +179,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_float(&self) -> ValueResult<f64> {
         match self {
             Value::Float(f) => Ok(*f),
@@ -192,7 +189,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_number(&self) -> ValueResult<f64> {
         match self {
             Value::Integer(n) => Ok(*n as f64),
@@ -203,7 +200,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_string(&self) -> ValueResult<&str> {
         match self {
             Value::String(s) => Ok(s),
@@ -213,7 +210,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_symbol(&self) -> ValueResult<&str> {
         match self {
             Value::Symbol(s) => Ok(s),
@@ -223,7 +220,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_boolean(&self) -> ValueResult<bool> {
         match self {
             Value::Boolean(b) => Ok(*b),
@@ -233,7 +230,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_list(&self) -> ValueResult<&[Value]> {
         match self {
             Value::List(items) => Ok(items),
@@ -243,7 +240,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_vector(&self) -> ValueResult<&[Value]> {
         match self {
             Value::Vector(items) => Ok(items),
@@ -253,7 +250,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_map(&self) -> ValueResult<&FxHashMap<String, Value>> {
         match self {
             Value::Map(map) => Ok(map),
@@ -263,7 +260,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_procedure(&self) -> ValueResult<&Procedure> {
         match self {
             Value::Procedure(proc) => Ok(proc),
@@ -273,7 +270,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_tagged(&self) -> ValueResult<(&str, &[Value])> {
         match self {
             Value::Tagged { tag, values } => Ok((tag, values)),
@@ -283,7 +280,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_function(&self) -> ValueResult<(usize, &[Value])> {
         match self {
             Value::Function { chunk_id, env } => Ok((*chunk_id, env)),
@@ -293,7 +290,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_promise(&self) -> ValueResult<u64> {
         match self {
             Value::Promise(id) => Ok(*id),
@@ -303,7 +300,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_channel(&self) -> ValueResult<u64> {
         match self {
             Value::Channel(id) => Ok(*id),
@@ -313,7 +310,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_cell(&self) -> ValueResult<usize> {
         match self {
             Value::Cell(idx) => Ok(*idx),
@@ -323,7 +320,7 @@ impl Value {
             }),
         }
     }
-    
+
     pub fn as_module(&self) -> ValueResult<(&str, &FxHashMap<String, Value>)> {
         match self {
             Value::Module { name, exports } => Ok((name, exports)),
@@ -333,7 +330,7 @@ impl Value {
             }),
         }
     }
-    
+
     /// Get type name for error messages
     pub fn type_name(&self) -> &'static str {
         match self {
@@ -357,7 +354,7 @@ impl Value {
             Value::GcHandle(_) => "gc-handle",
         }
     }
-    
+
     /// Check if value is truthy
     pub fn is_truthy(&self) -> bool {
         match self {
@@ -371,9 +368,7 @@ impl Value {
 impl PartialEq for Procedure {
     fn eq(&self, other: &Self) -> bool {
         // Procedures are equal if they have the same structure
-        self.name == other.name &&
-        self.params == other.params &&
-        self.body == other.body
+        self.name == other.name && self.params == other.params && self.body == other.body
         // We don't compare environments as they may contain cyclic references
     }
 }
@@ -395,30 +390,57 @@ impl Value {
                 a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x.deep_eq(y))
             }
             (Value::Map(a), Value::Map(b)) => {
-                a.len() == b.len() && 
-                a.iter().all(|(k, v)| b.get(k).map_or(false, |v2| v.deep_eq(v2)))
+                a.len() == b.len()
+                    && a.iter()
+                        .all(|(k, v)| b.get(k).map_or(false, |v2| v.deep_eq(v2)))
             }
             (Value::Procedure(a), Value::Procedure(b)) => Arc::ptr_eq(a, b) || **a == **b,
-            (Value::Tagged { tag: tag_a, values: vals_a }, 
-             Value::Tagged { tag: tag_b, values: vals_b }) => {
-                tag_a == tag_b && 
-                vals_a.len() == vals_b.len() && 
-                vals_a.iter().zip(vals_b.iter()).all(|(x, y)| x.deep_eq(y))
+            (
+                Value::Tagged {
+                    tag: tag_a,
+                    values: vals_a,
+                },
+                Value::Tagged {
+                    tag: tag_b,
+                    values: vals_b,
+                },
+            ) => {
+                tag_a == tag_b
+                    && vals_a.len() == vals_b.len()
+                    && vals_a.iter().zip(vals_b.iter()).all(|(x, y)| x.deep_eq(y))
             }
-            (Value::Function { chunk_id: id_a, env: env_a },
-             Value::Function { chunk_id: id_b, env: env_b }) => {
-                id_a == id_b &&
-                env_a.len() == env_b.len() &&
-                env_a.iter().zip(env_b.iter()).all(|(x, y)| x.deep_eq(y))
+            (
+                Value::Function {
+                    chunk_id: id_a,
+                    env: env_a,
+                },
+                Value::Function {
+                    chunk_id: id_b,
+                    env: env_b,
+                },
+            ) => {
+                id_a == id_b
+                    && env_a.len() == env_b.len()
+                    && env_a.iter().zip(env_b.iter()).all(|(x, y)| x.deep_eq(y))
             }
             (Value::Promise(a), Value::Promise(b)) => a == b,
             (Value::Channel(a), Value::Channel(b)) => a == b,
             (Value::Cell(a), Value::Cell(b)) => a == b,
-            (Value::Module { name: name_a, exports: exp_a },
-             Value::Module { name: name_b, exports: exp_b }) => {
-                name_a == name_b &&
-                exp_a.len() == exp_b.len() &&
-                exp_a.iter().all(|(k, v)| exp_b.get(k).map_or(false, |v2| v.deep_eq(v2)))
+            (
+                Value::Module {
+                    name: name_a,
+                    exports: exp_a,
+                },
+                Value::Module {
+                    name: name_b,
+                    exports: exp_b,
+                },
+            ) => {
+                name_a == name_b
+                    && exp_a.len() == exp_b.len()
+                    && exp_a
+                        .iter()
+                        .all(|(k, v)| exp_b.get(k).map_or(false, |v2| v.deep_eq(v2)))
             }
             (Value::GcHandle(a), Value::GcHandle(b)) => {
                 // GcHandles are compared by Arc pointer equality
@@ -427,11 +449,11 @@ impl Value {
             _ => false,
         }
     }
-    
+
     /// Numeric comparison
     pub fn compare_numeric(&self, other: &Value) -> ValueResult<std::cmp::Ordering> {
         use std::cmp::Ordering;
-        
+
         match (self, other) {
             (Value::Integer(a), Value::Integer(b)) => Ok(a.cmp(b)),
             (Value::Float(a), Value::Float(b)) => {
@@ -463,9 +485,11 @@ impl Value {
                     Ok(Ordering::Equal)
                 }
             }
-            _ => Err(ValueError::InvalidOperation(
-                format!("Cannot compare {} and {} numerically", self.type_name(), other.type_name())
-            )),
+            _ => Err(ValueError::InvalidOperation(format!(
+                "Cannot compare {} and {} numerically",
+                self.type_name(),
+                other.type_name()
+            ))),
         }
     }
 }
@@ -483,33 +507,29 @@ impl std::fmt::Debug for Value {
             Value::Procedure(proc) => f.debug_struct("Procedure").field("proc", proc).finish(),
             Value::Vector(items) => f.debug_struct("Vector").field("items", items).finish(),
             Value::Map(map) => f.debug_struct("Map").field("map", map).finish(),
-            Value::NativeFunction { name, arity, .. } => {
-                f.debug_struct("NativeFunction")
-                    .field("name", name)
-                    .field("arity", arity)
-                    .finish()
-            }
-            Value::Tagged { tag, values } => {
-                f.debug_struct("Tagged")
-                    .field("tag", tag)
-                    .field("values", values)
-                    .finish()
-            }
-            Value::Function { chunk_id, env } => {
-                f.debug_struct("Function")
-                    .field("chunk_id", chunk_id)
-                    .field("env", env)
-                    .finish()
-            }
+            Value::NativeFunction { name, arity, .. } => f
+                .debug_struct("NativeFunction")
+                .field("name", name)
+                .field("arity", arity)
+                .finish(),
+            Value::Tagged { tag, values } => f
+                .debug_struct("Tagged")
+                .field("tag", tag)
+                .field("values", values)
+                .finish(),
+            Value::Function { chunk_id, env } => f
+                .debug_struct("Function")
+                .field("chunk_id", chunk_id)
+                .field("env", env)
+                .finish(),
             Value::Promise(id) => write!(f, "Promise({})", id),
             Value::Channel(id) => write!(f, "Channel({})", id),
             Value::Cell(idx) => write!(f, "Cell({})", idx),
-            Value::Module { name, exports } => {
-                f.debug_struct("Module")
-                    .field("name", name)
-                    .field("exports", exports)
-                    .finish()
-            }
+            Value::Module { name, exports } => f
+                .debug_struct("Module")
+                .field("name", name)
+                .field("exports", exports)
+                .finish(),
             Value::GcHandle(_) => write!(f, "GcHandle(..)"),
         }
     }
@@ -528,20 +548,52 @@ impl PartialEq for Value {
             (Value::Vector(a), Value::Vector(b)) => a == b,
             (Value::Map(a), Value::Map(b)) => a == b,
             (Value::Procedure(a), Value::Procedure(b)) => Arc::ptr_eq(a, b),
-            (Value::NativeFunction { name: n1, arity: a1, .. }, 
-             Value::NativeFunction { name: n2, arity: a2, .. }) => n1 == n2 && a1 == a2,
-            (Value::Tagged { tag: t1, values: v1 }, 
-             Value::Tagged { tag: t2, values: v2 }) => t1 == t2 && v1 == v2,
-            (Value::Function { chunk_id: id1, env: env1 },
-             Value::Function { chunk_id: id2, env: env2 }) => id1 == id2 && env1 == env2,
+            (
+                Value::NativeFunction {
+                    name: n1,
+                    arity: a1,
+                    ..
+                },
+                Value::NativeFunction {
+                    name: n2,
+                    arity: a2,
+                    ..
+                },
+            ) => n1 == n2 && a1 == a2,
+            (
+                Value::Tagged {
+                    tag: t1,
+                    values: v1,
+                },
+                Value::Tagged {
+                    tag: t2,
+                    values: v2,
+                },
+            ) => t1 == t2 && v1 == v2,
+            (
+                Value::Function {
+                    chunk_id: id1,
+                    env: env1,
+                },
+                Value::Function {
+                    chunk_id: id2,
+                    env: env2,
+                },
+            ) => id1 == id2 && env1 == env2,
             (Value::Promise(a), Value::Promise(b)) => a == b,
             (Value::Channel(a), Value::Channel(b)) => a == b,
             (Value::Cell(a), Value::Cell(b)) => a == b,
-            (Value::Module { name: n1, exports: e1 },
-             Value::Module { name: n2, exports: e2 }) => n1 == n2 && e1 == e2,
-            (Value::GcHandle(a), Value::GcHandle(b)) => {
-                Arc::ptr_eq(a, b)
-            }
+            (
+                Value::Module {
+                    name: n1,
+                    exports: e1,
+                },
+                Value::Module {
+                    name: n2,
+                    exports: e2,
+                },
+            ) => n1 == n2 && e1 == e2,
+            (Value::GcHandle(a), Value::GcHandle(b)) => Arc::ptr_eq(a, b),
             _ => false,
         }
     }

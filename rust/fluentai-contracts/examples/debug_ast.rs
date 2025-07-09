@@ -9,15 +9,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
               (- 0 x)
               x))
     "#;
-    
+
     let graph = parse(program)?;
-    
+
     println!("Graph nodes:");
     for (id, node) in &graph.nodes {
         println!("{}: {:?}", id, node);
     }
-    
+
     println!("\nRoot ID: {:?}", graph.root_id);
-    
+
     Ok(())
 }

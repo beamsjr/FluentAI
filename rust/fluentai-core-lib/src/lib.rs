@@ -7,7 +7,7 @@
 //! - Effect handlers and standard library
 //! - Garbage collection
 //! - Module loading system
-//! 
+//!
 //! Applications can be compiled as:
 //! 1. Native code with embedded runtime (for dynamic features)
 //! 2. Bytecode with embedded VM (smaller, portable)
@@ -24,12 +24,12 @@ pub mod loader;
 pub mod module;
 
 pub use aot::{AotCompiler, AotOptions, OutputFormat};
-pub use config::{RuntimeConfig, ExecutionMode};
+pub use config::{ExecutionMode, RuntimeConfig};
 pub use context::RuntimeContext;
 pub use engine::RuntimeEngine;
-pub use error::{RuntimeError, Result};
+pub use error::{Result, RuntimeError};
 pub use host::{HostFunction, HostRegistry};
-pub use module::{Module, CompiledModule};
+pub use module::{CompiledModule, Module};
 
 /// Re-export core types
 pub use fluentai_core::value::Value;
@@ -39,11 +39,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Prelude module for common imports
 pub mod prelude {
-    pub use crate::{
-        RuntimeConfig, RuntimeContext, RuntimeEngine,
-        RuntimeError, Result,
-        Module, CompiledModule,
-        HostFunction, HostRegistry,
-    };
     pub use crate::Value;
+    pub use crate::{
+        CompiledModule, HostFunction, HostRegistry, Module, Result, RuntimeConfig, RuntimeContext,
+        RuntimeEngine, RuntimeError,
+    };
 }

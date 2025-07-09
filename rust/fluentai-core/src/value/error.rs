@@ -10,34 +10,28 @@ pub enum ValueError {
         expected: &'static str,
         actual: &'static str,
     },
-    
+
     /// Index out of bounds
-    IndexOutOfBounds {
-        index: usize,
-        length: usize,
-    },
-    
+    IndexOutOfBounds { index: usize, length: usize },
+
     /// Key not found in map
     KeyNotFound(String),
-    
+
     /// Invalid operation
     InvalidOperation(String),
-    
+
     /// Conversion error
     ConversionError {
         from: &'static str,
         to: &'static str,
         reason: String,
     },
-    
+
     /// Division by zero
     DivisionByZero,
-    
+
     /// Function arity mismatch
-    ArityMismatch {
-        expected: usize,
-        actual: usize,
-    },
+    ArityMismatch { expected: usize, actual: usize },
 }
 
 impl fmt::Display for ValueError {
@@ -47,7 +41,11 @@ impl fmt::Display for ValueError {
                 write!(f, "Type error: expected {}, got {}", expected, actual)
             }
             ValueError::IndexOutOfBounds { index, length } => {
-                write!(f, "Index {} out of bounds for list of length {}", index, length)
+                write!(
+                    f,
+                    "Index {} out of bounds for list of length {}",
+                    index, length
+                )
             }
             ValueError::KeyNotFound(key) => {
                 write!(f, "Key not found: {}", key)

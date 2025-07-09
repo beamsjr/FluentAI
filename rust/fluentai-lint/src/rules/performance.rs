@@ -1,9 +1,9 @@
 //! Performance-related lint rules
 
 use crate::diagnostic::LintDiagnostic;
-use crate::visitor::Visitor;
-use crate::rules::{Rule, RuleCategory, DiagnosticCollector};
 use crate::impl_rule;
+use crate::rules::{DiagnosticCollector, Rule, RuleCategory};
+use crate::visitor::Visitor;
 use fluentai_core::ast::{Graph, Node, NodeId};
 
 /// Check for inefficient recursion patterns
@@ -31,7 +31,7 @@ impl Visitor for InefficientRecursionVisitor {
         // - Tail recursion optimization opportunities
         // - Stack-consuming recursive patterns
         // - Mutual recursion cycles
-        
+
         match node {
             Node::Lambda { body, .. } => {
                 self.visit_node_id(graph, *body);
@@ -97,7 +97,7 @@ impl Visitor for UnusedComputationVisitor {
                         self.pure_expressions.push(node_id);
                     }
                 }
-                
+
                 self.visit_node_id(graph, *function);
                 for arg in args {
                     self.visit_node_id(graph, *arg);
@@ -114,19 +114,21 @@ impl Visitor for UnusedComputationVisitor {
                 }
                 self.visit_node_id(graph, *body);
             }
-            _ => {
-                match node {
-                    Node::Lambda { body, .. } => {
-                        self.visit_node_id(graph, *body);
-                    }
-                    Node::If { condition, then_branch, else_branch } => {
-                        self.visit_node_id(graph, *condition);
-                        self.visit_node_id(graph, *then_branch);
-                        self.visit_node_id(graph, *else_branch);
-                    }
-                    _ => {}
+            _ => match node {
+                Node::Lambda { body, .. } => {
+                    self.visit_node_id(graph, *body);
                 }
-            }
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    self.visit_node_id(graph, *condition);
+                    self.visit_node_id(graph, *then_branch);
+                    self.visit_node_id(graph, *else_branch);
+                }
+                _ => {}
+            },
         }
     }
 }
@@ -135,7 +137,10 @@ fn is_likely_pure(node: &Node) -> bool {
     match node {
         Node::Variable { name } => {
             // Common pure functions
-            matches!(name.as_str(), "+" | "-" | "*" | "/" | "map" | "filter" | "reduce")
+            matches!(
+                name.as_str(),
+                "+" | "-" | "*" | "/" | "map" | "filter" | "reduce"
+            )
         }
         Node::Lambda { .. } => true,
         _ => false,
@@ -147,14 +152,11 @@ impl UnusedComputationVisitor {
         // Report pure expressions whose results are ignored
         for _expr_id in self.pure_expressions {
             self.collector.add_diagnostic(
-                LintDiagnostic::warning(
-                    "unused-computation",
-                    "Pure computation result is ignored"
-                )
-                .with_note("Consider removing this computation or using its result")
+                LintDiagnostic::warning("unused-computation", "Pure computation result is ignored")
+                    .with_note("Consider removing this computation or using its result"),
             );
         }
-        
+
         self.collector.finish()
     }
 }

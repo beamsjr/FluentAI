@@ -1,11 +1,11 @@
 //! Runtime value representation for the interpreter
 
-use std::rc::Rc;
-use std::cell::RefCell;
 use rustc_hash::FxHashMap;
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
-use fluentai_core::ast::{NodeId, Literal};
+use fluentai_core::ast::{Literal, NodeId};
 use fluentai_types::types::Type;
 
 use crate::environment::Environment;
@@ -118,7 +118,7 @@ impl Value {
         };
         Self::new(data)
     }
-    
+
     /// Create an integer value
     pub fn from_integer(i: i64) -> Self {
         Self::new(ValueData::Integer(i))
@@ -192,7 +192,8 @@ impl Value {
                 format!("[{}]", strs.join(", "))
             }
             ValueData::Map(m) => {
-                let pairs: Vec<String> = m.iter()
+                let pairs: Vec<String> = m
+                    .iter()
                     .map(|(k, v)| format!("{}: {}", k, v.to_string()))
                     .collect();
                 format!("{{{}}}", pairs.join(", "))
@@ -205,7 +206,7 @@ impl Value {
             ValueData::Channel(_) => "<channel>".to_string(),
         }
     }
-    
+
     /// Convert to boolean if possible
     pub fn to_boolean(&self) -> Option<bool> {
         match &self.data {
@@ -213,7 +214,7 @@ impl Value {
             _ => None,
         }
     }
-    
+
     /// Convert to list if possible
     pub fn to_list(&self) -> Option<&Vec<Value>> {
         match &self.data {

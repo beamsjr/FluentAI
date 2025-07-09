@@ -13,13 +13,13 @@ use std::path::Path;
 pub struct Lockfile {
     /// Lock file version
     pub version: u32,
-    
+
     /// When this lockfile was generated
     pub generated_at: DateTime<Utc>,
-    
+
     /// Resolved packages
     pub packages: HashMap<String, LockedPackage>,
-    
+
     /// Integrity information
     #[serde(default)]
     pub integrity: HashMap<String, String>,
@@ -31,34 +31,34 @@ pub struct Lockfile {
 pub struct LockedPackage {
     /// Package name
     pub name: String,
-    
+
     /// Resolved version
     pub version: Version,
-    
+
     /// Registry URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub registry: Option<String>,
-    
+
     /// Download URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
-    
+
     /// SHA256 checksum
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
-    
+
     /// Dependencies with resolved versions
     #[serde(default)]
     pub dependencies: HashMap<String, String>,
-    
+
     /// Development dependencies
     #[serde(default)]
     pub dev_dependencies: HashMap<String, String>,
-    
+
     /// Whether this is a direct dependency
     #[serde(default)]
     pub direct: bool,
-    
+
     /// Whether this is a dev dependency
     #[serde(default)]
     pub dev: bool,
@@ -67,7 +67,7 @@ pub struct LockedPackage {
 impl Lockfile {
     /// Current lockfile version
     pub const CURRENT_VERSION: u32 = 1;
-    
+
     /// Create a new empty lockfile
     pub fn new() -> Self {
         Self {
@@ -77,30 +77,29 @@ impl Lockfile {
             integrity: HashMap::new(),
         }
     }
-    
+
     /// Load lockfile from disk
     pub fn load(path: &Path) -> Result<Self> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| PackageError::LockfileError {
-                message: format!("Failed to read lockfile: {}", e),
-            })?;
-        
-        let lockfile: Self = serde_json::from_str(&content)
-            .map_err(|e| PackageError::LockfileError {
+        let content = fs::read_to_string(path).map_err(|e| PackageError::LockfileError {
+            message: format!("Failed to read lockfile: {}", e),
+        })?;
+
+        let lockfile: Self =
+            serde_json::from_str(&content).map_err(|e| PackageError::LockfileError {
                 message: format!("Failed to parse lockfile: {}", e),
             })?;
-        
+
         lockfile.validate()?;
         Ok(lockfile)
     }
-    
+
     /// Save lockfile to disk
     pub fn save(&self, path: &Path) -> Result<()> {
         let content = serde_json::to_string_pretty(self)?;
         fs::write(path, content)?;
         Ok(())
     }
-    
+
     /// Validate lockfile
     fn validate(&self) -> Result<()> {
         if self.version > Self::CURRENT_VERSION {
@@ -112,23 +111,23 @@ impl Lockfile {
                 ),
             });
         }
-        
+
         Ok(())
     }
-    
+
     /// Add a locked package
     pub fn add_package(&mut self, package: LockedPackage) {
         let key = format!("{}@{}", package.name, package.version);
         self.packages.insert(key, package);
         self.generated_at = Utc::now();
     }
-    
+
     /// Get a locked package by name and version
     pub fn get_package(&self, name: &str, version: &Version) -> Option<&LockedPackage> {
         let key = format!("{}@{}", name, version);
         self.packages.get(&key)
     }
-    
+
     /// Remove a package
     pub fn remove_package(&mut self, name: &str, version: &Version) -> Option<LockedPackage> {
         let key = format!("{}@{}", name, version);
@@ -138,7 +137,7 @@ impl Lockfile {
         }
         removed
     }
-    
+
     /// Get all direct dependencies
     pub fn direct_dependencies(&self) -> Vec<&LockedPackage> {
         self.packages
@@ -146,7 +145,7 @@ impl Lockfile {
             .filter(|p| p.direct && !p.dev)
             .collect()
     }
-    
+
     /// Get all dev dependencies
     pub fn dev_dependencies(&self) -> Vec<&LockedPackage> {
         self.packages
@@ -154,12 +153,12 @@ impl Lockfile {
             .filter(|p| p.direct && p.dev)
             .collect()
     }
-    
+
     /// Update integrity hash for a package
     pub fn set_integrity(&mut self, package_key: &str, hash: String) {
         self.integrity.insert(package_key.to_string(), hash);
     }
-    
+
     /// Verify integrity of all packages
     pub fn verify_integrity(&self) -> Result<()> {
         for (key, package) in &self.packages {
@@ -177,7 +176,7 @@ impl Lockfile {
         }
         Ok(())
     }
-    
+
     /// Merge another lockfile into this one
     pub fn merge(&mut self, other: &Lockfile) -> Result<()> {
         for (key, package) in &other.packages {
@@ -185,23 +184,23 @@ impl Lockfile {
                 self.packages.insert(key.clone(), package.clone());
             }
         }
-        
+
         for (key, hash) in &other.integrity {
             if !self.integrity.contains_key(key) {
                 self.integrity.insert(key.clone(), hash.clone());
             }
         }
-        
+
         self.generated_at = Utc::now();
         Ok(())
     }
-    
+
     /// Check if a package is locked
     pub fn has_package(&self, name: &str, version: &Version) -> bool {
         let key = format!("{}@{}", name, version);
         self.packages.contains_key(&key)
     }
-    
+
     /// Get all packages sorted by name
     pub fn packages_sorted(&self) -> Vec<&LockedPackage> {
         let mut packages: Vec<_> = self.packages.values().collect();
@@ -244,13 +243,13 @@ pub fn create_locked_package(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_lockfile_creation() {
         let mut lockfile = Lockfile::new();
         assert_eq!(lockfile.version, Lockfile::CURRENT_VERSION);
         assert!(lockfile.packages.is_empty());
-        
+
         let package = LockedPackage {
             name: "test".to_string(),
             version: Version::new(1, 0, 0),
@@ -262,12 +261,12 @@ mod tests {
             direct: true,
             dev: false,
         };
-        
+
         lockfile.add_package(package);
         assert_eq!(lockfile.packages.len(), 1);
         assert!(lockfile.has_package("test", &Version::new(1, 0, 0)));
     }
-    
+
     #[test]
     fn test_lockfile_serialization() {
         let lockfile = Lockfile::new();
@@ -275,11 +274,11 @@ mod tests {
         let deserialized: Lockfile = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.version, lockfile.version);
     }
-    
+
     #[test]
     fn test_direct_dependencies() {
         let mut lockfile = Lockfile::new();
-        
+
         lockfile.add_package(LockedPackage {
             name: "direct".to_string(),
             version: Version::new(1, 0, 0),
@@ -291,7 +290,7 @@ mod tests {
             direct: true,
             dev: false,
         });
-        
+
         lockfile.add_package(LockedPackage {
             name: "transitive".to_string(),
             version: Version::new(1, 0, 0),
@@ -303,7 +302,7 @@ mod tests {
             direct: false,
             dev: false,
         });
-        
+
         let direct = lockfile.direct_dependencies();
         assert_eq!(direct.len(), 1);
         assert_eq!(direct[0].name, "direct");

@@ -1,34 +1,34 @@
 //! Parallel contract verification for improved performance
-//! 
+//!
 //! This module enables verification of multiple contracts in parallel,
 //! significantly improving performance on multi-core systems.
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use rayon::prelude::*;
 use crate::{
     contract::Contract,
     errors::{ContractError, ContractResult},
-    static_verification::{StaticVerifier, VerificationResult},
     incremental::IncrementalVerifier,
+    static_verification::{StaticVerifier, VerificationResult},
 };
 use fluentai_core::ast::Graph;
+use rayon::prelude::*;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// Configuration for parallel verification
 #[derive(Debug, Clone)]
 pub struct ParallelVerificationConfig {
     /// Number of threads to use (0 = auto-detect)
     pub num_threads: usize,
-    
+
     /// Maximum contracts to verify in parallel
     pub max_parallel_contracts: usize,
-    
+
     /// Enable work stealing between threads
     pub enable_work_stealing: bool,
-    
+
     /// Batch size for contract distribution
     pub batch_size: usize,
-    
+
     /// Priority-based scheduling
     pub enable_priority_scheduling: bool,
 }
@@ -59,14 +59,13 @@ impl<'a> ParallelVerifier<'a> {
             config: ParallelVerificationConfig::default(),
         }
     }
-    
+
     /// Set configuration
     pub fn with_config(mut self, config: ParallelVerificationConfig) -> Self {
         self.config = config;
         self
     }
-    
-    
+
     /// Verify contracts in parallel
     pub fn verify_contracts_parallel(
         &self,
@@ -80,22 +79,20 @@ impl<'a> ParallelVerifier<'a> {
                 self.config.num_threads
             })
             .build()
-            .map_err(|e| ContractError::VerificationError(
-                format!("Failed to create thread pool: {}", e)
-            ))?;
-        
+            .map_err(|e| {
+                ContractError::VerificationError(format!("Failed to create thread pool: {}", e))
+            })?;
+
         // Prepare contracts for parallel processing
         let contract_vec: Vec<(&String, &Contract)> = if self.config.enable_priority_scheduling {
             // Sort by priority (complexity, dependencies, etc.)
             let mut sorted: Vec<_> = contracts.iter().collect();
-            sorted.sort_by_key(|(name, contract)| {
-                self.compute_contract_priority(name, contract)
-            });
+            sorted.sort_by_key(|(name, contract)| self.compute_contract_priority(name, contract));
             sorted
         } else {
             contracts.iter().collect()
         };
-        
+
         // Verify in parallel
         let results = pool.install(|| {
             contract_vec
@@ -103,12 +100,12 @@ impl<'a> ParallelVerifier<'a> {
                 .chunks(self.config.batch_size)
                 .map(|batch| {
                     let mut batch_results = HashMap::new();
-                    
+
                     for (name, contract) in batch {
                         let result = self.verify_single_contract(contract);
                         batch_results.insert((*name).clone(), result);
                     }
-                    
+
                     batch_results
                 })
                 .reduce(HashMap::new, |mut acc, batch| {
@@ -116,36 +113,36 @@ impl<'a> ParallelVerifier<'a> {
                     acc
                 })
         });
-        
+
         Ok(results)
     }
-    
+
     /// Verify a single contract (thread-safe)
     fn verify_single_contract(&self, contract: &Contract) -> VerificationResult {
         // Create thread-local verifier
         let verifier = StaticVerifier::new();
-        
+
         match verifier.verify_contract(contract) {
             Ok(result) => result,
             Err(e) => VerificationResult::Unknown(format!("Verification error: {}", e)),
         }
     }
-    
+
     /// Compute priority for contract verification
     fn compute_contract_priority(&self, _name: &str, contract: &Contract) -> i32 {
         let mut priority = 0;
-        
+
         // Higher priority for contracts with more conditions
         priority += contract.preconditions.len() as i32 * 10;
         priority += contract.postconditions.len() as i32 * 20;
         priority += contract.invariants.len() as i32 * 30;
-        
+
         // Higher priority for contracts with quantifiers (more complex)
         // This would require analyzing the contract expressions
-        
+
         -priority // Negative so higher priority contracts are verified first
     }
-    
+
     /// Verify contracts with dependency-aware parallelization
     pub fn verify_with_dependencies(
         &self,
@@ -154,18 +151,18 @@ impl<'a> ParallelVerifier<'a> {
     ) -> ContractResult<HashMap<String, VerificationResult>> {
         // Group contracts by dependency level
         let dependency_levels = self.compute_dependency_levels(contracts, incremental)?;
-        
+
         let mut all_results = HashMap::new();
-        
+
         // Process each level in parallel
         for level_contracts in dependency_levels {
             let level_results = self.verify_contracts_parallel(&level_contracts)?;
             all_results.extend(level_results);
         }
-        
+
         Ok(all_results)
     }
-    
+
     /// Compute dependency levels for contracts
     fn compute_dependency_levels(
         &self,
@@ -211,7 +208,7 @@ impl<'a> ParallelCoordinator<'a> {
             })),
         }
     }
-    
+
     /// Verify with progress reporting
     pub fn verify_with_progress<F>(
         &self,
@@ -224,25 +221,25 @@ impl<'a> ParallelCoordinator<'a> {
         let total = contracts.len();
         let completed = Arc::new(Mutex::new(0usize));
         let callback = Arc::new(progress_callback);
-        
+
         let results: HashMap<String, VerificationResult> = contracts
             .par_iter()
             .map(|(name, contract)| {
                 let verifier = ParallelVerifier::new(self.graph);
                 let result = verifier.verify_single_contract(contract);
-                
+
                 // Update progress
                 let mut count = completed.lock().unwrap();
                 *count += 1;
                 callback(*count, total);
-                
+
                 (name.clone(), result)
             })
             .collect();
-        
+
         Ok(results)
     }
-    
+
     /// Get verification statistics
     pub fn get_stats(&self) -> ParallelVerificationStats {
         self.stats.lock().unwrap().clone()
@@ -262,13 +259,13 @@ impl<T: Send + Clone> WorkStealingQueue<T> {
         }
         Self { queues }
     }
-    
+
     fn push(&self, queue_id: usize, item: T) {
         if let Some(queue) = self.queues.get(queue_id) {
             queue.lock().unwrap().push_back(item);
         }
     }
-    
+
     fn steal(&self, thief_id: usize) -> Option<T> {
         // Try to steal from other queues
         for (i, queue) in self.queues.iter().enumerate() {
@@ -282,7 +279,7 @@ impl<T: Send + Clone> WorkStealingQueue<T> {
         }
         None
     }
-    
+
     fn pop(&self, queue_id: usize) -> Option<T> {
         if let Some(queue) = self.queues.get(queue_id) {
             queue.lock().unwrap().pop_front()
@@ -298,19 +295,19 @@ use std::collections::VecDeque;
 mod tests {
     use super::*;
     use std::num::NonZeroU32;
-    
+
     #[test]
     fn test_parallel_config() {
         let config = ParallelVerificationConfig::default();
         assert_eq!(config.num_threads, 0); // Auto-detect
         assert!(config.enable_work_stealing);
     }
-    
+
     #[test]
     fn test_parallel_verifier_creation() {
         let graph = Graph::new();
         let verifier = ParallelVerifier::new(&graph);
-        
+
         let contracts = HashMap::new();
         let results = verifier.verify_contracts_parallel(&contracts).unwrap();
         assert_eq!(results.len(), 0);

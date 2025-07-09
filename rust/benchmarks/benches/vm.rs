@@ -6,7 +6,7 @@ use fluentai_vm::{Compiler, VM};
 
 fn benchmark_vm_arithmetic(c: &mut Criterion) {
     let mut group = c.benchmark_group("vm_arithmetic");
-    
+
     // Simple addition
     group.bench_function("simple_add", |b| {
         b.iter(|| {
@@ -17,7 +17,7 @@ fn benchmark_vm_arithmetic(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         });
     });
-    
+
     // Nested arithmetic
     group.bench_function("nested_arithmetic", |b| {
         b.iter(|| {
@@ -28,7 +28,7 @@ fn benchmark_vm_arithmetic(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         });
     });
-    
+
     // Complex expression
     group.bench_function("complex_arithmetic", |b| {
         b.iter(|| {
@@ -39,13 +39,13 @@ fn benchmark_vm_arithmetic(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         });
     });
-    
+
     group.finish();
 }
 
 fn benchmark_vm_literals(c: &mut Criterion) {
     let mut group = c.benchmark_group("vm_literals");
-    
+
     group.bench_function("integer", |b| {
         b.iter(|| {
             let ast = parse("42").unwrap();
@@ -55,7 +55,7 @@ fn benchmark_vm_literals(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         });
     });
-    
+
     group.bench_function("float", |b| {
         b.iter(|| {
             let ast = parse("3.14159").unwrap();
@@ -65,7 +65,7 @@ fn benchmark_vm_literals(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         });
     });
-    
+
     group.bench_function("string", |b| {
         b.iter(|| {
             let ast = parse(r#""hello world""#).unwrap();
@@ -75,7 +75,7 @@ fn benchmark_vm_literals(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         });
     });
-    
+
     group.bench_function("list", |b| {
         b.iter(|| {
             let ast = parse("[1 2 3 4 5]").unwrap();
@@ -85,23 +85,23 @@ fn benchmark_vm_literals(c: &mut Criterion) {
             black_box(vm.run().unwrap())
         });
     });
-    
+
     group.finish();
 }
 
 fn benchmark_vm_control_flow(c: &mut Criterion) {
     let mut group = c.benchmark_group("vm_control_flow");
-    
+
     // TODO: Implement control flow once built-in functions are fixed
-    
+
     group.finish();
 }
 
 fn benchmark_vm_functions(c: &mut Criterion) {
     let mut group = c.benchmark_group("vm_functions");
-    
+
     // TODO: Implement function benchmarks once built-in functions are fixed
-    
+
     group.finish();
 }
 

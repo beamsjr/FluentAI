@@ -1,31 +1,31 @@
+use fluentai_core::ast::{Node, NodeId};
 use fluentai_optimizer::AdvancedOptimizer;
 use fluentai_parser::parse;
-use fluentai_core::ast::{Node, NodeId};
 
 #[test]
 fn debug_node_mapping_detailed() {
-    let code = "(let ((x 5)) x)";  // Simpler case
+    let code = "(let ((x 5)) x)"; // Simpler case
     let ast = parse(code).unwrap();
-    
+
     println!("=== Original AST ===");
     for (id, node) in &ast.nodes {
         println!("{:?}: {:?}", id, node);
     }
     println!("Root: {:?}\n", ast.root_id);
-    
+
     // Create a custom optimizer to trace the issue
     let mut optimizer = AdvancedOptimizer::new();
-    
+
     // Hack: use reflection or direct field access to get internal state
     // Since we can't, let's just optimize and check
     let optimized = optimizer.optimize(&ast).unwrap();
-    
+
     println!("=== Optimized AST ===");
     for (id, node) in &optimized.nodes {
         println!("{:?}: {:?}", id, node);
     }
     println!("Root: {:?}\n", optimized.root_id);
-    
+
     // Find the Let node and check its bindings
     for (id, node) in &optimized.nodes {
         if let Node::Let { bindings, body } = node {

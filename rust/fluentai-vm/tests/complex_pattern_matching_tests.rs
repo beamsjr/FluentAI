@@ -1,10 +1,10 @@
 //! End-to-end tests for complex pattern matching features
 
 // Complex pattern matching tests
-use fluentai_parser::parse;
-use fluentai_vm::{VM, Compiler, CompilerOptions, Value};
-use fluentai_optimizer::OptimizationLevel;
 use anyhow::Result;
+use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse;
+use fluentai_vm::{Compiler, CompilerOptions, Value, VM};
 
 fn compile_and_run(source: &str) -> Result<Value> {
     let graph = parse(source)?;
@@ -26,20 +26,20 @@ fn test_or_pattern_execution() -> Result<()> {
                 ((or 1 2 3) "small")
                 (_ "large")))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("small".to_string()));
-    
+
     let source2 = r#"
         (let ((x 5))
             (match x
                 ((or 1 2 3) "small")
                 (_ "large")))
     "#;
-    
+
     let result2 = compile_and_run(source2)?;
     assert_eq!(result2, Value::String("large".to_string()));
-    
+
     Ok(())
 }
 
@@ -51,10 +51,10 @@ fn test_as_pattern_execution() -> Result<()> {
             ((as x 42) x)
             (_ 0))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::Integer(42));
-    
+
     Ok(())
 }
 
@@ -64,7 +64,7 @@ fn test_guard_pattern_execution() -> Result<()> {
     Ok(())
 }
 
-#[test] 
+#[test]
 fn test_guard_pattern_execution_skip() -> Result<()> {
     let source = r#"
         (let ((x 5))
@@ -72,20 +72,20 @@ fn test_guard_pattern_execution_skip() -> Result<()> {
                 ((when n (> n 0)) "positive")
                 (_ "non-positive")))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("positive".to_string()));
-    
+
     let source2 = r#"
         (let ((x -5))
             (match x
                 ((when n (> n 0)) "positive")
                 (_ "non-positive")))
     "#;
-    
+
     let result2 = compile_and_run(source2)?;
     assert_eq!(result2, Value::String("non-positive".to_string()));
-    
+
     Ok(())
 }
 
@@ -101,10 +101,10 @@ fn test_range_pattern_inclusive_execution() -> Result<()> {
                 ((..= 90 100) "A")
                 (_ "Invalid")))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("B".to_string()));
-    
+
     Ok(())
 }
 
@@ -116,20 +116,20 @@ fn test_range_pattern_exclusive_execution() -> Result<()> {
                 ((.. 0 10) "single digit")
                 (_ "double digit or more")))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("single digit".to_string()));
-    
+
     let source2 = r#"
         (let ((x 10))
             (match x
                 ((.. 0 10) "single digit")
                 (_ "double digit or more")))
     "#;
-    
+
     let result2 = compile_and_run(source2)?;
     assert_eq!(result2, Value::String("double digit or more".to_string()));
-    
+
     Ok(())
 }
 
@@ -148,10 +148,10 @@ fn test_view_pattern_execution_skip() -> Result<()> {
                 ((view abs 5) "absolute value is 5")
                 (_ "other")))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("absolute value is 5".to_string()));
-    
+
     Ok(())
 }
 
@@ -170,20 +170,20 @@ fn test_complex_nested_patterns_execution_skip() -> Result<()> {
                 ((when (as x (or 1 2 3)) (even? x)) "even small")
                 (_ "other")))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("even small".to_string()));
-    
+
     let source2 = r#"
         (letrec ((even? (lambda (n) (= (mod n 2) 0))))
             (match 3
                 ((when (as x (or 1 2 3)) (even? x)) "even small")
                 (_ "other")))
     "#;
-    
+
     let result2 = compile_and_run(source2)?;
     assert_eq!(result2, Value::String("other".to_string()));
-    
+
     Ok(())
 }
 
@@ -194,19 +194,19 @@ fn test_multiple_or_patterns_execution() -> Result<()> {
             ((or "Saturday" "Sunday") "weekend")
             ((or "Monday" "Tuesday" "Wednesday" "Thursday" "Friday") "weekday"))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("weekday".to_string()));
-    
+
     let source2 = r#"
         (match "Sunday"
             ((or "Saturday" "Sunday") "weekend")
             ((or "Monday" "Tuesday" "Wednesday" "Thursday" "Friday") "weekday"))
     "#;
-    
+
     let result2 = compile_and_run(source2)?;
     assert_eq!(result2, Value::String("weekend".to_string()));
-    
+
     Ok(())
 }
 
@@ -219,10 +219,10 @@ fn test_range_pattern_with_variables() -> Result<()> {
                 ((..= 10 20) "in range")
                 (_ "out of range")))
     "#;
-    
+
     let result = compile_and_run(source)?;
     assert_eq!(result, Value::String("in range".to_string()));
-    
+
     Ok(())
 }
 
@@ -233,14 +233,17 @@ fn test_as_pattern_bindings() -> Result<()> {
         (match [1 2 3]
             ((as lst _) lst))
     "#;
-    
+
     let result = compile_and_run(source)?;
     // Should return the original list
-    assert_eq!(result, Value::List(vec![
-        Value::Integer(1),
-        Value::Integer(2),
-        Value::Integer(3),
-    ]));
-    
+    assert_eq!(
+        result,
+        Value::List(vec![
+            Value::Integer(1),
+            Value::Integer(2),
+            Value::Integer(3),
+        ])
+    );
+
     Ok(())
 }

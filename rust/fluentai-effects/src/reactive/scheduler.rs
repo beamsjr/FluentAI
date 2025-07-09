@@ -1,8 +1,8 @@
 //! Update scheduler for batching reactive updates
 
+use parking_lot::{Mutex, RwLock};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
-use parking_lot::{Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -31,80 +31,82 @@ impl UpdateScheduler {
             update_queue: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
-    
+
     /// Schedule updates for a set of computation IDs
     pub fn schedule_updates(&self, computation_ids: Vec<String>) {
         let mut pending = self.pending.lock();
         let mut queue = self.update_queue.lock();
-        
+
         for id in computation_ids {
             if pending.insert(id.clone()) {
                 queue.push_back(id);
             }
         }
-        
+
         drop(pending);
         drop(queue);
-        
+
         // Schedule flush on next tick
         self.schedule_flush();
     }
-    
+
     /// Register a computed value callback
     pub fn register_computed<F>(&self, id: String, callback: F)
     where
         F: Fn() + Send + Sync + 'static,
     {
-        self.computed_callbacks.write()
+        self.computed_callbacks
+            .write()
             .insert(id, Box::new(callback));
     }
-    
+
     /// Register a watcher callback
     pub fn register_watcher<F>(&self, id: String, callback: F)
     where
         F: Fn() + Send + Sync + 'static,
     {
-        self.watcher_callbacks.write()
+        self.watcher_callbacks
+            .write()
             .insert(id, Box::new(callback));
     }
-    
+
     /// Unregister a watcher
     pub fn unregister_watcher(&self, id: &str) {
         self.watcher_callbacks.write().remove(id);
     }
-    
+
     /// Schedule a flush of pending updates
     fn schedule_flush(&self) {
         let is_flushing = self.is_flushing.clone();
         let scheduler = Arc::new(self.clone());
-        
+
         // Use a simple next-tick simulation
         // In production, this would use a proper event loop
         thread::spawn(move || {
             thread::sleep(Duration::from_micros(1));
-            
+
             let mut flushing = is_flushing.lock();
             if !*flushing {
                 *flushing = true;
                 drop(flushing);
-                
+
                 scheduler.flush_updates();
-                
+
                 *is_flushing.lock() = false;
             }
         });
     }
-    
+
     /// Flush all pending updates
     pub fn flush_updates(&self) {
         let mut processed = HashSet::new();
-        
+
         loop {
             let next = {
                 let mut queue = self.update_queue.lock();
                 queue.pop_front()
             };
-            
+
             match next {
                 Some(id) => {
                     if processed.insert(id.clone()) {
@@ -114,33 +116,33 @@ impl UpdateScheduler {
                 None => break,
             }
         }
-        
+
         // Clear pending set
         self.pending.lock().clear();
     }
-    
+
     /// Process a single update
     fn process_update(&self, id: &str) {
         // Try computed callbacks first
         if let Some(callback) = self.computed_callbacks.read().get(id) {
             callback();
         }
-        
+
         // Then try watcher callbacks
         if let Some(callback) = self.watcher_callbacks.read().get(id) {
             callback();
         }
     }
-    
+
     /// Run updates synchronously (for testing)
     pub fn flush_sync(&self) {
         let mut flushing = self.is_flushing.lock();
         if !*flushing {
             *flushing = true;
             drop(flushing);
-            
+
             self.flush_updates();
-            
+
             *self.is_flushing.lock() = false;
         }
     }
@@ -186,7 +188,7 @@ impl BatchScope {
     pub fn new(scheduler: Arc<UpdateScheduler>) -> Self {
         Self { scheduler }
     }
-    
+
     /// Run a function within a batch, deferring all updates until the end
     pub fn run<F, R>(&self, f: F) -> R
     where
@@ -194,10 +196,10 @@ impl BatchScope {
     {
         // In a full implementation, we'd pause automatic flushing
         let result = f();
-        
+
         // Flush all updates at once
         self.scheduler.flush_sync();
-        
+
         result
     }
 }

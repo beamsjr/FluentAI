@@ -1,10 +1,10 @@
 //! Advanced optimizations with aggressive transformations
 
-use fluentai_core::ast::{Graph, Node, NodeId, Literal};
-use rustc_hash::{FxHashMap, FxHashSet};
-use crate::stats::OptimizationStats;
 use crate::analysis::EffectAnalysis;
+use crate::stats::OptimizationStats;
 use anyhow::Result;
+use fluentai_core::ast::{Graph, Literal, Node, NodeId};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::time::Instant;
 
 /// Advanced optimizer with aggressive optimizations
@@ -49,7 +49,7 @@ impl AdvancedOptimizer {
         let start = Instant::now();
         self.stats = OptimizationStats::new();
         self.stats.nodes_before = graph.nodes.len();
-        
+
         self.graph = Some(graph.clone());
         self.optimized = Graph::new();
         self.value_cache.clear();
@@ -72,7 +72,7 @@ impl AdvancedOptimizer {
         self.optimize_tail_calls()?;
         self.beta_reduction()?;
         self.loop_optimizations()?;
-        
+
         // Run constant folding after beta reduction
         self.constant_folding()?;
 
@@ -94,13 +94,15 @@ impl AdvancedOptimizer {
     fn optimize_node(&mut self, node_id: NodeId) -> Result<Option<NodeId>> {
         // Check if already optimized
         if let Some(new_id) = self.node_mapping.get(&node_id) {
-                return Ok(Some(*new_id));
+            return Ok(Some(*new_id));
         }
 
         // Check for cycles
         if self.processing_nodes.contains(&node_id) {
             // Create a placeholder for the circular reference
-            let placeholder = Node::Variable { name: format!("__cycle_{}__", node_id.0) };
+            let placeholder = Node::Variable {
+                name: format!("__cycle_{}__", node_id.0),
+            };
             let new_id = self.optimized.add_node(placeholder)?;
             self.node_mapping.insert(node_id, new_id);
             return Ok(Some(new_id));
@@ -166,10 +168,10 @@ impl AdvancedOptimizer {
             Process(NodeId),
             Complete(NodeId, NodeId),
         }
-        
+
         let mut stack = vec![WorkItem::Process(start_node_id)];
         let mut results: FxHashMap<NodeId, Option<NodeId>> = FxHashMap::default();
-        
+
         while let Some(item) = stack.pop() {
             match item {
                 WorkItem::Process(node_id) => {
@@ -178,26 +180,29 @@ impl AdvancedOptimizer {
                         results.insert(node_id, Some(*new_id));
                         continue;
                     }
-                    
+
                     // Check for cycles
                     if self.processing_nodes.contains(&node_id) {
-                        let placeholder = Node::Variable { name: format!("__cycle_{}__", node_id.0) };
+                        let placeholder = Node::Variable {
+                            name: format!("__cycle_{}__", node_id.0),
+                        };
                         let new_id = self.optimized.add_node(placeholder)?;
                         self.node_mapping.insert(node_id, new_id);
                         results.insert(node_id, Some(new_id));
                         continue;
                     }
-                    
+
                     // Try to evaluate node completely first
                     if let Some(value) = self.try_evaluate(node_id)? {
-                        let placeholder_id = self.optimized.add_node(Node::Literal(value.clone()))?;
+                        let placeholder_id =
+                            self.optimized.add_node(Node::Literal(value.clone()))?;
                         self.node_mapping.insert(node_id, placeholder_id);
                         self.value_cache.insert(node_id, value);
                         self.stats.pure_expressions_evaluated += 1;
                         results.insert(node_id, Some(placeholder_id));
                         continue;
                     }
-                    
+
                     let graph = self.graph.as_ref().unwrap();
                     let node = match graph.get_node(node_id) {
                         Some(n) => n,
@@ -206,17 +211,17 @@ impl AdvancedOptimizer {
                             continue;
                         }
                     };
-                    
+
                     // Mark as processing
                     self.processing_nodes.insert(node_id);
-                    
+
                     // Create placeholder
                     let placeholder_id = self.optimized.add_node(Node::Literal(Literal::Nil))?;
                     self.node_mapping.insert(node_id, placeholder_id);
-                    
+
                     // Push completion handler
                     stack.push(WorkItem::Complete(node_id, placeholder_id));
-                    
+
                     // Process children based on node type
                     match node {
                         Node::Application { function, args } => {
@@ -235,7 +240,11 @@ impl AdvancedOptimizer {
                                 stack.push(WorkItem::Process(*value_id));
                             }
                         }
-                        Node::If { condition, then_branch, else_branch } => {
+                        Node::If {
+                            condition,
+                            then_branch,
+                            else_branch,
+                        } => {
                             stack.push(WorkItem::Process(*condition));
                             stack.push(WorkItem::Process(*then_branch));
                             stack.push(WorkItem::Process(*else_branch));
@@ -284,10 +293,17 @@ impl AdvancedOptimizer {
                         Node::Receive { channel } => {
                             stack.push(WorkItem::Process(*channel));
                         }
-                        Node::Import { .. } | Node::Export { .. } | Node::QualifiedVariable { .. } => {
+                        Node::Import { .. }
+                        | Node::Export { .. }
+                        | Node::QualifiedVariable { .. } => {
                             // These have no child nodes to process
                         }
-                        Node::Contract { preconditions, postconditions, invariants, .. } => {
+                        Node::Contract {
+                            preconditions,
+                            postconditions,
+                            invariants,
+                            ..
+                        } => {
                             for pre in preconditions {
                                 stack.push(WorkItem::Process(*pre));
                             }
@@ -318,7 +334,7 @@ impl AdvancedOptimizer {
                     // All children have been processed, now construct the optimized node
                     let graph = self.graph.as_ref().unwrap();
                     let node = graph.get_node(node_id).unwrap();
-                    
+
                     let optimized_node = match node {
                         Node::Application { function, args } => {
                             let opt_func = results.get(function).and_then(|x| *x);
@@ -328,7 +344,7 @@ impl AdvancedOptimizer {
                                     opt_args.push(opt_arg);
                                 }
                             }
-                            
+
                             if let Some(func_id) = opt_func {
                                 Some(Node::Application {
                                     function: func_id,
@@ -355,7 +371,7 @@ impl AdvancedOptimizer {
                                     opt_bindings.push((name.clone(), opt_value));
                                 }
                             }
-                            
+
                             if let Some(opt_body) = results.get(body).and_then(|x| *x) {
                                 Some(Node::Let {
                                     bindings: opt_bindings,
@@ -365,13 +381,21 @@ impl AdvancedOptimizer {
                                 None
                             }
                         }
-                        Node::If { condition, then_branch, else_branch } => {
+                        Node::If {
+                            condition,
+                            then_branch,
+                            else_branch,
+                        } => {
                             if let Some(opt_cond) = results.get(condition).and_then(|x| *x) {
                                 // Check for constant condition
-                                if let Some(Node::Literal(Literal::Boolean(value))) = self.optimized.get_node(opt_cond) {
+                                if let Some(Node::Literal(Literal::Boolean(value))) =
+                                    self.optimized.get_node(opt_cond)
+                                {
                                     self.stats.branches_eliminated += 1;
                                     let branch_id = if *value { then_branch } else { else_branch };
-                                    if let Some(branch_result_id) = results.get(branch_id).and_then(|x| *x) {
+                                    if let Some(branch_result_id) =
+                                        results.get(branch_id).and_then(|x| *x)
+                                    {
                                         self.optimized.get_node(branch_result_id).cloned()
                                     } else {
                                         None
@@ -379,7 +403,7 @@ impl AdvancedOptimizer {
                                 } else {
                                     let opt_then = results.get(then_branch).and_then(|x| *x);
                                     let opt_else = results.get(else_branch).and_then(|x| *x);
-                                    
+
                                     if let (Some(then_id), Some(else_id)) = (opt_then, opt_else) {
                                         Some(Node::If {
                                             condition: opt_cond,
@@ -401,7 +425,7 @@ impl AdvancedOptimizer {
                             self.copy_node_optimized_internal(node_id).ok().flatten()
                         }
                     };
-                    
+
                     if let Some(node) = optimized_node {
                         self.optimized.nodes.insert(placeholder_id, node);
                         results.insert(node_id, Some(placeholder_id));
@@ -410,12 +434,12 @@ impl AdvancedOptimizer {
                         self.node_mapping.remove(&node_id);
                         results.insert(node_id, None);
                     }
-                    
+
                     self.processing_nodes.remove(&node_id);
                 }
             }
         }
-        
+
         Ok(results.get(&start_node_id).and_then(|x| *x))
     }
 
@@ -432,8 +456,11 @@ impl AdvancedOptimizer {
         };
 
         // Check if node is pure
-        if !self.effect_analysis.as_ref()
-            .map_or(false, |ea| ea.pure_nodes.contains(&node_id)) {
+        if !self
+            .effect_analysis
+            .as_ref()
+            .map_or(false, |ea| ea.pure_nodes.contains(&node_id))
+        {
             return Ok(None);
         }
 
@@ -453,13 +480,13 @@ impl AdvancedOptimizer {
             Some(n) => n,
             None => return Ok(None),
         };
-        
+
         if let Node::Application { function, args } = node {
             let func_id = *function;
             let args = args.clone();
-            
+
             let graph = self.graph.as_ref().unwrap();
-            
+
             // Get function name
             let func_name = match graph.get_node(func_id) {
                 Some(Node::Variable { name }) => name.clone(),
@@ -494,12 +521,17 @@ impl AdvancedOptimizer {
             Some(n) => n,
             None => return Ok(None),
         };
-        
-        if let Node::If { condition, then_branch, else_branch } = node {
+
+        if let Node::If {
+            condition,
+            then_branch,
+            else_branch,
+        } = node
+        {
             let cond_id = *condition;
             let then_id = *then_branch;
             let else_id = *else_branch;
-            
+
             // Evaluate condition
             match self.try_evaluate(cond_id)? {
                 Some(Literal::Boolean(true)) => {
@@ -524,11 +556,11 @@ impl AdvancedOptimizer {
             Some(n) => n,
             None => return Ok(None),
         };
-        
+
         if let Node::Let { bindings, body } = node {
             let bindings = bindings.clone();
             let body_id = *body;
-            
+
             // Save current cache state
             let old_cache = self.value_cache.clone();
 
@@ -555,7 +587,6 @@ impl AdvancedOptimizer {
         }
     }
 
-
     /// Copy node with optimized children (internal version that returns Node)
     fn copy_node_optimized_internal(&mut self, node_id: NodeId) -> Result<Option<Node>> {
         let node = match self.graph.as_ref().unwrap().get_node(node_id) {
@@ -571,7 +602,7 @@ impl AdvancedOptimizer {
                         opt_args.push(opt_arg);
                     }
                 }
-                
+
                 if let Some(func_id) = opt_func {
                     Node::Application {
                         function: func_id,
@@ -595,7 +626,7 @@ impl AdvancedOptimizer {
                 // Clone bindings to avoid borrow issues
                 let original_bindings = bindings.clone();
                 let mut opt_bindings = Vec::new();
-                
+
                 // Process each binding
                 for (name, value_id) in original_bindings.iter() {
                     if let Some(opt_value) = self.optimize_node(*value_id)? {
@@ -603,10 +634,13 @@ impl AdvancedOptimizer {
                     } else {
                         // If optimization fails, skip this binding
                         // This shouldn't happen, but let's be defensive
-                        eprintln!("Warning: Failed to optimize binding '{}' with value {:?}", name, value_id);
+                        eprintln!(
+                            "Warning: Failed to optimize binding '{}' with value {:?}",
+                            name, value_id
+                        );
                     }
                 }
-                
+
                 if let Some(opt_body) = self.optimize_node(body)? {
                     // Check for inline opportunities
                     if opt_bindings.len() == 1 && self.should_inline_let(&opt_bindings[0]) {
@@ -620,7 +654,7 @@ impl AdvancedOptimizer {
                         // This preserves correctness while still marking the optimization.
                         // A more sophisticated approach would substitute the binding throughout the body.
                     }
-                    
+
                     Node::Let {
                         bindings: opt_bindings,
                         body: opt_body,
@@ -629,10 +663,16 @@ impl AdvancedOptimizer {
                     return Ok(None);
                 }
             }
-            Node::If { condition, then_branch, else_branch } => {
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 if let Some(opt_cond) = self.optimize_node(condition)? {
                     // Check for constant condition
-                    if let Some(Node::Literal(Literal::Boolean(value))) = self.optimized.get_node(opt_cond) {
+                    if let Some(Node::Literal(Literal::Boolean(value))) =
+                        self.optimized.get_node(opt_cond)
+                    {
                         self.stats.branches_eliminated += 1;
                         let branch_id = if *value { then_branch } else { else_branch };
                         if let Some(optimized_branch_id) = self.optimize_node(branch_id)? {
@@ -642,10 +682,10 @@ impl AdvancedOptimizer {
                         }
                         return Ok(None);
                     }
-                    
+
                     let opt_then = self.optimize_node(then_branch)?;
                     let opt_else = self.optimize_node(else_branch)?;
-                    
+
                     if let (Some(then_id), Some(else_id)) = (opt_then, opt_else) {
                         Node::If {
                             condition: opt_cond,
@@ -675,7 +715,7 @@ impl AdvancedOptimizer {
                         opt_bindings.push((name.clone(), opt_value));
                     }
                 }
-                
+
                 if let Some(opt_body) = self.optimize_node(body)? {
                     Node::Letrec {
                         bindings: opt_bindings,
@@ -701,7 +741,11 @@ impl AdvancedOptimizer {
                     return Ok(None);
                 }
             }
-            Node::Module { name, exports, body } => {
+            Node::Module {
+                name,
+                exports,
+                body,
+            } => {
                 if let Some(opt_body) = self.optimize_node(body)? {
                     Node::Module {
                         name: name.clone(),
@@ -734,8 +778,9 @@ impl AdvancedOptimizer {
                 }
             }
             Node::Send { channel, value } => {
-                if let (Some(opt_channel), Some(opt_value)) = 
-                    (self.optimize_node(channel)?, self.optimize_node(value)?) {
+                if let (Some(opt_channel), Some(opt_value)) =
+                    (self.optimize_node(channel)?, self.optimize_node(value)?)
+                {
                     Node::Send {
                         channel: opt_channel,
                         value: opt_value,
@@ -746,12 +791,21 @@ impl AdvancedOptimizer {
             }
             Node::Receive { channel } => {
                 if let Some(opt_channel) = self.optimize_node(channel)? {
-                    Node::Receive { channel: opt_channel }
+                    Node::Receive {
+                        channel: opt_channel,
+                    }
                 } else {
                     return Ok(None);
                 }
             }
-            Node::Contract { function_name, preconditions, postconditions, invariants, complexity, pure } => {
+            Node::Contract {
+                function_name,
+                preconditions,
+                postconditions,
+                invariants,
+                complexity,
+                pure,
+            } => {
                 let mut opt_pre = Vec::new();
                 for pre in preconditions {
                     if let Some(opt) = self.optimize_node(pre)? {
@@ -779,7 +833,11 @@ impl AdvancedOptimizer {
                     pure,
                 }
             }
-            Node::Effect { effect_type, operation, args } => {
+            Node::Effect {
+                effect_type,
+                operation,
+                args,
+            } => {
                 let mut opt_args = Vec::new();
                 for arg in args {
                     if let Some(opt_arg) = self.optimize_node(arg)? {
@@ -799,7 +857,7 @@ impl AdvancedOptimizer {
                         opt_handlers.push((effect_type, op_filter.clone(), opt_handler));
                     }
                 }
-                
+
                 if let Some(opt_body) = self.optimize_node(body)? {
                     Node::Handler {
                         handlers: opt_handlers,
@@ -864,7 +922,11 @@ impl AdvancedOptimizer {
                         }
                         queue.push(*body);
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         queue.push(*condition);
                         queue.push(*then_branch);
                         queue.push(*else_branch);
@@ -896,20 +958,27 @@ impl AdvancedOptimizer {
     fn inline_small_functions(&mut self) -> Result<()> {
         // Find function applications that can be inlined
         let nodes: Vec<_> = self.optimized.nodes.keys().copied().collect();
-        
+
         for node_id in nodes {
-            if let Some(Node::Application { function, args }) = self.optimized.get_node(node_id).cloned() {
-                if let Some(Node::Lambda { params, body }) = self.optimized.get_node(function).cloned() {
-                    if params.len() == args.len() && self.count_nodes(body) < self.inline_threshold {
+            if let Some(Node::Application { function, args }) =
+                self.optimized.get_node(node_id).cloned()
+            {
+                if let Some(Node::Lambda { params, body }) =
+                    self.optimized.get_node(function).cloned()
+                {
+                    if params.len() == args.len() && self.count_nodes(body) < self.inline_threshold
+                    {
                         // Perform beta reduction
                         let mut substitutions = FxHashMap::default();
                         for (param, arg) in params.iter().zip(args.iter()) {
                             substitutions.insert(param.clone(), *arg);
                         }
-                        
+
                         if let Some(inlined_body_id) = self.substitute_node(body, &substitutions) {
                             // Replace the application node with the inlined body
-                            if let Some(inlined_node) = self.optimized.get_node(inlined_body_id).cloned() {
+                            if let Some(inlined_node) =
+                                self.optimized.get_node(inlined_body_id).cloned()
+                            {
                                 self.optimized.nodes.insert(node_id, inlined_node);
                                 self.stats.inlined_expressions += 1;
                             }
@@ -923,26 +992,38 @@ impl AdvancedOptimizer {
     }
 
     /// Substitute variables in a node by creating a new node with substitutions applied
-    fn substitute_node(&mut self, node_id: NodeId, substitutions: &FxHashMap<String, NodeId>) -> Option<NodeId> {
+    fn substitute_node(
+        &mut self,
+        node_id: NodeId,
+        substitutions: &FxHashMap<String, NodeId>,
+    ) -> Option<NodeId> {
         // Use deep_copy_with_substitution which properly handles all cases
         self.deep_copy_with_substitution(node_id, substitutions)
     }
-    
+
     /// Create a deep copy of a node subgraph with variable substitution
-    fn deep_copy_with_substitution(&mut self, node_id: NodeId, substitutions: &FxHashMap<String, NodeId>) -> Option<NodeId> {
+    fn deep_copy_with_substitution(
+        &mut self,
+        node_id: NodeId,
+        substitutions: &FxHashMap<String, NodeId>,
+    ) -> Option<NodeId> {
         // Check recursion depth and switch to iterative if too deep
         if self.recursion_depth >= self.max_recursion_depth {
             return self.deep_copy_with_substitution_iterative(node_id, substitutions);
         }
-        
+
         self.recursion_depth += 1;
         let result = self.deep_copy_with_substitution_internal(node_id, substitutions);
         self.recursion_depth -= 1;
         result
     }
-    
+
     /// Internal recursive implementation
-    fn deep_copy_with_substitution_internal(&mut self, node_id: NodeId, substitutions: &FxHashMap<String, NodeId>) -> Option<NodeId> {
+    fn deep_copy_with_substitution_internal(
+        &mut self,
+        node_id: NodeId,
+        substitutions: &FxHashMap<String, NodeId>,
+    ) -> Option<NodeId> {
         // Check if this node is already in the optimized graph
         if let Some(node) = self.optimized.get_node(node_id).cloned() {
             match node {
@@ -960,7 +1041,8 @@ impl AdvancedOptimizer {
                     let new_func = self.deep_copy_with_substitution(function, substitutions)?;
                     let mut new_args = Vec::new();
                     for arg in args {
-                        if let Some(new_arg) = self.deep_copy_with_substitution(arg, substitutions) {
+                        if let Some(new_arg) = self.deep_copy_with_substitution(arg, substitutions)
+                        {
                             new_args.push(new_arg);
                         }
                     }
@@ -973,15 +1055,17 @@ impl AdvancedOptimizer {
                 Node::Let { bindings, body } => {
                     let mut new_bindings = Vec::new();
                     let mut new_substitutions = substitutions.clone();
-                    
+
                     for (name, value_id) in bindings {
-                        if let Some(new_value) = self.deep_copy_with_substitution(value_id, &new_substitutions) {
+                        if let Some(new_value) =
+                            self.deep_copy_with_substitution(value_id, &new_substitutions)
+                        {
                             new_bindings.push((name.clone(), new_value));
                             // Shadow any existing substitution
                             new_substitutions.remove(&name);
                         }
                     }
-                    
+
                     let new_body = self.deep_copy_with_substitution(body, &new_substitutions)?;
                     let new_node = Node::Let {
                         bindings: new_bindings,
@@ -995,7 +1079,7 @@ impl AdvancedOptimizer {
                     for param in &params {
                         new_substitutions.remove(param);
                     }
-                    
+
                     let new_body = self.deep_copy_with_substitution(body, &new_substitutions)?;
                     let new_node = Node::Lambda {
                         params: params.clone(),
@@ -1003,8 +1087,13 @@ impl AdvancedOptimizer {
                     };
                     Some(self.optimized.add_node(new_node).ok()?)
                 }
-                Node::If { condition, then_branch, else_branch } => {
-                    let new_condition = self.deep_copy_with_substitution(condition, substitutions)?;
+                Node::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    let new_condition =
+                        self.deep_copy_with_substitution(condition, substitutions)?;
                     let new_then = self.deep_copy_with_substitution(then_branch, substitutions)?;
                     let new_else = self.deep_copy_with_substitution(else_branch, substitutions)?;
                     let new_node = Node::If {
@@ -1017,7 +1106,9 @@ impl AdvancedOptimizer {
                 Node::List(items) => {
                     let mut new_items = Vec::new();
                     for item in items {
-                        if let Some(new_item) = self.deep_copy_with_substitution(item, substitutions) {
+                        if let Some(new_item) =
+                            self.deep_copy_with_substitution(item, substitutions)
+                        {
                             new_items.push(new_item);
                         }
                     }
@@ -1030,14 +1121,16 @@ impl AdvancedOptimizer {
                     for (name, _) in &bindings {
                         new_substitutions.remove(name);
                     }
-                    
+
                     let mut new_bindings = Vec::new();
                     for (name, value_id) in bindings {
-                        if let Some(new_value) = self.deep_copy_with_substitution(value_id, &new_substitutions) {
+                        if let Some(new_value) =
+                            self.deep_copy_with_substitution(value_id, &new_substitutions)
+                        {
                             new_bindings.push((name.clone(), new_value));
                         }
                     }
-                    
+
                     let new_body = self.deep_copy_with_substitution(body, &new_substitutions)?;
                     let new_node = Node::Letrec {
                         bindings: new_bindings,
@@ -1048,11 +1141,13 @@ impl AdvancedOptimizer {
                 Node::Handler { handlers, body } => {
                     let mut new_handlers = Vec::new();
                     for (effect_type, op_filter, handler_fn) in handlers {
-                        if let Some(new_handler) = self.deep_copy_with_substitution(handler_fn, substitutions) {
+                        if let Some(new_handler) =
+                            self.deep_copy_with_substitution(handler_fn, substitutions)
+                        {
                             new_handlers.push((effect_type, op_filter, new_handler));
                         }
                     }
-                    
+
                     let new_body = self.deep_copy_with_substitution(body, substitutions)?;
                     let new_node = Node::Handler {
                         handlers: new_handlers,
@@ -1071,23 +1166,27 @@ impl AdvancedOptimizer {
     }
 
     /// Iterative version of deep_copy_with_substitution
-    fn deep_copy_with_substitution_iterative(&mut self, start_node_id: NodeId, substitutions: &FxHashMap<String, NodeId>) -> Option<NodeId> {
+    fn deep_copy_with_substitution_iterative(
+        &mut self,
+        start_node_id: NodeId,
+        substitutions: &FxHashMap<String, NodeId>,
+    ) -> Option<NodeId> {
         #[derive(Debug)]
         struct WorkItem {
             node_id: NodeId,
             substitutions: FxHashMap<String, NodeId>,
             parent_id: Option<NodeId>,
         }
-        
+
         let mut stack = vec![WorkItem {
             node_id: start_node_id,
             substitutions: substitutions.clone(),
             parent_id: None,
         }];
-        
+
         let mut results: FxHashMap<NodeId, NodeId> = FxHashMap::default();
         let mut root_result = None;
-        
+
         while let Some(item) = stack.pop() {
             // Check if already processed
             if let Some(&result_id) = results.get(&item.node_id) {
@@ -1096,17 +1195,19 @@ impl AdvancedOptimizer {
                 }
                 continue;
             }
-            
+
             // For simplicity, fall back to recursive version
             // In a production implementation, we'd handle all cases iteratively
-            if let Some(result_id) = self.deep_copy_with_substitution_internal(item.node_id, &item.substitutions) {
+            if let Some(result_id) =
+                self.deep_copy_with_substitution_internal(item.node_id, &item.substitutions)
+            {
                 results.insert(item.node_id, result_id);
                 if item.parent_id.is_none() {
                     root_result = Some(result_id);
                 }
             }
         }
-        
+
         root_result
     }
 
@@ -1114,11 +1215,17 @@ impl AdvancedOptimizer {
     fn optimize_tail_calls(&mut self) -> Result<()> {
         // Find tail recursive functions
         let nodes: Vec<_> = self.optimized.nodes.keys().copied().collect();
-        
+
         for node_id in nodes {
-            if let Some(Node::Letrec { bindings, body: _ }) = self.optimized.get_node(node_id).cloned() {
+            if let Some(Node::Letrec { bindings, body: _ }) =
+                self.optimized.get_node(node_id).cloned()
+            {
                 for (func_name, func_id) in &bindings {
-                    if let Some(Node::Lambda { params: _, body: lambda_body }) = self.optimized.get_node(*func_id) {
+                    if let Some(Node::Lambda {
+                        params: _,
+                        body: lambda_body,
+                    }) = self.optimized.get_node(*func_id)
+                    {
                         if self.is_tail_recursive(func_name, *lambda_body) {
                             // Mark for tail call optimization
                             self.stats.tail_calls_optimized += 1;
@@ -1149,13 +1256,15 @@ impl AdvancedOptimizer {
                     }
                     false
                 }
-                Node::If { then_branch, else_branch, .. } => {
-                    self.is_tail_position(func_name, *then_branch, is_tail) ||
-                    self.is_tail_position(func_name, *else_branch, is_tail)
+                Node::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    self.is_tail_position(func_name, *then_branch, is_tail)
+                        || self.is_tail_position(func_name, *else_branch, is_tail)
                 }
-                Node::Let { body, .. } => {
-                    self.is_tail_position(func_name, *body, is_tail)
-                }
+                Node::Let { body, .. } => self.is_tail_position(func_name, *body, is_tail),
                 _ => false,
             }
         } else {
@@ -1167,11 +1276,15 @@ impl AdvancedOptimizer {
     fn beta_reduction(&mut self) -> Result<()> {
         // Find (lambda (...) body) applications
         let nodes: Vec<_> = self.optimized.nodes.keys().copied().collect();
-        
+
         for node_id in nodes {
-            if let Some(Node::Application { function, args }) = self.optimized.get_node(node_id).cloned() {
+            if let Some(Node::Application { function, args }) =
+                self.optimized.get_node(node_id).cloned()
+            {
                 // First check if it's a direct lambda
-                let lambda_info = if let Some(Node::Lambda { params, body }) = self.optimized.get_node(function).cloned() {
+                let lambda_info = if let Some(Node::Lambda { params, body }) =
+                    self.optimized.get_node(function).cloned()
+                {
                     Some((params, body))
                 } else if let Some(Node::Variable { name }) = self.optimized.get_node(function) {
                     // Try to resolve the variable to a lambda
@@ -1179,18 +1292,21 @@ impl AdvancedOptimizer {
                 } else {
                     None
                 };
-                
+
                 if let Some((params, body)) = lambda_info {
-                    if params.len() == args.len() && self.count_nodes(body) < self.inline_threshold {
+                    if params.len() == args.len() && self.count_nodes(body) < self.inline_threshold
+                    {
                         // Direct beta reduction
                         let mut substitutions = FxHashMap::default();
                         for (param, arg) in params.iter().zip(args.iter()) {
                             substitutions.insert(param.clone(), *arg);
                         }
-                        
+
                         if let Some(reduced_body_id) = self.substitute_node(body, &substitutions) {
                             // Replace the application with the reduced body
-                            if let Some(reduced_node) = self.optimized.get_node(reduced_body_id).cloned() {
+                            if let Some(reduced_node) =
+                                self.optimized.get_node(reduced_body_id).cloned()
+                            {
                                 self.optimized.nodes.insert(node_id, reduced_node);
                                 self.stats.inlined_expressions += 1;
                             }
@@ -1202,7 +1318,7 @@ impl AdvancedOptimizer {
 
         Ok(())
     }
-    
+
     /// Find a lambda binding for a variable name in let bindings
     fn find_lambda_binding(&self, var_name: &str) -> Option<(Vec<String>, NodeId)> {
         // Search through all let nodes for the binding
@@ -1210,7 +1326,9 @@ impl AdvancedOptimizer {
             if let Node::Let { bindings, .. } = node {
                 for (name, value_id) in bindings {
                     if name == var_name {
-                        if let Some(Node::Lambda { params, body }) = self.optimized.get_node(*value_id) {
+                        if let Some(Node::Lambda { params, body }) =
+                            self.optimized.get_node(*value_id)
+                        {
                             return Some((params.clone(), *body));
                         }
                     }
@@ -1225,22 +1343,22 @@ impl AdvancedOptimizer {
         // Repeatedly fold constants until no more changes (with a limit)
         let mut iterations = 0;
         const MAX_ITERATIONS: usize = 10;
-        
+
         loop {
             iterations += 1;
             if iterations > MAX_ITERATIONS {
                 break;
             }
-            
+
             let mut changed = false;
             let nodes: Vec<_> = self.optimized.nodes.keys().copied().collect();
-            
+
             for node_id in nodes {
                 // Skip if node was already removed
                 if !self.optimized.nodes.contains_key(&node_id) {
                     continue;
                 }
-                
+
                 // Try to evaluate this node
                 if let Some(value) = self.try_evaluate_optimized(node_id)? {
                     let literal_node = Node::Literal(value);
@@ -1249,22 +1367,22 @@ impl AdvancedOptimizer {
                     changed = true;
                 }
             }
-            
+
             if !changed {
                 break;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Try to evaluate a node in the optimized graph
     fn try_evaluate_optimized(&mut self, node_id: NodeId) -> Result<Option<Literal>> {
         let node = match self.optimized.get_node(node_id) {
             Some(n) => n.clone(),
             None => return Ok(None),
         };
-        
+
         match node {
             Node::Literal(lit) => Ok(Some(lit)),
             Node::Application { function, args } => {
@@ -1273,12 +1391,12 @@ impl AdvancedOptimizer {
                     Some(Node::Variable { name }) => name.clone(),
                     _ => return Ok(None),
                 };
-                
+
                 // Check if it's a pure primitive
                 if !is_pure_primitive(&func_name) {
                     return Ok(None);
                 }
-                
+
                 // Evaluate all arguments
                 let mut arg_values = Vec::new();
                 for arg_id in args {
@@ -1287,7 +1405,7 @@ impl AdvancedOptimizer {
                         _ => return Ok(None),
                     }
                 }
-                
+
                 // Apply function
                 evaluate_primitive(&func_name, &arg_values)
             }
@@ -1299,34 +1417,36 @@ impl AdvancedOptimizer {
     fn loop_optimizations(&mut self) -> Result<()> {
         // Simple loop unrolling for small constant loops
         // This is a placeholder for more sophisticated loop optimizations
-        
+
         // TODO: Implement loop detection and optimization
         // - Loop unrolling for small constant bounds
         // - Loop fusion for adjacent loops
         // - Loop invariant code motion
-        
+
         Ok(())
     }
 
     /// Dead code elimination
     fn eliminate_dead_code(&mut self) -> Result<()> {
         let mut reachable = FxHashSet::default();
-        
+
         // Mark reachable nodes
         if let Some(root) = self.optimized.root_id {
             self.mark_reachable(root, &mut reachable);
         }
 
-
         // Remove unreachable nodes
-        let unreachable: Vec<_> = self.optimized.nodes.keys()
+        let unreachable: Vec<_> = self
+            .optimized
+            .nodes
+            .keys()
             .filter(|id| !reachable.contains(id))
             .copied()
             .collect();
-        
+
         // Clean up Let nodes to remove bindings that reference unreachable nodes
         self.cleanup_let_bindings(&unreachable)?;
-        
+
         // Now remove the unreachable nodes
         for id in unreachable {
             self.optimized.nodes.remove(&id);
@@ -1335,12 +1455,12 @@ impl AdvancedOptimizer {
 
         Ok(())
     }
-    
+
     /// Clean up Let nodes to remove bindings that reference unreachable nodes
     fn cleanup_let_bindings(&mut self, unreachable: &[NodeId]) -> Result<()> {
         let unreachable_set: FxHashSet<_> = unreachable.iter().copied().collect();
         let mut nodes_to_update = Vec::new();
-        
+
         // Find Let nodes that need updating
         for (node_id, node) in &self.optimized.nodes {
             if let Node::Let { bindings, body } = node {
@@ -1351,163 +1471,189 @@ impl AdvancedOptimizer {
                         break;
                     }
                 }
-                
+
                 if has_unreachable {
                     // Filter out bindings that reference unreachable nodes
-                    let cleaned_bindings: Vec<_> = bindings.iter()
+                    let cleaned_bindings: Vec<_> = bindings
+                        .iter()
                         .filter(|(_, value_id)| !unreachable_set.contains(value_id))
                         .map(|(name, value_id)| (name.clone(), *value_id))
                         .collect();
-                    
-                    nodes_to_update.push((*node_id, Node::Let {
-                        bindings: cleaned_bindings,
-                        body: *body,
-                    }));
+
+                    nodes_to_update.push((
+                        *node_id,
+                        Node::Let {
+                            bindings: cleaned_bindings,
+                            body: *body,
+                        },
+                    ));
                 }
             }
         }
-        
+
         // Update the nodes
         for (node_id, new_node) in nodes_to_update {
             self.optimized.nodes.insert(node_id, new_node);
         }
-        
+
         Ok(())
     }
 
     /// Mark reachable nodes (iterative version to avoid stack overflow)
     fn mark_reachable(&self, start_node_id: NodeId, reachable: &mut FxHashSet<NodeId>) {
         let mut stack = vec![start_node_id];
-        
+
         while let Some(node_id) = stack.pop() {
             if !reachable.insert(node_id) {
                 continue;
             }
 
             if let Some(node) = self.optimized.get_node(node_id) {
-            match node {
-                Node::Application { function, args } => {
-                    stack.push(*function);
-                    stack.extend(args);
-                }
-                Node::Lambda { body, .. } => {
-                    stack.push(*body);
-                }
-                Node::Let { bindings, body } => {
-                    // For let bindings, only mark used bindings as reachable
-                    stack.push(*body);
-                    
-                    // Find which variables are used in the body
-                    let used_vars = self.find_used_variables(*body);
-                    
-                    // Mark bindings that are used OR have effects
-                    for (name, value_id) in bindings {
-                        if used_vars.contains(name) {
-                            stack.push(*value_id);
-                        } else {
-                            // Check if this binding has effects - we need to look up the original node
-                            // The value_id here is from the optimized graph, we need to find the original
-                            let mut has_effect = false;
-                            
-                            // First check if it's an effect in the optimized graph
-                            if let Some(node) = self.optimized.get_node(*value_id) {
-                                match node {
-                                    Node::Effect { .. } => {
-                                        has_effect = true;
-                                    }
-                                    Node::Application { function, .. } => {
-                                        if let Some(Node::Variable { name }) = self.optimized.get_node(*function) {
-                                            if matches!(name.as_str(), "print" | "read" | "write" | "error" | "set!" | "display") {
-                                                has_effect = true;
+                match node {
+                    Node::Application { function, args } => {
+                        stack.push(*function);
+                        stack.extend(args);
+                    }
+                    Node::Lambda { body, .. } => {
+                        stack.push(*body);
+                    }
+                    Node::Let { bindings, body } => {
+                        // For let bindings, only mark used bindings as reachable
+                        stack.push(*body);
+
+                        // Find which variables are used in the body
+                        let used_vars = self.find_used_variables(*body);
+
+                        // Mark bindings that are used OR have effects
+                        for (name, value_id) in bindings {
+                            if used_vars.contains(name) {
+                                stack.push(*value_id);
+                            } else {
+                                // Check if this binding has effects - we need to look up the original node
+                                // The value_id here is from the optimized graph, we need to find the original
+                                let mut has_effect = false;
+
+                                // First check if it's an effect in the optimized graph
+                                if let Some(node) = self.optimized.get_node(*value_id) {
+                                    match node {
+                                        Node::Effect { .. } => {
+                                            has_effect = true;
+                                        }
+                                        Node::Application { function, .. } => {
+                                            if let Some(Node::Variable { name }) =
+                                                self.optimized.get_node(*function)
+                                            {
+                                                if matches!(
+                                                    name.as_str(),
+                                                    "print"
+                                                        | "read"
+                                                        | "write"
+                                                        | "error"
+                                                        | "set!"
+                                                        | "display"
+                                                ) {
+                                                    has_effect = true;
+                                                }
                                             }
                                         }
-                                    }
-                                    // Spawn and Await nodes have implicit effects
-                                    Node::Spawn { .. } | Node::Await { .. } => {
-                                        has_effect = true;
-                                    }
-                                    _ => {}
-                                }
-                            }
-                            
-                            // Also check the effect analysis if available
-                            if !has_effect && self.effect_analysis.is_some() {
-                                let effect_analysis = self.effect_analysis.as_ref().unwrap();
-                                // Check if this node has effects according to the analysis
-                                // We need to find the original node ID that corresponds to this optimized node
-                                if let Some(original_id) = self.node_mapping.iter()
-                                    .find(|(_, &opt_id)| opt_id == *value_id)
-                                    .map(|(orig_id, _)| *orig_id) {
-                                    if !effect_analysis.pure_nodes.contains(&original_id) {
-                                        has_effect = true;
+                                        // Spawn and Await nodes have implicit effects
+                                        Node::Spawn { .. } | Node::Await { .. } => {
+                                            has_effect = true;
+                                        }
+                                        _ => {}
                                     }
                                 }
-                            }
-                            
-                            // Always preserve effectful bindings
-                            if has_effect || name == "_" {
-                                stack.push(*value_id);
+
+                                // Also check the effect analysis if available
+                                if !has_effect && self.effect_analysis.is_some() {
+                                    let effect_analysis = self.effect_analysis.as_ref().unwrap();
+                                    // Check if this node has effects according to the analysis
+                                    // We need to find the original node ID that corresponds to this optimized node
+                                    if let Some(original_id) = self
+                                        .node_mapping
+                                        .iter()
+                                        .find(|(_, &opt_id)| opt_id == *value_id)
+                                        .map(|(orig_id, _)| *orig_id)
+                                    {
+                                        if !effect_analysis.pure_nodes.contains(&original_id) {
+                                            has_effect = true;
+                                        }
+                                    }
+                                }
+
+                                // Always preserve effectful bindings
+                                if has_effect || name == "_" {
+                                    stack.push(*value_id);
+                                }
                             }
                         }
                     }
-                }
-                Node::Letrec { bindings, body } => {
-                    // For letrec, all bindings must be kept (mutual recursion)
-                    for (_, value_id) in bindings {
-                        stack.push(*value_id);
+                    Node::Letrec { bindings, body } => {
+                        // For letrec, all bindings must be kept (mutual recursion)
+                        for (_, value_id) in bindings {
+                            stack.push(*value_id);
+                        }
+                        stack.push(*body);
                     }
-                    stack.push(*body);
-                }
-                Node::If { condition, then_branch, else_branch } => {
-                    stack.push(*condition);
-                    stack.push(*then_branch);
-                    stack.push(*else_branch);
-                }
-                Node::List(items) => {
-                    stack.extend(items);
-                }
-                Node::Match { expr, branches } => {
-                    stack.push(*expr);
-                    for (_, branch) in branches {
-                        stack.push(*branch);
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
+                        stack.push(*condition);
+                        stack.push(*then_branch);
+                        stack.push(*else_branch);
                     }
-                }
-                Node::Module { body, .. } => {
-                    stack.push(*body);
-                }
-                Node::Async { body } => {
-                    stack.push(*body);
-                }
-                Node::Await { expr } => {
-                    stack.push(*expr);
-                }
-                Node::Spawn { expr } => {
-                    stack.push(*expr);
-                }
-                Node::Send { channel, value } => {
-                    stack.push(*channel);
-                    stack.push(*value);
-                }
-                Node::Receive { channel } => {
-                    stack.push(*channel);
-                }
-                Node::Contract { preconditions, postconditions, invariants, .. } => {
-                    stack.extend(preconditions);
-                    stack.extend(postconditions);
-                    stack.extend(invariants);
-                }
-                Node::Effect { args, .. } => {
-                    stack.extend(args);
-                }
-                Node::Handler { handlers, body } => {
-                    stack.push(*body);
-                    for (_, _, handler_fn) in handlers {
-                        stack.push(*handler_fn);
+                    Node::List(items) => {
+                        stack.extend(items);
                     }
+                    Node::Match { expr, branches } => {
+                        stack.push(*expr);
+                        for (_, branch) in branches {
+                            stack.push(*branch);
+                        }
+                    }
+                    Node::Module { body, .. } => {
+                        stack.push(*body);
+                    }
+                    Node::Async { body } => {
+                        stack.push(*body);
+                    }
+                    Node::Await { expr } => {
+                        stack.push(*expr);
+                    }
+                    Node::Spawn { expr } => {
+                        stack.push(*expr);
+                    }
+                    Node::Send { channel, value } => {
+                        stack.push(*channel);
+                        stack.push(*value);
+                    }
+                    Node::Receive { channel } => {
+                        stack.push(*channel);
+                    }
+                    Node::Contract {
+                        preconditions,
+                        postconditions,
+                        invariants,
+                        ..
+                    } => {
+                        stack.extend(preconditions);
+                        stack.extend(postconditions);
+                        stack.extend(invariants);
+                    }
+                    Node::Effect { args, .. } => {
+                        stack.extend(args);
+                    }
+                    Node::Handler { handlers, body } => {
+                        stack.push(*body);
+                        for (_, _, handler_fn) in handlers {
+                            stack.push(*handler_fn);
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
-        }
         }
     }
 
@@ -1519,10 +1665,14 @@ impl AdvancedOptimizer {
     }
 
     /// Iteratively collect used variables to avoid stack overflow
-    fn collect_used_variables_iter(&self, start_node_id: NodeId, used_vars: &mut FxHashSet<String>) {
+    fn collect_used_variables_iter(
+        &self,
+        start_node_id: NodeId,
+        used_vars: &mut FxHashSet<String>,
+    ) {
         let mut work_stack = vec![start_node_id];
         let mut visited = FxHashSet::default();
-        
+
         while let Some(node_id) = work_stack.pop() {
             if !visited.insert(node_id) {
                 continue;
@@ -1553,7 +1703,11 @@ impl AdvancedOptimizer {
                             work_stack.push(*value_id);
                         }
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         work_stack.push(*condition);
                         work_stack.push(*then_branch);
                         work_stack.push(*else_branch);
@@ -1578,7 +1732,6 @@ impl AdvancedOptimizer {
             }
         }
     }
-
 }
 
 impl Default for AdvancedOptimizer {
@@ -1589,13 +1742,33 @@ impl Default for AdvancedOptimizer {
 
 /// Check if a function is a pure primitive
 fn is_pure_primitive(name: &str) -> bool {
-    matches!(name,
-        "+" | "-" | "*" | "/" | "mod" |
-        "<" | ">" | "<=" | ">=" | "=" | "==" | "!=" | "<>" |
-        "and" | "or" | "not" |
-        "car" | "cdr" | "cons" | "list" |
-        "list-len" | "list-empty?" |
-        "str-len" | "str-concat" | "str-upper" | "str-lower"
+    matches!(
+        name,
+        "+" | "-"
+            | "*"
+            | "/"
+            | "mod"
+            | "<"
+            | ">"
+            | "<="
+            | ">="
+            | "="
+            | "=="
+            | "!="
+            | "<>"
+            | "and"
+            | "or"
+            | "not"
+            | "car"
+            | "cdr"
+            | "cons"
+            | "list"
+            | "list-len"
+            | "list-empty?"
+            | "str-len"
+            | "str-concat"
+            | "str-upper"
+            | "str-lower"
     )
 }
 
@@ -1610,13 +1783,13 @@ fn evaluate_primitive(func_name: &str, args: &[Literal]) -> Result<Option<Litera
         ("*", [Integer(a), Integer(b)]) => Integer(a * b),
         ("/", [Integer(a), Integer(b)]) if *b != 0 => Integer(a / b),
         ("mod", [Integer(a), Integer(b)]) if *b != 0 => Integer(a % b),
-        
+
         // Floating point
         ("+", [Float(a), Float(b)]) => Float(a + b),
         ("-", [Float(a), Float(b)]) => Float(a - b),
         ("*", [Float(a), Float(b)]) => Float(a * b),
         ("/", [Float(a), Float(b)]) if *b != 0.0 => Float(a / b),
-        
+
         // Comparison
         ("<", [Integer(a), Integer(b)]) => Boolean(a < b),
         (">", [Integer(a), Integer(b)]) => Boolean(a > b),
@@ -1624,18 +1797,18 @@ fn evaluate_primitive(func_name: &str, args: &[Literal]) -> Result<Option<Litera
         (">=", [Integer(a), Integer(b)]) => Boolean(a >= b),
         ("=" | "==", [Integer(a), Integer(b)]) => Boolean(a == b),
         ("!=" | "<>", [Integer(a), Integer(b)]) => Boolean(a != b),
-        
+
         // Boolean
         ("and", [Boolean(a), Boolean(b)]) => Boolean(*a && *b),
         ("or", [Boolean(a), Boolean(b)]) => Boolean(*a || *b),
         ("not", [Boolean(a)]) => Boolean(!a),
-        
+
         // String operations
         ("str-concat", [String(a), String(b)]) => String(format!("{}{}", a, b)),
         ("str-len", [String(s)]) => Integer(s.len() as i64),
         ("str-upper", [String(s)]) => String(s.to_uppercase()),
         ("str-lower", [String(s)]) => String(s.to_lowercase()),
-        
+
         _ => return Ok(None),
     };
 

@@ -1,10 +1,10 @@
 //! Effect-aware optimization pass
 
+use crate::analysis::EffectAnalysis;
+use crate::passes::OptimizationPass;
+use anyhow::Result;
 use fluentai_core::ast::{Graph, Node, NodeId};
 use rustc_hash::{FxHashMap, FxHashSet};
-use anyhow::Result;
-use crate::passes::OptimizationPass;
-use crate::analysis::EffectAnalysis;
 
 /// Effect-aware optimization pass
 pub struct EffectAwarePass {
@@ -23,8 +23,6 @@ impl EffectAwarePass {
         }
     }
 
-
-
     /// Create a canonical string representation of an expression
     fn canonicalize_expr(&self, node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> String {
         match node {
@@ -32,10 +30,15 @@ impl EffectAwarePass {
             Node::Variable { name } => format!("var:{}", name),
             Node::Application { function, args } => {
                 let func_id = mapping.get(function).copied().unwrap_or(*function);
-                let arg_ids: Vec<_> = args.iter()
+                let arg_ids: Vec<_> = args
+                    .iter()
                     .map(|id| mapping.get(id).copied().unwrap_or(*id))
                     .collect();
-                format!("app:{}:{:?}", func_id.0, arg_ids.iter().map(|id| id.0).collect::<Vec<_>>())
+                format!(
+                    "app:{}:{:?}",
+                    func_id.0,
+                    arg_ids.iter().map(|id| id.0).collect::<Vec<_>>()
+                )
             }
             _ => format!("node:{:?}", node),
         }
@@ -51,33 +54,33 @@ impl OptimizationPass for EffectAwarePass {
         self.pure_hoisted = 0;
         self.effects_reordered = 0;
         self.duplicates_removed = 0;
-        
+
         let mut optimized = Graph::new();
         let mut node_mapping = FxHashMap::default();
-        
+
         // Perform effect analysis
         let effect_analysis = EffectAnalysis::analyze(graph);
-        
+
         // Single pass: Process all nodes, hoisting pure computations and removing duplicates
         let mut expr_cache: FxHashMap<String, NodeId> = FxHashMap::default();
-        
+
         // Process nodes in topological order starting from root
         let mut visited = FxHashSet::default();
         let mut work_stack = Vec::new();
-        
+
         if let Some(root) = graph.root_id {
             work_stack.push(root);
         }
-        
+
         // First, collect all nodes in dependency order
         let mut ordered_nodes = Vec::new();
         while let Some(node_id) = work_stack.pop() {
             if !visited.insert(node_id) {
                 continue;
             }
-            
+
             ordered_nodes.push(node_id);
-            
+
             if let Some(node) = graph.get_node(node_id) {
                 // Add dependencies to work stack
                 match node {
@@ -93,7 +96,11 @@ impl OptimizationPass for EffectAwarePass {
                             work_stack.push(*arg);
                         }
                     }
-                    Node::If { condition, then_branch, else_branch } => {
+                    Node::If {
+                        condition,
+                        then_branch,
+                        else_branch,
+                    } => {
                         work_stack.push(*else_branch);
                         work_stack.push(*then_branch);
                         work_stack.push(*condition);
@@ -110,17 +117,17 @@ impl OptimizationPass for EffectAwarePass {
                 }
             }
         }
-        
+
         // Process nodes in reverse order (dependencies first)
         ordered_nodes.reverse();
-        
+
         // Also add any nodes that weren't reachable from root
         for (node_id, _) in &graph.nodes {
             if !visited.contains(node_id) {
                 ordered_nodes.push(*node_id);
             }
         }
-        
+
         for node_id in ordered_nodes {
             let node = match graph.get_node(node_id) {
                 Some(n) => n,
@@ -131,7 +138,7 @@ impl OptimizationPass for EffectAwarePass {
                     // Check if we can hoist pure computations
                     let mut pure_bindings = Vec::new();
                     let mut effectful_bindings = Vec::new();
-                    
+
                     for (name, value_id) in bindings {
                         if effect_analysis.pure_nodes.contains(value_id) {
                             pure_bindings.push((name.clone(), *value_id));
@@ -139,25 +146,31 @@ impl OptimizationPass for EffectAwarePass {
                             effectful_bindings.push((name.clone(), *value_id));
                         }
                     }
-                    
+
                     // If we have both pure and effectful bindings, hoist the pure ones
                     if !pure_bindings.is_empty() && !effectful_bindings.is_empty() {
                         // Map the bindings through node_mapping
-                        let mapped_effectful: Vec<_> = effectful_bindings.iter()
-                            .map(|(name, id)| (name.clone(), node_mapping.get(id).copied().unwrap_or(*id)))
+                        let mapped_effectful: Vec<_> = effectful_bindings
+                            .iter()
+                            .map(|(name, id)| {
+                                (name.clone(), node_mapping.get(id).copied().unwrap_or(*id))
+                            })
                             .collect();
-                        let mapped_pure: Vec<_> = pure_bindings.iter()
-                            .map(|(name, id)| (name.clone(), node_mapping.get(id).copied().unwrap_or(*id)))
+                        let mapped_pure: Vec<_> = pure_bindings
+                            .iter()
+                            .map(|(name, id)| {
+                                (name.clone(), node_mapping.get(id).copied().unwrap_or(*id))
+                            })
                             .collect();
                         let mapped_body = node_mapping.get(body).copied().unwrap_or(*body);
-                        
+
                         // Create inner let with effectful bindings
                         let inner = Node::Let {
                             bindings: mapped_effectful,
                             body: mapped_body,
                         };
                         let inner_id = optimized.add_node(inner)?;
-                        
+
                         // Create outer let with pure bindings
                         let outer = Node::Let {
                             bindings: mapped_pure,
@@ -168,7 +181,7 @@ impl OptimizationPass for EffectAwarePass {
                         self.pure_hoisted += 1;
                         continue;
                     }
-                    
+
                     // Otherwise, just map the node normally
                     let mapped_node = map_node_refs(node, &node_mapping);
                     let new_id = optimized.add_node(mapped_node)?;
@@ -178,7 +191,7 @@ impl OptimizationPass for EffectAwarePass {
                     // For pure nodes, check if we've seen this expression before
                     if effect_analysis.pure_nodes.contains(&node_id) {
                         let expr_key = self.canonicalize_expr(node, &node_mapping);
-                        
+
                         if let Some(&existing_id) = expr_cache.get(&expr_key) {
                             // Reuse existing computation
                             node_mapping.insert(node_id, existing_id);
@@ -199,18 +212,23 @@ impl OptimizationPass for EffectAwarePass {
                 }
             }
         }
-        
+
         // Update root
         if let Some(root) = graph.root_id {
             optimized.root_id = node_mapping.get(&root).copied();
         }
-        
+
         Ok(optimized)
     }
 
     fn stats(&self) -> String {
-        format!("{} pass: {} pure computations hoisted, {} duplicates removed, {} effects reordered",
-                self.name(), self.pure_hoisted, self.duplicates_removed, self.effects_reordered)
+        format!(
+            "{} pass: {} pure computations hoisted, {} duplicates removed, {} effects reordered",
+            self.name(),
+            self.pure_hoisted,
+            self.duplicates_removed,
+            self.effects_reordered
+        )
     }
 }
 
@@ -219,7 +237,8 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
     match node {
         Node::Application { function, args } => {
             let new_func = mapping.get(function).copied().unwrap_or(*function);
-            let new_args: Vec<_> = args.iter()
+            let new_args: Vec<_> = args
+                .iter()
                 .map(|&arg| mapping.get(&arg).copied().unwrap_or(arg))
                 .collect();
             Node::Application {
@@ -235,14 +254,15 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
             }
         }
         Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
-            let new_bindings: Vec<_> = bindings.iter()
+            let new_bindings: Vec<_> = bindings
+                .iter()
                 .map(|(name, value)| {
                     let new_value = mapping.get(value).copied().unwrap_or(*value);
                     (name.clone(), new_value)
                 })
                 .collect();
             let new_body = mapping.get(body).copied().unwrap_or(*body);
-            
+
             if matches!(node, Node::Letrec { .. }) {
                 Node::Letrec {
                     bindings: new_bindings,
@@ -255,7 +275,11 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
                 }
             }
         }
-        Node::If { condition, then_branch, else_branch } => {
+        Node::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
             let new_cond = mapping.get(condition).copied().unwrap_or(*condition);
             let new_then = mapping.get(then_branch).copied().unwrap_or(*then_branch);
             let new_else = mapping.get(else_branch).copied().unwrap_or(*else_branch);
@@ -265,8 +289,13 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
                 else_branch: new_else,
             }
         }
-        Node::Effect { effect_type, operation, args } => {
-            let new_args: Vec<_> = args.iter()
+        Node::Effect {
+            effect_type,
+            operation,
+            args,
+        } => {
+            let new_args: Vec<_> = args
+                .iter()
                 .map(|&arg| mapping.get(&arg).copied().unwrap_or(arg))
                 .collect();
             Node::Effect {

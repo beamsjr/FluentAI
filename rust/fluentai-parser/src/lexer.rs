@@ -1,29 +1,29 @@
 //! Fast lexer for FluentAi S-expressions using logos
 
-use logos::{Logos, Lexer as LogosLexer};
+use logos::{Lexer as LogosLexer, Logos};
 
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token<'a> {
     // Delimiters
     #[token("(")]
     LParen,
-    
+
     #[token(")")]
     RParen,
-    
+
     #[token("[")]
     LBracket,
-    
+
     #[token("]")]
     RBracket,
-    
+
     // Literals (higher priority than symbols)
     #[regex(r"-?[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     Integer(i64),
-    
+
     #[regex(r"-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", priority = 2, callback = |lex| lex.slice().parse::<f64>().ok())]
     Float(f64),
-    
+
     #[regex(r#""([^"\\]|\\.)*""#, |lex| {
         let s = lex.slice();
         // Remove quotes and process escapes
@@ -31,42 +31,41 @@ pub enum Token<'a> {
         Some(process_string_escapes(content))
     })]
     String(String),
-    
+
     #[token("true", |_| true)]
     #[token("#t", |_| true)]
     #[token("false", |_| false)]
     #[token("#f", |_| false)]
     Boolean(bool),
-    
+
     // Qualified variables (module.name) - higher priority than regular symbols
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*", priority = 2, callback = |lex| lex.slice())]
     QualifiedSymbol(&'a str),
-    
+
     // Keywords (tokens starting with :)
     #[regex(r":[a-zA-Z_][a-zA-Z0-9_-]*", priority = 2, callback = |lex| lex.slice())]
     Keyword(&'a str),
-    
+
     // Range operators (higher priority than general symbols)
     #[token("..", |lex| lex.slice())]
     #[token("..=", |lex| lex.slice())]
     RangeOp(&'a str),
-    
+
     // Symbols (lower priority to avoid conflicts with numbers and qualified symbols)
     // Updated to include colon in symbol names for spec:contract
     #[regex(r"[a-zA-Z_+\-*/=<>!?][a-zA-Z0-9_+\-*/=<>!?:]*", priority = 1, callback = |lex| lex.slice())]
     Symbol(&'a str),
-    
+
     // Special tokens
     #[token(",")]
     Comma,
-    
+
     #[token(":")]
     Colon,
-    
+
     // Comments and whitespace (automatically skipped)
     #[regex(r";[^\n]*", logos::skip)]
     #[regex(r"[ \t\n\r]+", logos::skip)]
-    
     // Error token
     Error,
 }
@@ -76,7 +75,7 @@ pub enum Token<'a> {
 pub fn process_string_escapes(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut chars = s.chars();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '\\' {
             match chars.next() {
@@ -95,7 +94,7 @@ pub fn process_string_escapes(s: &str) -> String {
             result.push(ch);
         }
     }
-    
+
     result
 }
 
@@ -111,7 +110,7 @@ impl<'a> Lexer<'a> {
             peeked: None,
         }
     }
-    
+
     pub fn next_token(&mut self) -> Option<Token<'a>> {
         if let Some((token, _)) = self.peeked.take() {
             Some(token)
@@ -119,7 +118,7 @@ impl<'a> Lexer<'a> {
             self.inner.next().and_then(Result::ok)
         }
     }
-    
+
     pub fn peek_token(&mut self) -> Option<&Token<'a>> {
         if self.peeked.is_none() {
             if let Some(Ok(token)) = self.inner.next() {
@@ -129,7 +128,7 @@ impl<'a> Lexer<'a> {
         }
         self.peeked.as_ref().map(|(token, _)| token)
     }
-    
+
     pub fn span(&self) -> std::ops::Range<usize> {
         if let Some((_, span)) = &self.peeked {
             span.clone()
@@ -137,7 +136,7 @@ impl<'a> Lexer<'a> {
             self.inner.span()
         }
     }
-    
+
     pub fn slice(&self) -> &'a str {
         self.inner.slice()
     }

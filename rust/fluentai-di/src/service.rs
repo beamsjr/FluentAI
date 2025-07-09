@@ -1,9 +1,9 @@
 //! Service definitions and descriptors
 
+use downcast_rs::{impl_downcast, Downcast};
 use std::any::{Any, TypeId};
 use std::fmt;
 use std::sync::Arc;
-use downcast_rs::{Downcast, impl_downcast};
 
 /// Service lifetime determines how services are created and cached
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,7 +92,7 @@ impl ServiceDescriptor {
             factory: Arc::new(move || Box::new(factory()) as Box<dyn Service>),
         }
     }
-    
+
     /// Create a singleton service descriptor
     pub fn singleton<T, F>(factory: F) -> Self
     where
@@ -101,7 +101,7 @@ impl ServiceDescriptor {
     {
         Self::new::<T, T, F>(ServiceLifetime::Singleton, factory)
     }
-    
+
     /// Create a transient service descriptor
     pub fn transient<T, F>(factory: F) -> Self
     where
@@ -110,7 +110,7 @@ impl ServiceDescriptor {
     {
         Self::new::<T, T, F>(ServiceLifetime::Transient, factory)
     }
-    
+
     /// Create a scoped service descriptor
     pub fn scoped<T, F>(factory: F) -> Self
     where

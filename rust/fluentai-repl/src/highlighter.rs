@@ -1,11 +1,11 @@
 //! Syntax highlighting for the REPL
 
+use colored::*;
+use rustyline::completion::Completer;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
-use rustyline::completion::Completer;
 use rustyline::validate::Validator;
 use rustyline::Helper;
-use colored::*;
 use std::borrow::Cow;
 
 /// Syntax highlighter for FluentAi REPL
@@ -21,22 +21,76 @@ impl ReplHighlighter {
     pub fn new() -> Self {
         Self {
             keywords: vec![
-                "define", "lambda", "let", "let*", "letrec",
-                "if", "cond", "case", "and", "or", "not",
-                "begin", "do", "while", "for",
-                "contract", "requires", "ensures", "invariant",
-                "async", "await", "spawn", "yield",
-                "try", "catch", "finally", "throw",
-                "module", "import", "export", "use",
+                "define",
+                "lambda",
+                "let",
+                "let*",
+                "letrec",
+                "if",
+                "cond",
+                "case",
+                "and",
+                "or",
+                "not",
+                "begin",
+                "do",
+                "while",
+                "for",
+                "contract",
+                "requires",
+                "ensures",
+                "invariant",
+                "async",
+                "await",
+                "spawn",
+                "yield",
+                "try",
+                "catch",
+                "finally",
+                "throw",
+                "module",
+                "import",
+                "export",
+                "use",
             ],
             builtins: vec![
-                "+", "-", "*", "/", "=", ">", "<", ">=", "<=",
-                "list", "cons", "car", "cdr", "null?", "list?",
-                "number?", "string?", "boolean?", "procedure?",
-                "map", "filter", "reduce", "fold", "append",
-                "length", "reverse", "sort", "member", "assoc",
-                "print", "println", "format", "error",
-                "read", "write", "open", "close",
+                "+",
+                "-",
+                "*",
+                "/",
+                "=",
+                ">",
+                "<",
+                ">=",
+                "<=",
+                "list",
+                "cons",
+                "car",
+                "cdr",
+                "null?",
+                "list?",
+                "number?",
+                "string?",
+                "boolean?",
+                "procedure?",
+                "map",
+                "filter",
+                "reduce",
+                "fold",
+                "append",
+                "length",
+                "reverse",
+                "sort",
+                "member",
+                "assoc",
+                "print",
+                "println",
+                "format",
+                "error",
+                "read",
+                "write",
+                "open",
+                "close",
             ],
         }
     }
@@ -55,7 +109,7 @@ impl ReplHighlighter {
     fn tokenize(&self, input: &str) -> Vec<Token> {
         let mut tokens = Vec::new();
         let mut chars = input.char_indices().peekable();
-        
+
         while let Some((i, ch)) = chars.next() {
             match ch {
                 // Comments
@@ -102,7 +156,7 @@ impl ReplHighlighter {
                             }
                         }
                     }
-                    
+
                     while let Some((j, ch)) = chars.peek() {
                         if ch.is_numeric() || *ch == '.' {
                             chars.next();
@@ -146,7 +200,7 @@ impl ReplHighlighter {
                     }
                     let end = chars.peek().map(|(j, _)| *j).unwrap_or(input.len());
                     let word = &input[start..end];
-                    
+
                     if word == "true" || word == "false" {
                         tokens.push(Token::Boolean(start, end));
                     } else if word == "nil" {
@@ -161,7 +215,7 @@ impl ReplHighlighter {
                 }
             }
         }
-        
+
         tokens
     }
 }
@@ -184,14 +238,14 @@ enum Token {
 impl Highlighter for ReplHighlighter {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         let tokens = self.tokenize(line);
-        
+
         if tokens.is_empty() {
             return Cow::Borrowed(line);
         }
-        
+
         let mut result = String::with_capacity(line.len() * 2);
         let mut last_end = 0;
-        
+
         for token in tokens {
             let (start, end, color) = match token {
                 Token::Keyword(s, e) => (s, e, "magenta"),
@@ -205,12 +259,12 @@ impl Highlighter for ReplHighlighter {
                 Token::Paren(s, e) => (s, e, "bright_white"),
                 Token::Command(s, e) => (s, e, "bright_blue"),
             };
-            
+
             // Add any text between tokens
             if last_end < start {
                 result.push_str(&line[last_end..start]);
             }
-            
+
             // Add colored token
             let text = &line[start..end];
             let colored_text = match color {
@@ -225,16 +279,16 @@ impl Highlighter for ReplHighlighter {
                 "bright_blue" => text.bright_blue(),
                 _ => text.normal(),
             };
-            
+
             result.push_str(&colored_text.to_string());
             last_end = end;
         }
-        
+
         // Add any remaining text
         if last_end < line.len() {
             result.push_str(&line[last_end..]);
         }
-        
+
         Cow::Owned(result)
     }
 

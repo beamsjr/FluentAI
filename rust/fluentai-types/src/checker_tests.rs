@@ -6,7 +6,7 @@ mod checker_edge_case_tests {
     use crate::environment::TypeEnvironment;
     use crate::inference::TypeError;
     use crate::types::*;
-    use fluentai_core::ast::{Graph, NodeId, EffectType};
+    use fluentai_core::ast::{EffectType, Graph, NodeId};
     use fluentai_parser::parse;
     use std::collections::HashSet;
 
@@ -20,12 +20,12 @@ mod checker_edge_case_tests {
     fn test_type_checker_with_env() {
         let mut env = TypeEnvironment::new();
         env.bind("custom_var", TypedValue::primitive(PrimitiveType::string()));
-        
+
         let mut checker = TypeChecker::with_env(env);
         // Test that it can type check code using the custom environment
         let graph = create_test_graph("custom_var");
         let result = checker.check(&graph);
-        
+
         // Should successfully type check since custom_var is bound
         assert!(result.success || !result.types.is_empty());
     }
@@ -35,22 +35,22 @@ mod checker_edge_case_tests {
     fn test_add_location() {
         let mut checker = TypeChecker::new();
         let node_id = NodeId::new(1).unwrap();
-        
+
         let location = SourceLocation {
             file: "test.flu".to_string(),
             line: 10,
             column: 5,
         };
-        
+
         checker.add_location(node_id, location);
-        
+
         // Verify location is used in error reporting
         let error = TypeCheckError {
             location: SourceLocation::unknown(),
             error: TypeError::UnboundVariable("test".to_string()),
             context: "test".to_string(),
         };
-        
+
         // The location should be retrievable through error formatting
         let graph = Graph::new();
         let formatted = checker.format_error(&error, &graph);
@@ -63,14 +63,14 @@ mod checker_edge_case_tests {
         let mut checker = TypeChecker::new();
         let node_id = NodeId::new(1).unwrap();
         let ty = TypedValue::primitive(PrimitiveType::int());
-        
+
         checker.add_annotation(node_id, ty.clone());
-        
+
         // Verify annotation works by checking a graph with that annotation
         // The annotation should be used during type checking
         let graph = create_test_graph("42");
         let result = checker.check(&graph);
-        
+
         // Check succeeded (annotations are tested in annotation_mismatch test)
         assert!(result.types.contains_key(&graph.root_id.unwrap()));
     }
@@ -80,21 +80,22 @@ mod checker_edge_case_tests {
     fn test_annotation_mismatch() {
         let graph = create_test_graph("42");
         let mut checker = TypeChecker::new();
-        
+
         // Annotate the root node as String but it's actually Int
         if let Some(root_id) = graph.root_id {
             checker.add_annotation(root_id, TypedValue::primitive(PrimitiveType::string()));
         }
-        
+
         let result = checker.check(&graph);
-        
+
         assert!(!result.success);
         assert!(!result.errors.is_empty());
-        
+
         // Check that we got a type mismatch error
-        let has_mismatch = result.errors.iter().any(|e| {
-            matches!(&e.error, TypeError::TypeMismatch { .. })
-        });
+        let has_mismatch = result
+            .errors
+            .iter()
+            .any(|e| matches!(&e.error, TypeError::TypeMismatch { .. }));
         assert!(has_mismatch);
     }
 
@@ -104,15 +105,18 @@ mod checker_edge_case_tests {
         let graph = create_test_graph("(print \"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
-        
+
         // Allow only Pure effects (IO is forbidden)
         let mut allowed = HashSet::new();
         allowed.insert(EffectType::Pure);
-        
+
         let effect_errors = checker.check_effects(&graph, &result.types, &allowed);
-        
+
         assert!(!effect_errors.is_empty());
-        assert!(effect_errors[0].error.to_string().contains("Forbidden effects"));
+        assert!(effect_errors[0]
+            .error
+            .to_string()
+            .contains("Forbidden effects"));
     }
 
     #[test]
@@ -120,14 +124,14 @@ mod checker_edge_case_tests {
         let graph = create_test_graph("(print \"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
-        
+
         // Allow IO effects
         let mut allowed = HashSet::new();
         allowed.insert(EffectType::IO);
         allowed.insert(EffectType::Pure);
-        
+
         let effect_errors = checker.check_effects(&graph, &result.types, &allowed);
-        
+
         assert!(effect_errors.is_empty());
     }
 
@@ -137,14 +141,14 @@ mod checker_edge_case_tests {
         let graph = create_test_graph("(print \"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
-        
+
         // First check if type checking succeeded
         if result.success {
             // Only allow Pure effects (no IO)
             let allowed = HashSet::new(); // Empty set means only Pure is allowed
-            
+
             let effect_errors = checker.check_effects(&graph, &result.types, &allowed);
-            
+
             // Should have errors about IO effect being forbidden
             assert!(!effect_errors.is_empty());
         } else {
@@ -167,7 +171,7 @@ mod checker_edge_case_tests {
     fn test_format_error() {
         let checker = TypeChecker::new();
         let graph = create_test_graph("(+ 1 \"hello\")");
-        
+
         let error = TypeCheckError {
             location: SourceLocation {
                 file: "test.flu".to_string(),
@@ -180,9 +184,9 @@ mod checker_edge_case_tests {
             },
             context: "In addition operation".to_string(),
         };
-        
+
         let formatted = checker.format_error(&error, &graph);
-        
+
         assert!(formatted.contains("test.flu:1:1"));
         assert!(formatted.contains("Type mismatch"));
         assert!(formatted.contains("In addition operation"));
@@ -200,9 +204,9 @@ mod checker_edge_case_tests {
             error: TypeError::UnboundVariable("x".to_string()),
             context: "Variable not in scope".to_string(),
         };
-        
+
         let display = error.to_string();
-        
+
         assert!(display.contains("main.flu:5:10"));
         assert!(display.contains("error:"));
         assert!(display.contains("Unbound variable: x"));
@@ -220,9 +224,9 @@ mod checker_edge_case_tests {
             },
             message: "Unused type variable 'a'".to_string(),
         };
-        
+
         let display = warning.to_string();
-        
+
         assert!(display.contains("lib.flu:3:7"));
         assert!(display.contains("warning:"));
         assert!(display.contains("Unused type variable 'a'"));
@@ -234,13 +238,14 @@ mod checker_edge_case_tests {
         let graph = create_test_graph("(lambda (x) x)");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
-        
+
         // Should have warnings about unconstrained type variables
         assert!(!result.warnings.is_empty());
-        
-        let has_unconstrained_warning = result.warnings.iter().any(|w| {
-            w.message.contains("no constraints")
-        });
+
+        let has_unconstrained_warning = result
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("no constraints"));
         assert!(has_unconstrained_warning);
     }
 
@@ -249,11 +254,12 @@ mod checker_edge_case_tests {
         let graph = create_test_graph("(print \"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
-        
+
         // Should have warnings about side effects
-        let has_effect_warning = result.warnings.iter().any(|w| {
-            w.message.contains("side effects")
-        });
+        let has_effect_warning = result
+            .warnings
+            .iter()
+            .any(|w| w.message.contains("side effects"));
         assert!(has_effect_warning);
     }
 
@@ -262,16 +268,19 @@ mod checker_edge_case_tests {
     fn test_type_checker_builder() {
         let node_id1 = NodeId::new(1).unwrap();
         let node_id2 = NodeId::new(2).unwrap();
-        
+
         let mut checker = TypeCheckerBuilder::new()
-            .with_location(node_id1, SourceLocation {
-                file: "test1.flu".to_string(),
-                line: 1,
-                column: 1,
-            })
+            .with_location(
+                node_id1,
+                SourceLocation {
+                    file: "test1.flu".to_string(),
+                    line: 1,
+                    column: 1,
+                },
+            )
             .with_annotation(node_id2, TypedValue::primitive(PrimitiveType::bool()))
             .build();
-        
+
         // Test that the builder worked by type checking something
         let graph = create_test_graph("42");
         let result = checker.check(&graph);
@@ -281,15 +290,18 @@ mod checker_edge_case_tests {
     #[test]
     fn test_type_checker_builder_with_env() {
         let mut env = TypeEnvironment::new();
-        env.bind("my_func", TypedValue::function(FunctionType::new(
-            vec![TypedValue::primitive(PrimitiveType::int())],
-            TypedValue::primitive(PrimitiveType::int()),
-        )));
-        
+        env.bind(
+            "my_func",
+            TypedValue::function(FunctionType::new(
+                vec![TypedValue::primitive(PrimitiveType::int())],
+                TypedValue::primitive(PrimitiveType::int()),
+            )),
+        );
+
         let mut checker = TypeCheckerBuilder::with_env(env)
             .with_location(NodeId::new(1).unwrap(), SourceLocation::unknown())
             .build();
-        
+
         // Test that it works with the custom env
         let graph = create_test_graph("(my_func 42)");
         let result = checker.check(&graph);
@@ -301,7 +313,7 @@ mod checker_edge_case_tests {
     fn test_get_type_returns_none() {
         let checker = TypeChecker::new();
         let node_id = NodeId::new(1).unwrap();
-        
+
         assert!(checker.get_type(node_id).is_none());
     }
 
@@ -310,12 +322,12 @@ mod checker_edge_case_tests {
     fn test_type_checker_default() {
         let mut checker1 = TypeChecker::new();
         let mut checker2 = TypeChecker::default();
-        
+
         // Both should work the same way
         let graph = create_test_graph("42");
         let result1 = checker1.check(&graph);
         let result2 = checker2.check(&graph);
-        
+
         assert_eq!(result1.success, result2.success);
         assert_eq!(result1.errors.len(), result2.errors.len());
     }
@@ -325,14 +337,14 @@ mod checker_edge_case_tests {
     fn test_multiple_errors() {
         let graph = create_test_graph("(let ((x 1)) (+ x \"hello\"))");
         let mut checker = TypeChecker::new();
-        
+
         // Add an annotation that will also cause a mismatch
         if let Some(root_id) = graph.root_id {
             checker.add_annotation(root_id, TypedValue::primitive(PrimitiveType::bool()));
         }
-        
+
         let result = checker.check(&graph);
-        
+
         assert!(!result.success);
         // Should have multiple errors
         assert!(result.errors.len() >= 1);
@@ -343,18 +355,19 @@ mod checker_edge_case_tests {
     fn test_types_compatible_via_annotation_check() {
         let graph = create_test_graph("42");
         let mut checker = TypeChecker::new();
-        
+
         // Annotate with exact same type - should be compatible
         if let Some(root_id) = graph.root_id {
             checker.add_annotation(root_id, TypedValue::primitive(PrimitiveType::int()));
         }
-        
+
         let result = checker.check(&graph);
-        
+
         // No annotation mismatch errors
-        let has_annotation_error = result.errors.iter().any(|e| {
-            e.context.contains("annotation")
-        });
+        let has_annotation_error = result
+            .errors
+            .iter()
+            .any(|e| e.context.contains("annotation"));
         assert!(!has_annotation_error);
     }
 
@@ -364,17 +377,18 @@ mod checker_edge_case_tests {
         // Create an invalid graph that will fail during inference
         let mut graph = Graph::new();
         graph.root_id = Some(NodeId::new(999).unwrap()); // Non-existent node
-        
+
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
-        
+
         assert!(!result.success);
         assert!(!result.errors.is_empty());
-        
+
         // Should have context about inference failure
-        let has_inference_context = result.errors.iter().any(|e| {
-            e.context.contains("During type inference")
-        });
+        let has_inference_context = result
+            .errors
+            .iter()
+            .any(|e| e.context.contains("During type inference"));
         assert!(has_inference_context);
     }
 
@@ -384,13 +398,16 @@ mod checker_edge_case_tests {
         let mut checker = TypeChecker::new();
         let existing_id = NodeId::new(1).unwrap();
         let _missing_id = NodeId::new(2).unwrap();
-        
-        checker.add_location(existing_id, SourceLocation {
-            file: "exists.flu".to_string(),
-            line: 5,
-            column: 10,
-        });
-        
+
+        checker.add_location(
+            existing_id,
+            SourceLocation {
+                file: "exists.flu".to_string(),
+                line: 5,
+                column: 10,
+            },
+        );
+
         // Test through error formatting which uses get_location internally
         let error1 = TypeCheckError {
             location: SourceLocation {
@@ -401,17 +418,17 @@ mod checker_edge_case_tests {
             error: TypeError::UnboundVariable("x".to_string()),
             context: "test".to_string(),
         };
-        
+
         let error2 = TypeCheckError {
             location: SourceLocation::unknown(),
             error: TypeError::UnboundVariable("y".to_string()),
             context: "test".to_string(),
         };
-        
+
         let graph = Graph::new();
         let formatted1 = checker.format_error(&error1, &graph);
         let formatted2 = checker.format_error(&error2, &graph);
-        
+
         assert!(formatted1.contains("exists.flu"));
         assert!(formatted2.contains("<unknown>"));
     }

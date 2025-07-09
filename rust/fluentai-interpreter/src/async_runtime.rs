@@ -2,13 +2,13 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use std::task::{Context, Poll};
 use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll};
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
-use crate::value::Value;
 use crate::error::{InterpreterError, InterpreterResult};
+use crate::value::Value;
 
 /// Async task handle
 pub struct AsyncHandle {
@@ -23,7 +23,7 @@ impl Future for AsyncHandle {
         match Pin::new(&mut self.receiver).poll(cx) {
             Poll::Ready(Ok(result)) => Poll::Ready(result),
             Poll::Ready(Err(_)) => Poll::Ready(Err(InterpreterError::AsyncError(
-                "Task cancelled".to_string()
+                "Task cancelled".to_string(),
             ))),
             Poll::Pending => Poll::Pending,
         }
@@ -39,9 +39,10 @@ pub struct AsyncRuntime {
 impl AsyncRuntime {
     /// Create a new async runtime
     pub fn new() -> InterpreterResult<Self> {
-        let runtime = Runtime::new()
-            .map_err(|e| InterpreterError::AsyncError(format!("Failed to create runtime: {}", e)))?;
-        
+        let runtime = Runtime::new().map_err(|e| {
+            InterpreterError::AsyncError(format!("Failed to create runtime: {}", e))
+        })?;
+
         Ok(Self {
             runtime,
             next_task_id: Arc::new(Mutex::new(0)),
@@ -81,10 +82,7 @@ impl AsyncRuntime {
     /// Create a channel for async communication
     pub fn create_channel() -> (AsyncSender, AsyncReceiver) {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        (
-            AsyncSender { sender: tx },
-            AsyncReceiver { receiver: rx },
-        )
+        (AsyncSender { sender: tx }, AsyncReceiver { receiver: rx })
     }
 }
 
@@ -96,7 +94,8 @@ pub struct AsyncSender {
 impl AsyncSender {
     /// Send a value
     pub fn send(&self, value: Value) -> InterpreterResult<()> {
-        self.sender.send(value)
+        self.sender
+            .send(value)
             .map_err(|_| InterpreterError::AsyncError("Channel closed".to_string()))
     }
 }
@@ -109,7 +108,9 @@ pub struct AsyncReceiver {
 impl AsyncReceiver {
     /// Receive a value
     pub async fn recv(&mut self) -> InterpreterResult<Value> {
-        self.receiver.recv().await
+        self.receiver
+            .recv()
+            .await
             .ok_or_else(|| InterpreterError::AsyncError("Channel closed".to_string()))
     }
 }
@@ -127,11 +128,9 @@ mod tests {
     #[test]
     fn test_async_runtime() {
         let runtime = AsyncRuntime::new().unwrap();
-        
-        let result = runtime.block_on(async {
-            Ok(Value::from_integer(42))
-        });
-        
+
+        let result = runtime.block_on(async { Ok(Value::from_integer(42)) });
+
         assert_eq!(result.unwrap().to_integer(), Some(42));
     }
 
@@ -139,18 +138,18 @@ mod tests {
     // #[test]
     // fn test_async_spawn() {
     //     use std::sync::Arc;
-    //     
+    //
     //     let runtime = AsyncRuntime::new().unwrap();
-    //     
+    //
     //     // Test with a simple Send-safe type
     //     let value = Arc::new(42i64);
     //     let value_clone = value.clone();
-    //     
+    //
     //     let handle = runtime.spawn(async move {
     //         // Create the Value inside the spawned task
     //         Ok(Value::from_integer(*value_clone))
     //     });
-    //     
+    //
     //     let result = runtime.block_on(handle);
     //     assert_eq!(result.unwrap().to_integer(), Some(42));
     // }

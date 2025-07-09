@@ -79,12 +79,12 @@ impl TemplateEngine {
             templates: FxHashMap::default(),
         }
     }
-    
+
     /// Register a template
     pub fn register_template(&mut self, template: Template) {
         self.templates.insert(template.name.clone(), template);
     }
-    
+
     /// Register built-in templates
     pub fn register_builtins(&mut self) {
         // List comprehension template
@@ -119,7 +119,7 @@ impl TemplateEngine {
             body: "(map (lambda ($var) (if $filter $expr nil)) $list)".to_string(),
             guards: vec![],
         });
-        
+
         // Pattern matching template
         self.register_template(Template {
             name: "match".to_string(),
@@ -140,7 +140,7 @@ impl TemplateEngine {
             body: "match-expansion".to_string(), // Special handling
             guards: vec![],
         });
-        
+
         // Class template
         self.register_template(Template {
             name: "class".to_string(),
@@ -168,24 +168,23 @@ impl TemplateEngine {
             guards: vec![],
         });
     }
-    
+
     /// Instantiate a template
     pub fn instantiate(
         &self,
         template_name: &str,
         args: FxHashMap<String, TemplateValue>,
     ) -> Result<Graph> {
-        let template = self.templates.get(template_name)
-            .ok_or_else(|| MetaprogrammingError::TemplateError(
-                format!("Unknown template: {}", template_name)
-            ))?;
-        
+        let template = self.templates.get(template_name).ok_or_else(|| {
+            MetaprogrammingError::TemplateError(format!("Unknown template: {}", template_name))
+        })?;
+
         // Create context
         let mut context = InstantiationContext {
             values: args,
             graph: Graph::new(),
         };
-        
+
         // Check all required parameters are provided
         for param in &template.params {
             if !param.optional && !context.values.contains_key(&param.name) {
@@ -193,46 +192,46 @@ impl TemplateEngine {
                     // Parse default value
                     let default_graph = parse(default)
                         .map_err(|e| MetaprogrammingError::ParseError(e.to_string()))?;
-                    context.values.insert(
-                        param.name.clone(),
-                        TemplateValue::Graph(default_graph),
-                    );
+                    context
+                        .values
+                        .insert(param.name.clone(), TemplateValue::Graph(default_graph));
                 } else {
-                    return Err(MetaprogrammingError::TemplateError(
-                        format!("Missing required parameter: {}", param.name)
-                    ));
+                    return Err(MetaprogrammingError::TemplateError(format!(
+                        "Missing required parameter: {}",
+                        param.name
+                    )));
                 }
             }
         }
-        
+
         // Check guards
         for guard in &template.guards {
             if !self.check_guard(&context, guard)? {
-                return Err(MetaprogrammingError::TemplateError(
-                    format!("Guard failed: {}", guard.message)
-                ));
+                return Err(MetaprogrammingError::TemplateError(format!(
+                    "Guard failed: {}",
+                    guard.message
+                )));
             }
         }
-        
+
         // Special handling for certain templates
         match template.body.as_str() {
             "match-expansion" => self.expand_match(&context),
             _ => self.expand_template_body(&template.body, &context),
         }
     }
-    
+
     /// Expand template body
     fn expand_template_body(&self, body: &str, context: &InstantiationContext) -> Result<Graph> {
         let mut expanded = body.to_string();
-        
+
         // Substitute parameters
         for (name, value) in &context.values {
             let substitution = match value {
-                TemplateValue::Node(node_id) => {
-                    self.node_to_string(&context.graph, *node_id)?
-                }
+                TemplateValue::Node(node_id) => self.node_to_string(&context.graph, *node_id)?,
                 TemplateValue::NodeList(nodes) => {
-                    let node_strs: Result<Vec<_>> = nodes.iter()
+                    let node_strs: Result<Vec<_>> = nodes
+                        .iter()
                         .map(|&id| self.node_to_string(&context.graph, id))
                         .collect();
                     node_strs?.join(" ")
@@ -247,14 +246,14 @@ impl TemplateEngine {
                     }
                 }
             };
-            
+
             expanded = expanded.replace(&format!("${}", name), &substitution);
         }
-        
+
         // Parse expanded template
         parse(&expanded).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
-    
+
     /// Convert node to string
     fn node_to_string(&self, graph: &Graph, node_id: NodeId) -> Result<String> {
         if let Some(node) = graph.get_node(node_id) {
@@ -262,7 +261,8 @@ impl TemplateEngine {
                 Node::Variable { name } => Ok(name.clone()),
                 Node::Literal(lit) => Ok(format!("{}", lit)),
                 Node::List(items) => {
-                    let item_strs: Result<Vec<_>> = items.iter()
+                    let item_strs: Result<Vec<_>> = items
+                        .iter()
                         .map(|&id| self.node_to_string(graph, id))
                         .collect();
                     Ok(format!("({})", item_strs?.join(" ")))
@@ -273,7 +273,8 @@ impl TemplateEngine {
                 }
                 Node::Application { function, args } => {
                     let func_str = self.node_to_string(graph, *function)?;
-                    let arg_strs: Result<Vec<_>> = args.iter()
+                    let arg_strs: Result<Vec<_>> = args
+                        .iter()
                         .map(|&id| self.node_to_string(graph, id))
                         .collect();
                     Ok(format!("({} {})", func_str, arg_strs?.join(" ")))
@@ -284,40 +285,40 @@ impl TemplateEngine {
             Err(MetaprogrammingError::NodeNotFound(node_id))
         }
     }
-    
+
     /// Check a guard condition
     fn check_guard(&self, _context: &InstantiationContext, _guard: &Guard) -> Result<bool> {
         // Simplified guard checking
         Ok(true)
     }
-    
+
     /// Expand match template
     fn expand_match(&self, context: &InstantiationContext) -> Result<Graph> {
-        let expr = context.values.get("expr")
-            .ok_or_else(|| MetaprogrammingError::TemplateError(
-                "Match requires 'expr' parameter".to_string()
-            ))?;
-        
-        let cases = context.values.get("cases")
-            .ok_or_else(|| MetaprogrammingError::TemplateError(
-                "Match requires 'cases' parameter".to_string()
-            ))?;
-        
+        let expr = context.values.get("expr").ok_or_else(|| {
+            MetaprogrammingError::TemplateError("Match requires 'expr' parameter".to_string())
+        })?;
+
+        let cases = context.values.get("cases").ok_or_else(|| {
+            MetaprogrammingError::TemplateError("Match requires 'cases' parameter".to_string())
+        })?;
+
         // Build match expression
         let mut result = String::from("(let ((#match-val ");
-        
+
         // Add expression
         match expr {
             TemplateValue::Node(id) => {
                 result.push_str(&self.node_to_string(&context.graph, *id)?);
             }
-            _ => return Err(MetaprogrammingError::TemplateError(
-                "Match expr must be a node".to_string()
-            )),
+            _ => {
+                return Err(MetaprogrammingError::TemplateError(
+                    "Match expr must be a node".to_string(),
+                ))
+            }
         }
-        
+
         result.push_str(")) (cond ");
-        
+
         // Add cases
         if let TemplateValue::NodeList(case_nodes) = cases {
             for &case_id in case_nodes {
@@ -330,9 +331,9 @@ impl TemplateEngine {
                 }
             }
         }
-        
+
         result.push_str("))");
-        
+
         parse(&result).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
 }
@@ -349,7 +350,8 @@ fn class_template_body() -> String {
        $methods
        ;; Return constructor with prototype
        (set-prototype constructor prototype)
-       constructor)"#.to_string()
+       constructor)"#
+        .to_string()
 }
 
 /// Template DSL for building templates
@@ -369,7 +371,7 @@ impl TemplateBuilder {
             guards: Vec::new(),
         }
     }
-    
+
     pub fn param(mut self, name: impl Into<String>, kind: ParamKind) -> Self {
         self.params.push(TemplateParam {
             name: name.into(),
@@ -379,7 +381,7 @@ impl TemplateBuilder {
         });
         self
     }
-    
+
     pub fn optional_param(
         mut self,
         name: impl Into<String>,
@@ -394,12 +396,12 @@ impl TemplateBuilder {
         });
         self
     }
-    
+
     pub fn body(mut self, body: impl Into<String>) -> Self {
         self.body = body.into();
         self
     }
-    
+
     pub fn guard(mut self, condition: impl Into<String>, message: impl Into<String>) -> Self {
         self.guards.push(Guard {
             condition: condition.into(),
@@ -407,7 +409,7 @@ impl TemplateBuilder {
         });
         self
     }
-    
+
     pub fn build(self) -> Template {
         Template {
             name: self.name,

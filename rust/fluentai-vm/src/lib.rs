@@ -2,72 +2,72 @@
 //!
 //! High-performance register-based VM for executing FluentAi bytecode
 
+pub mod builder;
 pub mod bytecode;
 pub mod compiler;
-pub mod vm;
-pub mod vm_builder;
-pub mod stdlib_bridge;
-pub mod builder;
-pub mod di;
+pub mod concurrent;
+pub mod concurrent_gc;
 pub mod debug;
+pub mod di;
+pub mod error;
+pub mod fast_channel;
+pub mod gc;
+pub mod memory_pool;
+pub mod optimization;
 pub mod safety;
 pub mod security;
-pub mod error;
-pub mod gc;
-pub mod unboxed;
-pub mod typed_stack;
-pub mod memory_pool;
-pub mod concurrent;
-pub mod fast_channel;
-pub mod optimization;
 pub mod simd;
-pub mod concurrent_gc;
+pub mod stdlib_bridge;
+pub mod typed_stack;
+pub mod unboxed;
 pub mod usage_tracker;
+pub mod vm;
+pub mod vm_builder;
 
+pub use builder::{VMBuilder as VMBuilderLegacy, VMConfig};
+pub use bytecode::{Bytecode, Opcode};
+pub use compiler::{Compiler, CompilerOptions};
+pub use concurrent::{BoundedQueue, LockFreeQueue, LockFreeStack, WorkStealingDeque};
+pub use concurrent_gc::{ConcurrentGc, ConcurrentGcConfig};
+pub use debug::{DebugConfig, StepMode, VMDebugEvent};
+pub use di::{ContainerVMProvider, VMContainerBuilderExt, VMFactory, VMServiceProvider};
+pub use error::VMError;
+pub use fast_channel::{channel, ChannelMode, FastChannel, Receiver, Sender};
+pub use fluentai_core::value::Value;
+pub use fluentai_optimizer::OptimizationLevel;
+pub use gc::{GarbageCollector, GcConfig, GcHandle, GcScope};
+pub use memory_pool::{MemoryPool, ObjectPool, PoolConfig, SlabAllocator};
+pub use optimization::{CachedValue, FusedOpcode, InlineCache, InstructionFusion, ProfileInfo};
+pub use security::{Capability, SecurityManager, SecurityPolicy, TaintLevel};
+pub use simd::{PortableSimd, SimdOp, SimdOps};
+pub use typed_stack::{TypeTag, TypedStack};
+pub use unboxed::{BoxedValue, UnboxedValue};
+pub use usage_tracker::{UsageStats, UsageTracker};
 pub use vm::VM;
 pub use vm_builder::VMBuilder;
-pub use bytecode::{Bytecode, Opcode};
-pub use fluentai_core::value::Value;
-pub use compiler::{Compiler, CompilerOptions};
-pub use fluentai_optimizer::OptimizationLevel;
-pub use builder::{VMBuilder as VMBuilderLegacy, VMConfig};
-pub use di::{VMContainerBuilderExt, VMServiceProvider, ContainerVMProvider, VMFactory};
-pub use debug::{VMDebugEvent, DebugConfig, StepMode};
-pub use security::{SecurityManager, SecurityPolicy, Capability, TaintLevel};
-pub use gc::{GarbageCollector, GcHandle, GcScope, GcConfig};
-pub use unboxed::{UnboxedValue, BoxedValue};
-pub use typed_stack::{TypedStack, TypeTag};
-pub use memory_pool::{MemoryPool, PoolConfig, ObjectPool, SlabAllocator};
-pub use concurrent::{LockFreeStack, LockFreeQueue, BoundedQueue, WorkStealingDeque};
-pub use fast_channel::{FastChannel, ChannelMode, channel, Sender, Receiver};
-pub use optimization::{InstructionFusion, InlineCache, ProfileInfo, FusedOpcode, CachedValue};
-pub use simd::{SimdOps, SimdOp, PortableSimd};
-pub use concurrent_gc::{ConcurrentGc, ConcurrentGcConfig};
-pub use usage_tracker::{UsageTracker, UsageStats};
-pub use error::VMError;
 
 // Test modules
 #[cfg(test)]
-mod vm_tests;
+mod builder_tests;
 #[cfg(test)]
 mod bytecode_tests;
+#[cfg(test)]
+mod debug_tests;
+#[cfg(test)]
+mod error_tests;
+#[cfg(test)]
+mod gc_tests;
+#[cfg(test)]
+mod memory_pool_tests;
+#[cfg(test)]
+mod security_tests;
 #[cfg(test)]
 mod stdlib_bridge_tests;
 #[cfg(test)]
 mod unboxed_tests;
 #[cfg(test)]
-mod debug_tests;
-#[cfg(test)]
 mod vm_integration_tests;
 #[cfg(test)]
 mod vm_simple_coverage_tests;
 #[cfg(test)]
-mod memory_pool_tests;
-#[cfg(test)]
-mod gc_tests;
-#[cfg(test)]
-mod security_tests;
-#[cfg(test)]
-mod error_tests;
-#[cfg(test)]
-mod builder_tests;
+mod vm_tests;

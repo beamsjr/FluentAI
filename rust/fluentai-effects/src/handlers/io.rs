@@ -1,8 +1,8 @@
 //! IO effect handler
 
-use crate::{EffectHandler, EffectResult, format_effect_error};
+use crate::{format_effect_error, EffectHandler, EffectResult};
 use async_trait::async_trait;
-use fluentai_core::{ast::EffectType, value::Value, error::Error};
+use fluentai_core::{ast::EffectType, error::Error, value::Value};
 use std::io::{self, Write};
 
 pub struct IOHandler;
@@ -18,13 +18,15 @@ impl EffectHandler for IOHandler {
     fn effect_type(&self) -> EffectType {
         EffectType::IO
     }
-    
+
     fn handle_sync(&self, operation: &str, args: &[Value]) -> EffectResult {
         match operation {
             "print" => {
                 if let Some(arg) = args.first() {
                     print!("{}", arg);
-                    io::stdout().flush().map_err(|e| Error::Runtime(e.to_string()))?;
+                    io::stdout()
+                        .flush()
+                        .map_err(|e| Error::Runtime(e.to_string()))?;
                 }
                 Ok(Value::Nil)
             }
@@ -36,7 +38,8 @@ impl EffectHandler for IOHandler {
             }
             "read_line" => {
                 let mut buffer = String::new();
-                io::stdin().read_line(&mut buffer)
+                io::stdin()
+                    .read_line(&mut buffer)
                     .map_err(|e| Error::Runtime(e.to_string()))?;
                 Ok(Value::String(buffer.trim_end().to_string()))
             }
@@ -46,7 +49,11 @@ impl EffectHandler for IOHandler {
                         .map(Value::String)
                         .map_err(|e| Error::Runtime(format!("Failed to read file: {}", e)))
                 } else {
-                    Err(Error::Runtime(format_effect_error("IO", operation, "requires a string path")))
+                    Err(Error::Runtime(format_effect_error(
+                        "IO",
+                        operation,
+                        "requires a string path",
+                    )))
                 }
             }
             "write_file" => {
@@ -60,13 +67,25 @@ impl EffectHandler for IOHandler {
                             .map(|_| Value::Nil)
                             .map_err(|e| Error::Runtime(format!("Failed to write file: {}", e)))
                     } else {
-                        Err(Error::Runtime(format_effect_error("IO", operation, "requires path and content")))
+                        Err(Error::Runtime(format_effect_error(
+                            "IO",
+                            operation,
+                            "requires path and content",
+                        )))
                     }
                 } else {
-                    Err(Error::Runtime(format_effect_error("IO", operation, "requires 2 arguments")))
+                    Err(Error::Runtime(format_effect_error(
+                        "IO",
+                        operation,
+                        "requires 2 arguments",
+                    )))
                 }
             }
-            _ => Err(Error::Runtime(format_effect_error("IO", operation, "operation not supported"))),
+            _ => Err(Error::Runtime(format_effect_error(
+                "IO",
+                operation,
+                "operation not supported",
+            ))),
         }
     }
 }

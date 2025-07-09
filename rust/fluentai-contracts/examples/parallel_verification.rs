@@ -1,36 +1,35 @@
 //! Demonstrates parallel contract verification
 
 use fluentai_contracts::{
-    Contract, ContractCondition, ContractKind,
-    ParallelVerifier, ParallelVerificationConfig, ParallelCoordinator,
-    static_verification::VerificationResult,
+    static_verification::VerificationResult, Contract, ContractCondition, ContractKind,
+    ParallelCoordinator, ParallelVerificationConfig, ParallelVerifier,
 };
-use fluentai_core::ast::{Graph, Node, NodeId, Literal};
+use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::time::Instant;
 
 fn main() {
     println!("=== Parallel Contract Verification Demo ===\n");
-    
+
     // Create a graph with multiple functions
     let mut graph = Graph::new();
     let contracts = create_sample_contracts(&mut graph);
-    
+
     println!("Created {} contracts for verification\n", contracts.len());
-    
+
     // Demo 1: Basic parallel verification
     println!("1. Basic Parallel Verification:");
     demo_basic_parallel(&graph, &contracts);
-    
+
     // Demo 2: Custom configuration
     println!("\n2. Custom Configuration:");
     demo_custom_config(&graph, &contracts);
-    
+
     // Demo 3: Progress reporting
     println!("\n3. Progress Reporting:");
     demo_progress_reporting(&graph, &contracts);
-    
+
     // Demo 4: Performance comparison
     println!("\n4. Performance Comparison:");
     demo_performance_comparison(&graph, &contracts);
@@ -38,98 +37,135 @@ fn main() {
 
 fn create_sample_contracts(graph: &mut Graph) -> HashMap<String, Contract> {
     let mut contracts = HashMap::new();
-    
+
     // Create multiple contracts with varying complexity
     for i in 0..20 {
         let name = format!("function_{}", i);
-        
+
         // Create a simple arithmetic contract
-        let x = graph.add_node(Node::Variable { name: "x".to_string() }).expect("Failed to add node");
-        let y = graph.add_node(Node::Variable { name: "y".to_string() }).expect("Failed to add node");
-        let result = graph.add_node(Node::Variable { name: "result".to_string() }).expect("Failed to add node");
-        
+        let x = graph
+            .add_node(Node::Variable {
+                name: "x".to_string(),
+            })
+            .expect("Failed to add node");
+        let y = graph
+            .add_node(Node::Variable {
+                name: "y".to_string(),
+            })
+            .expect("Failed to add node");
+        let result = graph
+            .add_node(Node::Variable {
+                name: "result".to_string(),
+            })
+            .expect("Failed to add node");
+
         // Body: result = x + y + i
-        let plus = graph.add_node(Node::Variable { name: "+".to_string() }).expect("Failed to add node");
-        let i_lit = graph.add_node(Node::Literal(Literal::Integer(i as i64))).expect("Failed to add node");
-        let x_plus_y = graph.add_node(Node::Application {
-            function: plus,
-            args: vec![x, y],
-        }).expect("Failed to add node");
-        let body = graph.add_node(Node::Application {
-            function: plus,
-            args: vec![x_plus_y, i_lit],
-        }).expect("Failed to add node");
-        
+        let plus = graph
+            .add_node(Node::Variable {
+                name: "+".to_string(),
+            })
+            .expect("Failed to add node");
+        let i_lit = graph
+            .add_node(Node::Literal(Literal::Integer(i as i64)))
+            .expect("Failed to add node");
+        let x_plus_y = graph
+            .add_node(Node::Application {
+                function: plus,
+                args: vec![x, y],
+            })
+            .expect("Failed to add node");
+        let body = graph
+            .add_node(Node::Application {
+                function: plus,
+                args: vec![x_plus_y, i_lit],
+            })
+            .expect("Failed to add node");
+
         let mut contract = Contract::new(name.clone(), body);
         contract.function_name = name.clone();
-        
+
         // Add preconditions
-        let zero = graph.add_node(Node::Literal(Literal::Integer(0))).expect("Failed to add node");
-        let ge = graph.add_node(Node::Variable { name: ">=".to_string() }).expect("Failed to add node");
-        
+        let zero = graph
+            .add_node(Node::Literal(Literal::Integer(0)))
+            .expect("Failed to add node");
+        let ge = graph
+            .add_node(Node::Variable {
+                name: ">=".to_string(),
+            })
+            .expect("Failed to add node");
+
         // x >= 0
-        let precond1 = graph.add_node(Node::Application {
-            function: ge,
-            args: vec![x, zero],
-        }).expect("Failed to add node");
+        let precond1 = graph
+            .add_node(Node::Application {
+                function: ge,
+                args: vec![x, zero],
+            })
+            .expect("Failed to add node");
         contract.add_precondition(
             ContractCondition::new(precond1, ContractKind::Precondition)
-                .with_blame("x must be non-negative".to_string())
+                .with_blame("x must be non-negative".to_string()),
         );
-        
+
         // y >= 0
-        let precond2 = graph.add_node(Node::Application {
-            function: ge,
-            args: vec![y, zero],
-        }).expect("Failed to add node");
+        let precond2 = graph
+            .add_node(Node::Application {
+                function: ge,
+                args: vec![y, zero],
+            })
+            .expect("Failed to add node");
         contract.add_precondition(
             ContractCondition::new(precond2, ContractKind::Precondition)
-                .with_blame("y must be non-negative".to_string())
+                .with_blame("y must be non-negative".to_string()),
         );
-        
+
         // Add postconditions
         // result >= x
-        let postcond1 = graph.add_node(Node::Application {
-            function: ge,
-            args: vec![result, x],
-        }).expect("Failed to add node");
+        let postcond1 = graph
+            .add_node(Node::Application {
+                function: ge,
+                args: vec![result, x],
+            })
+            .expect("Failed to add node");
         contract.add_postcondition(
             ContractCondition::new(postcond1, ContractKind::Postcondition)
-                .with_blame("result must be >= x".to_string())
+                .with_blame("result must be >= x".to_string()),
         );
-        
+
         // Add more conditions for some contracts to vary complexity
         if i % 3 == 0 {
             // result >= y
-            let postcond2 = graph.add_node(Node::Application {
-                function: ge,
-                args: vec![result, y],
-            }).expect("Failed to add node");
+            let postcond2 = graph
+                .add_node(Node::Application {
+                    function: ge,
+                    args: vec![result, y],
+                })
+                .expect("Failed to add node");
             contract.add_postcondition(
                 ContractCondition::new(postcond2, ContractKind::Postcondition)
-                    .with_blame("result must be >= y".to_string())
+                    .with_blame("result must be >= y".to_string()),
             );
         }
-        
+
         contracts.insert(format!("contract_{}", i), contract);
     }
-    
+
     contracts
 }
 
 fn demo_basic_parallel(graph: &Graph, contracts: &HashMap<String, Contract>) {
     let verifier = ParallelVerifier::new(graph);
-    
+
     let start = Instant::now();
     match verifier.verify_contracts_parallel(contracts) {
         Ok(results) => {
             let elapsed = start.elapsed();
             println!("  Verified {} contracts in {:?}", results.len(), elapsed);
-            
-            let verified = results.values().filter(|r| {
-                matches!(r, VerificationResult::Verified)
-            }).count();
-            
+
+            let verified = results
+                .values()
+                .filter(|r| matches!(r, VerificationResult::Verified))
+                .count();
+
             println!("  Successfully verified: {}/{}", verified, results.len());
         }
         Err(e) => println!("  Error: {}", e),
@@ -144,14 +180,14 @@ fn demo_custom_config(graph: &Graph, contracts: &HashMap<String, Contract>) {
         batch_size: 2,
         enable_priority_scheduling: true,
     };
-    
+
     let verifier = ParallelVerifier::new(graph).with_config(config);
-    
+
     println!("  Using custom configuration:");
     println!("    Threads: 4");
     println!("    Batch size: 2");
     println!("    Priority scheduling: enabled");
-    
+
     let start = Instant::now();
     match verifier.verify_contracts_parallel(contracts) {
         Ok(_results) => {
@@ -164,20 +200,20 @@ fn demo_custom_config(graph: &Graph, contracts: &HashMap<String, Contract>) {
 
 fn demo_progress_reporting(graph: &Graph, contracts: &HashMap<String, Contract>) {
     let coordinator = ParallelCoordinator::new(graph);
-    
+
     println!("  Verifying with progress updates:");
-    
+
     let progress_callback = |completed: usize, total: usize| {
         let percentage = (completed as f64 / total as f64) * 100.0;
         print!("\r  Progress: {}/{} ({:.1}%)", completed, total, percentage);
         use std::io::{self, Write};
         io::stdout().flush().unwrap();
     };
-    
+
     match coordinator.verify_with_progress(contracts, progress_callback) {
         Ok(results) => {
             println!("\n  Completed verification of {} contracts", results.len());
-            
+
             let stats = coordinator.get_stats();
             println!("  Statistics:");
             println!("    Total contracts: {}", stats.total_contracts);
@@ -189,12 +225,12 @@ fn demo_progress_reporting(graph: &Graph, contracts: &HashMap<String, Contract>)
 
 fn demo_performance_comparison(graph: &Graph, contracts: &HashMap<String, Contract>) {
     println!("  Comparing sequential vs parallel verification...\n");
-    
+
     // Sequential verification (simulated)
     println!("  Sequential verification:");
     let start_seq = Instant::now();
     let mut seq_results: HashMap<String, VerificationResult> = HashMap::new();
-    
+
     #[cfg(feature = "static")]
     {
         use fluentai_contracts::StaticVerifier;
@@ -205,29 +241,32 @@ fn demo_performance_comparison(graph: &Graph, contracts: &HashMap<String, Contra
             }
         }
     }
-    
+
     let elapsed_seq = start_seq.elapsed();
     println!("    Time: {:?}", elapsed_seq);
     println!("    Contracts verified: {}", seq_results.len());
-    
+
     // Parallel verification
     println!("\n  Parallel verification:");
     let verifier = ParallelVerifier::new(graph);
     let start_par = Instant::now();
-    
+
     if let Ok(par_results) = verifier.verify_contracts_parallel(contracts) {
         let elapsed_par = start_par.elapsed();
         println!("    Time: {:?}", elapsed_par);
         println!("    Contracts verified: {}", par_results.len());
-        
+
         // Calculate speedup
         if elapsed_par.as_millis() > 0 {
             let speedup = elapsed_seq.as_millis() as f64 / elapsed_par.as_millis() as f64;
             println!("\n  Speedup: {:.2}x", speedup);
-            println!("  Efficiency: {:.1}%", (speedup / num_cpus::get() as f64) * 100.0);
+            println!(
+                "  Efficiency: {:.1}%",
+                (speedup / num_cpus::get() as f64) * 100.0
+            );
         }
     }
-    
+
     #[cfg(not(feature = "static"))]
     {
         println!("    [Static verification requires 'static' feature]");

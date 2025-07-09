@@ -13,16 +13,13 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("-", subtract, 1, Some(2), "Subtraction"),
         StdlibFunction::pure("*", multiply, 0, None, "Multiplication"),
         StdlibFunction::pure("/", divide, 2, Some(2), "Division"),
-        
         // Number predicates
         StdlibFunction::pure("zero?", is_zero, 1, Some(1), "Check if number is zero"),
         StdlibFunction::pure("even?", is_even, 1, Some(1), "Check if integer is even"),
         StdlibFunction::pure("odd?", is_odd, 1, Some(1), "Check if integer is odd"),
         StdlibFunction::pure("sign", sign, 1, Some(1), "Get sign of number (-1, 0, 1)"),
-        
         // Logarithm aliases
         StdlibFunction::pure("ln", ln, 1, Some(1), "Natural logarithm"),
-        
         // Trigonometric functions
         StdlibFunction::pure("sin", sin, 1, Some(1), "Sine function"),
         StdlibFunction::pure("cos", cos, 1, Some(1), "Cosine function"),
@@ -31,32 +28,39 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("acos", acos, 1, Some(1), "Arccosine function"),
         StdlibFunction::pure("atan", atan, 1, Some(1), "Arctangent function"),
         StdlibFunction::pure("atan2", atan2, 2, Some(2), "Two-argument arctangent"),
-        
         // Hyperbolic functions
         StdlibFunction::pure("sinh", sinh, 1, Some(1), "Hyperbolic sine"),
         StdlibFunction::pure("cosh", cosh, 1, Some(1), "Hyperbolic cosine"),
         StdlibFunction::pure("tanh", tanh, 1, Some(1), "Hyperbolic tangent"),
-        
         // Exponential and logarithmic
         StdlibFunction::pure("exp", exp, 1, Some(1), "Exponential function"),
-        StdlibFunction::pure("log", log, 1, Some(2), "Natural logarithm or logarithm with base"),
+        StdlibFunction::pure(
+            "log",
+            log,
+            1,
+            Some(2),
+            "Natural logarithm or logarithm with base",
+        ),
         StdlibFunction::pure("log10", log10, 1, Some(1), "Base 10 logarithm"),
         StdlibFunction::pure("log2", log2, 1, Some(1), "Base 2 logarithm"),
         StdlibFunction::pure("pow", pow, 2, Some(2), "Power function"),
         StdlibFunction::pure("sqrt", sqrt, 1, Some(1), "Square root"),
-        
         // Rounding functions
         StdlibFunction::pure("ceil", ceil, 1, Some(1), "Ceiling function"),
         StdlibFunction::pure("floor", floor, 1, Some(1), "Floor function"),
         StdlibFunction::pure("round", round, 1, Some(1), "Round to nearest integer"),
-        StdlibFunction::pure("round-to", round_to, 2, Some(2), "Round to specific decimal places"),
+        StdlibFunction::pure(
+            "round-to",
+            round_to,
+            2,
+            Some(2),
+            "Round to specific decimal places",
+        ),
         StdlibFunction::pure("trunc", trunc, 1, Some(1), "Truncate to integer"),
-        
         // Constants
         StdlibFunction::pure("pi", pi, 0, Some(0), "Mathematical constant pi"),
         StdlibFunction::pure("e", e, 0, Some(0), "Mathematical constant e"),
         StdlibFunction::pure("tau", tau, 0, Some(0), "Mathematical constant tau (2*pi)"),
-        
         // Utility functions
         StdlibFunction::pure("degrees", degrees, 1, Some(1), "Convert radians to degrees"),
         StdlibFunction::pure("radians", radians, 1, Some(1), "Convert degrees to radians"),
@@ -64,16 +68,26 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("factorial", factorial, 1, Some(1), "Factorial function"),
         StdlibFunction::pure("gcd", gcd, 2, Some(2), "Greatest common divisor"),
         StdlibFunction::pure("lcm", lcm, 2, Some(2), "Least common multiple"),
-        
         // Comparison functions
         StdlibFunction::pure("max", max, 1, None, "Maximum of numbers"),
         StdlibFunction::pure("min", min, 1, None, "Minimum of numbers"),
-        
         // Statistical functions
         StdlibFunction::pure("sum", sum, 1, Some(1), "Sum of numbers in a list"),
-        StdlibFunction::pure("product", product, 1, Some(1), "Product of numbers in a list"),
+        StdlibFunction::pure(
+            "product",
+            product,
+            1,
+            Some(1),
+            "Product of numbers in a list",
+        ),
         StdlibFunction::pure("mean", mean, 1, Some(1), "Arithmetic mean"),
-        StdlibFunction::pure("clamp", clamp, 3, Some(3), "Clamp value between min and max"),
+        StdlibFunction::pure(
+            "clamp",
+            clamp,
+            3,
+            Some(3),
+            "Clamp value between min and max",
+        ),
     ]);
 }
 
@@ -82,7 +96,7 @@ pub fn register(registry: &mut StdlibRegistry) {
 fn add(args: &[Value]) -> Result<Value> {
     let mut result = 0.0;
     let mut all_ints = true;
-    
+
     for arg in args {
         match arg {
             Value::Integer(i) => result += *i as f64,
@@ -93,7 +107,7 @@ fn add(args: &[Value]) -> Result<Value> {
             _ => return Err(anyhow!("+: expected number")),
         }
     }
-    
+
     if all_ints && result.fract() == 0.0 {
         Ok(Value::Integer(result as i64))
     } else {
@@ -124,7 +138,7 @@ fn subtract(args: &[Value]) -> Result<Value> {
 fn multiply(args: &[Value]) -> Result<Value> {
     let mut result = 1.0;
     let mut all_ints = true;
-    
+
     for arg in args {
         match arg {
             Value::Integer(i) => result *= *i as f64,
@@ -135,7 +149,7 @@ fn multiply(args: &[Value]) -> Result<Value> {
             _ => return Err(anyhow!("*: expected number")),
         }
     }
-    
+
     if all_ints && result.fract() == 0.0 {
         Ok(Value::Integer(result as i64))
     } else {
@@ -149,14 +163,14 @@ fn max(args: &[Value]) -> Result<Value> {
     if args.is_empty() {
         return Err(anyhow!("max: expected at least one argument"));
     }
-    
+
     let mut result = match &args[0] {
         Value::Integer(i) => *i as f64,
         Value::Float(f) => *f,
         _ => return Err(anyhow!("max: expected numbers")),
     };
     let mut is_float = matches!(&args[0], Value::Float(_));
-    
+
     for arg in &args[1..] {
         match arg {
             Value::Integer(i) => result = result.max(*i as f64),
@@ -167,7 +181,7 @@ fn max(args: &[Value]) -> Result<Value> {
             _ => return Err(anyhow!("max: expected numbers")),
         }
     }
-    
+
     if is_float || result.fract() != 0.0 {
         Ok(Value::Float(result))
     } else {
@@ -179,14 +193,14 @@ fn min(args: &[Value]) -> Result<Value> {
     if args.is_empty() {
         return Err(anyhow!("min: expected at least one argument"));
     }
-    
+
     let mut result = match &args[0] {
         Value::Integer(i) => *i as f64,
         Value::Float(f) => *f,
         _ => return Err(anyhow!("min: expected numbers")),
     };
     let mut is_float = matches!(&args[0], Value::Float(_));
-    
+
     for arg in &args[1..] {
         match arg {
             Value::Integer(i) => result = result.min(*i as f64),
@@ -197,7 +211,7 @@ fn min(args: &[Value]) -> Result<Value> {
             _ => return Err(anyhow!("min: expected numbers")),
         }
     }
-    
+
     if is_float || result.fract() != 0.0 {
         Ok(Value::Float(result))
     } else {
@@ -211,11 +225,11 @@ fn divide(args: &[Value]) -> Result<Value> {
         Value::Float(f) => *f,
         _ => return Err(anyhow!("/: expected number")),
     };
-    
+
     if divisor == 0.0 {
         return Err(anyhow!("/: division by zero"));
     }
-    
+
     match (&args[0], &args[1]) {
         (Value::Integer(a), Value::Integer(b)) => {
             // Integer division for int/int
@@ -362,7 +376,7 @@ fn log(args: &[Value]) -> Result<Value> {
     if x <= 0.0 {
         return Err(anyhow!("log: input must be positive"));
     }
-    
+
     if args.len() == 2 {
         let base = to_float(&args[1])?;
         if base <= 0.0 || base == 1.0 {
@@ -438,7 +452,7 @@ fn round_to(args: &[Value]) -> Result<Value> {
         Value::Integer(i) => *i,
         _ => return Err(anyhow!("round-to: expected integer for decimal places")),
     };
-    
+
     let multiplier = 10.0_f64.powi(places as i32);
     Ok(Value::Float((x * multiplier).round() / multiplier))
 }
@@ -485,11 +499,11 @@ fn factorial(args: &[Value]) -> Result<Value> {
         Value::Integer(i) => *i,
         _ => return Err(anyhow!("factorial: expected integer")),
     };
-    
+
     if n < 0 {
         return Err(anyhow!("factorial: input must be non-negative"));
     }
-    
+
     if n > 20 {
         // Factorial grows very quickly, use float for large values
         let mut result = 1.0;
@@ -511,12 +525,12 @@ fn gcd(args: &[Value]) -> Result<Value> {
         Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("gcd: expected integer")),
     };
-    
+
     let b = match &args[1] {
         Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("gcd: expected integer")),
     };
-    
+
     fn gcd_helper(a: i64, b: i64) -> i64 {
         if b == 0 {
             a
@@ -524,7 +538,7 @@ fn gcd(args: &[Value]) -> Result<Value> {
             gcd_helper(b, a % b)
         }
     }
-    
+
     Ok(Value::Integer(gcd_helper(a, b)))
 }
 
@@ -533,12 +547,12 @@ fn lcm(args: &[Value]) -> Result<Value> {
         Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("lcm: expected integer")),
     };
-    
+
     let b = match &args[1] {
         Value::Integer(i) => i.abs(),
         _ => return Err(anyhow!("lcm: expected integer")),
     };
-    
+
     if a == 0 || b == 0 {
         Ok(Value::Integer(0))
     } else {
@@ -559,7 +573,7 @@ fn sum(args: &[Value]) -> Result<Value> {
             let mut int_sum = 0i64;
             let mut float_sum = 0.0;
             let mut has_float = false;
-            
+
             for item in items {
                 match item {
                     Value::Integer(i) => int_sum += i,
@@ -570,7 +584,7 @@ fn sum(args: &[Value]) -> Result<Value> {
                     _ => return Err(anyhow!("sum: list must contain only numbers")),
                 }
             }
-            
+
             if has_float {
                 Ok(Value::Float(int_sum as f64 + float_sum))
             } else {
@@ -587,7 +601,7 @@ fn product(args: &[Value]) -> Result<Value> {
             let mut int_product = 1i64;
             let mut float_product = 1.0;
             let mut has_float = false;
-            
+
             for item in items {
                 match item {
                     Value::Integer(i) => int_product *= i,
@@ -598,7 +612,7 @@ fn product(args: &[Value]) -> Result<Value> {
                     _ => return Err(anyhow!("product: list must contain only numbers")),
                 }
             }
-            
+
             if has_float {
                 Ok(Value::Float(int_product as f64 * float_product))
             } else {
@@ -615,7 +629,7 @@ fn mean(args: &[Value]) -> Result<Value> {
             if items.is_empty() {
                 return Err(anyhow!("mean: empty list"));
             }
-            
+
             let sum_val = sum(args)?;
             match sum_val {
                 Value::Integer(i) => Ok(Value::Float(i as f64 / items.len() as f64)),
@@ -631,13 +645,13 @@ fn clamp(args: &[Value]) -> Result<Value> {
     let value = to_float(&args[0])?;
     let min = to_float(&args[1])?;
     let max = to_float(&args[2])?;
-    
+
     if min > max {
         return Err(anyhow!("clamp: min must be less than or equal to max"));
     }
-    
+
     let clamped = value.max(min).min(max);
-    
+
     // Try to preserve integer type if possible
     match &args[0] {
         Value::Integer(_) if clamped == clamped.trunc() => Ok(Value::Integer(clamped as i64)),

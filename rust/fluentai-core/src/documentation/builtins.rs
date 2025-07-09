@@ -17,7 +17,7 @@ macro_rules! define_builtin {
             const _: () = {
                 // Ensure name is not empty
                 assert!($name.len() > 0, "Built-in name cannot be empty");
-                // Ensure signature is not empty  
+                // Ensure signature is not empty
                 assert!($signature.len() > 0, "Built-in signature cannot be empty");
                 // Ensure description is not empty
                 assert!($description.len() > 0, "Built-in description cannot be empty");
@@ -25,7 +25,7 @@ macro_rules! define_builtin {
                 const EXAMPLES: &[&str] = &[$($example),*];
                 assert!(EXAMPLES.len() > 0, "Built-in must have at least one example");
             };
-            
+
             $crate::documentation::BuiltinDoc::new($name, $signature, $description, &[$($example),*], $module)
         }
     };
@@ -46,7 +46,6 @@ impl BuiltinRegistry {
                 examples: ["(cons 1 [2 3])", "(cons \"a\" [])", "(cons x xs)"],
                 module: "core"
             ),
-            
             define_builtin!(
                 name: "car",
                 signature: "(car <list>)",
@@ -54,7 +53,6 @@ impl BuiltinRegistry {
                 examples: ["(car [1 2 3])", "(car [\"hello\"])", "(car xs)"],
                 module: "core"
             ),
-            
             define_builtin!(
                 name: "cdr",
                 signature: "(cdr <list>)",
@@ -62,7 +60,6 @@ impl BuiltinRegistry {
                 examples: ["(cdr [1 2 3])", "(cdr [\"a\" \"b\"])", "(cdr xs)"],
                 module: "core"
             ),
-            
             // Basic arithmetic operations
             define_builtin!(
                 name: "+",
@@ -71,7 +68,6 @@ impl BuiltinRegistry {
                 examples: ["(+ 1 2)", "(+ 1 2 3 4)", "(+ 5.5 2.5)"],
                 module: "core"
             ),
-            
             define_builtin!(
                 name: "-",
                 signature: "(- <num1> <num2> ...) | (- <num>)",
@@ -79,7 +75,6 @@ impl BuiltinRegistry {
                 examples: ["(- 5 3)", "(- 10 3 2)", "(- 5)"],
                 module: "core"
             ),
-            
             define_builtin!(
                 name: "*",
                 signature: "(* <num1> <num2> ...)",
@@ -87,7 +82,6 @@ impl BuiltinRegistry {
                 examples: ["(* 2 3)", "(* 2 3 4)", "(* 5.5 2)"],
                 module: "core"
             ),
-            
             define_builtin!(
                 name: "/",
                 signature: "(/ <num1> <num2> ...)",
@@ -95,7 +89,6 @@ impl BuiltinRegistry {
                 examples: ["(/ 10 2)", "(/ 20 4 2)", "(/ 5 2)"],
                 module: "core"
             ),
-            
             // String operations
             define_builtin!(
                 name: "string-length",
@@ -104,7 +97,6 @@ impl BuiltinRegistry {
                 examples: ["(string-length \"hello\")", "(string-length \"\")"],
                 module: "strings"
             ),
-            
             define_builtin!(
                 name: "string-append",
                 signature: "(string-append <string1> <string2> ...)",
@@ -112,7 +104,6 @@ impl BuiltinRegistry {
                 examples: ["(string-append \"Hello, \" \"World!\")", "(string-append a b c)"],
                 module: "strings"
             ),
-            
             // I/O operations (via effects)
             define_builtin!(
                 name: "print",
@@ -121,7 +112,6 @@ impl BuiltinRegistry {
                 examples: ["(print \"Hello, World!\")", "(print x y z)"],
                 module: "io"
             ),
-            
             define_builtin!(
                 name: "println",
                 signature: "(println <value> ...)",
@@ -129,7 +119,6 @@ impl BuiltinRegistry {
                 examples: ["(println \"Hello, World!\")", "(println x y z)"],
                 module: "io"
             ),
-            
             // Additional arithmetic
             define_builtin!(
                 name: "%",
@@ -138,11 +127,10 @@ impl BuiltinRegistry {
                 examples: ["(% 10 3)", "(% 7 2)"],
                 module: "core"
             ),
-            
             // Additional comparison operators are defined in register_operators() to avoid duplicates
-            
+
             // Boolean operations are defined in register_operators() to avoid duplicates
-            
+
             // List operations
             define_builtin!(
                 name: "list",
@@ -151,7 +139,6 @@ impl BuiltinRegistry {
                 examples: ["(list 1 2 3)", "(list \"a\" \"b\" \"c\")", "(list)"],
                 module: "core"
             ),
-            
             define_builtin!(
                 name: "length",
                 signature: "(length <list>)",
@@ -159,7 +146,6 @@ impl BuiltinRegistry {
                 examples: ["(length [1 2 3])", "(length [])", "(length xs)"],
                 module: "core"
             ),
-            
             define_builtin!(
                 name: "empty?",
                 signature: "(empty? <list>)",
@@ -167,7 +153,6 @@ impl BuiltinRegistry {
                 examples: ["(empty? [])", "(empty? [1 2])", "(empty? xs)"],
                 module: "core"
             ),
-            
             // String operations aliases
             define_builtin!(
                 name: "string-upcase",
@@ -176,7 +161,6 @@ impl BuiltinRegistry {
                 examples: ["(string-upcase \"hello\")", "(string-upcase \"World\")"],
                 module: "strings"
             ),
-            
             define_builtin!(
                 name: "string-downcase",
                 signature: "(string-downcase <string>)",
@@ -186,7 +170,7 @@ impl BuiltinRegistry {
             ),
         ]
     }
-    
+
     /// Validate that all built-ins have proper documentation
     pub fn validate_all() -> Result<(), &'static str> {
         // This will be checked at compile time by the macro

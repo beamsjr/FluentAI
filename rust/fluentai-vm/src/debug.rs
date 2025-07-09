@@ -13,54 +13,42 @@ pub enum VMDebugEvent {
         instruction: Instruction,
         stack_size: usize,
     },
-    
+
     /// Finished executing an instruction
     PostInstruction {
         pc: usize,
         stack_size: usize,
         stack_top: Option<Value>,
     },
-    
+
     /// Function call
     FunctionCall {
         name: Option<String>,
         arg_count: usize,
         call_depth: usize,
     },
-    
+
     /// Function return
-    FunctionReturn {
-        value: Value,
-        call_depth: usize,
-    },
-    
+    FunctionReturn { value: Value, call_depth: usize },
+
     /// Variable binding
     VariableBind {
         name: String,
         value: Value,
         is_global: bool,
     },
-    
+
     /// Stack push
-    StackPush {
-        value: Value,
-    },
-    
+    StackPush { value: Value },
+
     /// Stack pop
-    StackPop {
-        value: Value,
-    },
-    
+    StackPop { value: Value },
+
     /// Error occurred
-    Error {
-        message: String,
-        pc: Option<usize>,
-    },
-    
+    Error { message: String, pc: Option<usize> },
+
     /// Breakpoint hit
-    Breakpoint {
-        pc: usize,
-    },
+    Breakpoint { pc: usize },
 }
 
 /// Debug configuration
@@ -68,13 +56,13 @@ pub enum VMDebugEvent {
 pub struct DebugConfig {
     /// Enable debug events
     pub enabled: bool,
-    
+
     /// Breakpoints (program counter locations)
     pub breakpoints: Vec<usize>,
-    
+
     /// Step mode
     pub step_mode: StepMode,
-    
+
     /// Event channel
     pub event_sender: Option<mpsc::UnboundedSender<VMDebugEvent>>,
 }
@@ -84,13 +72,13 @@ pub struct DebugConfig {
 pub enum StepMode {
     /// Run normally
     Run,
-    
+
     /// Step one instruction
     Step,
-    
+
     /// Step over function calls
     StepOver,
-    
+
     /// Step out of current function
     StepOut,
 }
@@ -116,26 +104,26 @@ impl DebugConfig {
             event_sender: Some(sender),
         }
     }
-    
+
     /// Send a debug event
     pub fn send_event(&self, event: VMDebugEvent) {
         if let Some(sender) = &self.event_sender {
             let _ = sender.send(event);
         }
     }
-    
+
     /// Check if we should break at this PC
     pub fn should_break(&self, pc: usize) -> bool {
         self.breakpoints.contains(&pc)
     }
-    
+
     /// Add a breakpoint
     pub fn add_breakpoint(&mut self, pc: usize) {
         if !self.breakpoints.contains(&pc) {
             self.breakpoints.push(pc);
         }
     }
-    
+
     /// Remove a breakpoint
     pub fn remove_breakpoint(&mut self, pc: usize) {
         self.breakpoints.retain(|&bp| bp != pc);

@@ -1,35 +1,35 @@
 //! Publish FluentAI projects
 
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
-use std::fs;
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
-use zip::write::FileOptions;
+use std::fs;
 use std::io::Write;
+use std::path::{Path, PathBuf};
+use zip::write::FileOptions;
 
 /// Publish configuration
 #[derive(Debug, Clone)]
 pub struct PublishConfig {
-    pub configuration: String,      // Debug or Release
-    pub runtime: RuntimeOption,     // Framework-dependent or Self-contained
-    pub target: PublishTarget,      // Platform target
+    pub configuration: String,  // Debug or Release
+    pub runtime: RuntimeOption, // Framework-dependent or Self-contained
+    pub target: PublishTarget,  // Platform target
     pub output_path: Option<PathBuf>,
-    pub single_file: bool,         // Package as single executable
-    pub trimmed: bool,             // Remove unused code
+    pub single_file: bool, // Package as single executable
+    pub trimmed: bool,     // Remove unused code
 }
 
 /// Runtime deployment option
 #[derive(Debug, Clone)]
 pub enum RuntimeOption {
-    FrameworkDependent,  // Requires FluentAI runtime installed
-    SelfContained,       // Includes runtime in package
+    FrameworkDependent, // Requires FluentAI runtime installed
+    SelfContained,      // Includes runtime in package
 }
 
 /// Publish target platform
 #[derive(Debug, Clone)]
 pub enum PublishTarget {
-    Current,                    // Current platform
+    Current, // Current platform
     Windows64,
     Linux64,
     MacOS64,
@@ -48,7 +48,7 @@ impl PublishTarget {
             _ => None,
         }
     }
-    
+
     pub fn to_string(&self) -> &'static str {
         match self {
             PublishTarget::Current => "current",
@@ -62,85 +62,72 @@ impl PublishTarget {
 }
 
 /// Publish a FluentAI project
-pub async fn publish(
-    project_path: Option<PathBuf>,
-    config: PublishConfig,
-) -> Result<()> {
+pub async fn publish(project_path: Option<PathBuf>, config: PublishConfig) -> Result<()> {
     let project_path = project_path.unwrap_or_else(|| PathBuf::from("."));
-    
+
     println!("{} Publishing FluentAI application", "→".blue().bold());
     println!("  Configuration: {}", config.configuration);
     println!("  Runtime: {:?}", config.runtime);
     println!("  Target: {}", config.target.to_string());
-    
+
     // Find project file
     let project_file = find_project_file(&project_path)?;
     let project = load_project(&project_file)?;
-    
+
     // Determine output directory
     let output_dir = match config.output_path.as_ref() {
         Some(path) => path.clone(),
         None => project_path
             .join("publish")
             .join(&config.configuration.to_lowercase())
-            .join(config.target.to_string())
+            .join(config.target.to_string()),
     };
     fs::create_dir_all(&output_dir)?;
-    
+
     // Build the project first
     println!("\n{} Building project...", "→".cyan());
     build_project(&project_path, &config).await?;
-    
+
     // Prepare publish artifacts
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
             .template("{spinner:.green} {msg}")
-            .unwrap()
+            .unwrap(),
     );
-    
+
     pb.set_message("Preparing publish artifacts...");
-    
+
     // Copy compiled output
     let build_output = project_path
         .join("target")
         .join(&config.configuration.to_lowercase());
-    
+
     let artifacts = collect_artifacts(&build_output, &project)?;
-    
+
     pb.set_message("Packaging application...");
-    
+
     // Package based on configuration
     let package_path = match config.runtime {
         RuntimeOption::FrameworkDependent => {
-            package_framework_dependent(
-                &artifacts,
-                &output_dir,
-                &project.name,
-                &config,
-            )?
+            package_framework_dependent(&artifacts, &output_dir, &project.name, &config)?
         }
         RuntimeOption::SelfContained => {
-            package_self_contained(
-                &artifacts,
-                &output_dir,
-                &project.name,
-                &config,
-            )?
+            package_self_contained(&artifacts, &output_dir, &project.name, &config)?
         }
     };
-    
+
     pb.finish_and_clear();
-    
+
     // Create deployment manifest
     create_deployment_manifest(&output_dir, &project, &config)?;
-    
+
     println!("\n{} Publish succeeded", "✓".green().bold());
     println!("  Output: {}", package_path.display());
-    
+
     // Print deployment instructions
     print_deployment_instructions(&config);
-    
+
     Ok(())
 }
 
@@ -173,10 +160,11 @@ fn find_project_file(path: &Path) -> Result<PathBuf> {
 /// Load project info
 fn load_project(project_file: &Path) -> Result<Project> {
     let content = fs::read_to_string(project_file)?;
-    
+
     // Simple parsing (in real implementation, use XML parser)
     Ok(Project {
-        name: project_file.file_stem()
+        name: project_file
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("Unknown")
             .to_string(),
@@ -188,7 +176,7 @@ fn load_project(project_file: &Path) -> Result<Project> {
 /// Build the project
 async fn build_project(project_path: &Path, config: &PublishConfig) -> Result<()> {
     use crate::commands::build::{build, BuildConfig, BuildTarget};
-    
+
     let build_config = BuildConfig {
         configuration: config.configuration.clone(),
         output_path: None,
@@ -196,12 +184,16 @@ async fn build_project(project_path: &Path, config: &PublishConfig) -> Result<()
             PublishTarget::WebAssembly => BuildTarget::WebAssembly,
             _ => BuildTarget::Executable,
         },
-        optimization_level: if config.configuration == "Release" { 3 } else { 0 },
+        optimization_level: if config.configuration == "Release" {
+            3
+        } else {
+            0
+        },
         verbose: false,
     };
-    
+
     build(Some(project_path.to_path_buf()), build_config).await?;
-    
+
     Ok(())
 }
 
@@ -212,12 +204,12 @@ fn collect_artifacts(build_dir: &Path, project: &Project) -> Result<Artifacts> {
     } else {
         project.name.clone()
     };
-    
+
     let main_executable = build_dir.join(exe_name);
     if !main_executable.exists() {
         anyhow::bail!("Main executable not found: {}", main_executable.display());
     }
-    
+
     // Collect libraries (*.ailib files)
     let mut libraries = Vec::new();
     for entry in fs::read_dir(build_dir)? {
@@ -227,10 +219,10 @@ fn collect_artifacts(build_dir: &Path, project: &Project) -> Result<Artifacts> {
             libraries.push(path);
         }
     }
-    
+
     // Collect resources
     let resources = Vec::new(); // TODO: Implement resource collection
-    
+
     Ok(Artifacts {
         main_executable,
         libraries,
@@ -249,13 +241,13 @@ fn package_framework_dependent(
     let exe_name = artifacts.main_executable.file_name().unwrap();
     let output_exe = output_dir.join(exe_name);
     fs::copy(&artifacts.main_executable, &output_exe)?;
-    
+
     // Copy libraries
     for lib in &artifacts.libraries {
         let lib_name = lib.file_name().unwrap();
         fs::copy(lib, output_dir.join(lib_name))?;
     }
-    
+
     // Create runtime config
     let runtime_config = serde_json::json!({
         "runtimeOptions": {
@@ -265,10 +257,10 @@ fn package_framework_dependent(
             }
         }
     });
-    
+
     let config_file = output_dir.join(format!("{}.runtimeconfig.json", project_name));
     fs::write(&config_file, serde_json::to_string_pretty(&runtime_config)?)?;
-    
+
     Ok(output_dir.to_path_buf())
 }
 
@@ -286,17 +278,17 @@ fn package_self_contained(
         } else {
             project_name.to_string()
         });
-        
+
         create_single_file_executable(artifacts, &output_file, config)?;
-        
+
         Ok(output_file)
     } else {
         // Copy all files including runtime
         package_framework_dependent(artifacts, output_dir, project_name, config)?;
-        
+
         // Copy runtime files
         copy_runtime_files(output_dir, &config.target)?;
-        
+
         Ok(output_dir.to_path_buf())
     }
 }
@@ -312,20 +304,20 @@ fn create_single_file_executable(
     // 2. Embed the FluentAI runtime
     // 3. Embed the compiled bytecode
     // 4. Add resource extraction logic
-    
+
     // For now, create a simple archive
     let file = fs::File::create(output_file)?;
     let mut zip = zip::ZipWriter::new(file);
-    
+
     // Add main executable
     let options = FileOptions::default()
         .compression_method(zip::CompressionMethod::Stored)
         .unix_permissions(0o755);
-    
+
     zip.start_file("main", options)?;
     let exe_data = fs::read(&artifacts.main_executable)?;
     zip.write_all(&exe_data)?;
-    
+
     // Add libraries
     for lib in &artifacts.libraries {
         let lib_name = lib.file_name().unwrap().to_str().unwrap();
@@ -333,9 +325,9 @@ fn create_single_file_executable(
         let lib_data = fs::read(lib)?;
         zip.write_all(&lib_data)?;
     }
-    
+
     zip.finish()?;
-    
+
     // Make executable on Unix
     #[cfg(unix)]
     {
@@ -344,7 +336,7 @@ fn create_single_file_executable(
         perms.set_mode(0o755);
         fs::set_permissions(output_file, perms)?;
     }
-    
+
     Ok(())
 }
 
@@ -352,19 +344,19 @@ fn create_single_file_executable(
 fn copy_runtime_files(output_dir: &Path, target: &PublishTarget) -> Result<()> {
     // In a real implementation, this would copy the FluentAI runtime
     // libraries for the target platform
-    
+
     // For now, create placeholder files
     let runtime_files = vec![
         "fluentai_core_lib.dll",
         "fluentai_core.dll",
         "fluentai_stdlib.dll",
     ];
-    
+
     for file in runtime_files {
         let runtime_file = output_dir.join(file);
         fs::write(&runtime_file, b"FluentAI Runtime Library")?;
     }
-    
+
     Ok(())
 }
 
@@ -385,17 +377,17 @@ fn create_deployment_manifest(
         "configuration": config.configuration,
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
-    
+
     let manifest_file = output_dir.join("deployment.json");
     fs::write(&manifest_file, serde_json::to_string_pretty(&manifest)?)?;
-    
+
     Ok(())
 }
 
 /// Print deployment instructions
 fn print_deployment_instructions(config: &PublishConfig) {
     println!("\n{} Deployment Instructions", "📦".blue());
-    
+
     match config.runtime {
         RuntimeOption::FrameworkDependent => {
             println!("\nFramework-dependent deployment:");
@@ -411,7 +403,7 @@ fn print_deployment_instructions(config: &PublishConfig) {
             println!("3. Run the executable directly");
         }
     }
-    
+
     if let PublishTarget::WebAssembly = config.target {
         println!("\nWebAssembly deployment:");
         println!("1. Host the .wasm file on a web server");

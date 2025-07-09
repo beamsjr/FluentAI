@@ -1,13 +1,13 @@
 //! Core interpreter implementation
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use rustc_hash::FxHashMap;
 
 use fluentai_core::{
-    ast::{Graph, Node, NodeId, Literal},
+    ast::{Graph, Literal, Node, NodeId},
     value::Value as CoreValue,
 };
 // TODO: Use proper stdlib registry when exported
@@ -18,12 +18,12 @@ use fluentai_effects::EffectContext;
 use fluentai_types::TypeChecker;
 
 use crate::{
-    value::{Value, ValueData, Closure},
+    async_runtime::AsyncRuntime,
+    debug::{DebugAction, DebugEvent, DebugMode, Debugger},
     environment::Environment,
     error::{InterpreterError, InterpreterResult},
-    debug::{Debugger, DebugMode, DebugEvent, DebugAction},
     provenance::ExecutionTrace,
-    async_runtime::AsyncRuntime,
+    value::{Closure, Value, ValueData},
 };
 
 /// Execution mode for the interpreter
@@ -134,7 +134,7 @@ impl Interpreter {
 
         // Initialize standard library
         interpreter.init_stdlib();
-        
+
         interpreter
     }
 
@@ -246,7 +246,8 @@ impl Interpreter {
         }
 
         // Get node
-        let node = graph.get_node(node_id)
+        let node = graph
+            .get_node(node_id)
             .ok_or(InterpreterError::NodeNotFound(node_id))?;
 
         // Debug event
@@ -256,16 +257,16 @@ impl Interpreter {
                 node_type: format!("{:?}", node),
                 location: None, // TODO: Get from source map
             };
-            
+
             match debugger.record_event(event) {
-                DebugAction::Continue => {},
+                DebugAction::Continue => {}
                 DebugAction::Pause => {
                     // TODO: Handle pause
-                },
+                }
                 DebugAction::Abort => {
                     return Err(InterpreterError::Interrupted);
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
 
@@ -275,16 +276,14 @@ impl Interpreter {
             Node::Variable { name } => self.eval_variable(name, env),
             Node::Application { function, args } => {
                 self.eval_application(*function, args, graph, env)
-            },
-            Node::Lambda { params, body } => {
-                self.eval_lambda(params, *body, env)
-            },
-            Node::Let { bindings, body } => {
-                self.eval_let(bindings, *body, graph, env)
-            },
-            Node::If { condition, then_branch, else_branch } => {
-                self.eval_if(*condition, *then_branch, *else_branch, graph, env)
-            },
+            }
+            Node::Lambda { params, body } => self.eval_lambda(params, *body, env),
+            Node::Let { bindings, body } => self.eval_let(bindings, *body, graph, env),
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => self.eval_if(*condition, *then_branch, *else_branch, graph, env),
             Node::List(elements) => self.eval_list(elements, graph, env),
             // TODO: Handle map nodes when available
             // Node::Map(pairs) => self.eval_map(pairs, graph, env),
@@ -294,9 +293,10 @@ impl Interpreter {
             Node::Channel => self.eval_channel(),
             Node::Send { channel, value } => self.eval_send(*channel, *value, graph, env),
             Node::Receive { channel } => self.eval_receive(*channel, graph, env),
-            _ => Err(InterpreterError::InvalidOperation(
-                format!("Cannot evaluate node type: {:?}", node)
-            )),
+            _ => Err(InterpreterError::InvalidOperation(format!(
+                "Cannot evaluate node type: {:?}",
+                node
+            ))),
         };
 
         // Add provenance if enabled
@@ -346,17 +346,20 @@ impl Interpreter {
         env: &Environment,
     ) -> InterpreterResult<Value> {
         let func_val = self.eval_node(function_id, graph, env)?;
-        
+
         match &func_val.data {
-            ValueData::BuiltinFunction { name, arity, variadic } => {
-                self.eval_builtin(name, *arity, *variadic, args, graph, env)
-            },
+            ValueData::BuiltinFunction {
+                name,
+                arity,
+                variadic,
+            } => self.eval_builtin(name, *arity, *variadic, args, graph, env),
             ValueData::Closure(closure) => {
                 self.eval_closure_call(closure.clone(), args, graph, env)
-            },
-            _ => Err(InterpreterError::TypeError(
-                format!("Cannot call non-function value: {}", func_val)
-            )),
+            }
+            _ => Err(InterpreterError::TypeError(format!(
+                "Cannot call non-function value: {}",
+                func_val
+            ))),
         }
     }
 
@@ -396,121 +399,162 @@ impl Interpreter {
             "+" => {
                 let mut sum = 0i64;
                 for arg in args {
-                    sum += arg.to_integer()
-                        .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
+                    sum += arg.to_integer().ok_or_else(|| {
+                        InterpreterError::TypeError("Expected integer".to_string())
+                    })?;
                 }
                 Ok(Value::new(ValueData::Integer(sum)))
-            },
+            }
             "-" => {
                 if args.is_empty() {
-                    return Err(InterpreterError::ArityError { expected: 1, actual: 0 });
+                    return Err(InterpreterError::ArityError {
+                        expected: 1,
+                        actual: 0,
+                    });
                 }
-                let mut result = args[0].to_integer()
+                let mut result = args[0]
+                    .to_integer()
                     .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
                 for arg in &args[1..] {
-                    result -= arg.to_integer()
-                        .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
+                    result -= arg.to_integer().ok_or_else(|| {
+                        InterpreterError::TypeError("Expected integer".to_string())
+                    })?;
                 }
                 Ok(Value::new(ValueData::Integer(result)))
-            },
+            }
             "*" => {
                 let mut product = 1i64;
                 for arg in args {
-                    product *= arg.to_integer()
-                        .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
+                    product *= arg.to_integer().ok_or_else(|| {
+                        InterpreterError::TypeError("Expected integer".to_string())
+                    })?;
                 }
                 Ok(Value::new(ValueData::Integer(product)))
-            },
+            }
             "/" => {
                 if args.len() != 2 {
-                    return Err(InterpreterError::ArityError { expected: 2, actual: args.len() });
+                    return Err(InterpreterError::ArityError {
+                        expected: 2,
+                        actual: args.len(),
+                    });
                 }
-                let a = args[0].to_integer()
+                let a = args[0]
+                    .to_integer()
                     .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
-                let b = args[1].to_integer()
+                let b = args[1]
+                    .to_integer()
                     .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
                 if b == 0 {
                     return Err(InterpreterError::DivisionByZero);
                 }
                 Ok(Value::new(ValueData::Integer(a / b)))
-            },
+            }
             ">" => {
                 if args.len() != 2 {
-                    return Err(InterpreterError::ArityError { expected: 2, actual: args.len() });
+                    return Err(InterpreterError::ArityError {
+                        expected: 2,
+                        actual: args.len(),
+                    });
                 }
-                let a = args[0].to_integer()
+                let a = args[0]
+                    .to_integer()
                     .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
-                let b = args[1].to_integer()
+                let b = args[1]
+                    .to_integer()
                     .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
                 Ok(Value::new(ValueData::Boolean(a > b)))
-            },
+            }
             "<" => {
                 if args.len() != 2 {
-                    return Err(InterpreterError::ArityError { expected: 2, actual: args.len() });
+                    return Err(InterpreterError::ArityError {
+                        expected: 2,
+                        actual: args.len(),
+                    });
                 }
-                let a = args[0].to_integer()
+                let a = args[0]
+                    .to_integer()
                     .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
-                let b = args[1].to_integer()
+                let b = args[1]
+                    .to_integer()
                     .ok_or_else(|| InterpreterError::TypeError("Expected integer".to_string()))?;
                 Ok(Value::new(ValueData::Boolean(a < b)))
-            },
+            }
             "=" => {
                 if args.len() != 2 {
-                    return Err(InterpreterError::ArityError { expected: 2, actual: args.len() });
+                    return Err(InterpreterError::ArityError {
+                        expected: 2,
+                        actual: args.len(),
+                    });
                 }
                 Ok(Value::new(ValueData::Boolean(args[0] == args[1])))
-            },
-            "list" => {
-                Ok(Value::new(ValueData::List(args)))
-            },
+            }
+            "list" => Ok(Value::new(ValueData::List(args))),
             "cons" => {
                 if args.len() != 2 {
-                    return Err(InterpreterError::ArityError { expected: 2, actual: args.len() });
+                    return Err(InterpreterError::ArityError {
+                        expected: 2,
+                        actual: args.len(),
+                    });
                 }
                 match &args[1].data {
                     ValueData::List(tail) => {
                         let mut new_list = vec![args[0].clone()];
                         new_list.extend(tail.clone());
                         Ok(Value::new(ValueData::List(new_list)))
-                    },
+                    }
                     _ => Err(InterpreterError::TypeError(
-                        "Second argument to cons must be a list".to_string()
+                        "Second argument to cons must be a list".to_string(),
                     )),
                 }
-            },
+            }
             "car" => {
                 if args.len() != 1 {
-                    return Err(InterpreterError::ArityError { expected: 1, actual: args.len() });
+                    return Err(InterpreterError::ArityError {
+                        expected: 1,
+                        actual: args.len(),
+                    });
                 }
                 match &args[0].data {
                     ValueData::List(items) => {
                         if items.is_empty() {
-                            Err(InterpreterError::InvalidOperation("car of empty list".to_string()))
+                            Err(InterpreterError::InvalidOperation(
+                                "car of empty list".to_string(),
+                            ))
                         } else {
                             Ok(items[0].clone())
                         }
-                    },
-                    _ => Err(InterpreterError::TypeError("Argument to car must be a list".to_string())),
+                    }
+                    _ => Err(InterpreterError::TypeError(
+                        "Argument to car must be a list".to_string(),
+                    )),
                 }
-            },
+            }
             "cdr" => {
                 if args.len() != 1 {
-                    return Err(InterpreterError::ArityError { expected: 1, actual: args.len() });
+                    return Err(InterpreterError::ArityError {
+                        expected: 1,
+                        actual: args.len(),
+                    });
                 }
                 match &args[0].data {
                     ValueData::List(items) => {
                         if items.is_empty() {
-                            Err(InterpreterError::InvalidOperation("cdr of empty list".to_string()))
+                            Err(InterpreterError::InvalidOperation(
+                                "cdr of empty list".to_string(),
+                            ))
                         } else {
                             Ok(Value::new(ValueData::List(items[1..].to_vec())))
                         }
-                    },
-                    _ => Err(InterpreterError::TypeError("Argument to cdr must be a list".to_string())),
+                    }
+                    _ => Err(InterpreterError::TypeError(
+                        "Argument to cdr must be a list".to_string(),
+                    )),
                 }
-            },
-            _ => Err(InterpreterError::NameError(
-                format!("Unknown builtin function: {}", name)
-            )),
+            }
+            _ => Err(InterpreterError::NameError(format!(
+                "Unknown builtin function: {}",
+                name
+            ))),
         }
     }
 
@@ -524,11 +568,10 @@ impl Interpreter {
             ValueData::Float(f) => CoreValue::Float(*f),
             ValueData::String(s) => CoreValue::String(s.clone()),
             ValueData::List(items) => {
-                let core_items: Vec<CoreValue> = items.iter()
-                    .map(|v| self.value_to_core(v))
-                    .collect();
+                let core_items: Vec<CoreValue> =
+                    items.iter().map(|v| self.value_to_core(v)).collect();
                 CoreValue::List(core_items)
-            },
+            }
             _ => CoreValue::Nil, // TODO: Handle other types
         }
     }
@@ -543,11 +586,9 @@ impl Interpreter {
             CoreValue::Float(f) => ValueData::Float(*f),
             CoreValue::String(s) => ValueData::String(s.clone()),
             CoreValue::List(items) => {
-                let values: Vec<Value> = items.iter()
-                    .map(|v| self.core_to_value(v))
-                    .collect();
+                let values: Vec<Value> = items.iter().map(|v| self.core_to_value(v)).collect();
                 ValueData::List(values)
-            },
+            }
             _ => ValueData::Nil, // TODO: Handle other types
         };
         Value::new(data)
@@ -595,7 +636,7 @@ impl Interpreter {
             env: env.clone(),
             is_async: false,
         };
-        
+
         Ok(Value::new(ValueData::Closure(Rc::new(closure))))
     }
 
@@ -627,7 +668,7 @@ impl Interpreter {
         env: &Environment,
     ) -> InterpreterResult<Value> {
         let cond_val = self.eval_node(condition, graph, env)?;
-        
+
         if cond_val.is_truthy() {
             self.eval_node(then_branch, graph, env)
         } else {
@@ -681,35 +722,52 @@ impl Interpreter {
     }
 
     /// Evaluate async block
-    fn eval_async(&mut self, body: NodeId, graph: &Graph, env: &Environment) -> InterpreterResult<Value> {
+    fn eval_async(
+        &mut self,
+        body: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
         // For now, just evaluate the body synchronously
         // TODO: Implement proper async evaluation
         self.eval_node(body, graph, env)
     }
 
     /// Evaluate await expression
-    fn eval_await(&mut self, expr: NodeId, graph: &Graph, env: &Environment) -> InterpreterResult<Value> {
+    fn eval_await(
+        &mut self,
+        expr: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
         // Evaluate the expression
         let future_val = self.eval_node(expr, graph, env)?;
-        
+
         // For now, just return the value
         // TODO: Implement proper await handling for async values
         Ok(future_val)
     }
 
     /// Evaluate spawn expression
-    fn eval_spawn(&mut self, expr: NodeId, graph: &Graph, env: &Environment) -> InterpreterResult<Value> {
+    fn eval_spawn(
+        &mut self,
+        expr: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
         if let Some(_runtime) = &self.async_runtime {
             // Clone necessary data for the spawned task
             let _graph_clone = graph.clone();
             let _env_clone = env.clone();
             let _expr_clone = expr;
-            
+
             // Create a simple task handle value
             // TODO: Implement proper async handle value type
             Ok(Value::new(ValueData::String(format!("task:{}", expr))))
         } else {
-            Err(InterpreterError::RuntimeError("Async runtime not available".to_string()))
+            Err(InterpreterError::RuntimeError(
+                "Async runtime not available".to_string(),
+            ))
         }
     }
 
@@ -719,23 +777,36 @@ impl Interpreter {
             // TODO: Implement proper channel value type
             Ok(Value::new(ValueData::String("channel".to_string())))
         } else {
-            Err(InterpreterError::RuntimeError("Async runtime not available".to_string()))
+            Err(InterpreterError::RuntimeError(
+                "Async runtime not available".to_string(),
+            ))
         }
     }
 
     /// Send a value to a channel
-    fn eval_send(&mut self, channel: NodeId, value: NodeId, graph: &Graph, env: &Environment) -> InterpreterResult<Value> {
+    fn eval_send(
+        &mut self,
+        channel: NodeId,
+        value: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
         let _channel_val = self.eval_node(channel, graph, env)?;
         let value_val = self.eval_node(value, graph, env)?;
-        
+
         // TODO: Implement proper channel send
         Ok(value_val)
     }
 
     /// Receive a value from a channel
-    fn eval_receive(&mut self, channel: NodeId, graph: &Graph, env: &Environment) -> InterpreterResult<Value> {
+    fn eval_receive(
+        &mut self,
+        channel: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
         let _channel_val = self.eval_node(channel, graph, env)?;
-        
+
         // TODO: Implement proper channel receive
         Ok(Value::new(ValueData::Nil))
     }

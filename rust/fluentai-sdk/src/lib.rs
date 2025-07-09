@@ -61,11 +61,6 @@ pub fn run_file(path: impl AsRef<std::path::Path>) -> Result<Value> {
 /// Prelude module for common imports
 pub mod prelude {
     pub use crate::{
-        Error, Result,
-        Session, SessionOptions,
-        Script,
-        Value,
-        FromValue, IntoValue,
-        eval, run_file,
+        eval, run_file, Error, FromValue, IntoValue, Result, Script, Session, SessionOptions, Value,
     };
 }

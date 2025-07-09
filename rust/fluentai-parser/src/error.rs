@@ -10,27 +10,24 @@ pub enum ParseError {
         expected: String,
         found: String,
     },
-    
+
     #[error("Unexpected end of input")]
     UnexpectedEof,
-    
+
     #[error("Invalid number literal: {0}")]
     InvalidNumber(String),
-    
+
     #[error("Invalid escape sequence in string: {0}")]
     InvalidEscape(String),
-    
+
     #[error("Unclosed delimiter: {0}")]
     UnclosedDelimiter(String),
-    
+
     #[error("Invalid syntax: {0}")]
     InvalidSyntax(String),
-    
+
     #[error("Maximum parsing depth exceeded: depth {depth} exceeds limit of {max_depth}")]
-    MaxDepthExceeded {
-        depth: usize,
-        max_depth: usize,
-    },
+    MaxDepthExceeded { depth: usize, max_depth: usize },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,9 +58,9 @@ impl ParseError {
 impl From<fluentai_core::error::Error> for ParseError {
     fn from(err: fluentai_core::error::Error) -> Self {
         match err {
-            fluentai_core::error::Error::GraphNodeIdOverflow => {
-                ParseError::InvalidSyntax("Graph node ID overflow - maximum number of nodes reached".to_string())
-            }
+            fluentai_core::error::Error::GraphNodeIdOverflow => ParseError::InvalidSyntax(
+                "Graph node ID overflow - maximum number of nodes reached".to_string(),
+            ),
             _ => ParseError::InvalidSyntax(format!("Core error: {}", err)),
         }
     }

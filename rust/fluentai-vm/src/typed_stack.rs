@@ -1,7 +1,7 @@
 //! Type-specialized stack frames for efficient unboxed value storage
 
-use fluentai_core::value::Value;
 use anyhow::{anyhow, Result};
+use fluentai_core::value::Value;
 
 /// Type tags for stack values
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,13 +42,13 @@ impl TypedStack {
             max_size: capacity,
         }
     }
-    
+
     /// Push a value onto the stack
     pub fn push(&mut self, value: Value) -> Result<()> {
         if self.values.len() >= self.max_size {
             return Err(anyhow!("Stack overflow"));
         }
-        
+
         match value {
             Value::Integer(i) => {
                 self.values.push(StackValue::Int(i));
@@ -73,7 +73,7 @@ impl TypedStack {
         }
         Ok(())
     }
-    
+
     /// Pop a value from the stack
     pub fn pop(&mut self) -> Result<Value> {
         match (self.values.pop(), self.type_tags.pop()) {
@@ -81,7 +81,7 @@ impl TypedStack {
             _ => Err(anyhow!("Stack underflow")),
         }
     }
-    
+
     /// Push an integer directly (no boxing)
     pub fn push_int(&mut self, value: i64) -> Result<()> {
         if self.values.len() >= self.max_size {
@@ -91,7 +91,7 @@ impl TypedStack {
         self.type_tags.push(TypeTag::Int);
         Ok(())
     }
-    
+
     /// Push a float directly (no boxing)
     pub fn push_float(&mut self, value: f64) -> Result<()> {
         if self.values.len() >= self.max_size {
@@ -101,84 +101,88 @@ impl TypedStack {
         self.type_tags.push(TypeTag::Float);
         Ok(())
     }
-    
+
     /// Pop two integers for binary operation
     pub fn pop_int_pair(&mut self) -> Result<(i64, i64)> {
         if self.values.len() < 2 {
             return Err(anyhow!("Stack underflow"));
         }
-        
+
         let b_tag = self.type_tags.pop().unwrap();
         let b_val = self.values.pop().unwrap();
         let a_tag = self.type_tags.pop().unwrap();
         let a_val = self.values.pop().unwrap();
-        
+
         match (a_tag, a_val, b_tag, b_val) {
             (TypeTag::Int, StackValue::Int(a), TypeTag::Int, StackValue::Int(b)) => Ok((a, b)),
             _ => Err(anyhow!("Expected two integers on stack")),
         }
     }
-    
+
     /// Pop two floats for binary operation
     pub fn pop_float_pair(&mut self) -> Result<(f64, f64)> {
         if self.values.len() < 2 {
             return Err(anyhow!("Stack underflow"));
         }
-        
+
         let b_tag = self.type_tags.pop().unwrap();
         let b_val = self.values.pop().unwrap();
         let a_tag = self.type_tags.pop().unwrap();
         let a_val = self.values.pop().unwrap();
-        
+
         match (a_tag, a_val, b_tag, b_val) {
-            (TypeTag::Float, StackValue::Float(a), TypeTag::Float, StackValue::Float(b)) => Ok((a, b)),
+            (TypeTag::Float, StackValue::Float(a), TypeTag::Float, StackValue::Float(b)) => {
+                Ok((a, b))
+            }
             _ => Err(anyhow!("Expected two floats on stack")),
         }
     }
-    
+
     /// Peek at the top value without popping
     pub fn peek(&self) -> Option<&StackValue> {
         self.values.last()
     }
-    
+
     /// Get the type tag of the top value
     pub fn peek_type(&self) -> Option<TypeTag> {
         self.type_tags.last().copied()
     }
-    
+
     /// Get current stack depth
     pub fn len(&self) -> usize {
         self.values.len()
     }
-    
+
     /// Check if stack is empty
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
-    
+
     /// Clear the stack
     pub fn clear(&mut self) {
         self.values.clear();
         self.type_tags.clear();
     }
-    
+
     /// Truncate stack to given size
     pub fn truncate(&mut self, len: usize) {
         self.values.truncate(len);
         self.type_tags.truncate(len);
     }
-    
+
     /// Get value at index (0 is bottom of stack)
     pub fn get(&self, index: usize) -> Option<Value> {
-        self.values.get(index).map(|v| self.stack_value_to_value(v.clone()))
+        self.values
+            .get(index)
+            .map(|v| self.stack_value_to_value(v.clone()))
     }
-    
+
     /// Set value at index
     pub fn set(&mut self, index: usize, value: Value) -> Result<()> {
         if index >= self.values.len() {
             return Err(anyhow!("Stack index out of bounds"));
         }
-        
+
         match value {
             Value::Integer(i) => {
                 self.values[index] = StackValue::Int(i);
@@ -203,7 +207,7 @@ impl TypedStack {
         }
         Ok(())
     }
-    
+
     /// Convert stack value to regular value
     fn stack_value_to_value(&self, stack_val: StackValue) -> Value {
         match stack_val {
@@ -226,7 +230,7 @@ impl TypedStack {
             None => self.push_float(a as f64 + b as f64),
         }
     }
-    
+
     /// Optimized integer subtraction
     pub fn sub_int(&mut self) -> Result<()> {
         let (a, b) = self.pop_int_pair()?;
@@ -235,7 +239,7 @@ impl TypedStack {
             None => self.push_float(a as f64 - b as f64),
         }
     }
-    
+
     /// Optimized integer multiplication
     pub fn mul_int(&mut self) -> Result<()> {
         let (a, b) = self.pop_int_pair()?;
@@ -244,19 +248,19 @@ impl TypedStack {
             None => self.push_float(a as f64 * b as f64),
         }
     }
-    
+
     /// Optimized float addition
     pub fn add_float(&mut self) -> Result<()> {
         let (a, b) = self.pop_float_pair()?;
         self.push_float(a + b)
     }
-    
+
     /// Optimized float subtraction
     pub fn sub_float(&mut self) -> Result<()> {
         let (a, b) = self.pop_float_pair()?;
         self.push_float(a - b)
     }
-    
+
     /// Optimized float multiplication  
     pub fn mul_float(&mut self) -> Result<()> {
         let (a, b) = self.pop_float_pair()?;
@@ -267,37 +271,37 @@ impl TypedStack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_typed_stack_basic() {
         let mut stack = TypedStack::new(100);
-        
+
         // Test integer operations
         stack.push_int(10).unwrap();
         stack.push_int(20).unwrap();
         stack.add_int().unwrap();
-        
+
         let result = stack.pop().unwrap();
         assert_eq!(result, Value::Integer(30));
-        
+
         // Test float operations
         stack.push_float(1.5).unwrap();
         stack.push_float(2.5).unwrap();
         stack.add_float().unwrap();
-        
+
         let result = stack.pop().unwrap();
         assert_eq!(result, Value::Float(4.0));
     }
-    
+
     #[test]
     fn test_overflow_to_float() {
         let mut stack = TypedStack::new(100);
-        
+
         // Test integer overflow converts to float
         stack.push_int(i64::MAX).unwrap();
         stack.push_int(1).unwrap();
         stack.add_int().unwrap();
-        
+
         let result = stack.pop().unwrap();
         match result {
             Value::Float(f) => {

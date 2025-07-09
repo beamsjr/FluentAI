@@ -1,7 +1,7 @@
 //! FluentAi REPL binary
 
-use fluentai_repl::{Repl, ReplConfig};
 use clap::{Parser, ValueEnum};
+use fluentai_repl::{Repl, ReplConfig};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     config.highlighting = !cli.no_highlight;
     config.completion = !cli.no_completion;
     config.show_banner = !cli.no_banner;
-    
+
     if let Some(history_file) = cli.history_file {
         config.history_file = Some(history_file);
     }
@@ -71,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         #[cfg(feature = "jit")]
         ExecutionMode::Jit => fluentai_repl::ExecutionMode::JIT,
     };
-    
+
     // Get mutable reference to environment through REPL
     // Note: We need to add a method to Repl to access its environment
     // For now, we'll skip this as it would require modifying the Repl struct
@@ -85,7 +85,7 @@ fn main() -> anyhow::Result<()> {
     if let Some(load_file) = cli.load {
         println!("Loading file: {:?}", load_file);
         let content = std::fs::read_to_string(&load_file)?;
-        
+
         use fluentai_parser::parse;
         match parse(&content) {
             Ok(graph) => {

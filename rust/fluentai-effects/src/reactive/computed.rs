@@ -1,11 +1,11 @@
 //! Computed values that automatically update when dependencies change
 
-use std::sync::Arc;
-use parking_lot::{RwLock, Mutex};
 use fluentai_core::value::Value;
+use parking_lot::{Mutex, RwLock};
 use std::fmt::Debug;
+use std::sync::Arc;
 
-use super::{ReactiveContext, DependencyTracker, UpdateScheduler};
+use super::{DependencyTracker, ReactiveContext, UpdateScheduler};
 
 /// A computed value that automatically recalculates when dependencies change
 #[derive(Clone)]
@@ -39,11 +39,16 @@ impl Computed {
         F: Fn() -> Value + Send + Sync + 'static,
     {
         let id = format!("computed_{}", uuid::Uuid::new_v4());
-        
+
         let (tracker, scheduler) = ReactiveContext::current()
             .map(|ctx| (ctx.tracker.clone(), ctx.scheduler.clone()))
-            .unwrap_or_else(|| (Arc::new(DependencyTracker::new()), Arc::new(UpdateScheduler::new())));
-            
+            .unwrap_or_else(|| {
+                (
+                    Arc::new(DependencyTracker::new()),
+                    Arc::new(UpdateScheduler::new()),
+                )
+            });
+
         let inner = Arc::new(ComputedInner {
             id: id.clone(),
             compute_fn: Arc::new(compute_fn),
@@ -52,7 +57,7 @@ impl Computed {
             tracker,
             scheduler,
         });
-        
+
         // Register this computed value for updates
         if let Some(ctx) = ReactiveContext::current() {
             let weak_inner = Arc::downgrade(&inner);
@@ -62,10 +67,10 @@ impl Computed {
                 }
             });
         }
-        
+
         Computed { inner }
     }
-    
+
     /// Get the computed value, recalculating if necessary
     pub fn get(&self) -> Value {
         // Check if we need to recompute
@@ -73,43 +78,41 @@ impl Computed {
             let is_dirty = self.inner.is_dirty.lock();
             *is_dirty || self.inner.cached_value.read().is_none()
         };
-        
+
         if needs_recompute {
             self.recompute()
         } else {
             self.inner.cached_value.read().clone().unwrap_or(Value::Nil)
         }
     }
-    
+
     /// Force recomputation of the value
     pub fn recompute(&self) -> Value {
         // Clear old dependencies
         self.inner.tracker.clear_computation_deps(&self.inner.id);
-        
+
         // Create a context with our tracker and scheduler
         let ctx = ReactiveContext {
             current_computation: None,
             tracker: self.inner.tracker.clone(),
             scheduler: self.inner.scheduler.clone(),
         };
-        
+
         // Compute within a tracking context
-        let value = ctx.with_computation(self.inner.id.clone(), || {
-            (self.inner.compute_fn)()
-        });
-        
+        let value = ctx.with_computation(self.inner.id.clone(), || (self.inner.compute_fn)());
+
         // Update cached value and clear dirty flag
         *self.inner.cached_value.write() = Some(value.clone());
         *self.inner.is_dirty.lock() = false;
-        
+
         value
     }
-    
+
     /// Mark this computed value as dirty
     pub fn invalidate(&self) {
         *self.inner.is_dirty.lock() = true;
     }
-    
+
     /// Get the ID of this computed value
     pub fn id(&self) -> &str {
         &self.inner.id
@@ -144,17 +147,17 @@ where
             _phantom: std::marker::PhantomData,
         }
     }
-    
+
     /// Get the computed value
     pub fn get(&self) -> Option<T> {
         T::try_from(self.computed.get()).ok()
     }
-    
+
     /// Force recomputation
     pub fn recompute(&self) -> Option<T> {
         T::try_from(self.computed.recompute()).ok()
     }
-    
+
     /// Invalidate the cached value
     pub fn invalidate(&self) {
         self.computed.invalidate();

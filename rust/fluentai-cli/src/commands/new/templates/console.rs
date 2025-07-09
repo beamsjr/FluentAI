@@ -1,6 +1,6 @@
 //! Console application template
 
-use super::{Template, TemplateCategory, TemplateOptions, helpers};
+use super::{helpers, Template, TemplateCategory, TemplateOptions};
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -11,23 +11,23 @@ impl Template for ConsoleTemplate {
     fn name(&self) -> &'static str {
         "console"
     }
-    
+
     fn description(&self) -> &'static str {
         "Console application for command-line programs"
     }
-    
+
     fn aliases(&self) -> Vec<&'static str> {
         vec!["app", "application"]
     }
-    
+
     fn category(&self) -> TemplateCategory {
         TemplateCategory::Application
     }
-    
+
     fn create(&self, path: &Path, name: &str, _options: &TemplateOptions) -> Result<()> {
         // Create project file
         helpers::create_project_file(path, name, "Exe", &[])?;
-        
+
         // Create main program file
         let program_content = r#";; FluentAI Console Application
 ;; Entry point for the application
@@ -41,10 +41,10 @@ impl Template for ConsoleTemplate {
   (exit (main (command-line-args))))
 "#;
         fs::write(path.join("Program.ai"), program_content)?;
-        
+
         // Create directories
         helpers::create_directories(path, &["src", "tests"])?;
-        
+
         // Create a sample module
         let utils_content = r#";; Utility functions
 
@@ -54,7 +54,7 @@ impl Template for ConsoleTemplate {
 (export greet)
 "#;
         fs::write(path.join("src/Utils.ai"), utils_content)?;
-        
+
         // Create a sample test
         let test_content = r#";; Tests for Utils module
 
@@ -67,13 +67,13 @@ impl Template for ConsoleTemplate {
                  :to-equal "Hello, World!")))
 "#;
         fs::write(path.join("tests/Utils.test.ai"), test_content)?;
-        
+
         // Create .gitignore
         helpers::create_gitignore(path)?;
-        
+
         // Create README
         helpers::create_readme(path, name, "A FluentAI console application.")?;
-        
+
         Ok(())
     }
 }

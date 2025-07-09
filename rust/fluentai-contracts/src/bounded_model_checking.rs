@@ -1,25 +1,25 @@
 //! Bounded Model Checking (BMC) for temporal contracts
-//! 
+//!
 //! This module implements BMC algorithms for verifying temporal properties
 //! up to a fixed bound, which is often sufficient for finding bugs in practice.
 
-use std::collections::{HashMap, HashSet};
 use crate::{
-    temporal::{TemporalFormula, TemporalOperator, TemporalContract},
     errors::ContractResult,
+    temporal::{TemporalContract, TemporalFormula, TemporalOperator},
 };
+use std::collections::{HashMap, HashSet};
 
 /// BMC solver for temporal properties
 pub struct BoundedModelChecker {
     /// Maximum bound for verification
     pub max_bound: usize,
-    
+
     /// Whether to use incremental solving
     pub incremental: bool,
-    
+
     /// Cache for already checked formulas
     formula_cache: HashMap<(TemporalFormula, usize), bool>,
-    
+
     /// Statistics
     pub stats: BMCStats,
 }
@@ -29,13 +29,13 @@ pub struct BoundedModelChecker {
 pub struct BMCStats {
     /// Total formulas checked
     pub formulas_checked: usize,
-    
+
     /// Cache hits
     pub cache_hits: usize,
-    
+
     /// Maximum depth reached
     pub max_depth: usize,
-    
+
     /// Counterexamples found
     pub counterexamples: usize,
 }
@@ -45,13 +45,13 @@ pub struct BMCStats {
 pub struct BMCResult {
     /// Whether property holds up to bound
     pub verified: bool,
-    
+
     /// Bound used for verification
     pub bound: usize,
-    
+
     /// Counterexample trace if property fails
     pub counterexample: Option<BMCCounterexample>,
-    
+
     /// Whether result is conclusive
     pub conclusive: bool,
 }
@@ -61,10 +61,10 @@ pub struct BMCResult {
 pub struct BMCCounterexample {
     /// States in counterexample
     pub states: Vec<BMCState>,
-    
+
     /// Loop start position (for liveness violations)
     pub loop_start: Option<usize>,
-    
+
     /// Violated subformulas
     pub violations: Vec<(usize, TemporalFormula)>,
 }
@@ -74,10 +74,10 @@ pub struct BMCCounterexample {
 pub struct BMCState {
     /// State index
     pub index: usize,
-    
+
     /// Variable assignments
     pub assignments: HashMap<String, bool>,
-    
+
     /// Active atomic propositions
     pub propositions: HashSet<String>,
 }
@@ -92,7 +92,7 @@ impl BoundedModelChecker {
             stats: BMCStats::default(),
         }
     }
-    
+
     /// Check a temporal contract up to the bound
     pub fn check_contract(
         &mut self,
@@ -100,10 +100,10 @@ impl BoundedModelChecker {
         initial_state: &BMCState,
     ) -> ContractResult<BMCResult> {
         let bound = contract.bound.unwrap_or(self.max_bound);
-        
+
         // Check main formula
         let result = self.check_formula(&contract.formula, initial_state, bound)?;
-        
+
         // Check additional properties
         for safety in &contract.safety_properties {
             let safety_result = self.check_safety(safety, initial_state, bound)?;
@@ -111,17 +111,17 @@ impl BoundedModelChecker {
                 return Ok(safety_result);
             }
         }
-        
+
         for liveness in &contract.liveness_properties {
             let liveness_result = self.check_liveness(liveness, initial_state, bound)?;
             if !liveness_result.verified {
                 return Ok(liveness_result);
             }
         }
-        
+
         Ok(result)
     }
-    
+
     /// Check a temporal formula using BMC
     pub fn check_formula(
         &mut self,
@@ -130,7 +130,7 @@ impl BoundedModelChecker {
         bound: usize,
     ) -> ContractResult<BMCResult> {
         self.stats.formulas_checked += 1;
-        
+
         // Try incremental BMC
         if self.incremental {
             for k in 1..=bound {
@@ -139,7 +139,7 @@ impl BoundedModelChecker {
                     return Ok(result);
                 }
             }
-            
+
             Ok(BMCResult {
                 verified: true,
                 bound,
@@ -150,7 +150,7 @@ impl BoundedModelChecker {
             self.check_at_bound(formula, initial_state, bound)
         }
     }
-    
+
     /// Check formula at specific bound
     fn check_at_bound(
         &mut self,
@@ -169,10 +169,10 @@ impl BoundedModelChecker {
                 conclusive: false,
             });
         }
-        
+
         // Generate all possible paths of length k
         let paths = self.generate_paths(initial_state, k);
-        
+
         // Check formula on each path
         for path in &paths {
             let holds = self.evaluate_on_path(formula, path, 0)?;
@@ -187,7 +187,7 @@ impl BoundedModelChecker {
                 });
             }
         }
-        
+
         // Formula holds on all paths up to k
         self.formula_cache.insert(cache_key, true);
         Ok(BMCResult {
@@ -197,7 +197,7 @@ impl BoundedModelChecker {
             conclusive: k >= self.get_completeness_threshold(formula),
         })
     }
-    
+
     /// Check safety property (no bad states reachable)
     fn check_safety(
         &mut self,
@@ -207,7 +207,7 @@ impl BoundedModelChecker {
     ) -> ContractResult<BMCResult> {
         // For safety, we check if ¬safety is reachable
         let negated = TemporalFormula::Not(Box::new(safety.clone()));
-        
+
         for k in 0..=bound {
             let states = self.reachable_states(initial_state, k);
             for state in states {
@@ -226,7 +226,7 @@ impl BoundedModelChecker {
                 }
             }
         }
-        
+
         Ok(BMCResult {
             verified: true,
             bound,
@@ -234,7 +234,7 @@ impl BoundedModelChecker {
             conclusive: true, // Safety is complete at bound
         })
     }
-    
+
     /// Check liveness property (good states eventually reached)
     fn check_liveness(
         &mut self,
@@ -244,7 +244,7 @@ impl BoundedModelChecker {
     ) -> ContractResult<BMCResult> {
         // For liveness, we look for lassos (paths with loops)
         let lassos = self.find_lassos(initial_state, bound);
-        
+
         for (stem, loop_states) in lassos {
             // Check if liveness is violated in the loop
             let violated = !self.check_liveness_in_loop(liveness, &stem, &loop_states)?;
@@ -261,7 +261,7 @@ impl BoundedModelChecker {
                 });
             }
         }
-        
+
         Ok(BMCResult {
             verified: true,
             bound,
@@ -269,48 +269,46 @@ impl BoundedModelChecker {
             conclusive: false, // Liveness needs infinite traces
         })
     }
-    
+
     /// Generate all possible execution paths of length k
     fn generate_paths(&self, initial: &BMCState, k: usize) -> Vec<Vec<BMCState>> {
         let mut paths = vec![vec![initial.clone()]];
-        
+
         for _i in 1..=k {
             let mut new_paths = Vec::new();
-            
+
             for path in &paths {
                 let last_state = &path[path.len() - 1];
                 let successors = self.get_successors(last_state);
-                
+
                 for succ in successors {
                     let mut new_path = path.clone();
                     new_path.push(succ);
                     new_paths.push(new_path);
                 }
             }
-            
+
             paths = new_paths;
             if paths.is_empty() {
                 break;
             }
         }
-        
+
         paths
     }
-    
+
     /// Get successor states (would be system-specific)
     fn get_successors(&self, state: &BMCState) -> Vec<BMCState> {
         // This is a placeholder - in real implementation,
         // this would compute actual successor states based on
         // the system's transition relation
-        vec![
-            BMCState {
-                index: state.index + 1,
-                assignments: state.assignments.clone(),
-                propositions: state.propositions.clone(),
-            }
-        ]
+        vec![BMCState {
+            index: state.index + 1,
+            assignments: state.assignments.clone(),
+            propositions: state.propositions.clone(),
+        }]
     }
-    
+
     /// Evaluate formula on a path at position
     fn evaluate_on_path(
         &self,
@@ -321,20 +319,14 @@ impl BoundedModelChecker {
         if pos >= path.len() {
             return Ok(false);
         }
-        
+
         match formula {
-            TemporalFormula::Atomic(_) => {
-                self.evaluate_atomic(formula, &path[pos])
-            }
-            
-            TemporalFormula::Temporal(op) => {
-                self.evaluate_temporal_on_path(op, path, pos)
-            }
-            
-            TemporalFormula::Not(f) => {
-                Ok(!self.evaluate_on_path(f, path, pos)?)
-            }
-            
+            TemporalFormula::Atomic(_) => self.evaluate_atomic(formula, &path[pos]),
+
+            TemporalFormula::Temporal(op) => self.evaluate_temporal_on_path(op, path, pos),
+
+            TemporalFormula::Not(f) => Ok(!self.evaluate_on_path(f, path, pos)?),
+
             TemporalFormula::And(formulas) => {
                 for f in formulas {
                     if !self.evaluate_on_path(f, path, pos)? {
@@ -343,7 +335,7 @@ impl BoundedModelChecker {
                 }
                 Ok(true)
             }
-            
+
             TemporalFormula::Or(formulas) => {
                 for f in formulas {
                     if self.evaluate_on_path(f, path, pos)? {
@@ -352,14 +344,12 @@ impl BoundedModelChecker {
                 }
                 Ok(false)
             }
-            
-            TemporalFormula::Implies(ant, cons) => {
-                Ok(!self.evaluate_on_path(ant, path, pos)? 
-                    || self.evaluate_on_path(cons, path, pos)?)
-            }
+
+            TemporalFormula::Implies(ant, cons) => Ok(!self.evaluate_on_path(ant, path, pos)?
+                || self.evaluate_on_path(cons, path, pos)?),
         }
     }
-    
+
     /// Evaluate temporal operator on bounded path
     fn evaluate_temporal_on_path(
         &self,
@@ -377,7 +367,7 @@ impl BoundedModelChecker {
                 }
                 Ok(true)
             }
-            
+
             TemporalOperator::Eventually(f) => {
                 // Check if true at some position
                 for i in pos..path.len() {
@@ -387,7 +377,7 @@ impl BoundedModelChecker {
                 }
                 Ok(false)
             }
-            
+
             TemporalOperator::Next(f) => {
                 if pos + 1 < path.len() {
                     self.evaluate_on_path(f, path, pos + 1)
@@ -395,7 +385,7 @@ impl BoundedModelChecker {
                     Ok(false)
                 }
             }
-            
+
             TemporalOperator::Until(f1, f2) => {
                 // Check if f2 holds at some point with f1 until then
                 for i in pos..path.len() {
@@ -415,13 +405,17 @@ impl BoundedModelChecker {
                 }
                 Ok(false)
             }
-            
+
             _ => Ok(true), // Placeholder for other operators
         }
     }
-    
+
     /// Evaluate atomic proposition in a state
-    fn evaluate_atomic(&self, formula: &TemporalFormula, _state: &BMCState) -> ContractResult<bool> {
+    fn evaluate_atomic(
+        &self,
+        formula: &TemporalFormula,
+        _state: &BMCState,
+    ) -> ContractResult<bool> {
         // Extract the atomic condition from the formula
         if let TemporalFormula::Atomic(condition) = formula {
             // Check if this is an invariant (which should always hold)
@@ -429,23 +423,23 @@ impl BoundedModelChecker {
                 // For the test, we'll assume invariants hold in all states
                 return Ok(true);
             }
-            
+
             // For other conditions, check if they're satisfied in the current state
             // This is a simplified implementation - in a real system, we'd evaluate
             // the actual expression against the state
             return Ok(true);
         }
-        
+
         // Non-atomic formulas shouldn't reach here
         Ok(false)
     }
-    
+
     /// Get reachable states at depth k
     fn reachable_states(&self, initial: &BMCState, k: usize) -> Vec<BMCState> {
         let mut states = vec![initial.clone()];
         let mut visited = HashSet::new();
         visited.insert(initial.index);
-        
+
         for _ in 0..k {
             let mut new_states = Vec::new();
             for state in &states {
@@ -460,14 +454,14 @@ impl BoundedModelChecker {
             }
             states = new_states;
         }
-        
+
         states
     }
-    
+
     /// Find lasso-shaped paths for liveness checking
     fn find_lassos(&self, initial: &BMCState, bound: usize) -> Vec<(Vec<BMCState>, Vec<BMCState>)> {
         let mut lassos = Vec::new();
-        
+
         // Generate paths and look for loops
         let paths = self.generate_paths(initial, bound);
         for path in paths {
@@ -480,15 +474,15 @@ impl BoundedModelChecker {
                 }
             }
         }
-        
+
         lassos
     }
-    
+
     /// Check if two states are equal
     fn states_equal(&self, s1: &BMCState, s2: &BMCState) -> bool {
         s1.assignments == s2.assignments && s1.propositions == s2.propositions
     }
-    
+
     /// Check liveness property in a loop
     fn check_liveness_in_loop(
         &self,
@@ -498,7 +492,7 @@ impl BoundedModelChecker {
     ) -> ContractResult<bool> {
         // Check if liveness is satisfied in the infinite execution
         // represented by stem followed by infinite repetition of loop
-        
+
         // For eventually properties, check if satisfied in stem or loop
         match liveness {
             TemporalFormula::Temporal(TemporalOperator::Eventually(f)) => {
@@ -519,16 +513,20 @@ impl BoundedModelChecker {
             _ => Ok(true), // Placeholder
         }
     }
-    
+
     /// Build counterexample from failed path
-    fn build_counterexample(&self, formula: &TemporalFormula, path: &[BMCState]) -> BMCCounterexample {
+    fn build_counterexample(
+        &self,
+        formula: &TemporalFormula,
+        path: &[BMCState],
+    ) -> BMCCounterexample {
         BMCCounterexample {
             states: path.to_vec(),
             loop_start: None,
             violations: vec![(0, formula.clone())],
         }
     }
-    
+
     /// Get completeness threshold for formula
     fn get_completeness_threshold(&self, formula: &TemporalFormula) -> usize {
         // For safety properties, BMC is complete at the bound
@@ -545,7 +543,7 @@ impl BoundedModelChecker {
 pub struct BMCEncoder {
     /// Variable counter for fresh variables
     var_counter: usize,
-    
+
     /// Mapping from propositions to SAT variables
     prop_vars: HashMap<(String, usize), usize>, // (prop_name, time) -> var
 }
@@ -557,7 +555,7 @@ impl BMCEncoder {
             prop_vars: HashMap::new(),
         }
     }
-    
+
     /// Get or create variable for proposition at time
     fn get_prop_var(&mut self, prop: &str, time: usize) -> usize {
         let key = (prop.to_string(), time);
@@ -570,7 +568,7 @@ impl BMCEncoder {
             var
         }
     }
-    
+
     /// Encode formula at time k as SAT clauses
     pub fn encode_formula(&mut self, formula: &TemporalFormula, k: usize) -> Vec<Vec<i32>> {
         match formula {
@@ -579,16 +577,17 @@ impl BMCEncoder {
                 let var = self.get_prop_var(&format!("{:?}", cond), k) as i32;
                 vec![vec![var]]
             }
-            
+
             TemporalFormula::Not(f) => {
                 // Negate the encoding
                 let clauses = self.encode_formula(f, k);
                 // This is simplified - proper negation needs Tseitin encoding
-                clauses.into_iter()
+                clauses
+                    .into_iter()
                     .map(|clause| clause.into_iter().map(|lit| -lit).collect())
                     .collect()
             }
-            
+
             TemporalFormula::And(formulas) => {
                 // Conjunction - union of all clauses
                 let mut all_clauses = Vec::new();
@@ -597,7 +596,7 @@ impl BMCEncoder {
                 }
                 all_clauses
             }
-            
+
             TemporalFormula::Or(formulas) => {
                 // Disjunction - needs auxiliary variables
                 let mut clause = Vec::new();
@@ -610,7 +609,7 @@ impl BMCEncoder {
                 }
                 vec![clause]
             }
-            
+
             _ => vec![], // Placeholder for other cases
         }
     }
@@ -621,7 +620,7 @@ mod tests {
     use super::*;
     use crate::ContractCondition;
     use std::num::NonZeroU32;
-    
+
     #[test]
     fn test_bmc_safety() {
         let mut checker = BoundedModelChecker::new(10);
@@ -630,13 +629,13 @@ mod tests {
             assignments: HashMap::new(),
             propositions: HashSet::new(),
         };
-        
+
         // Test simple safety property
         let safety = TemporalFormula::Atomic(ContractCondition::new(
             fluentai_core::ast::NodeId(NonZeroU32::new(1).unwrap()),
             crate::ContractKind::Invariant,
         ));
-        
+
         let result = checker.check_safety(&safety, &initial, 5).unwrap();
         assert!(result.verified);
     }

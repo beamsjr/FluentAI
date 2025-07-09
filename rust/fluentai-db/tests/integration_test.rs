@@ -1,5 +1,5 @@
 //! Integration tests for fluentai-db
-//! 
+//!
 //! These tests demonstrate how to use the database system in practice.
 //! Note: These tests require an actual database connection to run.
 
@@ -12,22 +12,22 @@ use std::sync::Arc;
 async fn test_full_database_workflow() {
     // Set up DI container with database services
     let mut builder = ContainerBuilder::new();
-    
+
     let config = DbConfig {
         url: "sqlite::memory:".to_string(),
         max_connections: 5,
         ..Default::default()
     };
-    
+
     builder.register_database(config).unwrap();
     let container = Arc::new(builder.build());
-    
+
     // Get database provider
     let db_provider = ContainerDatabaseProvider::new(container.clone());
-    
+
     // Get connection
     let conn = db_provider.get_connection().unwrap();
-    
+
     // Create a table
     conn.execute_raw_unsafe(
         "CREATE TABLE test_users (
@@ -35,29 +35,37 @@ async fn test_full_database_workflow() {
             name TEXT NOT NULL,
             email TEXT UNIQUE,
             age INTEGER CHECK(age >= 0)
-        )"
-    ).await.unwrap();
-    
+        )",
+    )
+    .await
+    .unwrap();
+
     // Insert data using parameterized query
-    let rows_affected = conn.execute(
-        "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
-        vec![
-            fluentai_vm::Value::String("Alice".to_string()),
-            fluentai_vm::Value::String("alice@example.com".to_string()),
-            fluentai_vm::Value::Integer(25),
-        ]
-    ).await.unwrap();
-    
+    let rows_affected = conn
+        .execute(
+            "INSERT INTO test_users (name, email, age) VALUES (?, ?, ?)",
+            vec![
+                fluentai_vm::Value::String("Alice".to_string()),
+                fluentai_vm::Value::String("alice@example.com".to_string()),
+                fluentai_vm::Value::Integer(25),
+            ],
+        )
+        .await
+        .unwrap();
+
     assert_eq!(rows_affected, 1);
-    
+
     // Query data
-    let rows = conn.fetch_all(
-        "SELECT * FROM test_users WHERE age > ?",
-        vec![fluentai_vm::Value::Integer(20)]
-    ).await.unwrap();
-    
+    let rows = conn
+        .fetch_all(
+            "SELECT * FROM test_users WHERE age > ?",
+            vec![fluentai_vm::Value::Integer(20)],
+        )
+        .await
+        .unwrap();
+
     assert_eq!(rows.len(), 1);
-    
+
     // Use transaction
     let result = with_transaction(conn.clone(), |tx| {
         Box::pin(async move {
@@ -68,20 +76,27 @@ async fn test_full_database_workflow() {
                     fluentai_vm::Value::String("Bob".to_string()),
                     fluentai_vm::Value::String("bob@example.com".to_string()),
                     fluentai_vm::Value::Integer(30),
-                ]
-            ).await?;
-            
+                ],
+            )
+            .await?;
+
             // Update age
             tx.execute(
                 "UPDATE test_users SET age = age + 1 WHERE name = ?",
-                vec![fluentai_vm::Value::String("Alice".to_string())]
-            ).await?;
-            
+                vec![fluentai_vm::Value::String("Alice".to_string())],
+            )
+            .await?;
+
             Ok(())
         })
-    }).await.unwrap();
-    
+    })
+    .await
+    .unwrap();
+
     // Verify transaction results
-    let all_users = conn.fetch_all("SELECT * FROM test_users", vec![]).await.unwrap();
+    let all_users = conn
+        .fetch_all("SELECT * FROM test_users", vec![])
+        .await
+        .unwrap();
     assert_eq!(all_users.len(), 2);
 }

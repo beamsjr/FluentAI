@@ -1,9 +1,9 @@
 //! Configuration for the linter
 
+use anyhow::Result;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use anyhow::Result;
 
 /// Linter configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,7 +78,7 @@ impl LintConfig {
         let config: LintConfig = toml::from_str(&content)?;
         Ok(config)
     }
-    
+
     /// Load configuration from current directory
     pub fn from_current_dir() -> Result<Self> {
         let paths = [
@@ -86,63 +86,66 @@ impl LintConfig {
             "fluentai-lint.toml",
             ".fluentai/lint.toml",
         ];
-        
+
         for path in &paths {
             if Path::new(path).exists() {
                 return Self::from_file(Path::new(path));
             }
         }
-        
+
         Ok(Self::default())
     }
-    
+
     /// Get the level for a specific rule
     pub fn get_rule_level(&self, rule_id: &str) -> RuleLevel {
-        self.rules.levels
+        self.rules
+            .levels
             .get(rule_id)
             .copied()
             .unwrap_or(self.rules.default_level)
     }
-    
+
     /// Check if a rule is enabled
     pub fn is_rule_enabled(&self, rule_id: &str) -> bool {
         self.get_rule_level(rule_id) != RuleLevel::Off
     }
-    
+
     /// Get configuration for a specific rule
     pub fn get_rule_config(&self, rule_id: &str) -> Option<&toml::Value> {
         self.rules.config.get(rule_id)
     }
-    
+
     /// Check if a path should be ignored
     pub fn should_ignore(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
-        
+
         for pattern in &self.ignore {
-            if glob::Pattern::new(pattern).ok()
+            if glob::Pattern::new(pattern)
+                .ok()
                 .map(|p| p.matches(&path_str))
                 .unwrap_or(false)
             {
                 return true;
             }
         }
-        
+
         false
     }
-    
+
     /// Check if a path should be included
     pub fn should_include(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
-        
+
         for pattern in &self.include {
-            if glob::Pattern::new(pattern).ok()
+            if glob::Pattern::new(pattern)
+                .ok()
                 .map(|p| p.matches(&path_str))
                 .unwrap_or(false)
             {
                 return true;
             }
         }
-        
+
         false
     }
 }
@@ -158,27 +161,27 @@ impl ConfigBuilder {
             config: LintConfig::default(),
         }
     }
-    
+
     pub fn with_default_level(mut self, level: RuleLevel) -> Self {
         self.config.rules.default_level = level;
         self
     }
-    
+
     pub fn with_rule_level(mut self, rule_id: impl Into<String>, level: RuleLevel) -> Self {
         self.config.rules.levels.insert(rule_id.into(), level);
         self
     }
-    
+
     pub fn with_ignore_pattern(mut self, pattern: impl Into<String>) -> Self {
         self.config.ignore.push(pattern.into());
         self
     }
-    
+
     pub fn with_include_pattern(mut self, pattern: impl Into<String>) -> Self {
         self.config.include.push(pattern.into());
         self
     }
-    
+
     pub fn build(self) -> LintConfig {
         self.config
     }

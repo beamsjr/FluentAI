@@ -1,10 +1,10 @@
 //! Debug support for the interpreter
 
-use rustc_hash::{FxHashMap, FxHashSet};
-use fluentai_core::ast::NodeId;
-use crate::value::Value;
 use crate::environment::Environment;
 use crate::provenance::{SourceLocation, StackFrame};
+use crate::value::Value;
+use fluentai_core::ast::NodeId;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Debug mode configuration
 #[derive(Debug, Clone)]
@@ -98,10 +98,7 @@ pub enum DebugEvent {
         location: Option<SourceLocation>,
     },
     /// Exiting a node
-    NodeExit {
-        node_id: NodeId,
-        value: Value,
-    },
+    NodeExit { node_id: NodeId, value: Value },
     /// Entering a function
     FunctionEnter {
         name: String,
@@ -161,7 +158,7 @@ pub struct DebugContext {
 pub trait DebugHandler: Send + Sync {
     /// Handle a debug event
     fn handle_event(&mut self, event: DebugEvent) -> DebugAction;
-    
+
     /// Check if we should break at this point
     fn should_break(&self, context: &DebugContext) -> bool;
 }
@@ -298,11 +295,11 @@ impl Debugger {
     fn matches_breakpoint(&self, bp: &Breakpoint, context: &DebugContext) -> bool {
         match &bp.location {
             BreakpointLocation::Node(node_id) => context.current_node == *node_id,
-            BreakpointLocation::Function(name) => {
-                context.call_stack.last()
-                    .map(|frame| frame.function_name == *name)
-                    .unwrap_or(false)
-            }
+            BreakpointLocation::Function(name) => context
+                .call_stack
+                .last()
+                .map(|frame| frame.function_name == *name)
+                .unwrap_or(false),
             _ => false,
         }
     }

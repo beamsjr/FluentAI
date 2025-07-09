@@ -1,12 +1,12 @@
 //! Environment management for lexical scoping
 
-use std::rc::Rc;
-use std::cell::RefCell;
-use rustc_hash::FxHashMap;
 use indexmap::IndexMap;
+use rustc_hash::FxHashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-use crate::value::Value;
 use crate::error::{InterpreterError, InterpreterResult};
+use crate::value::Value;
 
 /// A binding in the environment
 #[derive(Debug, Clone)]
@@ -94,12 +94,13 @@ impl Environment {
         exported: bool,
     ) -> InterpreterResult<()> {
         let mut inner = self.inner.borrow_mut();
-        
+
         // Check if already bound in this scope
         if inner.bindings.contains_key(&name) {
-            return Err(InterpreterError::NameError(
-                format!("Variable '{}' already defined in this scope", name)
-            ));
+            return Err(InterpreterError::NameError(format!(
+                "Variable '{}' already defined in this scope",
+                name
+            )));
         }
 
         // Clear cache entry if exists
@@ -134,13 +135,14 @@ impl Environment {
     /// Update an existing binding
     pub fn update(&self, name: &str, value: Value) -> InterpreterResult<()> {
         let mut inner = self.inner.borrow_mut();
-        
+
         // Try to update in current scope
         if let Some(binding) = inner.bindings.get_mut(name) {
             if !binding.mutable {
-                return Err(InterpreterError::NameError(
-                    format!("Cannot mutate immutable binding '{}'", name)
-                ));
+                return Err(InterpreterError::NameError(format!(
+                    "Cannot mutate immutable binding '{}'",
+                    name
+                )));
             }
             binding.value = value;
             inner.lookup_cache.remove(name);
@@ -152,9 +154,10 @@ impl Environment {
             drop(inner); // Release borrow
             parent.update(name, value)
         } else {
-            Err(InterpreterError::NameError(
-                format!("Undefined variable '{}'", name)
-            ))
+            Err(InterpreterError::NameError(format!(
+                "Undefined variable '{}'",
+                name
+            )))
         }
     }
 
@@ -238,20 +241,24 @@ mod tests {
     fn test_basic_binding() {
         let env = Environment::new();
         let val = Value::new(ValueData::Integer(42));
-        
+
         env.bind("x".to_string(), val.clone()).unwrap();
         let retrieved = env.lookup("x").unwrap();
-        
+
         assert_eq!(retrieved.to_integer(), Some(42));
     }
 
     #[test]
     fn test_scoping() {
         let parent = Environment::new();
-        parent.bind("x".to_string(), Value::new(ValueData::Integer(1))).unwrap();
+        parent
+            .bind("x".to_string(), Value::new(ValueData::Integer(1)))
+            .unwrap();
 
         let child = parent.extend();
-        child.bind("x".to_string(), Value::new(ValueData::Integer(2))).unwrap();
+        child
+            .bind("x".to_string(), Value::new(ValueData::Integer(2)))
+            .unwrap();
 
         assert_eq!(child.lookup("x").unwrap().to_integer(), Some(2));
         assert_eq!(parent.lookup("x").unwrap().to_integer(), Some(1));
@@ -265,7 +272,8 @@ mod tests {
             Value::new(ValueData::Integer(1)),
             true,
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
         env.update("x", Value::new(ValueData::Integer(2))).unwrap();
         assert_eq!(env.lookup("x").unwrap().to_integer(), Some(2));
@@ -274,7 +282,8 @@ mod tests {
     #[test]
     fn test_update_immutable_fails() {
         let env = Environment::new();
-        env.bind("x".to_string(), Value::new(ValueData::Integer(1))).unwrap();
+        env.bind("x".to_string(), Value::new(ValueData::Integer(1)))
+            .unwrap();
 
         let result = env.update("x", Value::new(ValueData::Integer(2)));
         assert!(result.is_err());
