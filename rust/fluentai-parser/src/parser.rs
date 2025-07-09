@@ -513,17 +513,37 @@ impl<'a> Parser<'a> {
             // Check for special pattern forms
             match self.lexer.peek_token() {
                 Some(Token::Symbol(keyword)) => {
-                    match keyword.as_ref() {
+                    let keyword_str = keyword.clone();
+                    match keyword_str.as_ref() {
                         "or" => return self.parse_or_pattern(),
                         "as" => return self.parse_as_pattern(),
                         "when" => return self.parse_guard_pattern(),
                         "view" => return self.parse_view_pattern(),
                         _ => {
-                            // Put back the LParen for constructor patterns
-                            // Since we can't put tokens back, parse as constructor starting here
-                            let pattern = self.parse_pattern()?;
-                            self.expect_token(Token::RParen)?;
-                            return Ok(pattern);
+                            // Check if this is a constructor pattern (starts with uppercase)
+                            if !keyword_str.is_empty() && keyword_str.chars().next().unwrap().is_uppercase() {
+                                // Parse constructor pattern
+                                self.lexer.next_token(); // consume constructor name
+                                let constructor_name = keyword_str.to_string();
+                                let mut patterns = Vec::new();
+                                
+                                // Parse sub-patterns until we hit the closing paren
+                                while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+                                    patterns.push(self.parse_pattern()?);
+                                }
+                                
+                                self.expect_token(Token::RParen)?;
+                                return Ok(Pattern::Constructor {
+                                    name: constructor_name,
+                                    patterns,
+                                });
+                            } else {
+                                // Put back the LParen for other patterns
+                                // Since we can't put tokens back, parse as pattern starting here
+                                let pattern = self.parse_pattern()?;
+                                self.expect_token(Token::RParen)?;
+                                return Ok(pattern);
+                            }
                         }
                     }
                 }

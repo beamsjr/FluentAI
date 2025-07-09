@@ -12,6 +12,7 @@ pub async fn new_project(
     template: &str,
     name: &str,
     path: Option<PathBuf>,
+    options: TemplateOptions,
 ) -> Result<()> {
     let registry = TemplateRegistry::new();
     
@@ -36,9 +37,6 @@ pub async fn new_project(
     
     // Create project directory
     std::fs::create_dir_all(&project_path)?;
-    
-    // TODO: Parse template options from command line
-    let options = TemplateOptions::default();
     
     // Create project from template
     template_impl.create(&project_path, name, &options)?;
@@ -83,6 +81,28 @@ fn list_templates(registry: &TemplateRegistry) {
                          template.name().bold(),
                          aliases.dimmed(),
                          template.description());
+                
+                // Show template options if any
+                let options = template.options();
+                if !options.is_empty() {
+                    for opt in &options {
+                        let default_str = if let Some(default) = opt.default {
+                            format!(" (default: {})", default)
+                        } else {
+                            String::new()
+                        };
+                        let choices_str = if !opt.choices.is_empty() {
+                            format!(" [{}]", opt.choices.join(", "))
+                        } else {
+                            String::new()
+                        };
+                        println!("      --{}: {}{}{}", 
+                                 opt.name.green(), 
+                                 opt.description,
+                                 choices_str.dimmed(),
+                                 default_str.dimmed());
+                    }
+                }
             }
             println!();
         }

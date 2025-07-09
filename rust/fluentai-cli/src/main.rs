@@ -9,6 +9,7 @@ mod config;
 mod runner;
 
 use commands::{build, new, package, publish, repl, restore, run, test};
+use commands::new::templates;
 
 #[derive(Parser)]
 #[command(name = "fluentai")]
@@ -40,6 +41,34 @@ enum Commands {
         /// Output directory (defaults to project name)
         #[arg(long)]
         output: Option<PathBuf>,
+        
+        /// Authentication type (jwt, oauth, basic, session)
+        #[arg(long)]
+        auth: Option<String>,
+        
+        /// Database type (postgres, mysql, sqlite, mongodb)
+        #[arg(long)]
+        database: Option<String>,
+        
+        /// Frontend framework (htmx, alpine, vue, react)
+        #[arg(long)]
+        frontend: Option<String>,
+        
+        /// Queue type for worker template (redis, rabbitmq, sqs)
+        #[arg(long)]
+        queue: Option<String>,
+        
+        /// Include scheduler for worker template
+        #[arg(long)]
+        scheduler: bool,
+        
+        /// Include Docker support
+        #[arg(long)]
+        docker: bool,
+        
+        /// Include CI/CD configuration
+        #[arg(long)]
+        ci: bool,
     },
     
     /// Build a FluentAI project
@@ -302,8 +331,36 @@ async fn main() -> Result<()> {
     
     // Handle commands
     match cli.command {
-        Some(Commands::New { template, name, output }) => {
-            new::new_project(&template, &name, output).await?;
+        Some(Commands::New { 
+            template, 
+            name, 
+            output,
+            auth,
+            database,
+            frontend,
+            queue,
+            scheduler,
+            docker,
+            ci,
+        }) => {
+            let mut options = templates::TemplateOptions {
+                auth,
+                database,
+                frontend,
+                docker,
+                ci,
+                custom: std::collections::HashMap::new(),
+            };
+            
+            // Add custom options for specific templates
+            if let Some(queue) = queue {
+                options.custom.insert("queue".to_string(), queue);
+            }
+            if scheduler {
+                options.custom.insert("scheduler".to_string(), "true".to_string());
+            }
+            
+            new::new_project(&template, &name, output, options).await?;
         }
         
         Some(Commands::Build { project, configuration, output, verbose }) => {
