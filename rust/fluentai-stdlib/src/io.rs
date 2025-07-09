@@ -159,7 +159,7 @@ fn read_line_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
 }
 
 fn print_line_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
-    perform_io_effect(context, "print_line", args)
+    perform_io_effect(context, "println", args)
 }
 
 fn print_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {

@@ -139,6 +139,7 @@ impl<'a> Parser<'a> {
                 "letrec" => return self.parse_letrec(),
                 "if" => return self.parse_if(),
                 "do" => return self.parse_sequence(),
+                "begin" => return self.parse_begin(),
                 "effect" => return self.parse_effect(),
                 "match" => return self.parse_match(),
                 "async" => return self.parse_async(),
@@ -1217,6 +1218,37 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::RParen)?;
             
             let node = Node::Define { name, value };
+            Ok(self.graph.add_node(node)?)
+        }
+    }
+    
+    fn parse_begin(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_begin_inner();
+        self.exit_recursion();
+        result
+    }
+    
+    fn parse_begin_inner(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("begin")?;
+        
+        let mut exprs = Vec::new();
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            exprs.push(self.parse_expr()?);
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        if exprs.is_empty() {
+            // Empty begin returns nil
+            let node = Node::Literal(Literal::Nil);
+            Ok(self.graph.add_node(node)?)
+        } else if exprs.len() == 1 {
+            // Single expression, return it directly
+            Ok(exprs[0])
+        } else {
+            // Multiple expressions, create Begin node
+            let node = Node::Begin { exprs };
             Ok(self.graph.add_node(node)?)
         }
     }

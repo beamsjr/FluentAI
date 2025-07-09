@@ -19,7 +19,7 @@ pub use value::{FromValue, IntoValue};
 
 // Re-export important types
 pub use fluentai_core::value::Value;
-pub use fluentai_runtime::{HostFunction, RuntimeConfig};
+pub use fluentai_core_lib::{HostFunction, RuntimeConfig};
 
 /// SDK version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

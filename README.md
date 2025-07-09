@@ -271,20 +271,19 @@ FluentAI is an experimental programming language designed for AI systems rather 
 
 ### Option 1: Install FluentAI SDK (Recommended)
 
-The FluentAI SDK provides a complete development environment similar to .NET or Node.js:
+The FluentAI SDK provides a complete development environment that compiles to native executables:
 
 ```bash
-# Install the SDK (includes compiler, runtime, and development tools)
+# Install the SDK (includes compiler and development tools)
 curl -sSL https://get.fluentai.dev | sh
 
 # Or via package managers
 brew install fluentai         # macOS
 apt install fluentai-sdk      # Ubuntu/Debian  
 choco install fluentai        # Windows
-
-# For production servers (runtime only)
-curl -sSL https://get.fluentai.dev/runtime | sh
 ```
+
+**Note**: FluentAI compiles to self-contained native executables. No runtime is needed on production servers - just deploy the compiled binary!
 
 ### Option 2: Building from Source
 
@@ -362,9 +361,9 @@ fluentai new library MyLib        # Reusable library
 fluentai new webservice MyApi     # Web service
 
 # Build and run
-fluentai build                    # Debug build
-fluentai build -c Release         # Release build
-fluentai run                      # Run application
+fluentai build                    # Build native executable (debug mode)
+fluentai build -c Release         # Build optimized native executable
+fluentai run                      # Build and run application
 fluentai test                     # Run tests
 
 # Package management
@@ -372,9 +371,11 @@ fluentai add package FluentAI.Http
 fluentai restore                  # Restore packages
 fluentai package list             # List installed packages
 
-# Deployment
-fluentai publish -c Release --self-contained      # Standalone executable
-fluentai publish -r linux-x64                     # Cross-compile for Linux
+# Deployment (creates native executables)
+fluentai publish -c Release                       # Native executable for current platform
+fluentai publish -r linux-x64                     # Cross-compile for Linux x64
+fluentai publish -r win-x64                       # Cross-compile for Windows x64
+fluentai publish -r osx-arm64                     # Cross-compile for macOS Apple Silicon
 ```
 
 ### Project Structure

@@ -1116,8 +1116,10 @@ impl VM {
                     }),
                 };
                 
-                // Check stdlib first to allow operators to be used as first-class functions
-                let value = if self.stdlib.contains(name) {
+                // Check user-defined globals first
+                let value = if let Some(global_value) = self.globals.get(name) {
+                    global_value.clone()
+                } else if self.stdlib.contains(name) {
                     // Standard library function
                     Value::String(format!("__stdlib__{}", name))
                 } else if let Some(_) = self.builtin_to_opcode(name) {
@@ -1133,10 +1135,8 @@ impl VM {
                         Value::String("__builtin__cons".to_string())
                     }
                 } else {
-                    // Look up in globals
-                    self.globals.get(name)
-                        .cloned()
-                        .unwrap_or(Value::Nil)
+                    // Not found anywhere, return nil
+                    Value::Nil
                 };
                 
                 self.push(value)?;

@@ -2,7 +2,7 @@
 
 use crate::session::{Session, SessionOptions};
 use crate::error::Result;
-use fluentai_runtime::{RuntimeConfig, HostFunction};
+use fluentai_core_lib::{RuntimeConfig, HostFunction};
 use std::path::PathBuf;
 
 /// FluentAI SDK builder
@@ -156,7 +156,7 @@ mod tests {
         let double = HostFunction::new("double", 1, |args| {
             match &args[0] {
                 Value::Number(n) => Ok(Value::Number(n * 2.0)),
-                _ => Err(fluentai_runtime::RuntimeError::host("double expects a number")),
+                _ => Err(fluentai_core_lib::RuntimeError::host("double expects a number")),
             }
         });
         

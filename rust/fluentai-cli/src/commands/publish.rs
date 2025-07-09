@@ -78,12 +78,13 @@ pub async fn publish(
     let project = load_project(&project_file)?;
     
     // Determine output directory
-    let output_dir = config.output_path.unwrap_or_else(|| {
-        project_path
+    let output_dir = match config.output_path.as_ref() {
+        Some(path) => path.clone(),
+        None => project_path
             .join("publish")
             .join(&config.configuration.to_lowercase())
             .join(config.target.to_string())
-    });
+    };
     fs::create_dir_all(&output_dir)?;
     
     // Build the project first
@@ -354,7 +355,7 @@ fn copy_runtime_files(output_dir: &Path, target: &PublishTarget) -> Result<()> {
     
     // For now, create placeholder files
     let runtime_files = vec![
-        "fluentai_runtime.dll",
+        "fluentai_core_lib.dll",
         "fluentai_core.dll",
         "fluentai_stdlib.dll",
     ];

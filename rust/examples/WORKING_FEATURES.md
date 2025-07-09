@@ -16,15 +16,23 @@ This document lists what currently works in the FluentAI implementation.
 - **Conditionals**: `if` expressions (must have both then and else)
 - **Pattern Matching**: `match` with literal patterns and wildcard `_`
   - List patterns with `Cons` and `Nil` (but may not work as expected)
+- **Begin**: `begin` for sequencing multiple expressions
 
 ### Bindings and Functions
 - **Let**: `let` bindings (single expression in body)
 - **Letrec**: `letrec` for recursive bindings (has bugs with recursion)
 - **Lambda**: Anonymous functions `(lambda (x) ...)`
 - **Function Application**: Calling functions with arguments
+- **Define**: Top-level definitions for values and functions
+  - `(define x 42)` - define a value
+  - `(define (f x) ...)` - define a function
+  - Multiple top-level expressions are supported
 
 ### Built-in Functions  
-- **Print**: Outputs values (returns nil)
+- **Print Functions**: 
+  - `(print value)` - prints value without newline
+  - `(print-line value)` - prints value with newline
+  - Both return nil
 - **List Operations**: As mentioned above
 - **Type Predicates**: Various `?` functions
 
@@ -44,10 +52,8 @@ This document lists what currently works in the FluentAI implementation.
 ## Not Working or Not Implemented
 
 ### Major Features
-- **Module System**: `module`, `import`, `export`, `define`
+- **Module System**: `module`, `import`, `export` (define works but modules not fully implemented)
 - **Async/Concurrent**: `async`, `await`, `spawn`, `channel`, `send`, `receive`
-- **Begin Blocks**: `begin` for sequencing (doesn't work properly)
-- **Define**: Top-level definitions
 
 ### Known Bugs
 - **Recursion**: Factorial and other recursive functions return incorrect results

@@ -1,6 +1,6 @@
 //! FluentAI session management
 
-use fluentai_runtime::{RuntimeEngine, RuntimeConfig, HostFunction};
+use fluentai_core_lib::{RuntimeEngine, RuntimeConfig, HostFunction};
 use fluentai_core::value::Value;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -206,7 +206,7 @@ impl Session {
     }
     
     /// Get execution statistics
-    pub fn stats(&self) -> fluentai_runtime::context::ExecutionStats {
+    pub fn stats(&self) -> fluentai_core_lib::context::ExecutionStats {
         self.engine.lock().stats()
     }
 }

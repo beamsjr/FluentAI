@@ -45,9 +45,10 @@ pub async fn build(
     let project = load_project(&project_file)?;
     
     // Create output directory
-    let output_dir = config.output_path.unwrap_or_else(|| {
-        project_path.join("target").join(&config.configuration.to_lowercase())
-    });
+    let output_dir = match config.output_path.as_ref() {
+        Some(path) => path.clone(),
+        None => project_path.join("target").join(&config.configuration.to_lowercase())
+    };
     fs::create_dir_all(&output_dir)?;
     
     // Collect source files
@@ -256,6 +257,8 @@ fn link_modules(
     project_name: &str,
     config: &BuildConfig,
 ) -> Result<PathBuf> {
+    use fluentai_core_lib::embed::{EmbeddedAppBuilder, EmbeddedApp};
+    
     let output_file = match config.target {
         BuildTarget::Executable => {
             let exe_name = if cfg!(windows) {
@@ -266,16 +269,85 @@ fn link_modules(
             output_dir.join(exe_name)
         }
         BuildTarget::Library => {
-            output_dir.join(format!("{}.ailib", project_name))
+            output_dir.join(format!("lib{}.a", project_name))
         }
         BuildTarget::WebAssembly => {
             output_dir.join(format!("{}.wasm", project_name))
         }
     };
     
-    // For now, just create an empty file
-    // TODO: Implement actual linking and output generation
-    fs::write(&output_file, b"FluentAI Compiled Output")?;
+    match config.target {
+        BuildTarget::Executable => {
+            // Create an embedded application
+            create_embedded_executable(modules, project_name, &output_file, config)?;
+        }
+        BuildTarget::Library => {
+            // Create a static library
+            create_static_library(modules, project_name, &output_file, config)?;
+        }
+        BuildTarget::WebAssembly => {
+            // Create WASM module
+            compile_to_wasm(modules, &output_file, config)?;
+        }
+    }
     
     Ok(output_file)
+}
+
+/// Create a self-contained executable with embedded runtime
+fn create_embedded_executable(
+    modules: &[CompiledModule],
+    project_name: &str,
+    output_file: &Path,
+    _config: &BuildConfig,
+) -> Result<()> {
+    // For now, create a placeholder
+    // In a real implementation, this would:
+    // 1. Create a Rust project that embeds the bytecode
+    // 2. Link with fluentai-core-lib
+    // 3. Compile to native executable
+    
+    // Temporary: just write a marker file
+    let content = format!(
+        "#!/usr/bin/env fluentai\n# FluentAI Embedded Application: {}\n# Modules: {}\n",
+        project_name,
+        modules.len()
+    );
+    fs::write(output_file, content)?;
+    
+    // Make it executable on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(output_file)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(output_file, perms)?;
+    }
+    
+    Ok(())
+}
+
+/// Create a static library
+fn create_static_library(
+    modules: &[CompiledModule],
+    project_name: &str,
+    output_file: &Path,
+    _config: &BuildConfig,
+) -> Result<()> {
+    // TODO: Implement static library creation
+    let content = format!("FluentAI Static Library: {}\n", project_name);
+    fs::write(output_file, content)?;
+    Ok(())
+}
+
+/// Compile to WebAssembly
+fn compile_to_wasm(
+    modules: &[CompiledModule],
+    output_file: &Path,
+    _config: &BuildConfig,
+) -> Result<PathBuf> {
+    // TODO: Implement WASM compilation
+    // This would use wasm-bindgen or similar
+    fs::write(&output_file, b"FluentAI WASM Module")?;
+    Ok(output_file.to_path_buf())
 }

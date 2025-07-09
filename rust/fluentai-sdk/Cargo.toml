@@ -7,7 +7,7 @@ description = "High-level SDK for embedding FluentAI"
 license = "MIT"
 
 [dependencies]
-fluentai-runtime = { path = "../fluentai-runtime" }
+fluentai-core-lib = { path = "../fluentai-core-lib" }
 fluentai-core = { path = "../fluentai-core" }
 
 anyhow = "1.0"

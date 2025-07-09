@@ -112,7 +112,7 @@ async fn run_test_file(test_file: &Path, config: &TestConfig) -> Result<TestResu
     println!("{} {}", "Testing".cyan(), relative_path.display());
     
     // Create runtime for test execution
-    let mut runtime = fluentai_runtime::RuntimeEngine::development();
+    let mut runtime = fluentai_core_lib::RuntimeEngine::development();
     
     // Register test framework functions
     register_test_framework(&mut runtime)?;
@@ -165,8 +165,8 @@ struct TestFailure {
 }
 
 /// Register test framework functions
-fn register_test_framework(runtime: &mut fluentai_runtime::RuntimeEngine) -> Result<()> {
-    use fluentai_runtime::HostFunction;
+fn register_test_framework(runtime: &mut fluentai_core_lib::RuntimeEngine) -> Result<()> {
+    use fluentai_core_lib::HostFunction;
     use fluentai_core::value::Value;
     use std::sync::{Arc, Mutex};
     

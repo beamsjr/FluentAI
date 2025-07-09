@@ -1,6 +1,6 @@
 # FluentAI SDK Architecture
 
-Following the .NET SDK model, FluentAI provides:
+FluentAI compiles to native executables with an optional core library for advanced features.
 
 ## 1. FluentAI SDK (Development Kit)
 Complete development environment for building FluentAI applications.
@@ -8,7 +8,7 @@ Complete development environment for building FluentAI applications.
 ### Components:
 - **FluentAI CLI** (`fluentai` command)
   - `fluentai new` - Create new projects from templates
-  - `fluentai build` - Compile .ai files 
+  - `fluentai build` - Compile .ai files to native executables
   - `fluentai run` - Build and run applications
   - `fluentai test` - Run tests
   - `fluentai publish` - Package for distribution
@@ -21,31 +21,32 @@ Complete development environment for building FluentAI applications.
   - Package management
 
 - **Build System**
-  - Compilation pipeline
-  - Optimization levels
-  - Target platforms (native, wasm, etc.)
+  - AOT (Ahead-of-Time) compilation to native code
+  - Optimization levels (O0-O3)
+  - Target platforms (x86_64, ARM64, WASM)
   - Debug/Release configurations
+  - Static linking of core library
 
 - **Development Tools**
-  - REPL
+  - REPL (interpreter mode for development)
   - Debugger integration
   - Profiler
   - Language server (LSP)
 
-## 2. FluentAI Runtime (Execution Environment)
-Minimal runtime for running compiled FluentAI applications.
+## 2. FluentAI Core Library (Statically Linked)
+Core functionality that gets compiled into FluentAI applications.
 
 ### Components:
-- **Core Runtime**
-  - VM for bytecode execution
-  - JIT compiler
-  - Garbage collector
-  - Standard library
+- **Core Functions**
+  - Effect handlers
+  - Standard library functions
+  - Memory management (optional GC)
+  - Module loading (for dynamic imports)
 
-- **Host Integration**
-  - Native interop
-  - Platform APIs
-  - Resource management
+- **No Separate Runtime Required**
+  - Applications are self-contained native executables
+  - Core library is statically linked during compilation
+  - Zero runtime dependencies for basic applications
 
 ## 3. Distribution Model
 

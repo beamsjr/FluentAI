@@ -7,7 +7,7 @@ use thiserror::Error;
 pub enum Error {
     /// Runtime error
     #[error("Runtime error: {0}")]
-    Runtime(#[from] fluentai_runtime::RuntimeError),
+    Runtime(#[from] fluentai_core_lib::RuntimeError),
     
     /// Type conversion error
     #[error("Type conversion error: {0}")]
