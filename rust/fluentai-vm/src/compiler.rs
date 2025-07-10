@@ -690,7 +690,7 @@ impl Compiler {
         let scope_idx = self.locals.len() - 1;
 
         // Compile bindings
-        for (_i, (name, value)) in bindings.iter().enumerate() {
+        for (i, (name, value)) in bindings.iter().enumerate() {
             let before_depth = self.stack_depth;
             self.compile_node(graph, *value)?;
 
@@ -701,11 +701,9 @@ impl Compiler {
                 // like handlers that manipulate the stack in complex ways
             }
 
-            // Store the absolute position where this variable is stored
-            // We'll convert to frame-relative when loading
-            let abs_pos = self.stack_depth.saturating_sub(1);
-
-            self.locals[scope_idx].insert(name.clone(), abs_pos);
+            // Store relative position within this scope
+            // The i-th binding is at position i relative to the scope base
+            self.locals[scope_idx].insert(name.clone(), i);
         }
 
         // Compile body (preserving tail position - let body is in tail position)
@@ -770,12 +768,12 @@ impl Compiler {
 
         // Step 1: Create cells for all bindings
         let binding_names: Vec<String> = bindings.iter().map(|(name, _)| name.clone()).collect();
-        for name in &binding_names {
+        for (i, name) in binding_names.iter().enumerate() {
             self.emit(Instruction::new(Opcode::PushNil));
             self.emit(Instruction::new(Opcode::MakeCell));
             // Cell is now on stack
-            let pos = self.stack_depth - 1;
-            self.locals[scope_idx].insert(name.clone(), pos);
+            // Store relative position - the i-th binding is at position i
+            self.locals[scope_idx].insert(name.clone(), i);
             self.cell_vars[scope_idx].insert(name.clone());
         }
 
@@ -1396,9 +1394,8 @@ impl Compiler {
                     self.push_scope();
                     
                     // The error value is already on the stack
-                    // Record its position in locals (like let binding does)
-                    let abs_pos = self.stack_depth.saturating_sub(1);
-                    self.locals.last_mut().unwrap().insert(var_name.clone(), abs_pos);
+                    // Store relative position (0) since it's the first variable in this scope
+                    self.locals.last_mut().unwrap().insert(var_name.clone(), 0);
                     
                     // Compile the handler
                     self.compile_node(graph, *handler)?;
