@@ -421,6 +421,13 @@ impl VM {
         result
     }
 
+    /// Run until the VM completes and return the final value
+    pub fn run_until_complete(&mut self) -> VMResult<Value> {
+        // This is similar to run() but doesn't set up the initial call frame
+        // as it's expected to be already set up by the caller
+        self.run_inner()
+    }
+    
     fn run_inner(&mut self) -> VMResult<Value> {
         loop {
             let frame = self
@@ -1680,19 +1687,112 @@ impl VM {
             }
 
             Await => {
-                // Pop promise
-                let promise_id = match self.pop()? {
-                    Value::Promise(id) => PromiseId(id),
-                    v => {
-                        return Err(VMError::TypeError {
-                            operation: "await".to_string(),
-                            expected: "promise".to_string(),
-                            got: value_type_name(&v).to_string(),
-                            location: None,
-                            stack_trace: None,
-                        })
+                // Pop the value to await
+                let value = self.pop()?;
+                
+                match value {
+                    // Handle Future - execute it and return the result
+                    Value::Future { chunk_id, env } => {
+                        
+                        // Execute the future by spawning it and waiting for result
+                        let promise_id = self.id_generator.next_promise_id();
+                        let (sender, receiver) = oneshot::channel();
+                        
+                        
+                        // Store the promise receiver
+                        self.promises.insert(promise_id, receiver);
+                        
+                        // Create a new VM instance for the future execution
+                        let mut new_vm = VM::new(self.bytecode.clone());
+                        new_vm.set_effect_context(self.effect_context.clone());
+                        new_vm.set_effect_runtime(self.effect_runtime.clone());
+                        new_vm.resource_limits = self.resource_limits.clone();
+                        new_vm.debug_config = self.debug_config.clone();
+                        new_vm.security_manager = self.security_manager.clone();
+                        new_vm.gc = self.gc.clone();
+                        new_vm.usage_tracker = self.usage_tracker.clone();
+                        
+                        // Copy global state to new VM
+                        new_vm.globals = self.globals.clone();
+                        
+                        // Create the function value from future
+                        let function = Value::Function { chunk_id, env };
+                        
+                        // Spawn the task using the effect runtime
+                        self.effect_runtime.spawn(async move {
+                            let result = {
+                                // Push function onto stack
+                                if let Err(e) = new_vm.push(function) {
+                                    let _ = sender.send(Err(e));
+                                    return;
+                                }
+                                
+                                // Call the function with 0 arguments
+                                // call_value runs the function to completion
+                                if let Err(e) = new_vm.call_value(0) {
+                                    let _ = sender.send(Err(e));
+                                    return;
+                                }
+                                
+                                
+                                // call_value already ran the function, now get the result
+                                if new_vm.stack.is_empty() {
+                                    Err(VMError::StackUnderflow {
+                                        operation: "get_future_result".to_string(),
+                                        stack_size: 0,
+                                        stack_trace: None,
+                                    })
+                                } else {
+                                    Ok(new_vm.pop().unwrap())
+                                }
+                            };
+                            
+                            // Send the result
+                            let _ = sender.send(result);
+                        });
+                        
+                        // Use a blocking channel to wait for the result
+                        let (tx, rx) = std::sync::mpsc::channel();
+                        
+                        // Get the receiver from promises
+                        if let Some(promise_rx) = self.promises.remove(&promise_id) {
+                            // Spawn a task to wait for the promise and send result via channel
+                            self.effect_runtime.spawn(async move {
+                                match promise_rx.await {
+                                    Ok(result) => {
+                                        let _ = tx.send(result);
+                                    }
+                                    Err(_) => {
+                                        let _ = tx.send(Err(VMError::AsyncError {
+                                            message: "Promise channel closed".to_string(),
+                                            stack_trace: None,
+                                        }));
+                                    }
+                                }
+                            });
+                            
+                            // Block waiting for the result
+                            match rx.recv() {
+                                Ok(Ok(value)) => self.push(value)?,
+                                Ok(Err(e)) => return Err(e),
+                                Err(_) => {
+                                    return Err(VMError::AsyncError {
+                                        message: "Failed to receive future result".to_string(),
+                                        stack_trace: None,
+                                    });
+                                }
+                            }
+                        } else {
+                            return Err(VMError::AsyncError {
+                                message: "Future promise not found".to_string(),
+                                stack_trace: None,
+                            });
+                        }
                     }
-                };
+                    
+                    // Handle Promise - existing implementation
+                    Value::Promise(id) => {
+                        let promise_id = PromiseId(id);
 
                 // Check if we have this promise
                 if let Some(mut rx) = self.promises.remove(&promise_id) {
@@ -1744,6 +1844,19 @@ impl VM {
                     });
                 }
             }
+            
+            // Handle invalid types for await
+            v => {
+                return Err(VMError::TypeError {
+                    operation: "await".to_string(),
+                    expected: "future or promise".to_string(),
+                    got: value_type_name(&v).to_string(),
+                    location: None,
+                    stack_trace: None,
+                })
+            }
+        }
+    }
 
             Spawn => {
                 // Pop function value
@@ -2129,6 +2242,26 @@ impl VM {
                 let env = Vec::new();
                 let func = Value::Function { chunk_id, env };
                 self.push(func)?;
+            }
+            
+            MakeFuture => {
+                // Pop the function and convert it to a future
+                let func = self.pop()?;
+                match func {
+                    Value::Function { chunk_id, env } => {
+                        let future = Value::Future { chunk_id, env };
+                        self.push(future)?;
+                    }
+                    v => {
+                        return Err(VMError::TypeError {
+                            operation: "make_future".to_string(),
+                            expected: "function".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        })
+                    }
+                }
             }
 
             MakeClosure => {
@@ -3319,6 +3452,7 @@ impl VM {
             Value::GcHandle(_) => true,
             Value::Actor(_) => true,
             Value::Error { .. } => false, // Errors are falsy
+            Value::Future { .. } => true,
         }
     }
 
@@ -3669,6 +3803,7 @@ impl VM {
             }
             Value::GcHandle(_) => fluentai_core::value::Value::String("<gc-handle>".to_string()),
             Value::Actor(id) => fluentai_core::value::Value::String(format!("<actor:{}>", id)),
+            Value::Future { .. } => fluentai_core::value::Value::String("<future>".to_string()),
             Value::Error { kind, message, .. } => {
                 fluentai_core::value::Value::String(format!("<error:{}:{}>", kind, message))
             }
@@ -3746,6 +3881,10 @@ impl VM {
                 kind: kind.clone(),
                 message: message.clone(),
                 stack_trace: stack_trace.clone(),
+            },
+            fluentai_core::value::Value::Future { chunk_id, env } => Value::Future {
+                chunk_id: *chunk_id,
+                env: env.iter().map(|v| self.core_value_to_vm_value(v)).collect(),
             },
         }
     }

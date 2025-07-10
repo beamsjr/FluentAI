@@ -258,6 +258,7 @@ fn format_value(value: &Value) -> String {
         }
         Value::Function { .. } => "<function>".to_string(),
         Value::Promise(id) => format!("<promise:{}>", id),
+        Value::Future { .. } => "<future>".to_string(),
         Value::Channel(id) => format!("<channel:{}>", id),
         Value::Cell(idx) => format!("<cell:{}>", idx),
         Value::Tagged { tag, values } => {

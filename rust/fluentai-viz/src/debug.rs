@@ -151,6 +151,7 @@ pub fn serialize_value(value: &Value) -> String {
             format!("{{{}{}}}", items.join(", "), suffix)
         }
         Value::Promise(id) => format!("<promise:{}>", id),
+        Value::Future { .. } => "<future>".to_string(),
         Value::Channel(id) => format!("<channel:{}>", id),
         Value::GcHandle(_) => "<gc-handle>".to_string(),
         Value::Symbol(s) => format!(":{}", s),
