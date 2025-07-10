@@ -20,7 +20,7 @@ async fn compile_and_run_async(graph: &Graph) -> Result<Value> {
     let bytecode = compiler.compile(graph)?;
 
     let mut vm = VM::new(bytecode);
-    let result = vm.run().await?;
+    let result = vm.run()?;
     Ok(result)
 }
 
@@ -251,7 +251,7 @@ async fn test_async_with_channel_operations() -> Result<()> {
 
     // Create (let ((ch (channel))) 
     //          (async (begin (send ch 42) (receive ch))))
-    let channel_node = graph.add_node(Node::Channel).expect("Failed to add node");
+    let channel_node = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
 
     let ch_var1 = graph
         .add_node(Node::Variable {

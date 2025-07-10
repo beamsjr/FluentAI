@@ -153,3 +153,23 @@ fn test_finally_with_multiple_catch_branches() {
     // Should match second catch branch and return 2
     assert_eq!(result, Value::Integer(2));
 }
+
+#[test]
+fn test_deeply_nested_finally_blocks() {
+    // Test that nested finally blocks don't corrupt the stack
+    let code = r#"
+        (try
+            (try
+                (try
+                    (try
+                        999
+                        (finally 1))
+                    (finally 2))
+                (finally 3))
+            (finally 4))
+    "#;
+    
+    let result = run_test(code).unwrap();
+    // Should return the original value 999
+    assert_eq!(result, Value::Integer(999));
+}

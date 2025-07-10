@@ -18,6 +18,7 @@ use std::time::Instant;
 use tokio::sync::{mpsc, oneshot};
 
 const STACK_SIZE: usize = 10_000;
+const MAX_PRESERVED_LOCALS: usize = 1000;
 const FINALLY_NORMAL_MARKER: &str = "__finally_normal__";
 const FINALLY_EXCEPTION_MARKER: &str = "__finally_exception__";
 
@@ -149,6 +150,8 @@ pub struct VM {
     handler_stack: Vec<HandlerFrame>,
     // Error handler stack for try-catch-finally
     error_handler_stack: Vec<ErrorHandler>,
+    // Finally block state storage
+    finally_states: Vec<FinallyState>,
 }
 
 /// Handler frame for tracking active effect handlers
@@ -173,6 +176,17 @@ struct ErrorHandler {
     stack_depth: usize,
     /// Call frame index
     call_frame: usize,
+    /// Number of local variables at the handler's scope
+    locals_count: usize,
+}
+
+/// State saved during finally block execution
+#[derive(Clone)]
+struct FinallyState {
+    /// The value to restore after finally (result or error)
+    value: Value,
+    /// Marker indicating normal or exception path
+    marker: Value,
 }
 
 impl VM {
@@ -206,6 +220,7 @@ impl VM {
             usage_tracker: None,
             handler_stack: Vec::new(),
             error_handler_stack: Vec::new(),
+            finally_states: Vec::new(),
         }
     }
 
@@ -225,6 +240,7 @@ impl VM {
         self.instruction_count = 0;
         self.handler_stack.clear();
         self.error_handler_stack.clear();
+        self.finally_states.clear();
 
         // Keep these expensive initializations:
         // - self.stdlib (258 functions)
@@ -3115,46 +3131,49 @@ impl VM {
                 let marker = self.pop()?;
                 let value = self.pop()?;
                 
-                // Save them by pushing to a temporary location at bottom of stack
-                // We'll retrieve them in EndFinally
-                // Using a hack: insert at position 0 and 1
-                self.stack.insert(0, value);
-                self.stack.insert(1, marker);
+                // Check for resource limits to prevent unbounded growth
+                const MAX_FINALLY_DEPTH: usize = 1000;
+                if self.finally_states.len() >= MAX_FINALLY_DEPTH {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Finally block nesting limit exceeded: {}", MAX_FINALLY_DEPTH),
+                        stack_trace: None,
+                    });
+                }
                 
-                // Continue with finally block execution
+                // Save state to dedicated storage
+                self.finally_states.push(FinallyState { value, marker });
+                
+                // Continue with finally block execution with clean stack
             }
             
             EndFinally => {
                 // End of finally block
                 // Retrieve saved values and handle appropriately
                 
-                if self.stack.len() < 2 {
-                    return Err(VMError::RuntimeError {
-                        message: "EndFinally: saved values not found".to_string(),
+                // Pop saved state from dedicated storage
+                let state = self.finally_states.pop()
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "EndFinally: no saved finally state".to_string(),
                         stack_trace: None,
-                    });
-                }
+                    })?;
                 
-                // Remove saved values from bottom of stack
-                let value = self.stack.remove(0);
-                let marker = self.stack.remove(0); // Now at index 0 after first remove
-                
-                match marker {
+                match state.marker {
                     Value::Symbol(s) if s == FINALLY_NORMAL_MARKER => {
                         // Normal path - push value back and continue
-                        self.push(value)?;
+                        self.push(state.value)?;
                     }
                     Value::Symbol(s) if s == FINALLY_EXCEPTION_MARKER => {
                         // Exception path - re-throw the error
                         // Look for the next error handler (catch block)
                         if let Some(handler) = self.error_handler_stack.pop() {
-                            // Unwind stack to handler's depth
-                            while self.stack.len() > handler.stack_depth {
+                            // Unwind stack to handler's depth with bounds checking
+                            let target_depth = handler.stack_depth.min(self.stack.len());
+                            while self.stack.len() > target_depth {
                                 self.stack.pop();
                             }
                             
                             // Push error value for catch handler
-                            self.push(value)?;
+                            self.push(state.value)?;
                             
                             // Jump to catch handler
                             if let Some(frame) = self.call_stack.last_mut() {
@@ -3166,14 +3185,14 @@ impl VM {
                         } else {
                             // No handler found, convert to runtime error
                             return Err(VMError::RuntimeError {
-                                message: format!("Uncaught error: {:?}", value),
+                                message: format!("Uncaught error: {:?}", state.value),
                                 stack_trace: Some(self.build_stack_trace()),
                             });
                         }
                     }
                     _ => {
                         return Err(VMError::RuntimeError {
-                            message: format!("Invalid finally marker: {:?}", marker),
+                            message: format!("Invalid finally marker: {:?}", state.marker),
                             stack_trace: None,
                         });
                     }
@@ -3188,8 +3207,9 @@ impl VM {
                 if let Some(handler) = self.error_handler_stack.pop() {
                     // Check if there's a finally block to execute first
                     if let Some(finally_ip) = handler.finally_ip {
-                        // Unwind stack to handler's depth
-                        while self.stack.len() > handler.stack_depth {
+                        // Unwind stack to handler's depth with bounds checking
+                        let target_depth = handler.stack_depth.min(self.stack.len());
+                        while self.stack.len() > target_depth {
                             self.stack.pop();
                         }
                         
@@ -3223,9 +3243,55 @@ impl VM {
                         return Ok(VMState::Continue);
                     } else {
                         // No finally block, execute catch directly
+                        // Calculate the base of local variables
+                        let current_frame = self.call_stack.get(handler.call_frame)
+                            .ok_or_else(|| VMError::RuntimeError {
+                                message: "Invalid call frame in error handler".to_string(),
+                                stack_trace: None,
+                            })?;
+                        let locals_base = current_frame.stack_base;
+                        
+                        // Check resource limits to prevent DoS attacks
+                        if handler.locals_count > MAX_PRESERVED_LOCALS {
+                            return Err(VMError::RuntimeError {
+                                message: format!("Too many locals to preserve: {} (max: {})", 
+                                               handler.locals_count, MAX_PRESERVED_LOCALS),
+                                stack_trace: None,
+                            });
+                        }
+                        
+                        // Preserve local variables while unwinding with proper bounds checking
+                        let mut preserved_locals = Vec::new();
+                        if handler.locals_count > 0 {
+                            // Validate locals_base before any stack access
+                            if locals_base < self.stack.len() {
+                                let locals_end = locals_base + handler.locals_count;
+                                if locals_end <= self.stack.len() {
+                                    // Safe to preserve locals
+                                    preserved_locals = self.stack[locals_base..locals_end].to_vec();
+                                }
+                            }
+                        }
+                        
                         // Unwind stack to handler's depth
-                        while self.stack.len() > handler.stack_depth {
-                            self.stack.pop();
+                        let target_depth = handler.stack_depth.min(self.stack.len());
+                        self.stack.truncate(target_depth);
+                        
+                        // Restore preserved locals if we have any
+                        if !preserved_locals.is_empty() && locals_base < self.stack.len() {
+                            // Ensure we have enough space on the stack
+                            let needed_space = locals_base + preserved_locals.len();
+                            if needed_space > self.stack.len() {
+                                // Expand stack to accommodate locals
+                                self.stack.resize(needed_space, Value::Nil);
+                            }
+                            
+                            // Restore locals safely
+                            for (i, local) in preserved_locals.into_iter().enumerate() {
+                                if locals_base + i < self.stack.len() {
+                                    self.stack[locals_base + i] = local;
+                                }
+                            }
                         }
                         
                         // Push error value for catch handler
@@ -3267,7 +3333,29 @@ impl VM {
                     });
                 }
                 
-                // Check resource limit
+                // Calculate number of locals at this scope
+                // Locals are values on the stack from the frame base to current stack top
+                let locals_count = if current_frame.stack_base <= self.stack.len() {
+                    self.stack.len() - current_frame.stack_base
+                } else {
+                    // Invalid stack base - this shouldn't happen but handle it gracefully
+                    return Err(VMError::RuntimeError {
+                        message: format!("Invalid stack base: {} (stack size: {})", 
+                                       current_frame.stack_base, self.stack.len()),
+                        stack_trace: None,
+                    });
+                };
+                
+                // Check resource limits during handler creation
+                if locals_count > MAX_PRESERVED_LOCALS {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Too many locals for error handler: {} (max: {})", 
+                                       locals_count, MAX_PRESERVED_LOCALS),
+                        stack_trace: None,
+                    });
+                }
+                
+                // Check error handler stack limit
                 if self.error_handler_stack.len() >= self.resource_limits.max_error_handlers {
                     return Err(VMError::ResourceLimitExceeded {
                         resource: "error handlers".to_string(),
@@ -3282,6 +3370,7 @@ impl VM {
                     finally_ip: None, // Will be set by PushFinally if present
                     stack_depth: self.stack.len(),
                     call_frame: self.call_stack.len() - 1,
+                    locals_count,
                 });
             }
             
