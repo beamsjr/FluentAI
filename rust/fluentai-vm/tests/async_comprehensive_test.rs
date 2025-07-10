@@ -249,26 +249,46 @@ fn test_select_channels() {
 }
 
 #[test]
-#[ignore = "Complex channel/error interaction"]
+#[ignore = "Issue with catch parameter and local variable indexing - see issue #42"]
 fn test_channel_in_error_handler() {
     // Test using channels in error handlers
     let result = compile_and_run(
         r#"
         (let ((ch (chan))
               (err-ch (chan)))
-          (try
-            (begin
-              (send! ch "before")
-              (throw "oops"))
-            (catch (e) 
+          (begin
+            (try
               (begin
-                (send! err-ch e)
-                (recv! ch))))
-          (recv! err-ch))
+                (send! ch "before")
+                (throw "oops"))
+              (catch (e) 
+                (begin
+                  (send! err-ch e)
+                  (recv! ch))))
+            (recv! err-ch)))
         "#
     ).unwrap();
     
     assert_eq!(result, Value::String("oops".to_string()));
+}
+
+#[test]
+fn test_channel_in_error_handler_workaround() {
+    // Workaround: don't use catch parameter with local variables
+    let result = compile_and_run(
+        r#"
+        (let ((ch (chan))
+              (err-ch (chan)))
+          (begin
+            (send! ch "before")
+            (try
+              (throw "oops")
+              (catch (_) 
+                (recv! ch)))))
+        "#
+    ).unwrap();
+    
+    assert_eq!(result, Value::String("before".to_string()));
 }
 
 #[test]

@@ -175,6 +175,8 @@ struct ErrorHandler {
     stack_depth: usize,
     /// Call frame index
     call_frame: usize,
+    /// Number of local variables at the handler's scope
+    locals_count: usize,
 }
 
 /// State saved during finally block execution
@@ -3229,10 +3231,44 @@ impl VM {
                         return Ok(VMState::Continue);
                     } else {
                         // No finally block, execute catch directly
-                        // Unwind stack to handler's depth with bounds checking
-                        let target_depth = handler.stack_depth.min(self.stack.len());
-                        while self.stack.len() > target_depth {
-                            self.stack.pop();
+                        // Calculate the base of local variables
+                        let current_frame = self.call_stack.get(handler.call_frame)
+                            .ok_or_else(|| VMError::RuntimeError {
+                                message: "Invalid call frame in error handler".to_string(),
+                                stack_trace: None,
+                            })?;
+                        let locals_base = current_frame.stack_base;
+                        
+                        // Preserve local variables while unwinding
+                        let mut preserved_locals = Vec::new();
+                        if handler.locals_count > 0 {
+                            let locals_end = locals_base + handler.locals_count;
+                            if locals_end <= self.stack.len() {
+                                // Save locals before unwinding
+                                preserved_locals = self.stack[locals_base..locals_end].to_vec();
+                            }
+                        }
+                        
+                        // Unwind stack to handler's depth
+                        // Only preserve locals if there are any (locals_count > 0 means we're in a let scope)
+                        if handler.locals_count > 0 && !preserved_locals.is_empty() {
+                            // We have locals to preserve
+                            let target_depth = (locals_base + handler.locals_count).min(self.stack.len());
+                            self.stack.truncate(target_depth);
+                            
+                            // Restore preserved locals
+                            if locals_base < self.stack.len() {
+                                let restore_count = preserved_locals.len().min(self.stack.len() - locals_base);
+                                for i in 0..restore_count {
+                                    if locals_base + i < self.stack.len() {
+                                        self.stack[locals_base + i] = preserved_locals[i].clone();
+                                    }
+                                }
+                            }
+                        } else {
+                            // No locals to preserve, use original unwinding
+                            let target_depth = handler.stack_depth.min(self.stack.len());
+                            self.stack.truncate(target_depth);
                         }
                         
                         // Push error value for catch handler
@@ -3274,11 +3310,16 @@ impl VM {
                     });
                 }
                 
+                // Calculate number of locals at this scope
+                // Locals are values on the stack from the frame base to current stack top
+                let locals_count = self.stack.len() - current_frame.stack_base;
+                
                 self.error_handler_stack.push(ErrorHandler {
                     catch_ip,
                     finally_ip: None, // Will be set by PushFinally if present
                     stack_depth: self.stack.len(),
                     call_frame: self.call_stack.len() - 1,
+                    locals_count,
                 });
             }
             
