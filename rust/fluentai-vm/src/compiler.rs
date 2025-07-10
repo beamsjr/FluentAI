@@ -2725,4 +2725,145 @@ mod tests {
             "Handler bytecode should not contain LoadLocal2"
         );
     }
+
+    #[test]
+    fn test_push_catch_scope_basic() {
+        // Test basic functionality of push_catch_scope
+        let mut compiler = Compiler::new();
+        
+        // Initial state
+        assert_eq!(compiler.locals.len(), 1);
+        assert_eq!(compiler.captured.len(), 1);
+        assert_eq!(compiler.cell_vars.len(), 1);
+        assert_eq!(compiler.scope_bases.len(), 1);
+        assert_eq!(compiler.scope_bases[0], 0);
+        
+        // Push a catch scope with handler depth 5
+        compiler.push_catch_scope(5);
+        
+        // Verify new scope was created
+        assert_eq!(compiler.locals.len(), 2);
+        assert_eq!(compiler.captured.len(), 2);
+        assert_eq!(compiler.cell_vars.len(), 2);
+        assert_eq!(compiler.scope_bases.len(), 2);
+        
+        // Verify scope base was set to handler depth
+        assert_eq!(compiler.scope_bases[1], 5);
+        
+        // Verify new scope has empty collections
+        assert!(compiler.locals[1].is_empty());
+        assert!(compiler.captured[1].is_empty());
+        assert!(compiler.cell_vars[1].is_empty());
+    }
+
+    #[test]
+    fn test_push_catch_scope_zero_depth() {
+        // Test edge case with handler_depth = 0
+        let mut compiler = Compiler::new();
+        
+        // Push a catch scope with handler depth 0
+        compiler.push_catch_scope(0);
+        
+        // Verify scope base is 0
+        assert_eq!(compiler.scope_bases.len(), 2);
+        assert_eq!(compiler.scope_bases[1], 0);
+        
+        // Should still work correctly
+        compiler.locals[1].insert("error".to_string(), 0);
+        assert_eq!(compiler.locals[1].get("error"), Some(&0));
+    }
+
+    #[test]
+    fn test_push_catch_scope_nested() {
+        // Test multiple nested catch scopes
+        let mut compiler = Compiler::new();
+        
+        // Push first catch scope
+        compiler.push_catch_scope(3);
+        assert_eq!(compiler.scope_bases.len(), 2);
+        assert_eq!(compiler.scope_bases[1], 3);
+        
+        // Push second catch scope
+        compiler.push_catch_scope(7);
+        assert_eq!(compiler.scope_bases.len(), 3);
+        assert_eq!(compiler.scope_bases[2], 7);
+        
+        // Push third catch scope
+        compiler.push_catch_scope(10);
+        assert_eq!(compiler.scope_bases.len(), 4);
+        assert_eq!(compiler.scope_bases[3], 10);
+        
+        // Verify all scope bases are preserved
+        assert_eq!(compiler.scope_bases[0], 0);
+        assert_eq!(compiler.scope_bases[1], 3);
+        assert_eq!(compiler.scope_bases[2], 7);
+        assert_eq!(compiler.scope_bases[3], 10);
+    }
+
+    #[test]
+    fn test_push_catch_scope_with_pop() {
+        // Test interaction between push_catch_scope and pop_scope
+        let mut compiler = Compiler::new();
+        
+        // Push a regular scope first
+        compiler.push_scope();
+        compiler.locals[1].insert("x".to_string(), 0);
+        assert_eq!(compiler.scope_bases.len(), 2);
+        
+        // Push a catch scope
+        compiler.push_catch_scope(5);
+        compiler.locals[2].insert("e".to_string(), 0);
+        assert_eq!(compiler.scope_bases.len(), 3);
+        assert_eq!(compiler.scope_bases[2], 5);
+        
+        // Pop the catch scope
+        compiler.pop_scope();
+        assert_eq!(compiler.scope_bases.len(), 2);
+        assert_eq!(compiler.locals.len(), 2);
+        
+        // Verify the regular scope is still intact
+        assert_eq!(compiler.locals[1].get("x"), Some(&0));
+        
+        // Pop the regular scope
+        compiler.pop_scope();
+        assert_eq!(compiler.scope_bases.len(), 1);
+        assert_eq!(compiler.locals.len(), 1);
+    }
+
+    #[test]
+    fn test_catch_scope_variable_resolution() {
+        // Test variable resolution within catch scopes
+        let mut compiler = Compiler::new();
+        
+        // Set up initial stack depth
+        compiler.stack_depth = 2;
+        compiler.scope_bases[0] = 0;
+        
+        // Add some variables to outer scope
+        compiler.locals[0].insert("outer".to_string(), 0);
+        compiler.locals[0].insert("x".to_string(), 1);
+        
+        // Push a catch scope at handler depth 3
+        compiler.push_catch_scope(3);
+        
+        // Add catch parameter at relative position 0
+        compiler.locals[1].insert("e".to_string(), 0);
+        
+        // Add another local in catch scope
+        compiler.locals[1].insert("inner".to_string(), 1);
+        
+        // Test variable resolution
+        // The catch parameter 'e' should resolve to position 0 relative to scope base 3
+        assert_eq!(compiler.locals[1].get("e"), Some(&0));
+        
+        // The inner variable should be at position 1 relative to scope base 3
+        assert_eq!(compiler.locals[1].get("inner"), Some(&1));
+        
+        // When compiling LoadLocal for these, they would use:
+        // - "e": scope_base(3) + relative(0) = absolute position 3
+        // - "inner": scope_base(3) + relative(1) = absolute position 4
+        
+        // Verify scope base is correct
+        assert_eq!(compiler.scope_bases[1], 3);
+    }
 }
