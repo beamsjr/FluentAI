@@ -3128,6 +3128,15 @@ impl VM {
                 let marker = self.pop()?;
                 let value = self.pop()?;
                 
+                // Check for resource limits to prevent unbounded growth
+                const MAX_FINALLY_DEPTH: usize = 1000;
+                if self.finally_states.len() >= MAX_FINALLY_DEPTH {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Finally block nesting limit exceeded: {}", MAX_FINALLY_DEPTH),
+                        stack_trace: None,
+                    });
+                }
+                
                 // Save state to dedicated storage
                 self.finally_states.push(FinallyState { value, marker });
                 
@@ -3154,8 +3163,9 @@ impl VM {
                         // Exception path - re-throw the error
                         // Look for the next error handler (catch block)
                         if let Some(handler) = self.error_handler_stack.pop() {
-                            // Unwind stack to handler's depth
-                            while self.stack.len() > handler.stack_depth {
+                            // Unwind stack to handler's depth with bounds checking
+                            let target_depth = handler.stack_depth.min(self.stack.len());
+                            while self.stack.len() > target_depth {
                                 self.stack.pop();
                             }
                             
@@ -3194,8 +3204,9 @@ impl VM {
                 if let Some(handler) = self.error_handler_stack.pop() {
                     // Check if there's a finally block to execute first
                     if let Some(finally_ip) = handler.finally_ip {
-                        // Unwind stack to handler's depth
-                        while self.stack.len() > handler.stack_depth {
+                        // Unwind stack to handler's depth with bounds checking
+                        let target_depth = handler.stack_depth.min(self.stack.len());
+                        while self.stack.len() > target_depth {
                             self.stack.pop();
                         }
                         
@@ -3218,8 +3229,9 @@ impl VM {
                         return Ok(VMState::Continue);
                     } else {
                         // No finally block, execute catch directly
-                        // Unwind stack to handler's depth
-                        while self.stack.len() > handler.stack_depth {
+                        // Unwind stack to handler's depth with bounds checking
+                        let target_depth = handler.stack_depth.min(self.stack.len());
+                        while self.stack.len() > target_depth {
                             self.stack.pop();
                         }
                         
