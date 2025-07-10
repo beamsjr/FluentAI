@@ -166,6 +166,7 @@ pub struct ResourceLimits {
     pub max_channels: usize,
     pub max_memory_bytes: usize,
     pub channel_buffer_size: usize,
+    pub max_error_handlers: usize,
 }
 
 impl Default for ResourceLimits {
@@ -178,6 +179,7 @@ impl Default for ResourceLimits {
             max_channels: 1_000,
             max_memory_bytes: 100 * 1024 * 1024, // 100MB
             channel_buffer_size: 1024,
+            max_error_handlers: 1_000,
         }
     }
 }
@@ -193,6 +195,7 @@ impl ResourceLimits {
             max_channels: 10,
             max_memory_bytes: 10 * 1024 * 1024, // 10MB
             channel_buffer_size: 100,
+            max_error_handlers: 100,
         }
     }
 
@@ -206,6 +209,7 @@ impl ResourceLimits {
             max_channels: 5,
             max_memory_bytes: 1024 * 1024, // 1MB
             channel_buffer_size: 10,
+            max_error_handlers: 20,
         }
     }
 }
