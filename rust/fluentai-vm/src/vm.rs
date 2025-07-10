@@ -18,6 +18,8 @@ use std::time::Instant;
 use tokio::sync::{mpsc, oneshot};
 
 const STACK_SIZE: usize = 10_000;
+const FINALLY_NORMAL_MARKER: &str = "__finally_normal__";
+const FINALLY_EXCEPTION_MARKER: &str = "__finally_exception__";
 
 /// Actor state and message handling
 pub struct Actor {
@@ -3138,11 +3140,11 @@ impl VM {
                 let marker = self.stack.remove(0); // Now at index 0 after first remove
                 
                 match marker {
-                    Value::Symbol(s) if s == "__finally_normal__" => {
+                    Value::Symbol(s) if s == FINALLY_NORMAL_MARKER => {
                         // Normal path - push value back and continue
                         self.push(value)?;
                     }
-                    Value::Symbol(s) if s == "__finally_exception__" => {
+                    Value::Symbol(s) if s == FINALLY_EXCEPTION_MARKER => {
                         // Exception path - re-throw the error
                         // Look for the next error handler (catch block)
                         if let Some(handler) = self.error_handler_stack.pop() {
@@ -3195,7 +3197,7 @@ impl VM {
                         self.push(error.clone())?;
                         
                         // Push a special marker to indicate we're in exception finally path
-                        self.push(Value::Symbol("__finally_exception__".to_string()))?;
+                        self.push(Value::Symbol(FINALLY_EXCEPTION_MARKER.to_string()))?;
                         
                         // Jump to finally block
                         if let Some(frame) = self.call_stack.last_mut() {
@@ -3238,11 +3240,21 @@ impl VM {
             PushHandler => {
                 // Push error handler onto stack
                 let catch_ip = instruction.arg as usize;
-                let _current_frame = self.call_stack.last()
+                let current_frame = self.call_stack.last()
                     .ok_or_else(|| VMError::RuntimeError {
                         message: "No active call frame for error handler".to_string(),
                         stack_trace: None,
                     })?;
+                
+                // Validate that catch_ip is within bounds
+                let chunk = &self.bytecode.chunks[current_frame.chunk_id];
+                if catch_ip >= chunk.instructions.len() {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Invalid catch target: {} (max: {})", 
+                                       catch_ip, chunk.instructions.len() - 1),
+                        stack_trace: None,
+                    });
+                }
                 
                 self.error_handler_stack.push(ErrorHandler {
                     catch_ip,
@@ -3255,6 +3267,18 @@ impl VM {
             PushFinally => {
                 // Set finally IP on the most recent error handler
                 let finally_ip = instruction.arg as usize;
+                
+                // Validate that finally_ip is within bounds
+                let current_frame = self.get_current_frame()?;
+                let chunk = &self.bytecode.chunks[current_frame.chunk_id];
+                if finally_ip >= chunk.instructions.len() {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Invalid finally target: {} (max: {})", 
+                                       finally_ip, chunk.instructions.len() - 1),
+                        stack_trace: None,
+                    });
+                }
+                
                 if let Some(handler) = self.error_handler_stack.last_mut() {
                     handler.finally_ip = Some(finally_ip);
                 } else {
@@ -3275,7 +3299,7 @@ impl VM {
                         
                         // Result is already on top of stack
                         // Push marker after it
-                        self.push(Value::Symbol("__finally_normal__".to_string()))?;
+                        self.push(Value::Symbol(FINALLY_NORMAL_MARKER.to_string()))?;
                         
                         // Jump to finally block
                         if let Some(frame) = self.call_stack.last_mut() {
