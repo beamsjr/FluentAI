@@ -123,7 +123,6 @@ fn test_two_channels_in_error_handler() {
         "#
     ).unwrap();
     
-    println!("Result: {:?}", result);
     // Should return "hardcoded" from err-ch
     assert_eq!(result, Value::String("hardcoded".to_string()));
 }
@@ -146,7 +145,6 @@ fn test_channel_after_catch() {
         "#
     ).unwrap();
     
-    println!("Catch result: {:?}", result);
     assert_eq!(result, Value::String("data".to_string()));
 }
 
@@ -160,7 +158,6 @@ fn test_recv_empty_channel() {
         "#
     ).unwrap();
     
-    println!("Empty channel recv result: {:?}", result);
     // Should return Nil for non-blocking receive
     assert_eq!(result, Value::Nil);
 }
@@ -177,6 +174,5 @@ fn test_receive_outside_try() {
         "#
     ).unwrap();
     
-    println!("Result: {:?}", result);
     assert_eq!(result, Value::String("test".to_string()));
 }

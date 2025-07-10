@@ -18,6 +18,7 @@ use std::time::Instant;
 use tokio::sync::{mpsc, oneshot};
 
 const STACK_SIZE: usize = 10_000;
+const MAX_PRESERVED_LOCALS: usize = 1000;
 const FINALLY_NORMAL_MARKER: &str = "__finally_normal__";
 const FINALLY_EXCEPTION_MARKER: &str = "__finally_exception__";
 
@@ -3239,36 +3240,47 @@ impl VM {
                             })?;
                         let locals_base = current_frame.stack_base;
                         
-                        // Preserve local variables while unwinding
+                        // Check resource limits to prevent DoS attacks
+                        if handler.locals_count > MAX_PRESERVED_LOCALS {
+                            return Err(VMError::RuntimeError {
+                                message: format!("Too many locals to preserve: {} (max: {})", 
+                                               handler.locals_count, MAX_PRESERVED_LOCALS),
+                                stack_trace: None,
+                            });
+                        }
+                        
+                        // Preserve local variables while unwinding with proper bounds checking
                         let mut preserved_locals = Vec::new();
                         if handler.locals_count > 0 {
-                            let locals_end = locals_base + handler.locals_count;
-                            if locals_end <= self.stack.len() {
-                                // Save locals before unwinding
-                                preserved_locals = self.stack[locals_base..locals_end].to_vec();
+                            // Validate locals_base before any stack access
+                            if locals_base < self.stack.len() {
+                                let locals_end = locals_base + handler.locals_count;
+                                if locals_end <= self.stack.len() {
+                                    // Safe to preserve locals
+                                    preserved_locals = self.stack[locals_base..locals_end].to_vec();
+                                }
                             }
                         }
                         
                         // Unwind stack to handler's depth
-                        // Only preserve locals if there are any (locals_count > 0 means we're in a let scope)
-                        if handler.locals_count > 0 && !preserved_locals.is_empty() {
-                            // We have locals to preserve
-                            let target_depth = (locals_base + handler.locals_count).min(self.stack.len());
-                            self.stack.truncate(target_depth);
+                        let target_depth = handler.stack_depth.min(self.stack.len());
+                        self.stack.truncate(target_depth);
+                        
+                        // Restore preserved locals if we have any
+                        if !preserved_locals.is_empty() && locals_base < self.stack.len() {
+                            // Ensure we have enough space on the stack
+                            let needed_space = locals_base + preserved_locals.len();
+                            if needed_space > self.stack.len() {
+                                // Expand stack to accommodate locals
+                                self.stack.resize(needed_space, Value::Nil);
+                            }
                             
-                            // Restore preserved locals
-                            if locals_base < self.stack.len() {
-                                let restore_count = preserved_locals.len().min(self.stack.len() - locals_base);
-                                for i in 0..restore_count {
-                                    if locals_base + i < self.stack.len() {
-                                        self.stack[locals_base + i] = preserved_locals[i].clone();
-                                    }
+                            // Restore locals safely
+                            for (i, local) in preserved_locals.into_iter().enumerate() {
+                                if locals_base + i < self.stack.len() {
+                                    self.stack[locals_base + i] = local;
                                 }
                             }
-                        } else {
-                            // No locals to preserve, use original unwinding
-                            let target_depth = handler.stack_depth.min(self.stack.len());
-                            self.stack.truncate(target_depth);
                         }
                         
                         // Push error value for catch handler
@@ -3312,7 +3324,25 @@ impl VM {
                 
                 // Calculate number of locals at this scope
                 // Locals are values on the stack from the frame base to current stack top
-                let locals_count = self.stack.len() - current_frame.stack_base;
+                let locals_count = if current_frame.stack_base <= self.stack.len() {
+                    self.stack.len() - current_frame.stack_base
+                } else {
+                    // Invalid stack base - this shouldn't happen but handle it gracefully
+                    return Err(VMError::RuntimeError {
+                        message: format!("Invalid stack base: {} (stack size: {})", 
+                                       current_frame.stack_base, self.stack.len()),
+                        stack_trace: None,
+                    });
+                };
+                
+                // Check resource limits during handler creation
+                if locals_count > MAX_PRESERVED_LOCALS {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Too many locals for error handler: {} (max: {})", 
+                                       locals_count, MAX_PRESERVED_LOCALS),
+                        stack_trace: None,
+                    });
+                }
                 
                 self.error_handler_stack.push(ErrorHandler {
                     catch_ip,
