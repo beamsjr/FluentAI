@@ -85,10 +85,17 @@ impl Compiler {
         let root_id = optimized_graph
             .root_id
             .ok_or_else(|| anyhow!("AST graph has no root node"))?;
+        
+        // Verify initial state
+        self.verify_stack_invariants();
+        
         self.compile_node(&optimized_graph, root_id)?;
 
         // Add halt instruction
         self.emit(Instruction::new(Opcode::Halt));
+        
+        // Verify final state
+        self.verify_stack_invariants();
 
         Ok(self.bytecode)
     }
@@ -105,24 +112,80 @@ impl Compiler {
         self.captured.push(HashMap::new());
         self.cell_vars.push(HashSet::new());
         self.scope_bases.push(self.stack_depth);
+        
+        // Verify scope tracking is consistent
+        debug_assert_eq!(
+            self.locals.len(),
+            self.scope_bases.len(),
+            "Scope tracking inconsistent: {} locals vs {} scope_bases",
+            self.locals.len(),
+            self.scope_bases.len()
+        );
     }
     
     /// Push a new local scope for catch handlers
     /// The handler_depth is where the error value will be placed by the VM
     fn push_catch_scope(&mut self, handler_depth: usize) {
+        // Verify handler depth is valid
+        debug_assert!(
+            handler_depth <= self.stack_depth,
+            "Invalid handler depth {}: cannot exceed current stack depth {}",
+            handler_depth,
+            self.stack_depth
+        );
+        
         self.locals.push(HashMap::new());
         self.captured.push(HashMap::new());
         self.cell_vars.push(HashSet::new());
         // The error will be at handler_depth after unwinding
         self.scope_bases.push(handler_depth);
+        
+        // Verify scope tracking is consistent
+        debug_assert_eq!(
+            self.locals.len(),
+            self.scope_bases.len(),
+            "Scope tracking inconsistent after push_catch_scope: {} locals vs {} scope_bases",
+            self.locals.len(),
+            self.scope_bases.len()
+        );
     }
     
     /// Pop the current local scope
     fn pop_scope(&mut self) {
+        // Ensure we have scopes to pop
+        debug_assert!(
+            self.locals.len() > 1,
+            "Cannot pop global scope"
+        );
+        
+        // Get the scope base before popping
+        let scope_base = self.scope_bases.last().copied().unwrap_or(0);
+        
+        // Verify stack hasn't gone below scope base
+        debug_assert!(
+            self.stack_depth >= scope_base,
+            "Stack depth {} has gone below scope base {}",
+            self.stack_depth,
+            scope_base
+        );
+        
         self.locals.pop();
         self.captured.pop();
         self.cell_vars.pop();
         self.scope_bases.pop();
+        
+        // Verify scope tracking remains consistent
+        debug_assert_eq!(
+            self.locals.len(),
+            self.scope_bases.len(),
+            "Scope tracking inconsistent after pop: {} locals vs {} scope_bases",
+            self.locals.len(),
+            self.scope_bases.len()
+        );
+        debug_assert!(
+            !self.locals.is_empty(),
+            "All scopes popped - compiler state corrupted"
+        );
     }
 
     fn compile_node(&mut self, graph: &ASTGraph, node_id: NodeId) -> Result<()> {
@@ -339,10 +402,22 @@ impl Compiler {
         // Look up in locals
         for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&rel_pos) = scope.get(name) {
+                // Debug assertions for variable resolution
+                debug_assert!(
+                    scope_idx < self.scope_bases.len(),
+                    "Scope index {} out of bounds for scope_bases", scope_idx
+                );
+                
                 // The position stored is relative to the scope base
                 // We need to calculate the absolute position
                 let abs_pos = self.scope_bases[scope_idx] + rel_pos;
                 
+                // Verify the absolute position is within current stack bounds
+                debug_assert!(
+                    abs_pos < self.stack_depth,
+                    "Variable '{}' at absolute position {} exceeds current stack depth {}",
+                    name, abs_pos, self.stack_depth
+                );
 
                 // Use fast local opcodes for indices 0-3
                 match abs_pos {
@@ -638,6 +713,16 @@ impl Compiler {
         self.stack_depth = 0; // Lambda starts with fresh stack
         self.scope_bases = vec![0];
         self.cell_vars = vec![HashSet::new()];
+        
+        // Verify lambda starts with clean state
+        debug_assert_eq!(
+            self.stack_depth, 0,
+            "Lambda should start with empty stack"
+        );
+        debug_assert_eq!(
+            self.locals.len(), 1,
+            "Lambda should start with single scope"
+        );
 
         // Add parameters to locals
         for (i, param) in params.iter().enumerate() {
@@ -661,7 +746,17 @@ impl Compiler {
         // Compile body in tail position
         let _saved_tail = self.in_tail_position;
         self.in_tail_position = true;
+        let lambda_start_depth = self.stack_depth;
         self.compile_node(graph, body)?;
+        
+        // Lambda body should produce exactly one value
+        debug_assert_eq!(
+            self.stack_depth, lambda_start_depth + 1,
+            "Lambda body should produce exactly one value: expected depth {}, got {}",
+            lambda_start_depth + 1,
+            self.stack_depth
+        );
+        
         self.in_tail_position = _saved_tail;
         self.emit(Instruction::new(Opcode::Return));
 
@@ -671,6 +766,12 @@ impl Compiler {
         self.captured = saved_captured;
         self.stack_depth = saved_stack_depth;
         self.scope_bases = saved_scope_bases;
+        
+        // Verify context is properly restored
+        debug_assert_eq!(
+            self.stack_depth, saved_stack_depth,
+            "Stack depth not restored after lambda compilation"
+        );
         self.cell_vars = saved_cell_vars;
         self.current_function = saved_function;
         self.in_tail_position = _saved_tail;
@@ -702,16 +803,18 @@ impl Compiler {
         let scope_idx = self.locals.len() - 1;
 
         // Compile bindings
+        let initial_depth = self.stack_depth;
         for (i, (name, value)) in bindings.iter().enumerate() {
             let before_depth = self.stack_depth;
             self.compile_node(graph, *value)?;
 
             // After compiling the value, it should be on top of the stack
             // We expect exactly one value to be added
-            if self.stack_depth != before_depth + 1 {
-                // Stack depth change is unexpected but may be valid for some expressions
-                // like handlers that manipulate the stack in complex ways
-            }
+            debug_assert_eq!(
+                self.stack_depth, before_depth + 1,
+                "Let binding {} should add exactly one value to stack: expected {}, got {}",
+                name, before_depth + 1, self.stack_depth
+            );
 
             // Store relative position within this scope
             // The i-th binding is at position i relative to the scope base
@@ -721,14 +824,33 @@ impl Compiler {
             // No Store instruction needed - values stay on the stack in their binding order
             // Fix for issue 26: Let bindings now properly maintain values on stack for local access
         }
+        
+        // Verify all bindings were added
+        debug_assert_eq!(
+            self.stack_depth, initial_depth + bindings.len(),
+            "Let should add {} values to stack", bindings.len()
+        );
 
         // Compile body (preserving tail position - let body is in tail position)
+        let body_start_depth = self.stack_depth;
         self.compile_node(graph, body)?;
+        
+        // Body should produce exactly one value
+        debug_assert_eq!(
+            self.stack_depth, body_start_depth + 1,
+            "Let body should produce exactly one value"
+        );
 
         // Clean up bindings while preserving the result
         if !bindings.is_empty() {
             self.emit(Instruction::with_arg(Opcode::PopN, bindings.len() as u32));
             // PopN already adjusts stack_depth in emit()
+            
+            // After PopN, we should have initial depth + 1 (the result)
+            debug_assert_eq!(
+                self.stack_depth, initial_depth + 1,
+                "After PopN, should have only result on stack"
+            );
         }
 
         // Pop scope
@@ -932,11 +1054,25 @@ impl Compiler {
     }
 
     fn emit(&mut self, instruction: Instruction) -> usize {
+        let initial_depth = self.stack_depth;
+        
         // Adjust stack depth based on instruction
         match instruction.opcode {
-            Opcode::Pop => self.stack_depth = self.stack_depth.saturating_sub(1),
+            Opcode::Pop => {
+                debug_assert!(
+                    self.stack_depth > 0,
+                    "Cannot pop from empty stack"
+                );
+                self.stack_depth = self.stack_depth.saturating_sub(1);
+            }
             Opcode::PopN => {
                 if instruction.arg > 0 {
+                    debug_assert!(
+                        self.stack_depth >= instruction.arg as usize,
+                        "Cannot pop {} values from stack with depth {}",
+                        instruction.arg,
+                        self.stack_depth
+                    );
                     self.stack_depth = self
                         .stack_depth
                         .saturating_sub(instruction.arg as usize - 1); // PopN keeps top value
@@ -957,7 +1093,14 @@ impl Compiler {
             | Opcode::And
             | Opcode::Or
             | Opcode::StrConcat
-            | Opcode::ListCons => self.stack_depth = self.stack_depth.saturating_sub(1), // Binary ops consume 2, produce 1
+            | Opcode::ListCons => {
+                debug_assert!(
+                    self.stack_depth >= 2,
+                    "Binary operation requires at least 2 values on stack, got {}",
+                    self.stack_depth
+                );
+                self.stack_depth = self.stack_depth.saturating_sub(1); // Binary ops consume 2, produce 1
+            }
             Opcode::MakeList => {
                 self.stack_depth = self
                     .stack_depth
@@ -1081,6 +1224,26 @@ impl Compiler {
             }
             _ => {} // Most instructions don't change stack depth
         }
+        
+        // Verify stack depth never goes negative (saturating_sub should prevent this, but let's be sure)
+        debug_assert!(
+            self.stack_depth <= 10000, // Reasonable upper bound
+            "Stack depth {} seems unreasonably large - possible underflow",
+            self.stack_depth
+        );
+        
+        // For instructions that should produce values, verify stack grew
+        match instruction.opcode {
+            Opcode::Push | Opcode::PushConst | Opcode::PushNil | Opcode::PushTrue | Opcode::PushFalse
+            | Opcode::PushIntSmall | Opcode::Load | Opcode::LoadGlobal | Opcode::LoadCaptured => {
+                debug_assert!(
+                    self.stack_depth > initial_depth,
+                    "Push/Load instruction should increase stack depth"
+                );
+            }
+            _ => {}
+        }
+        
         self.bytecode.chunks[self.current_chunk].add_instruction(instruction)
     }
 
@@ -1416,6 +1579,12 @@ impl Compiler {
                     
                     // Push new scope for the catch block
                     // Use push_catch_scope with the handler stack depth
+                    debug_assert!(
+                        handler_stack_depth <= self.stack_depth,
+                        "Handler stack depth {} should not exceed current stack depth {}",
+                        handler_stack_depth,
+                        self.stack_depth
+                    );
                     self.push_catch_scope(handler_stack_depth);
                     
                     // The error value is at handler_stack_depth (after unwinding + push)
@@ -1424,9 +1593,23 @@ impl Compiler {
                     
                     // Update our stack depth tracking to account for the error parameter
                     self.stack_depth = handler_stack_depth + 1;
+                    debug_assert!(
+                        self.stack_depth > 0,
+                        "Stack depth should be positive after catch parameter"
+                    );
                     
                     // Compile the handler
+                    let before_handler_depth = self.stack_depth;
                     self.compile_node(graph, *handler)?;
+                    
+                    // After handler compilation, we should have exactly one value on stack
+                    // (the handler result)
+                    debug_assert!(
+                        self.stack_depth == before_handler_depth,
+                        "Handler should consume error parameter and produce result: expected depth {}, got {}",
+                        before_handler_depth,
+                        self.stack_depth
+                    );
                     
                     // Pop the error value after the handler
                     // (the handler result remains on stack)
@@ -1438,6 +1621,10 @@ impl Compiler {
                     
                     // Reset stack depth to handler depth (the result replaced the error)
                     self.stack_depth = handler_stack_depth;
+                    debug_assert!(
+                        self.stack_depth == handler_stack_depth,
+                        "Stack depth should be restored to handler depth after catch"
+                    );
                 }
                 _ => {
                     // For other patterns, just compile the handler (not fully supported yet)
@@ -2724,5 +2911,70 @@ mod tests {
             !has_load_local2,
             "Handler bytecode should not contain LoadLocal2"
         );
+    }
+}
+
+impl Compiler {    
+    // Helper methods for debug assertions
+    #[cfg(debug_assertions)]
+    fn verify_stack_invariants(&self) {
+        // Verify stack depth is consistent with scope bases
+        if let Some(&last_scope_base) = self.scope_bases.last() {
+            debug_assert!(
+                self.stack_depth >= last_scope_base,
+                "Stack depth {} is less than last scope base {}",
+                self.stack_depth, last_scope_base
+            );
+        }
+        
+        // Verify all data structures have same depth
+        debug_assert_eq!(
+            self.locals.len(), self.captured.len(),
+            "Locals and captured lists should have same length"
+        );
+        debug_assert_eq!(
+            self.locals.len(), self.scope_bases.len(),
+            "Locals and scope_bases should have same length"
+        );
+        debug_assert_eq!(
+            self.locals.len(), self.cell_vars.len(),
+            "Locals and cell_vars should have same length"
+        );
+    }
+    
+    #[cfg(debug_assertions)]
+    fn verify_scope_consistency(&self, scope_idx: usize) {
+        debug_assert!(
+            scope_idx < self.locals.len(),
+            "Scope index {} out of bounds for locals (len {})",
+            scope_idx, self.locals.len()
+        );
+        
+        debug_assert!(
+            scope_idx < self.scope_bases.len(),
+            "Scope index {} out of bounds for scope_bases (len {})",
+            scope_idx, self.scope_bases.len()
+        );
+        
+        // Verify all variables in scope have valid relative positions
+        let scope_base = self.scope_bases[scope_idx];
+        for (name, &rel_pos) in &self.locals[scope_idx] {
+            let abs_pos = scope_base + rel_pos;
+            debug_assert!(
+                abs_pos < self.stack_depth,
+                "Variable '{}' at absolute position {} exceeds stack depth {}",
+                name, abs_pos, self.stack_depth
+            );
+        }
+    }
+    
+    #[cfg(not(debug_assertions))]
+    fn verify_stack_invariants(&self) {
+        // No-op in release builds
+    }
+    
+    #[cfg(not(debug_assertions))]
+    fn verify_scope_consistency(&self, _scope_idx: usize) {
+        // No-op in release builds
     }
 }
