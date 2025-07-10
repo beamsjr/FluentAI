@@ -149,6 +149,8 @@ pub struct VM {
     handler_stack: Vec<HandlerFrame>,
     // Error handler stack for try-catch-finally
     error_handler_stack: Vec<ErrorHandler>,
+    // Finally block state storage
+    finally_states: Vec<FinallyState>,
 }
 
 /// Handler frame for tracking active effect handlers
@@ -173,6 +175,15 @@ struct ErrorHandler {
     stack_depth: usize,
     /// Call frame index
     call_frame: usize,
+}
+
+/// State saved during finally block execution
+#[derive(Clone)]
+struct FinallyState {
+    /// The value to restore after finally (result or error)
+    value: Value,
+    /// Marker indicating normal or exception path
+    marker: Value,
 }
 
 impl VM {
@@ -206,6 +217,7 @@ impl VM {
             usage_tracker: None,
             handler_stack: Vec::new(),
             error_handler_stack: Vec::new(),
+            finally_states: Vec::new(),
         }
     }
 
@@ -225,6 +237,7 @@ impl VM {
         self.instruction_count = 0;
         self.handler_stack.clear();
         self.error_handler_stack.clear();
+        self.finally_states.clear();
 
         // Keep these expensive initializations:
         // - self.stdlib (258 functions)
@@ -3115,46 +3128,49 @@ impl VM {
                 let marker = self.pop()?;
                 let value = self.pop()?;
                 
-                // Save them by pushing to a temporary location at bottom of stack
-                // We'll retrieve them in EndFinally
-                // Using a hack: insert at position 0 and 1
-                self.stack.insert(0, value);
-                self.stack.insert(1, marker);
+                // Check for resource limits to prevent unbounded growth
+                const MAX_FINALLY_DEPTH: usize = 1000;
+                if self.finally_states.len() >= MAX_FINALLY_DEPTH {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Finally block nesting limit exceeded: {}", MAX_FINALLY_DEPTH),
+                        stack_trace: None,
+                    });
+                }
                 
-                // Continue with finally block execution
+                // Save state to dedicated storage
+                self.finally_states.push(FinallyState { value, marker });
+                
+                // Continue with finally block execution with clean stack
             }
             
             EndFinally => {
                 // End of finally block
                 // Retrieve saved values and handle appropriately
                 
-                if self.stack.len() < 2 {
-                    return Err(VMError::RuntimeError {
-                        message: "EndFinally: saved values not found".to_string(),
+                // Pop saved state from dedicated storage
+                let state = self.finally_states.pop()
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "EndFinally: no saved finally state".to_string(),
                         stack_trace: None,
-                    });
-                }
+                    })?;
                 
-                // Remove saved values from bottom of stack
-                let value = self.stack.remove(0);
-                let marker = self.stack.remove(0); // Now at index 0 after first remove
-                
-                match marker {
+                match state.marker {
                     Value::Symbol(s) if s == FINALLY_NORMAL_MARKER => {
                         // Normal path - push value back and continue
-                        self.push(value)?;
+                        self.push(state.value)?;
                     }
                     Value::Symbol(s) if s == FINALLY_EXCEPTION_MARKER => {
                         // Exception path - re-throw the error
                         // Look for the next error handler (catch block)
                         if let Some(handler) = self.error_handler_stack.pop() {
-                            // Unwind stack to handler's depth
-                            while self.stack.len() > handler.stack_depth {
+                            // Unwind stack to handler's depth with bounds checking
+                            let target_depth = handler.stack_depth.min(self.stack.len());
+                            while self.stack.len() > target_depth {
                                 self.stack.pop();
                             }
                             
                             // Push error value for catch handler
-                            self.push(value)?;
+                            self.push(state.value)?;
                             
                             // Jump to catch handler
                             if let Some(frame) = self.call_stack.last_mut() {
@@ -3166,14 +3182,14 @@ impl VM {
                         } else {
                             // No handler found, convert to runtime error
                             return Err(VMError::RuntimeError {
-                                message: format!("Uncaught error: {:?}", value),
+                                message: format!("Uncaught error: {:?}", state.value),
                                 stack_trace: Some(self.build_stack_trace()),
                             });
                         }
                     }
                     _ => {
                         return Err(VMError::RuntimeError {
-                            message: format!("Invalid finally marker: {:?}", marker),
+                            message: format!("Invalid finally marker: {:?}", state.marker),
                             stack_trace: None,
                         });
                     }
@@ -3188,8 +3204,9 @@ impl VM {
                 if let Some(handler) = self.error_handler_stack.pop() {
                     // Check if there's a finally block to execute first
                     if let Some(finally_ip) = handler.finally_ip {
-                        // Unwind stack to handler's depth
-                        while self.stack.len() > handler.stack_depth {
+                        // Unwind stack to handler's depth with bounds checking
+                        let target_depth = handler.stack_depth.min(self.stack.len());
+                        while self.stack.len() > target_depth {
                             self.stack.pop();
                         }
                         
@@ -3212,8 +3229,9 @@ impl VM {
                         return Ok(VMState::Continue);
                     } else {
                         // No finally block, execute catch directly
-                        // Unwind stack to handler's depth
-                        while self.stack.len() > handler.stack_depth {
+                        // Unwind stack to handler's depth with bounds checking
+                        let target_depth = handler.stack_depth.min(self.stack.len());
+                        while self.stack.len() > target_depth {
                             self.stack.pop();
                         }
                         
@@ -3269,7 +3287,11 @@ impl VM {
                 let finally_ip = instruction.arg as usize;
                 
                 // Validate that finally_ip is within bounds
-                let current_frame = self.get_current_frame()?;
+                let current_frame = self.call_stack.last()
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame".to_string(),
+                        stack_trace: None,
+                    })?;
                 let chunk = &self.bytecode.chunks[current_frame.chunk_id];
                 if finally_ip >= chunk.instructions.len() {
                     return Err(VMError::RuntimeError {
