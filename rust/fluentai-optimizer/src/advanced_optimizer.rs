@@ -488,6 +488,26 @@ impl AdvancedOptimizer {
                         }
                         Node::Variable { name } => Some(Node::Variable { name: name.clone() }),
                         Node::Literal(lit) => Some(Node::Literal(lit.clone())),
+                        Node::Channel { capacity } => {
+                            // Fix for test_optimizer_corrupts_channel_with_capacity:
+                            // Handle Channel nodes by checking if capacity has been optimized
+                            match capacity {
+                                Some(cap_id) => {
+                                    // Look up the optimized version of the capacity node
+                                    let opt_cap = if let Some(mapped_id) = self.node_mapping.get(cap_id) {
+                                        Some(*mapped_id)
+                                    } else if let Some(result) = results.get(cap_id) {
+                                        *result
+                                    } else {
+                                        // This shouldn't happen if nodes are processed in dependency order
+                                        None
+                                    };
+                                    
+                                    opt_cap.map(|cap| Node::Channel { capacity: Some(cap) })
+                                }
+                                None => Some(Node::Channel { capacity: None })
+                            }
+                        }
                         _ => {
                             // For other node types, use the existing copy logic
                             self.copy_node_optimized_internal(node_id).ok().flatten()
@@ -1139,15 +1159,34 @@ impl AdvancedOptimizer {
                 }
             }
             Node::Channel { capacity } => {
-                if let Some(cap_id) = capacity {
-                    if let Some(opt_cap) = self.optimize_node(cap_id)? {
-                        Node::Channel { capacity: Some(opt_cap) }
-                    } else {
-                        return Ok(None);
+                // Fix for test_optimizer_corrupts_channel_with_capacity:
+                // Ensure we handle the capacity node correctly
+                let opt_capacity = match capacity {
+                    Some(cap_id) => {
+                        // First check if it's already been optimized
+                        if let Some(mapped_id) = self.node_mapping.get(&cap_id) {
+                            Some(*mapped_id)
+                        } else {
+                            // Otherwise optimize it now
+                            self.optimize_node(cap_id)?
+                        }
                     }
-                } else {
-                    Node::Channel { capacity: None }
+                    None => None,
+                };
+                
+                Node::Channel { capacity: opt_capacity }
+            }
+            Node::Begin { exprs } => {
+                // Fix for issue with Begin nodes not preserving child effects
+                // This ensures all expressions in a Begin block are properly optimized
+                // and included in the optimized graph
+                let mut opt_exprs = Vec::new();
+                for expr in exprs {
+                    if let Some(opt_expr) = self.optimize_node(expr)? {
+                        opt_exprs.push(opt_expr);
+                    }
                 }
+                Node::Begin { exprs: opt_exprs }
             }
             _ => node.clone(),
         };
@@ -1157,6 +1196,13 @@ impl AdvancedOptimizer {
 
     /// Check if a let binding should be inlined
     fn should_inline_let(&self, binding: &(String, NodeId)) -> bool {
+        // Issue #67: Don't inline let bindings that might be captured by closures
+        // This is a conservative approach to preserve closure semantics
+        // TODO: Implement proper free variable analysis to allow safe inlining
+        if self.binding_captured_by_closure(&binding.0) {
+            return false;
+        }
+        
         if let Some(node) = self.optimized.get_node(binding.1) {
             match node {
                 Node::Literal(_) => true,
@@ -1167,6 +1213,14 @@ impl AdvancedOptimizer {
         } else {
             false
         }
+    }
+    
+    /// Check if a binding might be captured by a closure
+    fn binding_captured_by_closure(&self, _name: &str) -> bool {
+        // For now, conservatively assume all bindings might be captured
+        // This prevents the optimizer from breaking closure semantics
+        // A proper implementation would analyze free variables in closures
+        true
     }
 
     /// Count nodes in a subgraph
@@ -1921,6 +1975,18 @@ impl AdvancedOptimizer {
                         stack.push(*body);
                         for (_, _, handler_fn) in handlers {
                             stack.push(*handler_fn);
+                        }
+                    }
+                    Node::Begin { exprs } => {
+                        // Fix: Mark all expressions in a Begin block as reachable
+                        // This ensures effects and other expressions aren't removed by dead code elimination
+                        stack.extend(exprs);
+                    }
+                    Node::Channel { capacity } => {
+                        // Fix for test_optimizer_corrupts_channel_with_capacity:
+                        // Mark capacity node as reachable
+                        if let Some(cap_id) = capacity {
+                            stack.push(*cap_id);
                         }
                     }
                     _ => {}

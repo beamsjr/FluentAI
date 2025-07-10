@@ -451,6 +451,51 @@ impl EffectAnalysis {
                 // Analyze body
                 effects.extend(analyze_child(*body));
             }
+            // Concurrent operations have side effects
+            Node::Channel { .. } => {
+                // Channel creation has side effects
+                effects.insert(EffectType::Concurrent);
+            }
+            Node::Send { channel, value } => {
+                effects.insert(EffectType::Concurrent);
+                effects.extend(analyze_child(*channel));
+                effects.extend(analyze_child(*value));
+            }
+            Node::Receive { channel } => {
+                effects.insert(EffectType::Concurrent);
+                effects.extend(analyze_child(*channel));
+            }
+            Node::TrySend { channel, value } => {
+                effects.insert(EffectType::Concurrent);
+                effects.extend(analyze_child(*channel));
+                effects.extend(analyze_child(*value));
+            }
+            Node::TryReceive { channel } => {
+                effects.insert(EffectType::Concurrent);
+                effects.extend(analyze_child(*channel));
+            }
+            Node::Select { branches, default } => {
+                effects.insert(EffectType::Concurrent);
+                for (channel, body) in branches {
+                    effects.extend(analyze_child(*channel));
+                    effects.extend(analyze_child(*body));
+                }
+                if let Some(default_body) = default {
+                    effects.extend(analyze_child(*default_body));
+                }
+            }
+            Node::Spawn { expr } => {
+                effects.insert(EffectType::Concurrent);
+                effects.extend(analyze_child(*expr));
+            }
+            Node::Async { body } => {
+                effects.insert(EffectType::Async);
+                effects.extend(analyze_child(*body));
+            }
+            Node::Await { expr } => {
+                effects.insert(EffectType::Async);
+                effects.extend(analyze_child(*expr));
+            }
             _ => {
                 // Default to no effects for other nodes
             }

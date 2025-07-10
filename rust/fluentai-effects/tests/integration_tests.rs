@@ -179,6 +179,7 @@ fn test_effect_ordering_preservation() {
         })
         .collect();
 
+
     assert_eq!(
         io_effects.len(),
         3,

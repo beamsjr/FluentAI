@@ -40,9 +40,85 @@ impl InlinePass {
                 return false;
             }
 
+            // Don't inline functions that capture variables from let bindings
+            // This is to preserve the closure semantics for issue #67
+            if self.captures_let_bindings(graph, func_id) {
+                return false;
+            }
+
             true
         } else {
             false
+        }
+    }
+
+    /// Check if a lambda captures variables from let bindings
+    fn captures_let_bindings(&self, graph: &Graph, func_id: NodeId) -> bool {
+        if let Some(Node::Lambda { body, params, .. }) = graph.get_node(func_id) {
+            let mut free_vars = FxHashSet::default();
+            self.collect_free_variables(graph, *body, params, &mut free_vars);
+            !free_vars.is_empty()
+        } else {
+            false
+        }
+    }
+
+    /// Collect free variables in a node
+    fn collect_free_variables(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        bound_vars: &[String],
+        free_vars: &mut FxHashSet<String>,
+    ) {
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Variable { name } => {
+                    if !bound_vars.contains(name) {
+                        free_vars.insert(name.clone());
+                    }
+                }
+                Node::Lambda { params, body } => {
+                    let mut new_bound = bound_vars.to_vec();
+                    new_bound.extend_from_slice(params);
+                    self.collect_free_variables(graph, *body, &new_bound, free_vars);
+                }
+                Node::Let { bindings, body } => {
+                    let mut new_bound = bound_vars.to_vec();
+                    for (name, value) in bindings {
+                        self.collect_free_variables(graph, *value, &new_bound, free_vars);
+                        new_bound.push(name.clone());
+                    }
+                    self.collect_free_variables(graph, *body, &new_bound, free_vars);
+                }
+                Node::Application { function, args } => {
+                    self.collect_free_variables(graph, *function, bound_vars, free_vars);
+                    for arg in args {
+                        self.collect_free_variables(graph, *arg, bound_vars, free_vars);
+                    }
+                }
+                Node::If { condition, then_branch, else_branch } => {
+                    self.collect_free_variables(graph, *condition, bound_vars, free_vars);
+                    self.collect_free_variables(graph, *then_branch, bound_vars, free_vars);
+                    self.collect_free_variables(graph, *else_branch, bound_vars, free_vars);
+                }
+                Node::List(items) => {
+                    for item in items {
+                        self.collect_free_variables(graph, *item, bound_vars, free_vars);
+                    }
+                }
+                Node::Send { channel, value } => {
+                    self.collect_free_variables(graph, *channel, bound_vars, free_vars);
+                    self.collect_free_variables(graph, *value, bound_vars, free_vars);
+                }
+                Node::Receive { channel } => {
+                    self.collect_free_variables(graph, *channel, bound_vars, free_vars);
+                }
+                Node::Spawn { expr } => {
+                    self.collect_free_variables(graph, *expr, bound_vars, free_vars);
+                }
+                _ => {}
+            }
         }
     }
 

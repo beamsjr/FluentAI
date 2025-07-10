@@ -113,6 +113,11 @@ impl OptimizationPass for EffectAwarePass {
                             work_stack.push(*arg);
                         }
                     }
+                    Node::Begin { exprs } => {
+                        for expr in exprs.iter().rev() {
+                            work_stack.push(*expr);
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -303,6 +308,13 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
                 operation: operation.clone(),
                 args: new_args,
             }
+        }
+        Node::Begin { exprs } => {
+            let new_exprs: Vec<_> = exprs
+                .iter()
+                .map(|&expr| mapping.get(&expr).copied().unwrap_or(expr))
+                .collect();
+            Node::Begin { exprs: new_exprs }
         }
         _ => node.clone(),
     }
