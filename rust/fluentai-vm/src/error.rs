@@ -401,6 +401,7 @@ pub fn value_type_name(value: &Value) -> &'static str {
         Value::NativeFunction { .. } => "native-function",
         Value::Function { .. } => "function",
         Value::Promise(_) => "promise",
+        Value::Future { .. } => "future",
         Value::Channel(_) => "channel",
         Value::Cell(_) => "cell",
         Value::Tagged { .. } => "tagged",

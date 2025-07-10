@@ -43,6 +43,10 @@ pub enum BoxedValue {
     },
     Cell(usize),
     Promise(PromiseId),
+    Future {
+        chunk_id: usize,
+        captured_env: Vec<UnboxedValue>,
+    },
     Channel(ChannelId),
     Tagged {
         tag: String,
@@ -108,6 +112,13 @@ impl UnboxedValue {
             }
             Value::Cell(idx) => UnboxedValue::Boxed(Box::new(BoxedValue::Cell(idx))),
             Value::Promise(id) => UnboxedValue::Boxed(Box::new(BoxedValue::Promise(PromiseId(id)))),
+            Value::Future { chunk_id, env } => {
+                let unboxed_env = env.into_iter().map(UnboxedValue::from_value).collect();
+                UnboxedValue::Boxed(Box::new(BoxedValue::Future {
+                    chunk_id,
+                    captured_env: unboxed_env,
+                }))
+            }
             Value::Channel(id) => UnboxedValue::Boxed(Box::new(BoxedValue::Channel(ChannelId(id)))),
             Value::Tagged { tag, values } => {
                 let unboxed_values = values.into_iter().map(UnboxedValue::from_value).collect();
@@ -162,6 +173,13 @@ impl UnboxedValue {
                 }
                 BoxedValue::Cell(idx) => Value::Cell(idx),
                 BoxedValue::Promise(id) => Value::Promise(id.0),
+                BoxedValue::Future {
+                    chunk_id,
+                    captured_env,
+                } => {
+                    let env = captured_env.into_iter().map(|v| v.to_value()).collect();
+                    Value::Future { chunk_id, env }
+                }
                 BoxedValue::Channel(id) => Value::Channel(id.0),
                 BoxedValue::Tagged { tag, values } => {
                     let vals = values.into_iter().map(|v| v.to_value()).collect();
@@ -229,6 +247,7 @@ impl fmt::Display for UnboxedValue {
                 }
                 BoxedValue::Cell(idx) => write!(f, "<cell:{}>", idx),
                 BoxedValue::Promise(id) => write!(f, "<promise:{}>", id.0),
+                BoxedValue::Future { chunk_id, .. } => write!(f, "<future:{}>", chunk_id),
                 BoxedValue::Channel(id) => write!(f, "<channel:{}>", id.0),
                 BoxedValue::Tagged { tag, values } => {
                     write!(f, "({}", tag)?;

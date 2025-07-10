@@ -89,7 +89,6 @@ fn test_spawn_with_channel() {
 }
 
 #[test]
-#[ignore = "Async/await not fully implemented yet"]
 fn test_async_await_simple() {
     // Test basic async/await
     let result = compile_and_run(

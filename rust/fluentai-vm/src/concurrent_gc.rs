@@ -468,6 +468,11 @@ impl ConcurrentGc {
                     self.scan_value(v);
                 }
             }
+            Value::Future { env, .. } => {
+                for v in env {
+                    self.scan_value(v);
+                }
+            }
             Value::Tagged { values, .. } => {
                 for v in values {
                     self.scan_value(v);
@@ -518,6 +523,11 @@ impl ConcurrentGc {
                 }
             }
             Value::Function { env, .. } => {
+                for v in env {
+                    self.scan_value_concurrent(v, gray_queue, guard);
+                }
+            }
+            Value::Future { env, .. } => {
                 for v in env {
                     self.scan_value_concurrent(v, gray_queue, guard);
                 }
@@ -689,6 +699,7 @@ impl ConcurrentGc {
             Value::NativeFunction { .. } => 64, // Arc + fields
             Value::Function { env, .. } => 32 + env.len() * 8,
             Value::Promise(_) => 16,
+            Value::Future { env, .. } => 32 + env.len() * 8,
             Value::Channel(_) => 16,
             Value::Cell(_) => 16,
             Value::Tagged { values, .. } => 32 + values.len() * 8,

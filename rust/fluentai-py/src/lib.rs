@@ -461,6 +461,7 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
             Ok(py_dict.to_object(py))
         }
         Value::Promise(id) => Ok(format!("<promise:{}>", id).to_object(py)),
+        Value::Future { chunk_id, .. } => Ok(format!("<future:{}>", chunk_id).to_object(py)),
         Value::Channel(id) => Ok(format!("<channel:{}>", id).to_object(py)),
         Value::Cell(id) => Ok(format!("<cell:{}>", id).to_object(py)),
         Value::Tagged { tag, values } => {

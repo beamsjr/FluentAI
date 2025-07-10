@@ -56,6 +56,14 @@ pub enum Value {
     /// Promise for async operations
     Promise(u64),
 
+    /// Future (unevaluated async computation)
+    Future {
+        /// The chunk ID of the async body
+        chunk_id: usize,
+        /// Captured environment
+        env: Vec<Value>,
+    },
+
     /// Channel for concurrent communication
     Channel(u64),
     
@@ -358,6 +366,7 @@ impl Value {
             Value::Tagged { .. } => "tagged",
             Value::Function { .. } => "function",
             Value::Promise(_) => "promise",
+            Value::Future { .. } => "future",
             Value::Channel(_) => "channel",
             Value::Cell(_) => "cell",
             Value::Module { .. } => "module",
@@ -545,6 +554,11 @@ impl std::fmt::Debug for Value {
             Value::GcHandle(_) => write!(f, "GcHandle(..)"),
             Value::Actor(id) => write!(f, "Actor({})", id),
             Value::Error { kind, message, .. } => write!(f, "Error({}: {})", kind, message),
+            Value::Future { chunk_id, env } => f
+                .debug_struct("Future")
+                .field("chunk_id", chunk_id)
+                .field("env", env)
+                .finish(),
         }
     }
 }
@@ -595,6 +609,16 @@ impl PartialEq for Value {
                 },
             ) => id1 == id2 && env1 == env2,
             (Value::Promise(a), Value::Promise(b)) => a == b,
+            (
+                Value::Future {
+                    chunk_id: id1,
+                    env: env1,
+                },
+                Value::Future {
+                    chunk_id: id2,
+                    env: env2,
+                },
+            ) => id1 == id2 && env1 == env2,
             (Value::Channel(a), Value::Channel(b)) => a == b,
             (Value::Cell(a), Value::Cell(b)) => a == b,
             (
@@ -608,6 +632,19 @@ impl PartialEq for Value {
                 },
             ) => n1 == n2 && e1 == e2,
             (Value::GcHandle(a), Value::GcHandle(b)) => Arc::ptr_eq(a, b),
+            (Value::Actor(a), Value::Actor(b)) => a == b,
+            (
+                Value::Error {
+                    kind: k1,
+                    message: m1,
+                    ..
+                },
+                Value::Error {
+                    kind: k2,
+                    message: m2,
+                    ..
+                },
+            ) => k1 == k2 && m1 == m2,
             _ => false,
         }
     }
@@ -657,6 +694,7 @@ impl std::fmt::Display for Value {
             }
             Value::Function { .. } => write!(f, "#<function>"),
             Value::Promise(id) => write!(f, "#<promise:{}>", id),
+            Value::Future { .. } => write!(f, "#<future>"),
             Value::Channel(id) => write!(f, "#<channel:{}>", id),
             Value::Cell(idx) => write!(f, "#<cell:{}>", idx),
             Value::Module { name, exports } => {

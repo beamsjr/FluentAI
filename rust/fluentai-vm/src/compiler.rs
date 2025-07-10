@@ -84,6 +84,12 @@ impl Compiler {
         Ok(self.bytecode)
     }
 
+    /// Create a new chunk and return its ID
+    fn create_chunk(&mut self) -> Result<usize> {
+        let chunk = BytecodeChunk::new(None);
+        Ok(self.bytecode.add_chunk(chunk))
+    }
+
     fn compile_node(&mut self, graph: &ASTGraph, node_id: NodeId) -> Result<()> {
         let node = graph
             .nodes
@@ -1094,15 +1100,11 @@ impl Compiler {
         // Switch back to the original chunk
         self.current_chunk = old_chunk;
         
-        // Create function value for the async block
-        let chunk_idx = self.add_constant(Value::Integer(chunk_id as i64));
-        self.emit(Instruction::with_arg(Opcode::PushConst, chunk_idx));
+        // Emit MakeFunc instruction with the chunk ID as argument
+        self.emit(Instruction::with_arg(Opcode::MakeFunc, chunk_id as u32));
         
-        // Create closure with no free variables
-        self.emit(Instruction::with_arg(Opcode::MakeFunc, 0));
-        
-        // Spawn the async function
-        self.emit(Instruction::new(Opcode::Spawn));
+        // Convert the function to a future
+        self.emit(Instruction::new(Opcode::MakeFuture));
         
         Ok(())
     }
