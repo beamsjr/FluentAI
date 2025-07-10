@@ -120,6 +120,7 @@ impl Compiler {
             .nodes
             .get(&node_id)
             .ok_or_else(|| anyhow!("Invalid node ID: {:?}", node_id))?;
+        
 
         match node {
             Node::Literal(lit) => self.compile_literal(lit)?,
@@ -704,6 +705,10 @@ impl Compiler {
             // Store relative position within this scope
             // The i-th binding is at position i relative to the scope base
             self.locals[scope_idx].insert(name.clone(), i);
+            
+            // The value is now on the stack, but we need to keep it there for the let scope
+            // No Store instruction needed - values stay on the stack in their binding order
+            // Fix for issue 26: Let bindings now properly maintain values on stack for local access
         }
 
         // Compile body (preserving tail position - let body is in tail position)
@@ -1810,9 +1815,20 @@ impl Compiler {
 
     fn compile_captured_variable(&mut self, name: &str) -> Result<()> {
         // Find the variable in outer scopes and emit code to load it
-        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
-            if let Some(&local_idx) = scope.get(name) {
-                self.emit(Instruction::with_arg(Opcode::Load, local_idx as u32));
+        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
+            if let Some(&rel_pos) = scope.get(name) {
+                // Calculate absolute position like in compile_variable
+                let abs_pos = self.scope_bases[scope_idx] + rel_pos;
+                // Fix for issue 26: Properly calculate absolute stack position for captured variables
+                
+                // Use fast local opcodes for indices 0-3
+                match abs_pos {
+                    0 => self.emit(Instruction::new(Opcode::LoadLocal0)),
+                    1 => self.emit(Instruction::new(Opcode::LoadLocal1)),
+                    2 => self.emit(Instruction::new(Opcode::LoadLocal2)),
+                    3 => self.emit(Instruction::new(Opcode::LoadLocal3)),
+                    _ => self.emit(Instruction::with_arg(Opcode::Load, abs_pos as u32)),
+                };
                 // Don't dereference cells when capturing - we want to capture the cell itself
                 // The dereference will happen when the variable is used
                 return Ok(());
