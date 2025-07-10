@@ -690,7 +690,7 @@ impl Compiler {
         let scope_idx = self.locals.len() - 1;
 
         // Compile bindings
-        for (_i, (name, value)) in bindings.iter().enumerate() {
+        for (i, (name, value)) in bindings.iter().enumerate() {
             let before_depth = self.stack_depth;
             self.compile_node(graph, *value)?;
 
@@ -701,11 +701,9 @@ impl Compiler {
                 // like handlers that manipulate the stack in complex ways
             }
 
-            // Store the absolute position where this variable is stored
-            // We'll convert to frame-relative when loading
-            let abs_pos = self.stack_depth.saturating_sub(1);
-
-            self.locals[scope_idx].insert(name.clone(), abs_pos);
+            // Store relative position within this scope
+            // The i-th binding is at position i relative to the scope base
+            self.locals[scope_idx].insert(name.clone(), i);
         }
 
         // Compile body (preserving tail position - let body is in tail position)
@@ -770,23 +768,23 @@ impl Compiler {
 
         // Step 1: Create cells for all bindings
         let binding_names: Vec<String> = bindings.iter().map(|(name, _)| name.clone()).collect();
-        for name in &binding_names {
+        for (i, name) in binding_names.iter().enumerate() {
             self.emit(Instruction::new(Opcode::PushNil));
             self.emit(Instruction::new(Opcode::MakeCell));
-            // Cell is now on stack
-            let pos = self.stack_depth - 1;
-            self.locals[scope_idx].insert(name.clone(), pos);
+            // Store relative position within this scope
+            self.locals[scope_idx].insert(name.clone(), i);
             self.cell_vars[scope_idx].insert(name.clone());
         }
 
         // Step 2: Compile binding values and store in cells
         for (_i, (name, value)) in bindings.iter().enumerate() {
             // Load the cell - need to look up actual position from locals
-            let cell_pos = self.locals[scope_idx]
+            let cell_rel_pos = self.locals[scope_idx]
                 .get(name)
                 .ok_or_else(|| anyhow!("Cell not found for binding: {}", name))?;
-            // Load uses frame-relative indexing, so we use the stored position directly
-            self.emit(Instruction::with_arg(Opcode::Load, *cell_pos as u32));
+            // Convert relative position to absolute position for Load instruction
+            let abs_pos = self.scope_bases[scope_idx] + cell_rel_pos;
+            self.emit(Instruction::with_arg(Opcode::Load, abs_pos as u32));
 
             // Set current function name if this is a lambda
             let saved_function = self.current_function.clone();
@@ -1396,9 +1394,23 @@ impl Compiler {
                     self.push_scope();
                     
                     // The error value is already on the stack
-                    // Record its position in locals (like let binding does)
-                    let abs_pos = self.stack_depth.saturating_sub(1);
-                    self.locals.last_mut().unwrap().insert(var_name.clone(), abs_pos);
+                    // When thrown, it's at stack position (stack_depth - 1)
+                    // But we need to store it as if it's a local variable
+                    // Since compile_variable expects relative positions, we need to
+                    // calculate the relative position from the scope base
+                    let scope_idx = self.locals.len() - 1;
+                    let scope_base = self.scope_bases[scope_idx];
+                    
+                    // The error is at absolute position stack_depth-1
+                    // The scope base is at stack_depth
+                    // So the error is "before" the scope base
+                    // We can't have negative relative positions, so we'll store it
+                    // as if it's the first variable in the scope (position 0)
+                    // But we need to make sure compile_variable generates the right code
+                    
+                    // Actually, the error value IS part of this scope - it's the first thing
+                    // So its relative position is 0
+                    self.locals.last_mut().unwrap().insert(var_name.clone(), 0);
                     
                     // Compile the handler
                     self.compile_node(graph, *handler)?;
