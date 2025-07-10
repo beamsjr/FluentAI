@@ -89,6 +89,22 @@ impl Compiler {
         let chunk = BytecodeChunk::new(None);
         Ok(self.bytecode.add_chunk(chunk))
     }
+    
+    /// Push a new local scope
+    fn push_scope(&mut self) {
+        self.locals.push(HashMap::new());
+        self.captured.push(HashMap::new());
+        self.cell_vars.push(HashSet::new());
+        self.scope_bases.push(self.stack_depth);
+    }
+    
+    /// Pop the current local scope
+    fn pop_scope(&mut self) {
+        self.locals.pop();
+        self.captured.pop();
+        self.cell_vars.pop();
+        self.scope_bases.pop();
+    }
 
     fn compile_node(&mut self, graph: &ASTGraph, node_id: NodeId) -> Result<()> {
         let node = graph
@@ -1347,20 +1363,32 @@ impl Compiler {
             
             // The error value is on the stack from the throw
             
-            // Check if handler is just returning the error parameter
-            let mut handled = false;
-            if let Pattern::Variable(var_name) = pattern {
-                if let Some(Node::Variable { name }) = graph.get_node(*handler) {
-                    if name == var_name {
-                        // Handler is just returning the caught error - it's already on stack
-                        handled = true;
-                    }
+            // Handle variable binding in catch pattern
+            match pattern {
+                Pattern::Variable(var_name) => {
+                    // Push new scope for the catch block
+                    self.push_scope();
+                    
+                    // The error value is already on the stack
+                    // Record its position in locals (like let binding does)
+                    let abs_pos = self.stack_depth.saturating_sub(1);
+                    self.locals.last_mut().unwrap().insert(var_name.clone(), abs_pos);
+                    
+                    // Compile the handler
+                    self.compile_node(graph, *handler)?;
+                    
+                    // Pop the error value after the handler
+                    // (the handler result remains on stack)
+                    self.emit(Instruction::new(Opcode::Swap)); // handler_result, error
+                    self.emit(Instruction::new(Opcode::Pop));  // handler_result
+                    
+                    // Pop scope
+                    self.pop_scope();
                 }
-            }
-            
-            if !handled {
-                // Otherwise compile the handler
-                self.compile_node(graph, *handler)?;
+                _ => {
+                    // For other patterns, just compile the handler (not fully supported yet)
+                    self.compile_node(graph, *handler)?;
+                }
             }
         }
         

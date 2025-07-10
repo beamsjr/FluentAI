@@ -150,7 +150,6 @@ fn test_actor_creation_and_messaging() {
 }
 
 #[test]
-#[ignore = "Nested try-catch not fully working yet"]
 fn test_try_catch_nested() {
     // Test nested try-catch blocks
     let result = compile_and_run(
@@ -168,6 +167,57 @@ fn test_try_catch_nested() {
             assert_eq!(items.len(), 2);
             assert_eq!(items[0], Value::String("inner-catch".to_string()));
             assert_eq!(items[1], Value::String("inner".to_string()));
+        }
+        _ => panic!("Expected list, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_try_catch_outer_handles() {
+    // Test that outer catch handles when inner doesn't catch
+    let result = compile_and_run(
+        r#"
+        (try
+          (try
+            (throw "error")
+            (catch (e1) 
+              (if (= e1 "not-this")
+                  (list "inner-catch" e1)
+                  (throw e1))))
+          (catch (e2) (list "outer-catch" e2)))
+        "#
+    ).unwrap();
+    
+    match result {
+        Value::List(items) => {
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0], Value::String("outer-catch".to_string()));
+            assert_eq!(items[1], Value::String("error".to_string()));
+        }
+        _ => panic!("Expected list, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_try_catch_deeply_nested() {
+    // Test 3+ levels of nesting
+    let result = compile_and_run(
+        r#"
+        (try
+          (try
+            (try
+              (throw "deep")
+              (catch (e1) (list "level1" e1)))
+            (catch (e2) (list "level2" e2)))
+          (catch (e3) (list "level3" e3)))
+        "#
+    ).unwrap();
+    
+    match result {
+        Value::List(items) => {
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0], Value::String("level1".to_string()));
+            assert_eq!(items[1], Value::String("deep".to_string()));
         }
         _ => panic!("Expected list, got {:?}", result),
     }
