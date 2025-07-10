@@ -53,21 +53,34 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Missing global binding mechanism for exports
 - **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
 - **Multiple expressions in `let` body**: Currently causes parse errors
-- **Async/Await & Concurrency**: Basic concurrency works but true async/await is broken
-  - ✅ Channels work: `(chan)`, `(send! ch val)`, `(recv! ch)`
-  - ✅ Spawn works: `(spawn expr)` creates goroutines
-  - ❌ Async executes immediately instead of creating promises
-  - ❌ Await has bugs causing "Unknown identifier" errors
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
   - UI syntax (`ui:element`, `ui:text`, etc.) not recognized by parser
   - No working examples or tests
 
+### ✅ Newly Completed (January 2025)
+- **Async/Await & Concurrency**: Comprehensive concurrent programming support
+  - ✅ Channels: `(chan)`, `(chan capacity)` for buffered channels
+  - ✅ Send/Receive: `(send! ch val)`, `(recv! ch)`
+  - ✅ Non-blocking ops: `(try-send! ch val)`, `(try-recv! ch)` return [success, value]
+  - ✅ Spawn: `(spawn expr)` creates concurrent tasks
+  - ✅ Select: `(select branches...)` for multi-channel operations (AST/parser ready)
+  - ❌ Async/await: Parser support complete, runtime not implemented
+- **Error Handling**: Try-catch-throw error handling system
+  - ✅ Try-catch blocks: `(try expr (catch (err) handler))`
+  - ✅ Throw statements: `(throw error-value)`
+  - ✅ Error propagation with proper stack unwinding
+  - ✅ Pattern matching in catch handlers
+  - ✅ Error value type with metadata (kind, message, stack trace)
+  - ❌ Finally blocks: Parser support complete, runtime not implemented
+  - ❌ Promise operations: AST/compiler ready, runtime not implemented
+- **Actor Model**: Basic actor primitives with message passing
+  - ✅ Actor creation: `(actor initial-state handler-fn)`
+  - ✅ Send messages: `(! actor message)`
+  - ❌ Receive patterns: `(receive patterns...)` not implemented
+  - ❌ Become: `(become new-state)` not implemented
+
 ### 📋 Planned/Aspirational Features
-- **Actor Model**: Rust implementation exists but zero language integration
-  - No FluentAI syntax for actors
-  - No stdlib functions exposed
-  - Only channel-based concurrency available
 - **Network Effects**: Built-in HTTP client/server capabilities
 - **Property-based testing**: Automatic test generation with Hypothesis  
 - **Hot code reloading**: Update running systems without downtime

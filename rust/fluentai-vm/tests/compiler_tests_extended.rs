@@ -929,7 +929,7 @@ fn test_compile_channel_operations() -> Result<()> {
     let mut graph = Graph::new();
 
     // Create (channel)
-    let chan = graph.add_node(Node::Channel).expect("Failed to add node");
+    let chan = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
     graph.root_id = Some(chan);
 
     let compiler = Compiler::with_options(CompilerOptions {

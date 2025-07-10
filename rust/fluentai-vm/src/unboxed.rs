@@ -131,6 +131,11 @@ impl UnboxedValue {
                 // In a real implementation, we'd need proper GC integration
                 UnboxedValue::Nil
             }
+            Value::Actor(_) => UnboxedValue::Nil, // Actors cannot be unboxed, treat as nil
+            Value::Error { message, .. } => {
+                // Convert errors to string representation
+                UnboxedValue::Boxed(Box::new(BoxedValue::String(format!("<error: {}>", message))))
+            }
         }
     }
 

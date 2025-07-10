@@ -290,9 +290,11 @@ impl Interpreter {
             Node::Async { body } => self.eval_async(*body, graph, env),
             Node::Await { expr } => self.eval_await(*expr, graph, env),
             Node::Spawn { expr } => self.eval_spawn(*expr, graph, env),
-            Node::Channel => self.eval_channel(),
+            Node::Channel { .. } => self.eval_channel(),
             Node::Send { channel, value } => self.eval_send(*channel, *value, graph, env),
             Node::Receive { channel } => self.eval_receive(*channel, graph, env),
+            Node::TrySend { channel, value } => self.eval_try_send(*channel, *value, graph, env),
+            Node::TryReceive { channel } => self.eval_try_receive(*channel, graph, env),
             _ => Err(InterpreterError::InvalidOperation(format!(
                 "Cannot evaluate node type: {:?}",
                 node
@@ -809,6 +811,39 @@ impl Interpreter {
 
         // TODO: Implement proper channel receive
         Ok(Value::new(ValueData::Nil))
+    }
+
+    /// Try to send a value to a channel non-blocking
+    fn eval_try_send(
+        &mut self,
+        channel: NodeId,
+        value: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
+        let _channel_val = self.eval_node(channel, graph, env)?;
+        let _value_val = self.eval_node(value, graph, env)?;
+
+        // TODO: Implement proper non-blocking channel send
+        // For now, return true (success)
+        Ok(Value::new(ValueData::Boolean(true)))
+    }
+
+    /// Try to receive a value from a channel non-blocking
+    fn eval_try_receive(
+        &mut self,
+        channel: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
+        let _channel_val = self.eval_node(channel, graph, env)?;
+
+        // TODO: Implement proper non-blocking channel receive
+        // For now, return a list with [false, nil] (no value available)
+        Ok(Value::new(ValueData::List(vec![
+            Value::new(ValueData::Boolean(false)),
+            Value::new(ValueData::Nil),
+        ])))
     }
 }
 

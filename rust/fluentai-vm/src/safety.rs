@@ -16,6 +16,9 @@ pub struct ChannelId(pub u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TaskId(pub u64);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ActorId(pub u64);
+
 /// ID generator using atomic counter
 pub struct IdGenerator {
     counter: AtomicU64,
@@ -38,6 +41,10 @@ impl IdGenerator {
 
     pub fn next_task_id(&self) -> TaskId {
         TaskId(self.counter.fetch_add(1, Ordering::Relaxed))
+    }
+    
+    pub fn next_actor_id(&self) -> ActorId {
+        ActorId(self.counter.fetch_add(1, Ordering::Relaxed))
     }
 }
 
@@ -73,6 +80,20 @@ impl ChannelId {
         s.strip_prefix("channel:")
             .and_then(|id_str| id_str.parse::<u64>().ok())
             .map(ChannelId)
+    }
+}
+
+impl std::fmt::Display for ActorId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "actor:{}", self.0)
+    }
+}
+
+impl ActorId {
+    pub fn from_string(s: &str) -> Option<Self> {
+        s.strip_prefix("actor:")
+            .and_then(|id_str| id_str.parse::<u64>().ok())
+            .map(ActorId)
     }
 }
 

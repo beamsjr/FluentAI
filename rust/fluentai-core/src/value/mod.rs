@@ -58,6 +58,16 @@ pub enum Value {
 
     /// Channel for concurrent communication
     Channel(u64),
+    
+    /// Actor for message-passing concurrency
+    Actor(u64),
+    
+    /// Error value
+    Error {
+        kind: String,
+        message: String,
+        stack_trace: Option<Vec<String>>,
+    },
 
     /// Mutable cell reference
     Cell(usize),
@@ -352,6 +362,8 @@ impl Value {
             Value::Cell(_) => "cell",
             Value::Module { .. } => "module",
             Value::GcHandle(_) => "gc-handle",
+            Value::Actor(_) => "actor",
+            Value::Error { .. } => "error",
         }
     }
 
@@ -531,6 +543,8 @@ impl std::fmt::Debug for Value {
                 .field("exports", exports)
                 .finish(),
             Value::GcHandle(_) => write!(f, "GcHandle(..)"),
+            Value::Actor(id) => write!(f, "Actor({})", id),
+            Value::Error { kind, message, .. } => write!(f, "Error({}: {})", kind, message),
         }
     }
 }
@@ -649,6 +663,8 @@ impl std::fmt::Display for Value {
                 write!(f, "#<module {} with {} exports>", name, exports.len())
             }
             Value::GcHandle(_) => write!(f, "#<gc-handle>"),
+            Value::Actor(id) => write!(f, "#<actor:{}>", id),
+            Value::Error { kind, message, .. } => write!(f, "#<error {} \"{}\">", kind, message),
         }
     }
 }

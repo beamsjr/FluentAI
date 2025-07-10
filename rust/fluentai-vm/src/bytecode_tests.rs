@@ -605,7 +605,8 @@ mod tests {
             use std::mem;
             let size = mem::size_of::<Value>();
             // Value should be reasonably sized despite having many variants
-            assert!(size <= 64);
+            // With new variants like Error { kind, message, stack_trace }, the size has grown
+            assert!(size <= 96, "Value size is {} bytes", size);
         }
     }
 }

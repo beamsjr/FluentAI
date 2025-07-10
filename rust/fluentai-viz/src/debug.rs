@@ -165,6 +165,8 @@ pub fn serialize_value(value: &Value) -> String {
             format!("#[{}{}]", items_str.join(", "), suffix)
         }
         Value::NativeFunction { name, .. } => format!("<native-function:{}>", name),
+        Value::Actor(id) => format!("<actor:{}>", id),
+        Value::Error { kind, message, .. } => format!("<error:{}:{}>", kind, message),
     }
 }
 

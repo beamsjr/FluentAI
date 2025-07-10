@@ -80,7 +80,7 @@ mod tests {
         let root_id = graph.root_id.unwrap();
         let node = graph.get_node(root_id).unwrap();
 
-        assert!(matches!(node, Node::Channel));
+        assert!(matches!(node, Node::Channel { .. }));
     }
 
     #[test]

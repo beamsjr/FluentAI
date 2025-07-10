@@ -175,7 +175,7 @@ impl PyNode {
                     data.insert("expr_id".to_string(), expr.to_string().to_object(py));
                     "Spawn"
                 }
-                Node::Channel => "Channel",
+                Node::Channel { .. } => "Channel",
                 Node::Send { channel, value } => {
                     data.insert("channel_id".to_string(), channel.to_string().to_object(py));
                     data.insert("value_id".to_string(), value.to_string().to_object(py));
@@ -184,6 +184,26 @@ impl PyNode {
                 Node::Receive { channel } => {
                     data.insert("channel_id".to_string(), channel.to_string().to_object(py));
                     "Receive"
+                }
+                Node::TrySend { channel, value } => {
+                    data.insert("channel_id".to_string(), channel.to_string().to_object(py));
+                    data.insert("value_id".to_string(), value.to_string().to_object(py));
+                    "TrySend"
+                }
+                Node::TryReceive { channel } => {
+                    data.insert("channel_id".to_string(), channel.to_string().to_object(py));
+                    "TryReceive"
+                }
+                Node::Select { branches, default } => {
+                    let py_branches: Vec<(String, String)> = branches
+                        .iter()
+                        .map(|(op, handler)| (op.to_string(), handler.to_string()))
+                        .collect();
+                    data.insert("branches".to_string(), py_branches.to_object(py));
+                    if let Some(def) = default {
+                        data.insert("default".to_string(), def.to_string().to_object(py));
+                    }
+                    "Select"
                 }
                 Node::Letrec { bindings, body } => {
                     let py_bindings: Vec<HashMap<String, String>> = bindings
@@ -277,6 +297,58 @@ impl PyNode {
                             .to_object(py),
                     );
                     "Begin"
+                }
+                Node::Select { branches, default } => {
+                    data.insert("branch_count".to_string(), branches.len().to_object(py));
+                    data.insert("has_default".to_string(), default.is_some().to_object(py));
+                    "Select"
+                }
+                Node::Actor { initial_state, handler } => {
+                    data.insert("initial_state".to_string(), initial_state.to_string().to_object(py));
+                    data.insert("handler".to_string(), handler.to_string().to_object(py));
+                    "Actor"
+                }
+                Node::ActorSend { actor, message } => {
+                    data.insert("actor".to_string(), actor.to_string().to_object(py));
+                    data.insert("message".to_string(), message.to_string().to_object(py));
+                    "ActorSend"
+                }
+                Node::ActorReceive { patterns, timeout } => {
+                    data.insert("pattern_count".to_string(), patterns.len().to_object(py));
+                    data.insert("has_timeout".to_string(), timeout.is_some().to_object(py));
+                    "ActorReceive"
+                }
+                Node::Become { new_state } => {
+                    data.insert("new_state".to_string(), new_state.to_string().to_object(py));
+                    "Become"
+                }
+                Node::Try { body, catch_branches, finally } => {
+                    data.insert("body".to_string(), body.to_string().to_object(py));
+                    data.insert("catch_count".to_string(), catch_branches.len().to_object(py));
+                    data.insert("has_finally".to_string(), finally.is_some().to_object(py));
+                    "Try"
+                }
+                Node::Throw { error } => {
+                    data.insert("error".to_string(), error.to_string().to_object(py));
+                    "Throw"
+                }
+                Node::Promise { body } => {
+                    data.insert("body".to_string(), body.to_string().to_object(py));
+                    "Promise"
+                }
+                Node::PromiseAll { promises } => {
+                    data.insert("promise_count".to_string(), promises.len().to_object(py));
+                    "PromiseAll"
+                }
+                Node::PromiseRace { promises } => {
+                    data.insert("promise_count".to_string(), promises.len().to_object(py));
+                    "PromiseRace"
+                }
+                Node::Timeout { duration, promise, default } => {
+                    data.insert("duration".to_string(), duration.to_string().to_object(py));
+                    data.insert("promise".to_string(), promise.to_string().to_object(py));
+                    data.insert("has_default".to_string(), default.is_some().to_object(py));
+                    "Timeout"
                 }
             };
 
@@ -424,6 +496,10 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
         Value::NativeFunction { name, .. } => {
             Ok(format!("<native-function:{}>", name).to_object(py))
         }
+        Value::Actor(id) => Ok(format!("<actor:{}>", id).to_object(py)),
+        Value::Error { kind, message, .. } => {
+            Ok(format!("<error:{}:{}>", kind, message).to_object(py))
+        }
     }
 }
 
@@ -501,43 +577,61 @@ fn opcode_to_u8(opcode: &fluentai_vm::bytecode::Opcode) -> u8 {
         Await => 67,
         Spawn => 68,
         Channel => 69,
-        Send => 70,
-        Receive => 71,
-        Halt => 72,
-        Nop => 73,
-        MakeClosure => 74,
-        LoadCaptured => 75,
-        PopN => 76,
-        MakeCell => 77,
-        CellGet => 78,
-        CellSet => 79,
-        MakeTagged => 80,
-        GetTag => 81,
-        GetTaggedField => 82,
-        IsTagged => 83,
-        LoadModule => 84,
-        ImportBinding => 85,
-        LoadQualified => 86,
-        BeginModule => 87,
-        EndModule => 88,
-        ExportBinding => 89,
-        AddFloat => 90,
-        SubFloat => 91,
-        MulFloat => 92,
-        DivFloat => 93,
-        MakeHandler => 94,
-        InstallHandler => 95,
-        UninstallHandler => 96,
-        ImportAll => 97,
-        GcAlloc => 98,
-        GcDeref => 99,
-        GcSet => 100,
-        GcCollect => 101,
-        TailCall => 102,
-        TailReturn => 103,
-        LoopStart => 104,
-        LoopEnd => 105,
-        UpdateLocal => 106,
+        ChannelWithCapacity => 70,
+        Send => 71,
+        Receive => 72,
+        TrySend => 73,
+        TryReceive => 74,
+        Halt => 75,
+        Nop => 76,
+        MakeClosure => 77,
+        LoadCaptured => 78,
+        PopN => 79,
+        MakeCell => 80,
+        CellGet => 81,
+        CellSet => 82,
+        MakeTagged => 83,
+        GetTag => 84,
+        GetTaggedField => 85,
+        IsTagged => 86,
+        LoadModule => 87,
+        ImportBinding => 88,
+        LoadQualified => 89,
+        BeginModule => 90,
+        EndModule => 91,
+        ExportBinding => 92,
+        AddFloat => 93,
+        SubFloat => 94,
+        MulFloat => 95,
+        DivFloat => 96,
+        MakeHandler => 97,
+        InstallHandler => 98,
+        UninstallHandler => 99,
+        ImportAll => 100,
+        GcAlloc => 101,
+        GcDeref => 102,
+        GcSet => 103,
+        GcCollect => 104,
+        TailCall => 105,
+        TailReturn => 106,
+        LoopStart => 107,
+        LoopEnd => 108,
+        UpdateLocal => 109,
+        Select => 110,
+        CreateActor => 111,
+        ActorSend => 112,
+        ActorReceive => 113,
+        Become => 114,
+        Try => 115,
+        Catch => 116,
+        Finally => 117,
+        Throw => 118,
+        PushHandler => 119,
+        PopHandler => 120,
+        PromiseNew => 121,
+        PromiseAll => 122,
+        PromiseRace => 123,
+        WithTimeout => 124,
     }
 }
 

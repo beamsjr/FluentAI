@@ -423,8 +423,8 @@ fn test_compile_channel_complex() -> Result<()> {
     // Create (let ((ch1 (channel))
     //              (ch2 (channel)))
     //          (send ch1 (receive ch2)))
-    let ch1 = graph.add_node(Node::Channel).expect("Failed to add node");
-    let ch2 = graph.add_node(Node::Channel).expect("Failed to add node");
+    let ch1 = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
+    let ch2 = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
 
     let ch2_var = graph
         .add_node(Node::Variable {

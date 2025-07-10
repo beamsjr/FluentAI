@@ -694,6 +694,10 @@ impl ConcurrentGc {
             Value::Tagged { values, .. } => 32 + values.len() * 8,
             Value::Module { exports, .. } => 48 + exports.len() * 16,
             Value::GcHandle(_) => 16,
+            Value::Actor(_) => 16, // Same as other ID-based values
+            Value::Error { message, stack_trace, .. } => {
+                32 + message.len() + stack_trace.as_ref().map_or(0, |st| st.len() * 16)
+            }
         }
     }
 

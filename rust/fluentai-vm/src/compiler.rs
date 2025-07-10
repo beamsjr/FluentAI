@@ -76,7 +76,6 @@ impl Compiler {
         let root_id = optimized_graph
             .root_id
             .ok_or_else(|| anyhow!("AST graph has no root node"))?;
-
         self.compile_node(&optimized_graph, root_id)?;
 
         // Add halt instruction
@@ -132,15 +131,63 @@ impl Compiler {
             Node::Spawn { expr } => {
                 self.compile_spawn(graph, *expr)?;
             }
-            Node::Channel => {
-                self.emit(Instruction::new(Opcode::Channel));
-                self.stack_depth += 1; // Channel creates a new channel on the stack
+            Node::Channel { capacity } => {
+                // If capacity is provided, compile it and push onto stack
+                if let Some(cap_expr) = capacity {
+                    self.compile_node(graph, *cap_expr)?;
+                    // Emit ChannelWithCapacity opcode
+                    self.emit(Instruction::new(Opcode::ChannelWithCapacity));
+                    // Stack effect: pop capacity, push channel
+                } else {
+                    // No capacity, use default
+                    self.emit(Instruction::new(Opcode::Channel));
+                    self.stack_depth += 1; // Channel creates a new channel on the stack
+                }
             }
             Node::Send { channel, value } => {
                 self.compile_send(graph, *channel, *value)?;
             }
             Node::Receive { channel } => {
                 self.compile_receive(graph, *channel)?;
+            }
+            Node::TrySend { channel, value } => {
+                self.compile_try_send(graph, *channel, *value)?;
+            }
+            Node::TryReceive { channel } => {
+                self.compile_try_receive(graph, *channel)?;
+            }
+            Node::Select { branches, default } => {
+                self.compile_select(graph, branches, default.as_ref())?;
+            }
+            Node::Actor { initial_state, handler } => {
+                self.compile_actor(graph, *initial_state, *handler)?;
+            }
+            Node::ActorSend { actor, message } => {
+                self.compile_actor_send(graph, *actor, *message)?;
+            }
+            Node::ActorReceive { patterns, timeout } => {
+                self.compile_actor_receive(graph, patterns, timeout.as_ref())?;
+            }
+            Node::Become { new_state } => {
+                self.compile_become(graph, *new_state)?;
+            }
+            Node::Try { body, catch_branches, finally } => {
+                self.compile_try(graph, *body, catch_branches, finally.as_ref().copied())?;
+            }
+            Node::Throw { error } => {
+                self.compile_throw(graph, *error)?;
+            }
+            Node::Promise { body } => {
+                self.compile_promise(graph, *body)?;
+            }
+            Node::PromiseAll { promises } => {
+                self.compile_promise_all(graph, promises)?;
+            }
+            Node::PromiseRace { promises } => {
+                self.compile_promise_race(graph, promises)?;
+            }
+            Node::Timeout { duration, promise, default } => {
+                self.compile_timeout(graph, *duration, *promise, default.as_ref().copied())?;
             }
             Node::Match { expr, branches } => {
                 self.compile_match(graph, *expr, branches)?;
@@ -625,7 +672,7 @@ impl Compiler {
 
             // Store the absolute position where this variable is stored
             // We'll convert to frame-relative when loading
-            let abs_pos = self.stack_depth - 1;
+            let abs_pos = self.stack_depth.saturating_sub(1);
 
             self.locals[scope_idx].insert(name.clone(), abs_pos);
         }
@@ -1076,6 +1123,338 @@ impl Compiler {
         self.emit(Instruction::new(Opcode::Receive));
         Ok(())
     }
+    
+    fn compile_try_send(&mut self, graph: &ASTGraph, channel: NodeId, value: NodeId) -> Result<()> {
+        // Compile channel and value
+        self.compile_node(graph, channel)?;
+        self.compile_node(graph, value)?;
+        // Emit try-send instruction
+        self.emit(Instruction::new(Opcode::TrySend));
+        Ok(())
+    }
+    
+    fn compile_try_receive(&mut self, graph: &ASTGraph, channel: NodeId) -> Result<()> {
+        // Compile channel
+        self.compile_node(graph, channel)?;
+        // Emit try-receive instruction
+        self.emit(Instruction::new(Opcode::TryReceive));
+        Ok(())
+    }
+
+    fn compile_select(
+        &mut self,
+        graph: &ASTGraph,
+        branches: &[(NodeId, NodeId)],
+        default: Option<&NodeId>,
+    ) -> Result<()> {
+        // For now, implement select using simpler logic
+        // We'll try each channel and execute the first handler that has data
+        
+        let mut jump_to_end = Vec::new();
+        
+        for (channel_op, handler) in branches {
+            // Check if this is a receive operation
+            if let Some(Node::Receive { channel }) = graph.get_node(*channel_op) {
+                // Compile the channel
+                self.compile_node(graph, *channel)?;
+                // Try to receive
+                self.emit(Instruction::new(Opcode::TryReceive));
+                
+                // Check if we got a value (result is [bool, value])
+                self.emit(Instruction::new(Opcode::Dup));
+                self.emit(Instruction::new(Opcode::ListHead)); // Get success flag (first element)
+                
+                // If not successful, jump to next branch
+                let jump_next = self.emit(Instruction::new(Opcode::JumpIfNot));
+                
+                // Success - get the value and evaluate handler  
+                // We have the original list on stack, get the value
+                self.emit(Instruction::new(Opcode::ListTail)); // Get [value]
+                self.emit(Instruction::new(Opcode::ListHead)); // Extract value
+                
+                // For now, we'll just ignore the value and compile the handler
+                self.emit(Instruction::new(Opcode::Pop)); // Pop the value
+                self.compile_node(graph, *handler)?;
+                
+                // Jump to end
+                let jump_end = self.emit(Instruction::new(Opcode::Jump));
+                jump_to_end.push(jump_end);
+                
+                // Patch jump to next branch
+                let next_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.patch_jump(jump_next, next_pos);
+                
+                // Pop the failed result
+                self.emit(Instruction::new(Opcode::Pop));
+            } else {
+                return Err(anyhow!("Select currently only supports receive operations"));
+            }
+        }
+        
+        // Default case
+        if let Some(default_expr) = default {
+            self.compile_node(graph, *default_expr)?;
+        } else {
+            // No default - for now return nil
+            let nil_idx = self.add_constant(Value::Nil);
+            self.emit(Instruction::with_arg(Opcode::PushConst, nil_idx));
+        }
+        
+        // Patch all end jumps
+        let end_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
+        for jump_pos in jump_to_end {
+            self.patch_jump(jump_pos, end_pos);
+        }
+        
+        Ok(())
+    }
+    
+    fn compile_actor(
+        &mut self,
+        graph: &ASTGraph,
+        initial_state: NodeId,
+        handler: NodeId,
+    ) -> Result<()> {
+        // Compile initial state
+        self.compile_node(graph, initial_state)?;
+        
+        // Compile handler function  
+        self.compile_node(graph, handler)?;
+        
+        // Create actor
+        self.emit(Instruction::new(Opcode::CreateActor));
+        
+        // Stack effect: pop state and handler, push actor
+        self.stack_depth = self.stack_depth.saturating_sub(1);
+        
+        Ok(())
+    }
+    
+    fn compile_actor_send(
+        &mut self,
+        graph: &ASTGraph,
+        actor: NodeId,
+        message: NodeId,
+    ) -> Result<()> {
+        // Compile actor
+        self.compile_node(graph, actor)?;
+        
+        // Compile message
+        self.compile_node(graph, message)?;
+        
+        // Send message to actor
+        self.emit(Instruction::new(Opcode::ActorSend));
+        
+        // Stack effect: pop actor and message, push nil
+        self.stack_depth = self.stack_depth.saturating_sub(1);
+        
+        Ok(())
+    }
+    
+    fn compile_actor_receive(
+        &mut self,
+        graph: &ASTGraph,
+        patterns: &[(Pattern, NodeId)],
+        timeout: Option<&(NodeId, NodeId)>,
+    ) -> Result<()> {
+        // Actor receive is complex and needs runtime support
+        // For now, we'll emit a placeholder that returns nil
+        self.emit(Instruction::new(Opcode::ActorReceive));
+        
+        // In the future, this will need to:
+        // 1. Check actor's mailbox
+        // 2. Pattern match messages
+        // 3. Execute appropriate handler
+        // 4. Handle timeout if provided
+        
+        // Push nil for now
+        self.emit(Instruction::new(Opcode::PushNil));
+        self.stack_depth += 1;
+        
+        Ok(())
+    }
+    
+    fn compile_become(
+        &mut self,
+        graph: &ASTGraph,
+        new_state: NodeId,
+    ) -> Result<()> {
+        // Compile new state
+        self.compile_node(graph, new_state)?;
+        
+        // Become new state
+        self.emit(Instruction::new(Opcode::Become));
+        
+        // Stack effect: pop new state, push nil
+        
+        Ok(())
+    }
+    
+    fn compile_try(
+        &mut self,
+        graph: &ASTGraph,
+        body: NodeId,
+        catch_branches: &[(Pattern, NodeId)],
+        finally: Option<NodeId>,
+    ) -> Result<()> {
+        // Push error handler with catch target
+        // We'll patch this later with the catch IP
+        let push_handler_idx = self.emit(Instruction::new(Opcode::PushHandler));
+        
+        // Compile body
+        self.compile_node(graph, body)?;
+        
+        // Pop handler on success
+        self.emit(Instruction::new(Opcode::PopHandler));
+        
+        // Jump over catch branches
+        let jump_end = self.emit(Instruction::new(Opcode::Jump));
+        
+        // Mark catch handler start
+        let catch_start = self.bytecode.chunks[self.current_chunk].instructions.len();
+        
+        // Patch the PushHandler instruction with catch IP
+        self.bytecode.chunks[self.current_chunk].instructions[push_handler_idx].arg = catch_start as u32;
+        
+        if !catch_branches.is_empty() {
+            // For now, just compile the first handler with simple variable binding
+            let (pattern, handler) = &catch_branches[0];
+            
+            // The error value is on the stack from the throw
+            
+            // Check if handler is just returning the error parameter
+            let mut handled = false;
+            if let Pattern::Variable(var_name) = pattern {
+                if let Some(Node::Variable { name }) = graph.get_node(*handler) {
+                    if name == var_name {
+                        // Handler is just returning the caught error - it's already on stack
+                        handled = true;
+                    }
+                }
+            }
+            
+            if !handled {
+                // Otherwise compile the handler
+                self.compile_node(graph, *handler)?;
+            }
+        }
+        
+        // Patch jump
+        let end_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
+        self.patch_jump(jump_end, end_pos);
+        
+        // Compile finally block if present
+        if let Some(finally_block) = finally {
+            self.compile_node(graph, finally_block)?;
+            self.emit(Instruction::new(Opcode::Pop)); // Pop finally result
+        }
+        
+        Ok(())
+    }
+    
+    fn compile_throw(
+        &mut self,
+        graph: &ASTGraph,
+        error: NodeId,
+    ) -> Result<()> {
+        // Compile error value
+        self.compile_node(graph, error)?;
+        
+        // Throw error
+        self.emit(Instruction::new(Opcode::Throw));
+        
+        // Stack effect: pop error, no push (control flow)
+        self.stack_depth = self.stack_depth.saturating_sub(1);
+        
+        Ok(())
+    }
+    
+    fn compile_promise(
+        &mut self,
+        graph: &ASTGraph,
+        body: NodeId,
+    ) -> Result<()> {
+        // For now, compile promise as immediate execution
+        // In the future, this should create an actual promise
+        self.compile_node(graph, body)?;
+        
+        // Wrap in promise
+        self.emit(Instruction::new(Opcode::PromiseNew));
+        
+        Ok(())
+    }
+    
+    fn compile_promise_all(
+        &mut self,
+        graph: &ASTGraph,
+        promises: &[NodeId],
+    ) -> Result<()> {
+        // Compile all promises
+        for promise in promises {
+            self.compile_node(graph, *promise)?;
+        }
+        
+        // Create list of promises
+        self.emit(Instruction::with_arg(Opcode::MakeList, promises.len() as u32));
+        
+        // Wait for all
+        self.emit(Instruction::new(Opcode::PromiseAll));
+        
+        // Stack effect: pop list, push result list
+        
+        Ok(())
+    }
+    
+    fn compile_promise_race(
+        &mut self,
+        graph: &ASTGraph,
+        promises: &[NodeId],
+    ) -> Result<()> {
+        // Compile all promises
+        for promise in promises {
+            self.compile_node(graph, *promise)?;
+        }
+        
+        // Create list of promises
+        self.emit(Instruction::with_arg(Opcode::MakeList, promises.len() as u32));
+        
+        // Race promises
+        self.emit(Instruction::new(Opcode::PromiseRace));
+        
+        // Stack effect: pop list, push first result
+        
+        Ok(())
+    }
+    
+    fn compile_timeout(
+        &mut self,
+        graph: &ASTGraph,
+        duration: NodeId,
+        promise: NodeId,
+        default: Option<NodeId>,
+    ) -> Result<()> {
+        // Compile duration
+        self.compile_node(graph, duration)?;
+        
+        // Compile promise
+        self.compile_node(graph, promise)?;
+        
+        // Compile default if present
+        if let Some(default_val) = default {
+            self.compile_node(graph, default_val)?;
+        } else {
+            // Push nil as default
+            self.emit(Instruction::new(Opcode::PushNil));
+        }
+        
+        // Apply timeout
+        self.emit(Instruction::new(Opcode::WithTimeout));
+        
+        // Stack effect: pop duration, promise, default; push result
+        self.stack_depth = self.stack_depth.saturating_sub(2);
+        
+        Ok(())
+    }
 
     fn find_free_variables(
         &self,
@@ -1189,6 +1568,69 @@ impl Compiler {
             }
             Node::Receive { channel } => {
                 self.collect_free_variables(graph, *channel, free_vars, bound_vars)?;
+            }
+            Node::TrySend { channel, value } => {
+                self.collect_free_variables(graph, *channel, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *value, free_vars, bound_vars)?;
+            }
+            Node::TryReceive { channel } => {
+                self.collect_free_variables(graph, *channel, free_vars, bound_vars)?;
+            }
+            Node::Select { branches, default } => {
+                for (channel_op, handler) in branches {
+                    self.collect_free_variables(graph, *channel_op, free_vars, bound_vars)?;
+                    self.collect_free_variables(graph, *handler, free_vars, bound_vars)?;
+                }
+                if let Some(def) = default {
+                    self.collect_free_variables(graph, *def, free_vars, bound_vars)?;
+                }
+            }
+            Node::Actor { initial_state, handler } => {
+                self.collect_free_variables(graph, *initial_state, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *handler, free_vars, bound_vars)?;
+            }
+            Node::ActorSend { actor, message } => {
+                self.collect_free_variables(graph, *actor, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *message, free_vars, bound_vars)?;
+            }
+            Node::ActorReceive { patterns, timeout } => {
+                for (_, handler) in patterns {
+                    self.collect_free_variables(graph, *handler, free_vars, bound_vars)?;
+                }
+                if let Some((duration, handler)) = timeout {
+                    self.collect_free_variables(graph, *duration, free_vars, bound_vars)?;
+                    self.collect_free_variables(graph, *handler, free_vars, bound_vars)?;
+                }
+            }
+            Node::Become { new_state } => {
+                self.collect_free_variables(graph, *new_state, free_vars, bound_vars)?;
+            }
+            Node::Try { body, catch_branches, finally } => {
+                self.collect_free_variables(graph, *body, free_vars, bound_vars)?;
+                for (_, handler) in catch_branches {
+                    self.collect_free_variables(graph, *handler, free_vars, bound_vars)?;
+                }
+                if let Some(f) = finally {
+                    self.collect_free_variables(graph, *f, free_vars, bound_vars)?;
+                }
+            }
+            Node::Throw { error } => {
+                self.collect_free_variables(graph, *error, free_vars, bound_vars)?;
+            }
+            Node::Promise { body } => {
+                self.collect_free_variables(graph, *body, free_vars, bound_vars)?;
+            }
+            Node::PromiseAll { promises } | Node::PromiseRace { promises } => {
+                for promise in promises {
+                    self.collect_free_variables(graph, *promise, free_vars, bound_vars)?;
+                }
+            }
+            Node::Timeout { duration, promise, default } => {
+                self.collect_free_variables(graph, *duration, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *promise, free_vars, bound_vars)?;
+                if let Some(def) = default {
+                    self.collect_free_variables(graph, *def, free_vars, bound_vars)?;
+                }
             }
             _ => {} // Literals, Channel, etc. have no variables
         }

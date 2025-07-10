@@ -38,7 +38,7 @@ fn test_compile_channel() -> Result<()> {
     let mut graph = Graph::new();
 
     // Create (channel)
-    let chan = graph.add_node(Node::Channel).expect("Failed to add node");
+    let chan = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
     graph.root_id = Some(chan);
 
     compile_and_check_opcodes(&graph, &[Opcode::Channel])?;
@@ -179,7 +179,7 @@ fn test_compile_channel_operations_sequence() -> Result<()> {
     //          (send ch 10)
     //          (receive ch))
 
-    let channel_node = graph.add_node(Node::Channel).expect("Failed to add node");
+    let channel_node = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
 
     let ch_var1 = graph
         .add_node(Node::Variable {
@@ -361,7 +361,7 @@ fn test_compile_channel_in_closure() -> Result<()> {
     //            (send ch msg)
     //            ch))
 
-    let channel_node = graph.add_node(Node::Channel).expect("Failed to add node");
+    let channel_node = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
 
     let ch_var1 = graph
         .add_node(Node::Variable {

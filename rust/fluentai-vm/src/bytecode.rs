@@ -111,8 +111,32 @@ pub enum Opcode {
     Await,
     Spawn,
     Channel,
+    ChannelWithCapacity,
     Send,
     Receive,
+    TrySend,
+    TryReceive,
+    Select,
+    
+    // Actor model
+    CreateActor,
+    ActorSend,
+    ActorReceive,
+    Become,
+    
+    // Error handling
+    Try,          // Begin try block
+    Catch,        // Catch errors matching pattern
+    Finally,      // Finally block
+    Throw,        // Throw an error
+    PushHandler,  // Push error handler onto stack
+    PopHandler,   // Pop error handler from stack
+    
+    // Promise operations
+    PromiseNew,   // Create a new promise
+    PromiseAll,   // Wait for all promises
+    PromiseRace,  // Race multiple promises
+    WithTimeout,  // Add timeout to promise
 
     // Effect handlers
     MakeHandler,      // Create handler table from stack values

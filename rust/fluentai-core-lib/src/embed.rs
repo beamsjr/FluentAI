@@ -122,7 +122,7 @@ impl EmbeddedRuntime {
 
     /// Enable JIT compilation for hot functions
     #[cfg(feature = "jit")]
-    pub fn enable_jit(&mut self, threshold: usize) {
+    pub fn enable_jit(&mut self, _threshold: usize) {
         // TODO: Implement JIT threshold tracking
     }
 }
