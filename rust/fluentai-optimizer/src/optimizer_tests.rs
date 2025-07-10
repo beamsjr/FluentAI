@@ -271,4 +271,61 @@ mod tests {
         // Should handle cycles gracefully
         assert!(result.is_ok() || result.is_err());
     }
+
+    #[test]
+    fn test_optimizer_corrupts_channel_with_capacity() {
+        // Create a graph for: (chan 10)
+        let mut graph = Graph::new();
+        let capacity = graph.add_node(Node::Literal(Literal::Integer(10))).unwrap();
+        let channel = graph.add_node(Node::Channel { capacity: Some(capacity) }).unwrap();
+        graph.root_id = Some(channel);
+        
+        // Debug: Print original graph
+        println!("Original graph:");
+        println!("  NodeId(1) = {:?}", graph.get_node(NodeId(NonZeroU32::new(1).unwrap())));
+        println!("  NodeId(2) = {:?}", graph.get_node(NodeId(NonZeroU32::new(2).unwrap())));
+        println!("  root_id = {:?}", graph.root_id);
+        
+        // Apply optimization
+        let config = OptimizationConfig::for_level(OptimizationLevel::Standard);
+        let mut pipeline = OptimizationPipeline::new(config);
+        let optimized = pipeline.optimize(&graph).unwrap();
+        
+        // Debug: Print optimized graph
+        println!("\nOptimized graph:");
+        println!("  NodeId(1) = {:?}", optimized.get_node(NodeId(NonZeroU32::new(1).unwrap())));
+        println!("  NodeId(2) = {:?}", optimized.get_node(NodeId(NonZeroU32::new(2).unwrap())));
+        println!("  root_id = {:?}", optimized.root_id);
+        
+        // Check that nodes are not self-referential
+        if let Some(Node::Channel { capacity: Some(cap_id) }) = optimized.get_node(NodeId(NonZeroU32::new(1).unwrap())) {
+            assert_ne!(*cap_id, NodeId(NonZeroU32::new(1).unwrap()), "Node 1 is self-referential!");
+        }
+        if let Some(Node::Channel { capacity: Some(cap_id) }) = optimized.get_node(NodeId(NonZeroU32::new(2).unwrap())) {
+            assert_ne!(*cap_id, NodeId(NonZeroU32::new(2).unwrap()), "Node 2 is self-referential!");
+        }
+        
+        // The channel node should still exist and point to a literal
+        let root_id = optimized.root_id.expect("Optimized graph should have a root");
+        let root_node = optimized.get_node(root_id).expect("Root node should exist");
+        match root_node {
+            Node::Channel { capacity: Some(cap_id) } => {
+                // Debug: Print all nodes in the optimized graph
+                println!("\nAll nodes in optimized graph:");
+                for (id, node) in &optimized.nodes {
+                    println!("  {:?} = {:?}", id, node);
+                }
+                
+                let cap_node = optimized.get_node(*cap_id);
+                match cap_node {
+                    Some(Node::Literal(Literal::Integer(10))) => {
+                        // This is correct
+                    }
+                    Some(other) => panic!("Capacity node is not a literal integer: {:?}", other),
+                    None => panic!("Capacity node {:?} does not exist in optimized graph", cap_id),
+                }
+            }
+            _ => panic!("Root node is not a channel: {:?}", root_node),
+        }
+    }
 }

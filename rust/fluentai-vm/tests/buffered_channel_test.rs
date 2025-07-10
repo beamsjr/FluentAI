@@ -52,7 +52,7 @@ fn test_channel_with_capacity() {
     let channel = graph.add_node(Node::Channel { capacity: Some(capacity) }).unwrap();
     graph.root_id = Some(channel);
 
-    // Compile and run
+    // Compile and run (disable optimization to avoid optimizer bug)
     let mut options = fluentai_vm::compiler::CompilerOptions::default();
     options.optimization_level = fluentai_optimizer::OptimizationLevel::None;
     let compiler = Compiler::with_options(options);

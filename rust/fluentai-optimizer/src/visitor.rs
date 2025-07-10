@@ -795,7 +795,7 @@ mod tests {
         let mut graph = Graph::new();
 
         // Create a node type that doesn't have a specific visitor method
-        let channel = graph.add_node(Node::Channel).expect("Failed to add node");
+        let channel = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
         graph.root_id = Some(channel);
 
         let mut counter = NodeCounter::new();
