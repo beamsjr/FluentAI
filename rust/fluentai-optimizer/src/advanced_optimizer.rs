@@ -271,8 +271,13 @@ impl AdvancedOptimizer {
                                 stack.push(WorkItem::Process(*arg));
                             }
                         }
-                        Node::Variable { .. } | Node::Literal(_) | Node::Channel { .. } => {
+                        Node::Variable { .. } | Node::Literal(_) => {
                             // These have no children to process
+                        }
+                        Node::Channel { capacity } => {
+                            if let Some(cap_id) = capacity {
+                                stack.push(WorkItem::Process(*cap_id));
+                            }
                         }
                         Node::Module { body, .. } => {
                             stack.push(WorkItem::Process(*body));
@@ -1131,6 +1136,17 @@ impl AdvancedOptimizer {
                     }
                 } else {
                     return Ok(None);
+                }
+            }
+            Node::Channel { capacity } => {
+                if let Some(cap_id) = capacity {
+                    if let Some(opt_cap) = self.optimize_node(cap_id)? {
+                        Node::Channel { capacity: Some(opt_cap) }
+                    } else {
+                        return Ok(None);
+                    }
+                } else {
+                    Node::Channel { capacity: None }
                 }
             }
             _ => node.clone(),

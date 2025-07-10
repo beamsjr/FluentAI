@@ -333,6 +333,14 @@ impl GraphOptimizer {
                         }
                     }
                 }
+                Node::Channel { capacity } => {
+                    // Check if the capacity expression has effects
+                    if let Some(cap_id) = capacity {
+                        if self.check_for_effects(graph, *cap_id, visited) {
+                            return true;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -449,6 +457,12 @@ impl GraphOptimizer {
                         self.collect_used_variables(graph, *expr, used, visited);
                     }
                 }
+                Node::Channel { capacity } => {
+                    // Collect variables used in capacity expression
+                    if let Some(cap_id) = capacity {
+                        self.collect_used_variables(graph, *cap_id, used, visited);
+                    }
+                }
                 _ => {}
             }
         }
@@ -560,6 +574,12 @@ impl GraphOptimizer {
                     // Fix for handling let/letrec with Begin bodies - preserve all expressions
                     for expr in exprs {
                         self.mark_reachable(graph, *expr, reachable);
+                    }
+                }
+                Node::Channel { capacity } => {
+                    // Mark the capacity expression as reachable if present
+                    if let Some(cap_id) = capacity {
+                        self.mark_reachable(graph, *cap_id, reachable);
                     }
                 }
                 _ => {}
@@ -833,6 +853,9 @@ impl GraphOptimizer {
             Node::Begin { exprs } => Node::Begin {
                 exprs: exprs.iter().map(map_node_id).collect::<Result<Vec<_>>>()?,
             },
+            Node::Channel { capacity } => Node::Channel {
+                capacity: capacity.as_ref().map(map_node_id).transpose()?,
+            },
             _ => node.clone(),
         };
 
@@ -962,6 +985,9 @@ impl GraphOptimizer {
                     .iter()
                     .map(|id| mapping.get(id).copied().unwrap_or(*id))
                     .collect(),
+            },
+            Node::Channel { capacity } => Node::Channel {
+                capacity: capacity.map(|id| mapping.get(&id).copied().unwrap_or(id)),
             },
             _ => node.clone(),
         }
