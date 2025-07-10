@@ -107,6 +107,14 @@ impl Compiler {
         self.scope_bases.push(self.stack_depth);
     }
     
+    /// Push a new local scope with a specific base
+    fn push_scope_with_base(&mut self, base: usize) {
+        self.locals.push(HashMap::new());
+        self.captured.push(HashMap::new());
+        self.cell_vars.push(HashSet::new());
+        self.scope_bases.push(base);
+    }
+    
     /// Pop the current local scope
     fn pop_scope(&mut self) {
         self.locals.pop();
@@ -331,6 +339,7 @@ impl Compiler {
                 // The position stored is relative to the scope base
                 // We need to calculate the absolute position
                 let abs_pos = self.scope_bases[scope_idx] + rel_pos;
+                
 
                 // Use fast local opcodes for indices 0-3
                 match abs_pos {
@@ -1379,7 +1388,7 @@ impl Compiler {
     }
     
     /// Compile catch branches with pattern matching
-    fn compile_catch_branches(&mut self, graph: &ASTGraph, catch_branches: &[(Pattern, NodeId)]) -> Result<()> {
+    fn compile_catch_branches(&mut self, graph: &ASTGraph, catch_branches: &[(Pattern, NodeId)], try_entry_stack_depth: usize) -> Result<()> {
         // Compile catch handlers
         if !catch_branches.is_empty() {
             // For now, just compile the first handler with simple variable binding
@@ -1390,27 +1399,26 @@ impl Compiler {
             // Handle variable binding in catch pattern
             match pattern {
                 Pattern::Variable(var_name) => {
+                    // When we enter a catch handler, the VM has:
+                    // 1. Unwound the stack to where it was when PushHandler was executed
+                    // 2. Pushed the error value on top
+                    // 
+                    // The catch parameter is effectively the top of the stack at handler entry.
+                    // We need to account for this in our variable tracking.
+                    
+                    // The VM will unwind to try_entry_stack_depth and then push the error
+                    // So the error will be at position try_entry_stack_depth
+                    
                     // Push new scope for the catch block
-                    self.push_scope();
+                    // The scope base should be where the catch parameter will be
+                    // which is at try_entry_stack_depth (after unwinding)
+                    self.push_scope_with_base(try_entry_stack_depth);
                     
-                    // The error value is already on the stack
-                    // When thrown, it's at stack position (stack_depth - 1)
-                    // But we need to store it as if it's a local variable
-                    // Since compile_variable expects relative positions, we need to
-                    // calculate the relative position from the scope base
-                    let scope_idx = self.locals.len() - 1;
-                    let scope_base = self.scope_bases[scope_idx];
-                    
-                    // The error is at absolute position stack_depth-1
-                    // The scope base is at stack_depth
-                    // So the error is "before" the scope base
-                    // We can't have negative relative positions, so we'll store it
-                    // as if it's the first variable in the scope (position 0)
-                    // But we need to make sure compile_variable generates the right code
-                    
-                    // Actually, the error value IS part of this scope - it's the first thing
-                    // So its relative position is 0
+                    // The catch parameter will be at relative position 0 in this scope
                     self.locals.last_mut().unwrap().insert(var_name.clone(), 0);
+                    
+                    // Temporarily adjust our view of the stack to include the error parameter
+                    self.stack_depth = try_entry_stack_depth + 1;
                     
                     // Compile the handler
                     self.compile_node(graph, *handler)?;
@@ -1419,6 +1427,10 @@ impl Compiler {
                     // (the handler result remains on stack)
                     self.emit(Instruction::new(Opcode::Swap)); // handler_result, error
                     self.emit(Instruction::new(Opcode::Pop));  // handler_result
+                    
+                    // Restore stack depth to what it was at try entry
+                    // (the handler result remains on stack, replacing the error)
+                    self.stack_depth = try_entry_stack_depth;
                     
                     // Pop scope
                     self.pop_scope();
@@ -1516,6 +1528,10 @@ impl Compiler {
         //   <restore stack value>
         // end:
         
+        // Save the stack depth at the start of the try block
+        // This is what the VM will restore to when an exception is thrown
+        let try_entry_stack_depth = self.stack_depth;
+        
         // Set up error handlers for try/catch/finally
         let (push_handler_idx, push_finally_idx) = self.setup_error_handlers(finally)?;
         
@@ -1526,7 +1542,8 @@ impl Compiler {
         self.setup_catch_handlers(push_handler_idx)?;
         
         // Compile catch branches with pattern matching
-        self.compile_catch_branches(graph, catch_branches)?;
+        // Pass the stack depth from try entry so we know where the error will be pushed
+        self.compile_catch_branches(graph, catch_branches, try_entry_stack_depth)?;
         
         // Set up jump to finally after catch
         let jump_after_catch = self.setup_finally_jumps(finally)?;
