@@ -39,6 +39,15 @@ pub struct Compiler {
     current_function: Option<String>, // Name of current function being compiled
 }
 
+/// Helper struct to hold error handler information during try/catch/finally compilation
+struct ErrorHandlerInfo {
+    push_handler_idx: usize,
+    push_finally_idx: Option<usize>,
+    jump_after_body: usize,
+    jump_after_catch: Option<usize>,
+    catch_start: usize,
+}
+
 impl Compiler {
     pub fn new() -> Self {
         Self::with_options(CompilerOptions::default())
@@ -1331,28 +1340,8 @@ impl Compiler {
         Ok(())
     }
     
-    fn compile_try(
-        &mut self,
-        graph: &ASTGraph,
-        body: NodeId,
-        catch_branches: &[(Pattern, NodeId)],
-        finally: Option<NodeId>,
-    ) -> Result<()> {
-        // Structure:
-        // PushHandler catch_ip
-        // PushFinally finally_ip (if finally exists)
-        // <try body>
-        // PopHandler
-        // Jump finally (or end)
-        // catch:
-        //   <catch handlers>
-        //   Jump finally (or end)
-        // finally:
-        //   <preserve stack value>
-        //   <finally block>
-        //   <restore stack value>
-        // end:
-        
+    /// Set up error handlers for try/catch/finally block
+    fn setup_error_handlers(&mut self, finally: Option<NodeId>) -> Result<(usize, Option<usize>)> {
         // Push error handler with catch target
         let push_handler_idx = self.emit(Instruction::new(Opcode::PushHandler));
         
@@ -1363,6 +1352,11 @@ impl Compiler {
             None
         };
         
+        Ok((push_handler_idx, push_finally_idx))
+    }
+    
+    /// Compile the try body and set up jump after successful completion
+    fn compile_try_body(&mut self, graph: &ASTGraph, body: NodeId) -> Result<usize> {
         // Compile body
         self.compile_node(graph, body)?;
         
@@ -1372,12 +1366,22 @@ impl Compiler {
         // Jump to finally (or end if no finally)
         let jump_after_body = self.emit(Instruction::new(Opcode::Jump));
         
+        Ok(jump_after_body)
+    }
+    
+    /// Set up catch handler position and patch the PushHandler instruction
+    fn setup_catch_handlers(&mut self, push_handler_idx: usize) -> Result<usize> {
         // Mark catch handler start
         let catch_start = self.bytecode.chunks[self.current_chunk].instructions.len();
         
         // Patch the PushHandler instruction with catch IP
         self.bytecode.chunks[self.current_chunk].instructions[push_handler_idx].arg = catch_start as u32;
         
+        Ok(catch_start)
+    }
+    
+    /// Compile catch branches with pattern matching
+    fn compile_catch_branches(&mut self, graph: &ASTGraph, catch_branches: &[(Pattern, NodeId)]) -> Result<()> {
         // Compile catch handlers
         if !catch_branches.is_empty() {
             // For now, just compile the first handler with simple variable binding
@@ -1414,6 +1418,11 @@ impl Compiler {
             }
         }
         
+        Ok(())
+    }
+    
+    /// Set up jump to finally block after catch handler
+    fn setup_finally_jumps(&mut self, finally: Option<NodeId>) -> Result<Option<usize>> {
         // Jump to finally after catch
         let jump_after_catch = if finally.is_some() {
             Some(self.emit(Instruction::new(Opcode::Jump)))
@@ -1421,6 +1430,18 @@ impl Compiler {
             None
         };
         
+        Ok(jump_after_catch)
+    }
+    
+    /// Compile the finally block with proper jump patching
+    fn compile_finally_block(
+        &mut self,
+        graph: &ASTGraph,
+        finally: Option<NodeId>,
+        push_finally_idx: Option<usize>,
+        jump_after_body: usize,
+        jump_after_catch: Option<usize>,
+    ) -> Result<()> {
         // Compile finally block if present
         if let Some(finally_block) = finally {
             // Mark finally start
@@ -1457,6 +1478,49 @@ impl Compiler {
             let end_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
             self.patch_jump(jump_after_body, end_pos);
         }
+        
+        Ok(())
+    }
+    
+    fn compile_try(
+        &mut self,
+        graph: &ASTGraph,
+        body: NodeId,
+        catch_branches: &[(Pattern, NodeId)],
+        finally: Option<NodeId>,
+    ) -> Result<()> {
+        // Structure:
+        // PushHandler catch_ip
+        // PushFinally finally_ip (if finally exists)
+        // <try body>
+        // PopHandler
+        // Jump finally (or end)
+        // catch:
+        //   <catch handlers>
+        //   Jump finally (or end)
+        // finally:
+        //   <preserve stack value>
+        //   <finally block>
+        //   <restore stack value>
+        // end:
+        
+        // Set up error handlers for try/catch/finally
+        let (push_handler_idx, push_finally_idx) = self.setup_error_handlers(finally)?;
+        
+        // Compile try body and get jump after successful completion
+        let jump_after_body = self.compile_try_body(graph, body)?;
+        
+        // Set up catch handler position and patch PushHandler
+        self.setup_catch_handlers(push_handler_idx)?;
+        
+        // Compile catch branches with pattern matching
+        self.compile_catch_branches(graph, catch_branches)?;
+        
+        // Set up jump to finally after catch
+        let jump_after_catch = self.setup_finally_jumps(finally)?;
+        
+        // Compile finally block with proper jump patching
+        self.compile_finally_block(graph, finally, push_finally_idx, jump_after_body, jump_after_catch)?;
         
         Ok(())
     }
