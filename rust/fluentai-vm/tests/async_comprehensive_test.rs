@@ -249,7 +249,6 @@ fn test_select_channels() {
 }
 
 #[test]
-#[ignore = "Issue with catch parameter and local variable indexing - see issue #42"]
 fn test_channel_in_error_handler() {
     // Test using channels in error handlers
     let result = compile_and_run(
