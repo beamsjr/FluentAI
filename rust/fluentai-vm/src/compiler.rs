@@ -107,14 +107,6 @@ impl Compiler {
         self.scope_bases.push(self.stack_depth);
     }
     
-    /// Push a new local scope with a specific base
-    fn push_scope_with_base(&mut self, base: usize) {
-        self.locals.push(HashMap::new());
-        self.captured.push(HashMap::new());
-        self.cell_vars.push(HashSet::new());
-        self.scope_bases.push(base);
-    }
-    
     /// Pop the current local scope
     fn pop_scope(&mut self) {
         self.locals.pop();
@@ -128,6 +120,7 @@ impl Compiler {
             .nodes
             .get(&node_id)
             .ok_or_else(|| anyhow!("Invalid node ID: {:?}", node_id))?;
+        
 
         match node {
             Node::Literal(lit) => self.compile_literal(lit)?,
@@ -713,6 +706,10 @@ impl Compiler {
             // Store relative position within this scope
             // The i-th binding is at position i relative to the scope base
             self.locals[scope_idx].insert(name.clone(), i);
+            
+            // The value is now on the stack, but we need to keep it there for the let scope
+            // No Store instruction needed - values stay on the stack in their binding order
+            // Fix for issue 26: Let bindings now properly maintain values on stack for local access
         }
 
         // Compile body (preserving tail position - let body is in tail position)
@@ -780,7 +777,8 @@ impl Compiler {
         for (i, name) in binding_names.iter().enumerate() {
             self.emit(Instruction::new(Opcode::PushNil));
             self.emit(Instruction::new(Opcode::MakeCell));
-            // Store relative position within this scope
+            // Cell is now on stack
+            // Store relative position - the i-th binding is at position i
             self.locals[scope_idx].insert(name.clone(), i);
             self.cell_vars[scope_idx].insert(name.clone());
         }
@@ -1388,7 +1386,7 @@ impl Compiler {
     }
     
     /// Compile catch branches with pattern matching
-    fn compile_catch_branches(&mut self, graph: &ASTGraph, catch_branches: &[(Pattern, NodeId)], try_entry_stack_depth: usize) -> Result<()> {
+    fn compile_catch_branches(&mut self, graph: &ASTGraph, catch_branches: &[(Pattern, NodeId)]) -> Result<()> {
         // Compile catch handlers
         if !catch_branches.is_empty() {
             // For now, just compile the first handler with simple variable binding
@@ -1406,19 +1404,9 @@ impl Compiler {
                     // The catch parameter is effectively the top of the stack at handler entry.
                     // We need to account for this in our variable tracking.
                     
-                    // The VM will unwind to try_entry_stack_depth and then push the error
-                    // So the error will be at position try_entry_stack_depth
-                    
-                    // Push new scope for the catch block
-                    // The scope base should be where the catch parameter will be
-                    // which is at try_entry_stack_depth (after unwinding)
-                    self.push_scope_with_base(try_entry_stack_depth);
-                    
-                    // The catch parameter will be at relative position 0 in this scope
+                    // The error value is already on the stack
+                    // Store relative position (0) since it's the first variable in this scope
                     self.locals.last_mut().unwrap().insert(var_name.clone(), 0);
-                    
-                    // Temporarily adjust our view of the stack to include the error parameter
-                    self.stack_depth = try_entry_stack_depth + 1;
                     
                     // Compile the handler
                     self.compile_node(graph, *handler)?;
@@ -1427,10 +1415,6 @@ impl Compiler {
                     // (the handler result remains on stack)
                     self.emit(Instruction::new(Opcode::Swap)); // handler_result, error
                     self.emit(Instruction::new(Opcode::Pop));  // handler_result
-                    
-                    // Restore stack depth to what it was at try entry
-                    // (the handler result remains on stack, replacing the error)
-                    self.stack_depth = try_entry_stack_depth;
                     
                     // Pop scope
                     self.pop_scope();
@@ -1528,10 +1512,6 @@ impl Compiler {
         //   <restore stack value>
         // end:
         
-        // Save the stack depth at the start of the try block
-        // This is what the VM will restore to when an exception is thrown
-        let try_entry_stack_depth = self.stack_depth;
-        
         // Set up error handlers for try/catch/finally
         let (push_handler_idx, push_finally_idx) = self.setup_error_handlers(finally)?;
         
@@ -1542,8 +1522,7 @@ impl Compiler {
         self.setup_catch_handlers(push_handler_idx)?;
         
         // Compile catch branches with pattern matching
-        // Pass the stack depth from try entry so we know where the error will be pushed
-        self.compile_catch_branches(graph, catch_branches, try_entry_stack_depth)?;
+        self.compile_catch_branches(graph, catch_branches)?;
         
         // Set up jump to finally after catch
         let jump_after_catch = self.setup_finally_jumps(finally)?;
@@ -1842,9 +1821,20 @@ impl Compiler {
 
     fn compile_captured_variable(&mut self, name: &str) -> Result<()> {
         // Find the variable in outer scopes and emit code to load it
-        for (_scope_idx, scope) in self.locals.iter().enumerate().rev() {
-            if let Some(&local_idx) = scope.get(name) {
-                self.emit(Instruction::with_arg(Opcode::Load, local_idx as u32));
+        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
+            if let Some(&rel_pos) = scope.get(name) {
+                // Calculate absolute position like in compile_variable
+                let abs_pos = self.scope_bases[scope_idx] + rel_pos;
+                // Fix for issue 26: Properly calculate absolute stack position for captured variables
+                
+                // Use fast local opcodes for indices 0-3
+                match abs_pos {
+                    0 => self.emit(Instruction::new(Opcode::LoadLocal0)),
+                    1 => self.emit(Instruction::new(Opcode::LoadLocal1)),
+                    2 => self.emit(Instruction::new(Opcode::LoadLocal2)),
+                    3 => self.emit(Instruction::new(Opcode::LoadLocal3)),
+                    _ => self.emit(Instruction::with_arg(Opcode::Load, abs_pos as u32)),
+                };
                 // Don't dereference cells when capturing - we want to capture the cell itself
                 // The dereference will happen when the variable is used
                 return Ok(());

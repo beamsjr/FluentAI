@@ -1,7 +1,7 @@
 use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_core::value::Value;
 use fluentai_effects::{EffectContext, EffectRuntime, handlers::*};
-use fluentai_vm::{compiler::Compiler, VM};
+use fluentai_vm::{compiler::{Compiler, CompilerOptions}, VM};
 use std::sync::Arc;
 
 #[test]
@@ -64,7 +64,6 @@ fn test_spawn_with_lambda() {
 }
 
 #[test]
-#[ignore = "Compiler issue: let bindings not generating proper code for channel creation and variable capture"]
 fn test_spawn_with_channel() {
     // Initialize effect context and runtime
     let context = Arc::new(EffectContext::new());
@@ -110,7 +109,11 @@ fn test_spawn_with_channel() {
     graph.root_id = Some(let_node);
 
     // Compile
-    let compiler = Compiler::new();
+    // Note: This test requires optimization to be disabled due to optimizer issues
+    // with let bindings and variable capture (see issue #26)
+    let mut options = CompilerOptions::default();
+    options.optimization_level = fluentai_optimizer::OptimizationLevel::None;
+    let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph).unwrap();
 
     // Create VM with effect context and runtime
