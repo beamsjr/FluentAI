@@ -10,7 +10,7 @@ fn test_parse_channel_creation() {
     let root_id = result.root_id.unwrap();
     let node = result.get_node(root_id).unwrap();
 
-    assert!(matches!(node, Node::Channel));
+    assert!(matches!(node, Node::Channel { .. }));
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn test_parse_channel_in_let() {
 
             // Check the binding value is a channel
             match result.get_node(bindings[0].1).unwrap() {
-                Node::Channel => {}
+                Node::Channel { .. } => {}
                 _ => panic!("Expected Channel node"),
             }
 
@@ -144,7 +144,7 @@ fn test_parse_channel_communication_pattern() {
             assert_eq!(bindings[0].0, "ch");
             assert!(matches!(
                 result.get_node(bindings[0].1).unwrap(),
-                Node::Channel
+                Node::Channel { .. }
             ));
 
             // Body should be a let (from do expansion)
@@ -194,11 +194,11 @@ fn test_parse_multiple_channels() {
             // Both should be channels
             assert!(matches!(
                 result.get_node(bindings[0].1).unwrap(),
-                Node::Channel
+                Node::Channel { .. }
             ));
             assert!(matches!(
                 result.get_node(bindings[1].1).unwrap(),
-                Node::Channel
+                Node::Channel { .. }
             ));
         }
         _ => panic!("Expected Let node"),

@@ -138,6 +138,8 @@ impl DeadCodeEliminationPass {
                 Node::Spawn { .. } | Node::Await { .. } => true,
                 // Send/Receive have side effects
                 Node::Send { .. } | Node::Receive { .. } => true,
+                // TrySend/TryReceive/Select also have side effects
+                Node::TrySend { .. } | Node::TryReceive { .. } | Node::Select { .. } => true,
                 // Applications might have side effects if they call effectful functions
                 Node::Application { function, args } => {
                     // Check if it's a known effectful function
@@ -206,13 +208,33 @@ impl DeadCodeEliminationPass {
                 Node::Import { .. } => false, // Imports themselves don't have side effects
                 Node::Export { .. } => false, // Exports themselves don't have side effects
                 Node::QualifiedVariable { .. } => false, // Just a reference
-                Node::Channel => false,       // Channel creation is considered pure
+                Node::Channel { .. } => false,       // Channel creation is considered pure
                 Node::Contract { .. } => false, // Contracts themselves don't have side effects
                 Node::Define { value, .. } => self.has_side_effects(graph, *value), // Define has side effects if its value does
                 Node::Begin { exprs } => {
                     // Begin has side effects if any of its expressions do
                     exprs.iter().any(|expr| self.has_side_effects(graph, *expr))
                 }
+                Node::Actor { .. } | Node::ActorSend { .. } => {
+                    // Actor operations have side effects
+                    true
+                }
+                Node::ActorReceive { .. } | Node::Become { .. } => {
+                    // These are only valid in actor context and have effects
+                    true
+                }
+                Node::Try { body, catch_branches, finally } => {
+                    // Try has side effects if any part does
+                    self.has_side_effects(graph, *body) ||
+                    catch_branches.iter().any(|(_, handler)| self.has_side_effects(graph, *handler)) ||
+                    finally.map_or(false, |f| self.has_side_effects(graph, f))
+                }
+                Node::Throw { .. } => true, // Throw always has side effects
+                Node::Promise { body } => self.has_side_effects(graph, *body),
+                Node::PromiseAll { promises } | Node::PromiseRace { promises } => {
+                    promises.iter().any(|p| self.has_side_effects(graph, *p))
+                }
+                Node::Timeout { promise, .. } => self.has_side_effects(graph, *promise),
             }
         } else {
             false

@@ -150,6 +150,19 @@ impl<'a> Parser<'a> {
                 "chan" => return self.parse_channel(),
                 "send!" => return self.parse_send(),
                 "recv!" => return self.parse_receive(),
+                "try-send!" => return self.parse_try_send(),
+                "try-recv!" => return self.parse_try_receive(),
+                "select" => return self.parse_select(),
+                "actor" => return self.parse_actor(),
+                "!" => return self.parse_actor_send(),
+                "receive" => return self.parse_actor_receive(),
+                "become" => return self.parse_become(),
+                "try" => return self.parse_try(),
+                "throw" => return self.parse_throw(),
+                "promise" => return self.parse_promise(),
+                "promise-all" => return self.parse_promise_all(),
+                "promise-race" => return self.parse_promise_race(),
+                "timeout" => return self.parse_timeout(),
                 "module" => return self.parse_module(),
                 "import" => return self.parse_import(),
                 "export" => return self.parse_export(),
@@ -948,9 +961,16 @@ impl<'a> Parser<'a> {
 
     fn parse_channel(&mut self) -> ParseResult<NodeId> {
         self.expect_symbol("chan")?;
+        
+        // Check if there's an optional capacity argument
+        let capacity = if !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            Some(self.parse_expr()?)
+        } else {
+            None
+        };
+        
         self.expect_token(Token::RParen)?;
-
-        let node = Node::Channel;
+        let node = Node::Channel { capacity };
         Ok(self.graph.add_node(node)?)
     }
 
@@ -984,6 +1004,277 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
 
         let node = Node::Receive { channel };
+        Ok(self.graph.add_node(node)?)
+    }
+
+    fn parse_try_send(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_try_send_inner();
+        self.exit_recursion();
+        result
+    }
+
+    fn parse_try_send_inner(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("try-send!")?;
+        let channel = self.parse_expr()?;
+        let value = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+
+        let node = Node::TrySend { channel, value };
+        Ok(self.graph.add_node(node)?)
+    }
+
+    fn parse_try_receive(&mut self) -> ParseResult<NodeId> {
+        self.enter_recursion()?;
+        let result = self.parse_try_receive_inner();
+        self.exit_recursion();
+        result
+    }
+
+    fn parse_try_receive_inner(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("try-recv!")?;
+        let channel = self.parse_expr()?;
+        self.expect_token(Token::RParen)?;
+
+        let node = Node::TryReceive { channel };
+        Ok(self.graph.add_node(node)?)
+    }
+
+    fn parse_select(&mut self) -> ParseResult<NodeId> {
+        // Skip opening parenthesis (already consumed)
+        self.parse_select_inner()
+    }
+
+    fn parse_select_inner(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("select")?;
+        
+        let mut branches = Vec::new();
+        let mut default = None;
+        
+        // Parse select branches
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            self.expect_token(Token::LParen)?;
+            
+            // Check if this is a default branch
+            if let Some(Token::Symbol(sym)) = self.lexer.peek_token() {
+                if *sym == "default" {
+                    self.lexer.next_token(); // consume "default"
+                    let handler = self.parse_expr()?;
+                    self.expect_token(Token::RParen)?;
+                    default = Some(handler);
+                    continue;
+                }
+            }
+            
+            // Parse channel operation (recv! or send!)
+            let channel_op = self.parse_expr()?;
+            let handler = self.parse_expr()?;
+            self.expect_token(Token::RParen)?;
+            
+            branches.push((channel_op, handler));
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        if branches.is_empty() && default.is_none() {
+            return Err(ParseError::InvalidSyntax(
+                "select requires at least one branch".to_string()
+            ));
+        }
+        
+        let node = Node::Select { branches, default };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_actor(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("actor")?;
+        
+        let initial_state = self.parse_expr()?;
+        let handler = self.parse_expr()?;
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Actor { initial_state, handler };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_actor_send(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("!")?;
+        
+        let actor = self.parse_expr()?;
+        let message = self.parse_expr()?;
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::ActorSend { actor, message };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_actor_receive(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("receive")?;
+        
+        let mut patterns = Vec::new();
+        let mut timeout = None;
+        
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            self.expect_token(Token::LParen)?;
+            
+            // Check for timeout branch
+            if let Some(Token::Symbol(sym)) = self.lexer.peek_token() {
+                if *sym == "timeout" {
+                    self.lexer.next_token(); // consume "timeout"
+                    let duration = self.parse_expr()?;
+                    let handler = self.parse_expr()?;
+                    self.expect_token(Token::RParen)?;
+                    timeout = Some((duration, handler));
+                    continue;
+                }
+            }
+            
+            // Parse pattern and handler
+            let pattern = self.parse_pattern()?;
+            let handler = self.parse_expr()?;
+            self.expect_token(Token::RParen)?;
+            
+            patterns.push((pattern, handler));
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        if patterns.is_empty() && timeout.is_none() {
+            return Err(ParseError::InvalidSyntax(
+                "receive requires at least one pattern or timeout".to_string()
+            ));
+        }
+        
+        let node = Node::ActorReceive { patterns, timeout };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_become(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("become")?;
+        
+        let new_state = self.parse_expr()?;
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Become { new_state };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_try(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("try")?;
+        
+        let body = self.parse_expr()?;
+        
+        let mut catch_branches = Vec::new();
+        let mut finally = None;
+        
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            self.expect_token(Token::LParen)?;
+            
+            if let Some(Token::Symbol(sym)) = self.lexer.peek_token() {
+                if *sym == "catch" {
+                    self.lexer.next_token(); // consume "catch"
+                    let pattern = self.parse_pattern()?;
+                    let handler = self.parse_expr()?;
+                    self.expect_token(Token::RParen)?;
+                    catch_branches.push((pattern, handler));
+                } else if *sym == "finally" {
+                    self.lexer.next_token(); // consume "finally"
+                    finally = Some(self.parse_expr()?);
+                    self.expect_token(Token::RParen)?;
+                } else {
+                    return Err(ParseError::InvalidSyntax(
+                        "Expected 'catch' or 'finally' in try expression".to_string()
+                    ));
+                }
+            }
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Try { body, catch_branches, finally };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_throw(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("throw")?;
+        
+        let error = self.parse_expr()?;
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Throw { error };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_promise(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("promise")?;
+        
+        let body = self.parse_expr()?;
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Promise { body };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_promise_all(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("promise-all")?;
+        
+        let mut promises = Vec::new();
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            promises.push(self.parse_expr()?);
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        if promises.is_empty() {
+            return Err(ParseError::InvalidSyntax(
+                "promise-all requires at least one promise".to_string()
+            ));
+        }
+        
+        let node = Node::PromiseAll { promises };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_promise_race(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("promise-race")?;
+        
+        let mut promises = Vec::new();
+        while !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            promises.push(self.parse_expr()?);
+        }
+        
+        self.expect_token(Token::RParen)?;
+        
+        if promises.is_empty() {
+            return Err(ParseError::InvalidSyntax(
+                "promise-race requires at least one promise".to_string()
+            ));
+        }
+        
+        let node = Node::PromiseRace { promises };
+        Ok(self.graph.add_node(node)?)
+    }
+    
+    fn parse_timeout(&mut self) -> ParseResult<NodeId> {
+        self.expect_symbol("timeout")?;
+        
+        let duration = self.parse_expr()?;
+        let promise = self.parse_expr()?;
+        
+        let default = if !matches!(self.lexer.peek_token(), Some(Token::RParen)) {
+            Some(self.parse_expr()?)
+        } else {
+            None
+        };
+        
+        self.expect_token(Token::RParen)?;
+        
+        let node = Node::Timeout { duration, promise, default };
         Ok(self.graph.add_node(node)?)
     }
 

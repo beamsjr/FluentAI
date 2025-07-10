@@ -487,7 +487,7 @@ mod tests {
     fn test_parse_channel() {
         let result = parse("(chan)").unwrap();
         let root_id = result.root_id.unwrap();
-        assert!(matches!(result.get_node(root_id).unwrap(), Node::Channel));
+        assert!(matches!(result.get_node(root_id).unwrap(), Node::Channel { .. }));
     }
 
     #[test]

@@ -91,7 +91,11 @@ impl FeatureBasedGenerator {
             Node::Async { .. } => features[17] = 1.0,
             Node::Await { .. } => features[18] = 1.0,
             Node::Spawn { .. } => features[19] = 1.0,
-            Node::Channel => features[20] = 1.0,
+            Node::Channel { .. } => features[20] = 1.0,
+            Node::Send { .. } => features[21] = 1.0,
+            Node::Receive { .. } => features[22] = 1.0,
+            Node::TrySend { .. } => features[23] = 1.0,
+            Node::TryReceive { .. } => features[24] = 1.0,
             _ => features[31] = 1.0, // Other
         }
 

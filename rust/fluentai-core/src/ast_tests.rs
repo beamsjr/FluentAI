@@ -730,8 +730,8 @@ mod tests {
         }
 
         // Test Channel node
-        let channel = graph.add_node(Node::Channel).unwrap();
-        assert!(matches!(graph.get_node(channel), Some(Node::Channel)));
+        let channel = graph.add_node(Node::Channel { capacity: None }).unwrap();
+        assert!(matches!(graph.get_node(channel), Some(Node::Channel { .. })));
 
         // Test Send node
         let value = graph
@@ -1022,7 +1022,7 @@ mod tests {
     fn test_receive_node() {
         let mut graph = Graph::new();
 
-        let channel = graph.add_node(Node::Channel).unwrap();
+        let channel = graph.add_node(Node::Channel { capacity: None }).unwrap();
         let receive = graph.add_node(Node::Receive { channel }).unwrap();
 
         if let Some(Node::Receive { channel: ch }) = graph.get_node(receive) {
@@ -1717,7 +1717,7 @@ mod tests {
         assert_eq!(spawn_docs.name, "Spawn");
         assert!(spawn_docs.description.contains("concurrent"));
 
-        let channel_node = Node::Channel;
+        let channel_node = Node::Channel { capacity: None };
         let channel_docs = channel_node.get_node_docs();
         assert_eq!(channel_docs.name, "Channel");
         assert!(channel_docs.syntax.contains("chan"));
@@ -2336,7 +2336,7 @@ mod tests {
         let _async_node = graph.add_node(Node::Async { body: var_node }).unwrap();
         let _await_node = graph.add_node(Node::Await { expr: var_node }).unwrap();
         let _spawn_node = graph.add_node(Node::Spawn { expr: var_node }).unwrap();
-        let _channel_node = graph.add_node(Node::Channel).unwrap();
+        let _channel_node = graph.add_node(Node::Channel { capacity: None }).unwrap();
         let _send_node = graph
             .add_node(Node::Send {
                 channel: var_node,

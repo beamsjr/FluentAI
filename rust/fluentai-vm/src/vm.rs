@@ -4,7 +4,7 @@ use crate::bytecode::{Bytecode, Instruction, Opcode};
 use crate::debug::{DebugConfig, StepMode, VMDebugEvent};
 use crate::error::{value_type_name, StackFrame, StackTrace, VMError, VMResult};
 use crate::gc::{GarbageCollector, GcConfig, GcScope};
-use crate::safety::{checked_ops, ChannelId, IdGenerator, PromiseId, ResourceLimits};
+use crate::safety::{checked_ops, ActorId, ChannelId, IdGenerator, PromiseId, ResourceLimits};
 use crate::security::{SecurityManager, SecurityPolicy};
 use fluentai_core::ast::{NodeId, UsageStatistics};
 use fluentai_core::value::Value;
@@ -18,6 +18,18 @@ use std::time::Instant;
 use tokio::sync::{mpsc, oneshot};
 
 const STACK_SIZE: usize = 10_000;
+
+/// Actor state and message handling
+pub struct Actor {
+    /// Current state of the actor
+    state: Value,
+    /// Handler function that processes messages
+    handler: Value,
+    /// Mailbox for incoming messages
+    mailbox: mpsc::Receiver<Value>,
+    /// Sender for the mailbox
+    sender: mpsc::Sender<Value>,
+}
 
 pub struct CallFrame {
     chunk_id: usize,
@@ -107,6 +119,8 @@ pub struct VM {
     id_generator: IdGenerator,
     promises: FxHashMap<PromiseId, oneshot::Receiver<VMResult<Value>>>,
     channels: FxHashMap<ChannelId, (mpsc::Sender<Value>, mpsc::Receiver<Value>)>,
+    // Actor support
+    actors: FxHashMap<ActorId, Actor>,
     // Mutable cells
     cells: Vec<Value>,
     // Standard library
@@ -131,6 +145,8 @@ pub struct VM {
     usage_tracker: Option<Arc<RwLock<UsageTracker>>>,
     // Effect handler stack
     handler_stack: Vec<HandlerFrame>,
+    // Error handler stack for try-catch-finally
+    error_handler_stack: Vec<ErrorHandler>,
 }
 
 /// Handler frame for tracking active effect handlers
@@ -142,6 +158,19 @@ pub struct HandlerFrame {
     _return_ip: usize,
     /// Stack depth when handler was installed
     _stack_depth: usize,
+}
+
+/// Error handler for try-catch-finally blocks
+#[derive(Clone)]
+struct ErrorHandler {
+    /// Catch handler IP (where to jump on error)
+    catch_ip: usize,
+    /// Finally handler IP (optional)
+    finally_ip: Option<usize>,
+    /// Stack depth when handler was installed
+    stack_depth: usize,
+    /// Call frame index
+    call_frame: usize,
 }
 
 impl VM {
@@ -157,6 +186,7 @@ impl VM {
             id_generator: IdGenerator::new(),
             promises: FxHashMap::default(),
             channels: FxHashMap::default(),
+            actors: FxHashMap::default(),
             cells: Vec::new(),
             stdlib: init_stdlib(),
             module_loader: ModuleLoader::new(fluentai_modules::ModuleConfig::default()),
@@ -173,6 +203,7 @@ impl VM {
             gc: None,
             usage_tracker: None,
             handler_stack: Vec::new(),
+            error_handler_stack: Vec::new(),
         }
     }
 
@@ -191,6 +222,7 @@ impl VM {
         self.cells.clear();
         self.instruction_count = 0;
         self.handler_stack.clear();
+        self.error_handler_stack.clear();
 
         // Keep these expensive initializations:
         // - self.stdlib (258 functions)
@@ -1664,14 +1696,38 @@ impl VM {
 
                 // Check if we have this promise
                 if let Some(mut rx) = self.promises.remove(&promise_id) {
-                    // Try to receive the result non-blocking
+                    // First check if promise is already resolved (non-blocking)
                     match rx.try_recv() {
-                        Ok(Ok(value)) => self.push(value)?,
-                        Ok(Err(e)) => return Err(e),
+                        Ok(result) => {
+                            // Promise was already resolved
+                            match result {
+                                Ok(value) => self.push(value)?,
+                                Err(e) => return Err(e),
+                            }
+                        }
                         Err(oneshot::error::TryRecvError::Empty) => {
-                            // Not ready yet, put it back and return the promise
-                            self.promises.insert(promise_id, rx);
-                            self.push(Value::Promise(promise_id.0))?;
+                            // Promise not ready yet - try to use runtime to wait
+                            if let Some(recv_result) = self.effect_runtime.try_block_on(Box::pin(async move {
+                                rx.await
+                            })) {
+                                // Successfully waited for promise with runtime
+                                match recv_result {
+                                    Ok(Ok(value)) => self.push(value)?,
+                                    Ok(Err(e)) => return Err(e),
+                                    Err(_) => {
+                                        return Err(VMError::AsyncError {
+                                            message: "Promise channel closed".to_string(),
+                                            stack_trace: None,
+                                        });
+                                    }
+                                }
+                            } else {
+                                // No runtime available and promise not ready
+                                return Err(VMError::AsyncError {
+                                    message: "Cannot await promise - no async runtime available and promise not ready".to_string(),
+                                    stack_trace: None,
+                                });
+                            }
                         }
                         Err(oneshot::error::TryRecvError::Closed) => {
                             return Err(VMError::AsyncError {
@@ -1713,8 +1769,8 @@ impl VM {
                 // Copy global state to new VM
                 new_vm.globals = self.globals.clone();
 
-                // Spawn the task
-                tokio::spawn(async move {
+                // Spawn the task using the effect runtime
+                self.effect_runtime.spawn(async move {
                     let result = {
                         // Push function onto stack
                         if let Err(e) = new_vm.push(function) {
@@ -1727,9 +1783,9 @@ impl VM {
                             let _ = sender.send(Err(e));
                             return;
                         }
-
-                        // Run the VM to completion
-                        match new_vm.run() {
+                        
+                        // call_value executes the function to completion, so the result should be on the stack
+                        match new_vm.pop() {
                             Ok(value) => Ok(value),
                             Err(e) => Err(e),
                         }
@@ -1753,9 +1809,57 @@ impl VM {
                     });
                 }
 
-                // Create a new channel with bounded capacity
+                // Create a new channel with default capacity
                 let channel_id = self.id_generator.next_channel_id();
-                let (tx, rx) = mpsc::channel(self.resource_limits.channel_buffer_size);
+                let (tx, rx) = mpsc::channel(1); // Default capacity of 1
+                self.channels.insert(channel_id, (tx, rx));
+                self.push(Value::Channel(channel_id.0))?;
+            }
+            
+            ChannelWithCapacity => {
+                // Pop capacity from stack
+                let capacity = match self.pop()? {
+                    Value::Integer(n) if n > 0 => n as usize,
+                    Value::Integer(n) => {
+                        return Err(VMError::RuntimeError {
+                            message: format!("Channel capacity must be positive, got {}", n),
+                            stack_trace: None,
+                        });
+                    }
+                    v => {
+                        return Err(VMError::TypeError {
+                            operation: "channel".to_string(),
+                            expected: "positive integer".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        });
+                    }
+                };
+                
+                // Check resource limit
+                if self.channels.len() >= self.resource_limits.max_channels {
+                    return Err(VMError::ResourceLimitExceeded {
+                        resource: "channels".to_string(),
+                        limit: self.resource_limits.max_channels,
+                        requested: self.channels.len() + 1,
+                        stack_trace: None,
+                    });
+                }
+                
+                // Check capacity doesn't exceed limit
+                if capacity > self.resource_limits.channel_buffer_size {
+                    return Err(VMError::ResourceLimitExceeded {
+                        resource: "channel buffer".to_string(),
+                        limit: self.resource_limits.channel_buffer_size,
+                        requested: capacity,
+                        stack_trace: None,
+                    });
+                }
+                
+                // Create a new channel with specified capacity
+                let channel_id = self.id_generator.next_channel_id();
+                let (tx, rx) = mpsc::channel(capacity);
                 self.channels.insert(channel_id, (tx, rx));
                 self.push(Value::Channel(channel_id.0))?;
             }
@@ -1835,6 +1939,186 @@ impl VM {
                         stack_trace: None,
                     });
                 }
+            }
+            
+            TrySend => {
+                // Pop value and channel
+                let value = self.pop()?;
+                let channel_id = match self.pop()? {
+                    Value::Channel(id) => ChannelId(id),
+                    v => {
+                        return Err(VMError::TypeError {
+                            operation: "try-send".to_string(),
+                            expected: "channel".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        })
+                    }
+                };
+                // Get the channel sender
+                if let Some((tx, _)) = self.channels.get(&channel_id) {
+                    match tx.try_send(value) {
+                        Ok(_) => {
+                            // Success - push a success result (true)
+                            self.push(Value::Boolean(true))?;
+                        }
+                        Err(mpsc::error::TrySendError::Full(_)) => {
+                            // Channel full - push a failure result (false)
+                            self.push(Value::Boolean(false))?;
+                        }
+                        Err(mpsc::error::TrySendError::Closed(_)) => {
+                            // Channel closed - could return false or error
+                            // For now, return false to indicate failure
+                            self.push(Value::Boolean(false))?;
+                        }
+                    }
+                } else {
+                    return Err(VMError::UnknownIdentifier {
+                        name: format!("channel:{}", channel_id),
+                        location: None,
+                        stack_trace: None,
+                    });
+                }
+            }
+            
+            TryReceive => {
+                // Pop channel
+                let channel_id = match self.pop()? {
+                    Value::Channel(id) => ChannelId(id),
+                    v => {
+                        return Err(VMError::TypeError {
+                            operation: "try-receive".to_string(),
+                            expected: "channel".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        })
+                    }
+                };
+                // Try to receive non-blocking
+                if let Some((_, rx)) = self.channels.get_mut(&channel_id) {
+                    match rx.try_recv() {
+                        Ok(value) => {
+                            // Success - push a list with [true, value]
+                            self.push(Value::List(vec![Value::Boolean(true), value]))?;
+                        }
+                        Err(mpsc::error::TryRecvError::Empty) => {
+                            // No value available - push [false, nil]
+                            self.push(Value::List(vec![Value::Boolean(false), Value::Nil]))?;
+                        }
+                        Err(mpsc::error::TryRecvError::Disconnected) => {
+                            // Channel disconnected - push [false, nil]
+                            self.push(Value::List(vec![Value::Boolean(false), Value::Nil]))?;
+                        }
+                    }
+                } else {
+                    return Err(VMError::UnknownIdentifier {
+                        name: format!("channel:{}", channel_id),
+                        location: None,
+                        stack_trace: None,
+                    });
+                }
+            }
+            
+            Select => {
+                // Select is now compiled to use TryReceive and jumps
+                // This opcode should not be reached
+                return Err(VMError::InvalidOpcode {
+                    opcode: Opcode::Select as u8,
+                    location: None,
+                });
+            }
+            
+            // Actor model opcodes
+            CreateActor => {
+                // Pop handler and initial state
+                let handler = self.pop()?;
+                let initial_state = self.pop()?;
+                
+                // Validate handler is a function
+                match &handler {
+                    Value::Function { .. } | Value::Procedure(_) => {},
+                    _ => {
+                        return Err(VMError::TypeError {
+                            operation: "actor".to_string(),
+                            expected: "function".to_string(),
+                            got: value_type_name(&handler).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        })
+                    }
+                }
+                
+                // Create actor ID and mailbox
+                let actor_id = self.id_generator.next_actor_id();
+                let (tx, rx) = mpsc::channel(100); // Buffer size of 100
+                
+                // Create actor
+                let actor = Actor {
+                    state: initial_state,
+                    handler,
+                    mailbox: rx,
+                    sender: tx,
+                };
+                
+                // Store actor
+                self.actors.insert(actor_id, actor);
+                
+                // Push actor ID
+                self.push(Value::Actor(actor_id.0))?;
+            }
+            
+            ActorSend => {
+                // Pop message and actor
+                let message = self.pop()?;
+                let actor_id = match self.pop()? {
+                    Value::Actor(id) => ActorId(id),
+                    v => {
+                        return Err(VMError::TypeError {
+                            operation: "!".to_string(),
+                            expected: "actor".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        })
+                    }
+                };
+                
+                // Get actor's sender
+                if let Some(actor) = self.actors.get(&actor_id) {
+                    // Send message (non-blocking)
+                    match actor.sender.try_send(message) {
+                        Ok(_) => {
+                            // Success - push nil
+                            self.push(Value::Nil)?;
+                        }
+                        Err(_) => {
+                            // Mailbox full or closed - for now just push nil
+                            // In the future we might want to handle this differently
+                            self.push(Value::Nil)?;
+                        }
+                    }
+                } else {
+                    return Err(VMError::UnknownIdentifier {
+                        name: format!("actor:{}", actor_id),
+                        location: None,
+                        stack_trace: None,
+                    });
+                }
+            }
+            
+            ActorReceive => {
+                // Actor receive is complex and needs proper implementation
+                // For now, just push nil
+                self.push(Value::Nil)?;
+            }
+            
+            Become => {
+                // Become is only valid within actor context
+                // For now, just pop the new state and push nil
+                let _new_state = self.pop()?;
+                self.push(Value::Nil)?;
             }
 
             // Functions
@@ -2667,6 +2951,178 @@ impl VM {
                 // Result value stays on stack
             }
 
+            // Error handling opcodes
+            Try => {
+                // Begin try block - push error handler
+                // For now, just continue execution
+                // Proper implementation would set up error handling context
+            }
+            
+            Catch => {
+                // Catch errors matching pattern
+                // For now, just continue
+                // Proper implementation would check error type and jump if no match
+            }
+            
+            Finally => {
+                // Finally block
+                // For now, just continue
+                // Proper implementation would ensure this code runs regardless of errors
+            }
+            
+            Throw => {
+                // Throw an error
+                let error = self.pop()?;
+                
+                // Look for an error handler
+                if let Some(handler) = self.error_handler_stack.pop() {
+                    // Unwind stack to handler's depth
+                    while self.stack.len() > handler.stack_depth {
+                        self.stack.pop();
+                    }
+                    
+                    // Push error value for catch handler
+                    self.push(error)?;
+                    
+                    // Jump to catch handler
+                    if let Some(frame) = self.call_stack.last_mut() {
+                        frame.ip = handler.catch_ip;
+                    }
+                    
+                    // Continue execution at catch handler
+                    return Ok(VMState::Continue);
+                }
+                
+                // No handler found, convert to runtime error
+                return Err(VMError::RuntimeError {
+                    message: format!("Thrown error: {:?}", error),
+                    stack_trace: Some(self.build_stack_trace()),
+                });
+            }
+            
+            PushHandler => {
+                // Push error handler onto stack
+                let catch_ip = instruction.arg as usize;
+                let _current_frame = self.call_stack.last()
+                    .ok_or_else(|| VMError::RuntimeError {
+                        message: "No active call frame for error handler".to_string(),
+                        stack_trace: None,
+                    })?;
+                
+                self.error_handler_stack.push(ErrorHandler {
+                    catch_ip,
+                    finally_ip: None, // TODO: Support finally blocks
+                    stack_depth: self.stack.len(),
+                    call_frame: self.call_stack.len() - 1,
+                });
+            }
+            
+            PopHandler => {
+                // Pop error handler from stack
+                if self.error_handler_stack.pop().is_none() {
+                    return Err(VMError::RuntimeError {
+                        message: "No error handler to pop".to_string(),
+                        stack_trace: None,
+                    });
+                }
+            }
+            
+            // Promise operations
+            PromiseNew => {
+                // Create a new promise
+                // For now, create a promise ID
+                let promise_id = self.id_generator.next_promise_id();
+                self.push(Value::Promise(promise_id.0))?;
+            }
+            
+            PromiseAll => {
+                // Wait for all promises
+                let count = instruction.arg as usize;
+                let mut promises = Vec::with_capacity(count);
+                
+                for _ in 0..count {
+                    match self.pop()? {
+                        Value::Promise(id) => promises.push(id),
+                        v => {
+                            return Err(VMError::TypeError {
+                                operation: "promise_all".to_string(),
+                                expected: "promise".to_string(),
+                                got: value_type_name(&v).to_string(),
+                                location: None,
+                                stack_trace: None,
+                            })
+                        }
+                    }
+                }
+                
+                // For now, just create a new promise
+                let result_id = self.id_generator.next_promise_id();
+                self.push(Value::Promise(result_id.0))?;
+            }
+            
+            PromiseRace => {
+                // Race multiple promises
+                let count = instruction.arg as usize;
+                let mut promises = Vec::with_capacity(count);
+                
+                for _ in 0..count {
+                    match self.pop()? {
+                        Value::Promise(id) => promises.push(id),
+                        v => {
+                            return Err(VMError::TypeError {
+                                operation: "promise_race".to_string(),
+                                expected: "promise".to_string(),
+                                got: value_type_name(&v).to_string(),
+                                location: None,
+                                stack_trace: None,
+                            })
+                        }
+                    }
+                }
+                
+                // For now, just create a new promise
+                let result_id = self.id_generator.next_promise_id();
+                self.push(Value::Promise(result_id.0))?;
+            }
+            
+            WithTimeout => {
+                // Add timeout to promise
+                let _default = if instruction.arg > 0 {
+                    Some(self.pop()?)
+                } else {
+                    None
+                };
+                
+                let promise = match self.pop()? {
+                    Value::Promise(id) => id,
+                    v => {
+                        return Err(VMError::TypeError {
+                            operation: "with_timeout".to_string(),
+                            expected: "promise".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        })
+                    }
+                };
+                
+                let timeout_ms = match self.pop()? {
+                    Value::Integer(ms) => ms,
+                    v => {
+                        return Err(VMError::TypeError {
+                            operation: "with_timeout".to_string(),
+                            expected: "integer (milliseconds)".to_string(),
+                            got: value_type_name(&v).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        })
+                    }
+                };
+                
+                // For now, just return the same promise
+                self.push(Value::Promise(promise))?;
+            }
+
             // Special
             Halt => return Ok(VMState::Halt),
             Nop => {} // All opcodes are handled exhaustively
@@ -2861,6 +3317,8 @@ impl VM {
             Value::Tagged { .. } => true,
             Value::Module { .. } => true,
             Value::GcHandle(_) => true,
+            Value::Actor(_) => true,
+            Value::Error { .. } => false, // Errors are falsy
         }
     }
 
@@ -3210,6 +3668,10 @@ impl VM {
                 fluentai_core::value::Value::Map(map)
             }
             Value::GcHandle(_) => fluentai_core::value::Value::String("<gc-handle>".to_string()),
+            Value::Actor(id) => fluentai_core::value::Value::String(format!("<actor:{}>", id)),
+            Value::Error { kind, message, .. } => {
+                fluentai_core::value::Value::String(format!("<error:{}:{}>", kind, message))
+            }
         }
     }
 
@@ -3279,6 +3741,12 @@ impl VM {
                 }
             }
             fluentai_core::value::Value::GcHandle(handle) => Value::GcHandle(handle.clone()),
+            fluentai_core::value::Value::Actor(id) => Value::Actor(*id),
+            fluentai_core::value::Value::Error { kind, message, stack_trace } => Value::Error {
+                kind: kind.clone(),
+                message: message.clone(),
+                stack_trace: stack_trace.clone(),
+            },
         }
     }
 

@@ -141,9 +141,12 @@ impl TypeInferencer {
             Node::Async { body } => self.infer_async(graph, *body)?,
             Node::Await { expr } => self.infer_await(graph, *expr)?,
             Node::Spawn { expr } => self.infer_spawn(graph, *expr)?,
-            Node::Channel => self.infer_channel()?,
+            Node::Channel { .. } => self.infer_channel()?,
             Node::Send { channel, value } => self.infer_send(graph, *channel, *value)?,
             Node::Receive { channel } => self.infer_receive(graph, *channel)?,
+            Node::TrySend { channel, value } => self.infer_try_send(graph, *channel, *value)?,
+            Node::TryReceive { channel } => self.infer_try_receive(graph, *channel)?,
+            Node::Select { branches, default } => self.infer_select(graph, branches, default.as_ref())?,
             // Module-related nodes - for now, return unit type
             Node::Module { .. } => TypedValue::primitive(PrimitiveType::unit()),
             Node::Import { .. } => TypedValue::primitive(PrimitiveType::unit()),
@@ -176,6 +179,59 @@ impl TypeInferencer {
                     }
                     // Return the type of the last expression
                     self.infer_node(graph, exprs[exprs.len() - 1])?
+                }
+            }
+            Node::Actor { .. } => {
+                // Actor type - for now just a variant with no payload
+                TypedValue::variant(VariantType::new().with_variant("Actor", None))
+            }
+            Node::ActorSend { .. } => TypedValue::primitive(PrimitiveType::unit()), // Send returns nil
+            Node::ActorReceive { .. } => {
+                // Depends on message pattern - for now return a type variable
+                let var = self.env.fresh_type("T");
+                var
+            }
+            Node::Become { .. } => TypedValue::primitive(PrimitiveType::unit()), // Become returns nil
+            Node::Try { body, .. } => {
+                // Try returns the type of its body or catch handler
+                self.infer_node(graph, *body)?
+            }
+            Node::Throw { .. } => {
+                // Throw doesn't return normally
+                TypedValue::primitive(PrimitiveType::unit())
+            }
+            Node::Promise { body } => {
+                // Promise wraps the body type
+                let body_type = self.infer_node(graph, *body)?;
+                TypedValue::variant(VariantType::new().with_variant("Promise", Some(body_type)))
+            }
+            Node::PromiseAll { promises } => {
+                // Returns a list of all promise results
+                if promises.is_empty() {
+                    TypedValue::list(ListType::new(TypedValue::primitive(PrimitiveType::unit())))
+                } else {
+                    // For simplicity, assume all promises have the same type
+                    let first_type = self.infer_node(graph, promises[0])?;
+                    TypedValue::list(ListType::new(first_type))
+                }
+            }
+            Node::PromiseRace { promises } => {
+                // Returns the type of the first promise to resolve
+                if promises.is_empty() {
+                    TypedValue::primitive(PrimitiveType::unit())
+                } else {
+                    self.infer_node(graph, promises[0])?
+                }
+            }
+            Node::Timeout { promise, default, .. } => {
+                // Returns promise result or default type
+                let promise_type = self.infer_node(graph, *promise)?;
+                if let Some(def) = default {
+                    let default_type = self.infer_node(graph, *def)?;
+                    // Should unify types, but for now just return promise type
+                    promise_type
+                } else {
+                    promise_type
                 }
             }
         };
@@ -633,6 +689,73 @@ impl TypeInferencer {
         let elem_type = self.env.fresh_type("recv");
 
         Ok(elem_type.add_effect(fluentai_core::ast::EffectType::Concurrent))
+    }
+    
+    /// Infer type of try-send operation
+    fn infer_try_send(&mut self, graph: &Graph, channel: NodeId, value: NodeId) -> Result<TypedValue> {
+        let _channel_type = self.infer_node(graph, channel)?;
+        let _value_type = self.infer_node(graph, value)?;
+        
+        // TODO: Verify value type matches channel element type
+        // Returns a boolean indicating success/failure
+        Ok(TypedValue::primitive(PrimitiveType::bool())
+            .add_effect(fluentai_core::ast::EffectType::Concurrent))
+    }
+    
+    /// Infer type of try-receive operation  
+    fn infer_try_receive(&mut self, graph: &Graph, channel: NodeId) -> Result<TypedValue> {
+        let _channel_type = self.infer_node(graph, channel)?;
+        
+        // Extract element type from channel
+        // TODO: Proper channel type extraction
+        let elem_type = self.env.fresh_type("recv");
+        
+        // Returns a list [bool, T] where bool indicates success
+        let _bool_type = TypedValue::primitive(PrimitiveType::bool());
+        let list_type = TypedValue::list(ListType::new(elem_type));
+        
+        Ok(list_type.add_effect(fluentai_core::ast::EffectType::Concurrent))
+    }
+    
+    /// Infer type of select operation
+    fn infer_select(&mut self, graph: &Graph, branches: &[(NodeId, NodeId)], default: Option<&NodeId>) -> Result<TypedValue> {
+        // All handlers must have the same type
+        let result_type = self.env.fresh_type("select_result");
+        
+        for (channel_op, handler) in branches {
+            // Infer channel operation type
+            let _op_type = self.infer_node(graph, *channel_op)?;
+            
+            // Infer handler type
+            let handler_type = self.infer_node(graph, *handler)?;
+            
+            // Unify with result type
+            match self.unifier.unify(&result_type, &handler_type) {
+                Ok(new_subst) => self.subst.compose(&new_subst),
+                Err(_) => {
+                    self.errors.push(TypeError::TypeMismatch {
+                        expected: result_type.to_string(),
+                        found: handler_type.to_string(),
+                    });
+                }
+            }
+        }
+        
+        // Check default branch if present
+        if let Some(def) = default {
+            let default_type = self.infer_node(graph, *def)?;
+            match self.unifier.unify(&result_type, &default_type) {
+                Ok(new_subst) => self.subst.compose(&new_subst),
+                Err(_) => {
+                    self.errors.push(TypeError::TypeMismatch {
+                        expected: result_type.to_string(),
+                        found: default_type.to_string(),
+                    });
+                }
+            }
+        }
+        
+        Ok(self.subst.apply_type(&result_type).add_effect(fluentai_core::ast::EffectType::Concurrent))
     }
 
     /// Get built-in function type

@@ -406,6 +406,8 @@ pub fn value_type_name(value: &Value) -> &'static str {
         Value::Tagged { .. } => "tagged",
         Value::Module { .. } => "module",
         Value::GcHandle(_) => "gc-handle",
+        Value::Actor(_) => "actor",
+        Value::Error { .. } => "error",
     }
 }
 

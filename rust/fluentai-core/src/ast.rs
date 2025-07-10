@@ -364,6 +364,74 @@ impl Graph {
                     Node::Receive { channel } => {
                         stack.push(*channel);
                     }
+                    Node::TrySend { channel, value } => {
+                        stack.push(*value);
+                        stack.push(*channel);
+                    }
+                    Node::TryReceive { channel } => {
+                        stack.push(*channel);
+                    }
+                    Node::Select { branches, default } => {
+                        for (channel_op, handler) in branches.iter().rev() {
+                            stack.push(*handler);
+                            stack.push(*channel_op);
+                        }
+                        if let Some(def) = default {
+                            stack.push(*def);
+                        }
+                    }
+                    Node::Actor { initial_state, handler } => {
+                        stack.push(*handler);
+                        stack.push(*initial_state);
+                    }
+                    Node::ActorSend { actor, message } => {
+                        stack.push(*message);
+                        stack.push(*actor);
+                    }
+                    Node::ActorReceive { patterns, timeout } => {
+                        for (_, handler) in patterns.iter().rev() {
+                            stack.push(*handler);
+                        }
+                        if let Some((duration, handler)) = timeout {
+                            stack.push(*handler);
+                            stack.push(*duration);
+                        }
+                    }
+                    Node::Become { new_state } => {
+                        stack.push(*new_state);
+                    }
+                    Node::Try { body, catch_branches, finally } => {
+                        stack.push(*body);
+                        for (_, handler) in catch_branches.iter().rev() {
+                            stack.push(*handler);
+                        }
+                        if let Some(finally_block) = finally {
+                            stack.push(*finally_block);
+                        }
+                    }
+                    Node::Throw { error } => {
+                        stack.push(*error);
+                    }
+                    Node::Promise { body } => {
+                        stack.push(*body);
+                    }
+                    Node::PromiseAll { promises } | Node::PromiseRace { promises } => {
+                        for promise in promises.iter().rev() {
+                            stack.push(*promise);
+                        }
+                    }
+                    Node::Timeout { duration, promise, default } => {
+                        stack.push(*duration);
+                        stack.push(*promise);
+                        if let Some(def) = default {
+                            stack.push(*def);
+                        }
+                    }
+                    Node::Channel { capacity } => {
+                        if let Some(cap) = capacity {
+                            stack.push(*cap);
+                        }
+                    }
                     Node::Async { body } => {
                         stack.push(*body);
                     }
@@ -508,6 +576,69 @@ impl Graph {
                 }
                 Node::Receive { channel } => {
                     children.push(*channel);
+                }
+                Node::TrySend { channel, value } => {
+                    children.push(*channel);
+                    children.push(*value);
+                }
+                Node::TryReceive { channel } => {
+                    children.push(*channel);
+                }
+                Node::Select { branches, default } => {
+                    for (channel_op, handler) in branches {
+                        children.push(*channel_op);
+                        children.push(*handler);
+                    }
+                    if let Some(def) = default {
+                        children.push(*def);
+                    }
+                }
+                Node::Actor { initial_state, handler } => {
+                    children.push(*initial_state);
+                    children.push(*handler);
+                }
+                Node::ActorSend { actor, message } => {
+                    children.push(*actor);
+                    children.push(*message);
+                }
+                Node::ActorReceive { patterns, timeout } => {
+                    for (_, handler) in patterns {
+                        children.push(*handler);
+                    }
+                    if let Some((duration, handler)) = timeout {
+                        children.push(*duration);
+                        children.push(*handler);
+                    }
+                }
+                Node::Become { new_state } => {
+                    children.push(*new_state);
+                }
+                Node::Try { body, catch_branches, finally } => {
+                    children.push(*body);
+                    for (_, handler) in catch_branches {
+                        children.push(*handler);
+                    }
+                    if let Some(finally_block) = finally {
+                        children.push(*finally_block);
+                    }
+                }
+                Node::Throw { error } => {
+                    children.push(*error);
+                }
+                Node::Promise { body } => {
+                    children.push(*body);
+                }
+                Node::PromiseAll { promises } | Node::PromiseRace { promises } => {
+                    for promise in promises {
+                        children.push(*promise);
+                    }
+                }
+                Node::Timeout { duration, promise, default } => {
+                    children.push(*duration);
+                    children.push(*promise);
+                    if let Some(def) = default {
+                        children.push(*def);
+                    }
                 }
                 Node::Async { body } => {
                     children.push(*body);
@@ -802,13 +933,67 @@ pub enum Node {
     Spawn {
         expr: NodeId,
     },
-    Channel,
+    Channel {
+        capacity: Option<NodeId>, // Optional capacity expression
+    },
     Send {
         channel: NodeId,
         value: NodeId,
     },
     Receive {
         channel: NodeId,
+    },
+    TrySend {
+        channel: NodeId,
+        value: NodeId,
+    },
+    TryReceive {
+        channel: NodeId,
+    },
+    Select {
+        branches: Vec<(NodeId, NodeId)>, // (channel_op, handler)
+        default: Option<NodeId>,         // optional default branch
+    },
+    
+    // Actor model primitives
+    Actor {
+        initial_state: NodeId,
+        handler: NodeId, // Lambda that handles messages
+    },
+    ActorSend {
+        actor: NodeId,
+        message: NodeId,
+    },
+    ActorReceive {
+        patterns: Vec<(Pattern, NodeId)>, // Pattern matching for messages
+        timeout: Option<(NodeId, NodeId)>, // Optional timeout (duration, handler)
+    },
+    Become {
+        new_state: NodeId, // New state for the actor
+    },
+    
+    // Error handling
+    Try {
+        body: NodeId,
+        catch_branches: Vec<(Pattern, NodeId)>, // Pattern match on error types
+        finally: Option<NodeId>, // Optional finally block
+    },
+    Throw {
+        error: NodeId, // Error value to throw
+    },
+    Promise {
+        body: NodeId, // Body that returns a promise
+    },
+    PromiseAll {
+        promises: Vec<NodeId>, // List of promises to wait for
+    },
+    PromiseRace {
+        promises: Vec<NodeId>, // List of promises to race
+    },
+    Timeout {
+        duration: NodeId, // Timeout duration in milliseconds
+        promise: NodeId,  // Promise to timeout
+        default: Option<NodeId>, // Optional default value on timeout
     },
 
     // Contract specification
@@ -1370,11 +1555,11 @@ impl Node {
                 see_also: vec!["Async".to_string(), "Channel".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
-            Node::Channel => Documentation {
+            Node::Channel { .. } => Documentation {
                 name: "Channel".to_string(),
-                syntax: "(chan)".to_string(),
-                description: "Creates a new communication channel for sending values between concurrent tasks.".to_string(),
-                examples: vec!["(let ((ch (chan))) ...)".to_string()],
+                syntax: "(chan) or (chan capacity)".to_string(),
+                description: "Creates a new communication channel for sending values between concurrent tasks. Optional capacity parameter specifies buffer size (default is 1).".to_string(),
+                examples: vec!["(let ((ch (chan))) ...)".to_string(), "(let ((ch (chan 10))) ...)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Send".to_string(), "Receive".to_string(), "Spawn".to_string()],
                 visibility: DocumentationVisibility::Public,
@@ -1395,6 +1580,146 @@ impl Node {
                 examples: vec!["(recv! ch)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Send".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::TrySend { .. } => Documentation {
+                name: "TrySend".to_string(),
+                syntax: "(try-send! <channel> <value>)".to_string(),
+                description: "Attempts to send a value through a channel. Returns a result indicating success or failure.".to_string(),
+                examples: vec!["(try-send! ch 42)".to_string()],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Channel".to_string(), "Send".to_string(), "TryReceive".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::TryReceive { .. } => Documentation {
+                name: "TryReceive".to_string(),
+                syntax: "(try-recv! <channel>)".to_string(),
+                description: "Attempts to receive a value from a channel. Returns a result indicating success or failure.".to_string(),
+                examples: vec!["(try-recv! ch)".to_string()],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Channel".to_string(), "Receive".to_string(), "TrySend".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Select { .. } => Documentation {
+                name: "Select".to_string(),
+                syntax: "(select ((recv! ch1) handler1) ((recv! ch2) handler2) ...)".to_string(),
+                description: "Waits on multiple channel operations and executes the handler for the first one that completes.".to_string(),
+                examples: vec![
+                    "(select ((recv! ch1) (handle-ch1)) ((recv! ch2) (handle-ch2)))".to_string(),
+                    "(select ((recv! ch) (process it)) (default (timeout-handler)))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Channel".to_string(), "Receive".to_string(), "Send".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Actor { .. } => Documentation {
+                name: "Actor".to_string(),
+                syntax: "(actor <initial-state> <handler-fn>)".to_string(),
+                description: "Creates an actor with an initial state and a message handler function.".to_string(),
+                examples: vec![
+                    "(actor 0 (lambda (state msg) ...))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["ActorSend".to_string(), "ActorReceive".to_string(), "Become".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::ActorSend { .. } => Documentation {
+                name: "ActorSend".to_string(),
+                syntax: "(! <actor> <message>)".to_string(),
+                description: "Sends a message to an actor asynchronously.".to_string(),
+                examples: vec![
+                    "(! counter-actor (increment 5))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Actor".to_string(), "ActorReceive".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::ActorReceive { .. } => Documentation {
+                name: "ActorReceive".to_string(),
+                syntax: "(receive ((pattern1) handler1) ((pattern2) handler2) ...)".to_string(),
+                description: "Receives messages in an actor, pattern matching on message types.".to_string(),
+                examples: vec![
+                    "(receive ((increment n) (+ state n)) ((get reply-to) (send! reply-to state)))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Actor".to_string(), "ActorSend".to_string(), "Become".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Become { .. } => Documentation {
+                name: "Become".to_string(),
+                syntax: "(become <new-state>)".to_string(),
+                description: "Changes the state of an actor to a new value.".to_string(),
+                examples: vec![
+                    "(become (+ state 1))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Actor".to_string(), "ActorReceive".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Try { .. } => Documentation {
+                name: "Try".to_string(),
+                syntax: "(try <body> (catch <pattern> <handler>) ... [(finally <cleanup>)])".to_string(),
+                description: "Executes body and catches errors matching patterns.".to_string(),
+                examples: vec![
+                    "(try (risky-operation) (catch (error msg) (log msg)))".to_string()
+                ],
+                category: DocumentationCategory::ControlFlow,
+                see_also: vec!["Throw".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Throw { .. } => Documentation {
+                name: "Throw".to_string(),
+                syntax: "(throw <error>)".to_string(),
+                description: "Throws an error that can be caught by try-catch.".to_string(),
+                examples: vec![
+                    "(throw (error \"Invalid input\"))".to_string()
+                ],
+                category: DocumentationCategory::ControlFlow,
+                see_also: vec!["Try".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Promise { .. } => Documentation {
+                name: "Promise".to_string(),
+                syntax: "(promise <body>)".to_string(),
+                description: "Creates a promise that resolves to the result of body.".to_string(),
+                examples: vec![
+                    "(promise (compute-async))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["PromiseAll".to_string(), "PromiseRace".to_string(), "Await".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::PromiseAll { .. } => Documentation {
+                name: "PromiseAll".to_string(),
+                syntax: "(promise-all <promise1> <promise2> ...)".to_string(),
+                description: "Waits for all promises to resolve and returns their results.".to_string(),
+                examples: vec![
+                    "(promise-all (fetch-user) (fetch-posts))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Promise".to_string(), "PromiseRace".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::PromiseRace { .. } => Documentation {
+                name: "PromiseRace".to_string(),
+                syntax: "(promise-race <promise1> <promise2> ...)".to_string(),
+                description: "Returns the result of the first promise to resolve.".to_string(),
+                examples: vec![
+                    "(promise-race (fetch-primary) (fetch-backup))".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Promise".to_string(), "PromiseAll".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Timeout { .. } => Documentation {
+                name: "Timeout".to_string(),
+                syntax: "(timeout <duration-ms> <promise> [<default>])".to_string(),
+                description: "Waits for a promise with timeout, returning default on timeout.".to_string(),
+                examples: vec![
+                    "(timeout 5000 (fetch-data) \"timeout\")".to_string()
+                ],
+                category: DocumentationCategory::Async,
+                see_also: vec!["Promise".to_string(), "Await".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Contract { .. } => Documentation {

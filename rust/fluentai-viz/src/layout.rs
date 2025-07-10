@@ -207,6 +207,8 @@ impl ASTLayouter {
             Node::Spawn { expr } => vec![*expr],
             Node::Send { channel, value } => vec![*channel, *value],
             Node::Receive { channel } => vec![*channel],
+            Node::TrySend { channel, value } => vec![*channel, *value],
+            Node::TryReceive { channel } => vec![*channel],
             Node::Contract {
                 preconditions,
                 postconditions,
@@ -254,9 +256,11 @@ impl ASTLayouter {
             Node::Async { .. } => "async".to_string(),
             Node::Await { .. } => "await".to_string(),
             Node::Spawn { .. } => "spawn".to_string(),
-            Node::Channel => "channel".to_string(),
+            Node::Channel { .. } => "channel".to_string(),
             Node::Send { .. } => "send!".to_string(),
             Node::Receive { .. } => "recv!".to_string(),
+            Node::TrySend { .. } => "try-send!".to_string(),
+            Node::TryReceive { .. } => "try-recv!".to_string(),
             Node::Contract { function_name, .. } => format!("contract {}", function_name),
             Node::Handler { handlers, .. } => {
                 let handler_count = handlers.len();
@@ -264,6 +268,17 @@ impl ASTLayouter {
             }
             Node::Define { name, .. } => format!("define {}", name),
             Node::Begin { .. } => "begin".to_string(),
+            Node::Select { .. } => "select".to_string(),
+            Node::Actor { .. } => "actor".to_string(),
+            Node::ActorSend { .. } => "!".to_string(),
+            Node::ActorReceive { .. } => "receive".to_string(),
+            Node::Become { .. } => "become".to_string(),
+            Node::Try { .. } => "try".to_string(),
+            Node::Throw { .. } => "throw".to_string(),
+            Node::Promise { .. } => "promise".to_string(),
+            Node::PromiseAll { .. } => "promise-all".to_string(),
+            Node::PromiseRace { .. } => "promise-race".to_string(),
+            Node::Timeout { .. } => "with-timeout".to_string(),
         }
     }
 
@@ -287,13 +302,26 @@ impl ASTLayouter {
             Node::Async { .. } => "async",
             Node::Await { .. } => "await",
             Node::Spawn { .. } => "spawn",
-            Node::Channel => "channel",
+            Node::Channel { .. } => "channel",
             Node::Send { .. } => "send",
             Node::Receive { .. } => "receive",
+            Node::TrySend { .. } => "try-send",
+            Node::TryReceive { .. } => "try-receive",
             Node::Contract { .. } => "contract",
             Node::Handler { .. } => "handler",
             Node::Define { .. } => "define",
             Node::Begin { .. } => "begin",
+            Node::Select { .. } => "select",
+            Node::Actor { .. } => "actor",
+            Node::ActorSend { .. } => "actor-send",
+            Node::ActorReceive { .. } => "actor-receive",
+            Node::Become { .. } => "become",
+            Node::Try { .. } => "try",
+            Node::Throw { .. } => "throw",
+            Node::Promise { .. } => "promise",
+            Node::PromiseAll { .. } => "promise-all",
+            Node::PromiseRace { .. } => "promise-race",
+            Node::Timeout { .. } => "timeout",
         }
         .to_string()
     }

@@ -92,7 +92,7 @@ async fn test_node_features_all_types() {
             "Variable",
         ),
         (Node::List(vec![]), "List"),
-        (Node::Channel, "Channel"),
+        (Node::Channel { capacity: None }, "Channel"),
     ];
 
     for (node, description) in test_cases {

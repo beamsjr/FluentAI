@@ -271,7 +271,7 @@ impl AdvancedOptimizer {
                                 stack.push(WorkItem::Process(*arg));
                             }
                         }
-                        Node::Variable { .. } | Node::Literal(_) | Node::Channel => {
+                        Node::Variable { .. } | Node::Literal(_) | Node::Channel { .. } => {
                             // These have no children to process
                         }
                         Node::Module { body, .. } => {
@@ -292,6 +292,22 @@ impl AdvancedOptimizer {
                         }
                         Node::Receive { channel } => {
                             stack.push(WorkItem::Process(*channel));
+                        }
+                        Node::TrySend { channel, value } => {
+                            stack.push(WorkItem::Process(*channel));
+                            stack.push(WorkItem::Process(*value));
+                        }
+                        Node::TryReceive { channel } => {
+                            stack.push(WorkItem::Process(*channel));
+                        }
+                        Node::Select { branches, default } => {
+                            if let Some(def) = default {
+                                stack.push(WorkItem::Process(*def));
+                            }
+                            for (channel_op, handler) in branches.iter().rev() {
+                                stack.push(WorkItem::Process(*handler));
+                                stack.push(WorkItem::Process(*channel_op));
+                            }
                         }
                         Node::Import { .. }
                         | Node::Export { .. }
@@ -326,6 +342,53 @@ impl AdvancedOptimizer {
                         Node::Begin { exprs } => {
                             for expr in exprs.iter().rev() {
                                 stack.push(WorkItem::Process(*expr));
+                            }
+                        }
+                        Node::Actor { initial_state, handler } => {
+                            stack.push(WorkItem::Process(*initial_state));
+                            stack.push(WorkItem::Process(*handler));
+                        }
+                        Node::ActorSend { actor, message } => {
+                            stack.push(WorkItem::Process(*actor));
+                            stack.push(WorkItem::Process(*message));
+                        }
+                        Node::ActorReceive { patterns, timeout } => {
+                            for (_, handler) in patterns {
+                                stack.push(WorkItem::Process(*handler));
+                            }
+                            if let Some((duration, handler)) = timeout {
+                                stack.push(WorkItem::Process(*duration));
+                                stack.push(WorkItem::Process(*handler));
+                            }
+                        }
+                        Node::Become { new_state } => {
+                            stack.push(WorkItem::Process(*new_state));
+                        }
+                        Node::Try { body, catch_branches, finally } => {
+                            stack.push(WorkItem::Process(*body));
+                            for (_, handler) in catch_branches.iter().rev() {
+                                stack.push(WorkItem::Process(*handler));
+                            }
+                            if let Some(finally_block) = finally {
+                                stack.push(WorkItem::Process(*finally_block));
+                            }
+                        }
+                        Node::Throw { error } => {
+                            stack.push(WorkItem::Process(*error));
+                        }
+                        Node::Promise { body } => {
+                            stack.push(WorkItem::Process(*body));
+                        }
+                        Node::PromiseAll { promises } | Node::PromiseRace { promises } => {
+                            for promise in promises.iter().rev() {
+                                stack.push(WorkItem::Process(*promise));
+                            }
+                        }
+                        Node::Timeout { duration, promise, default } => {
+                            stack.push(WorkItem::Process(*duration));
+                            stack.push(WorkItem::Process(*promise));
+                            if let Some(def) = default {
+                                stack.push(WorkItem::Process(*def));
                             }
                         }
                     }
@@ -798,6 +861,67 @@ impl AdvancedOptimizer {
                     return Ok(None);
                 }
             }
+            Node::TrySend { channel, value } => {
+                if let (Some(opt_channel), Some(opt_value)) =
+                    (self.optimize_node(channel)?, self.optimize_node(value)?)
+                {
+                    Node::TrySend {
+                        channel: opt_channel,
+                        value: opt_value,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::TryReceive { channel } => {
+                if let Some(opt_channel) = self.optimize_node(channel)? {
+                    Node::TryReceive {
+                        channel: opt_channel,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Select { branches, default } => {
+                let mut opt_branches = Vec::new();
+                let mut changed = false;
+                
+                for (channel_op, handler) in branches.iter() {
+                    if let (Some(opt_op), Some(opt_handler)) = (
+                        self.optimize_node(*channel_op)?,
+                        self.optimize_node(*handler)?
+                    ) {
+                        opt_branches.push((opt_op, opt_handler));
+                        if opt_op != *channel_op || opt_handler != *handler {
+                            changed = true;
+                        }
+                    } else {
+                        return Ok(None);
+                    }
+                }
+                
+                let opt_default = if let Some(def) = default {
+                    if let Some(opt_def) = self.optimize_node(def)? {
+                        if opt_def != def {
+                            changed = true;
+                        }
+                        Some(opt_def)
+                    } else {
+                        return Ok(None);
+                    }
+                } else {
+                    None
+                };
+                
+                if changed || opt_branches.len() != branches.len() {
+                    Node::Select {
+                        branches: opt_branches,
+                        default: opt_default,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
             Node::Contract {
                 function_name,
                 preconditions,
@@ -872,6 +996,138 @@ impl AdvancedOptimizer {
                     Node::Define {
                         name: name.clone(),
                         value: opt_value,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Actor { initial_state, handler } => {
+                if let (Some(opt_state), Some(opt_handler)) = (
+                    self.optimize_node(initial_state)?,
+                    self.optimize_node(handler)?
+                ) {
+                    Node::Actor {
+                        initial_state: opt_state,
+                        handler: opt_handler,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::ActorSend { actor, message } => {
+                if let (Some(opt_actor), Some(opt_message)) = (
+                    self.optimize_node(actor)?,
+                    self.optimize_node(message)?
+                ) {
+                    Node::ActorSend {
+                        actor: opt_actor,
+                        message: opt_message,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::ActorReceive { patterns, timeout } => {
+                let mut opt_patterns = Vec::new();
+                for (pattern, handler) in patterns {
+                    if let Some(opt_handler) = self.optimize_node(handler)? {
+                        opt_patterns.push((pattern.clone(), opt_handler));
+                    }
+                }
+                let opt_timeout = if let Some((duration, handler)) = timeout {
+                    if let (Some(opt_duration), Some(opt_handler)) = (
+                        self.optimize_node(duration)?,
+                        self.optimize_node(handler)?
+                    ) {
+                        Some((opt_duration, opt_handler))
+                    } else {
+                        return Ok(None);
+                    }
+                } else {
+                    None
+                };
+                Node::ActorReceive {
+                    patterns: opt_patterns,
+                    timeout: opt_timeout,
+                }
+            }
+            Node::Become { new_state } => {
+                if let Some(opt_state) = self.optimize_node(new_state)? {
+                    Node::Become {
+                        new_state: opt_state,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Try { body, catch_branches, finally } => {
+                if let Some(opt_body) = self.optimize_node(body)? {
+                    let mut opt_catches = Vec::new();
+                    for (pattern, handler) in catch_branches {
+                        if let Some(opt_handler) = self.optimize_node(handler)? {
+                            opt_catches.push((pattern.clone(), opt_handler));
+                        }
+                    }
+                    let opt_finally = if let Some(f) = finally {
+                        self.optimize_node(f)?
+                    } else {
+                        None
+                    };
+                    Node::Try {
+                        body: opt_body,
+                        catch_branches: opt_catches,
+                        finally: opt_finally,
+                    }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Throw { error } => {
+                if let Some(opt_error) = self.optimize_node(error)? {
+                    Node::Throw { error: opt_error }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::Promise { body } => {
+                if let Some(opt_body) = self.optimize_node(body)? {
+                    Node::Promise { body: opt_body }
+                } else {
+                    return Ok(None);
+                }
+            }
+            Node::PromiseAll { promises } => {
+                let mut opt_promises = Vec::new();
+                for promise in promises {
+                    if let Some(opt_promise) = self.optimize_node(promise)? {
+                        opt_promises.push(opt_promise);
+                    }
+                }
+                Node::PromiseAll { promises: opt_promises }
+            }
+            Node::PromiseRace { promises } => {
+                let mut opt_promises = Vec::new();
+                for promise in promises {
+                    if let Some(opt_promise) = self.optimize_node(promise)? {
+                        opt_promises.push(opt_promise);
+                    }
+                }
+                Node::PromiseRace { promises: opt_promises }
+            }
+            Node::Timeout { duration, promise, default } => {
+                if let (Some(opt_duration), Some(opt_promise)) = (
+                    self.optimize_node(duration)?,
+                    self.optimize_node(promise)?
+                ) {
+                    let opt_default = if let Some(def) = default {
+                        self.optimize_node(def)?
+                    } else {
+                        None
+                    };
+                    Node::Timeout {
+                        duration: opt_duration,
+                        promise: opt_promise,
+                        default: opt_default,
                     }
                 } else {
                     return Ok(None);
@@ -1485,7 +1741,7 @@ impl AdvancedOptimizer {
                         Node::Let {
                             bindings: cleaned_bindings,
                             body: *body,
-                        },
+                        }
                     ));
                 }
             }
