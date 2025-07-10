@@ -97,8 +97,8 @@ fn test_spawn_with_channel() {
     let ch_var2 = graph.add_node(Node::Variable { name: "ch".to_string() }).unwrap();
     let receive = graph.add_node(Node::Receive { channel: ch_var2 }).unwrap();
 
-    // Create sequence: spawn then receive
-    let sequence = graph.add_node(Node::List(vec![spawn, receive])).unwrap();
+    // Create sequence: spawn then receive (using Begin to return last value)
+    let sequence = graph.add_node(Node::Begin { exprs: vec![spawn, receive] }).unwrap();
 
     // Create let binding: (let ((ch channel)) sequence)
     let let_node = graph.add_node(Node::Let {
@@ -108,13 +108,19 @@ fn test_spawn_with_channel() {
 
     graph.root_id = Some(let_node);
 
-    // Compile
-    // Note: This test requires optimization to be disabled due to optimizer issues
-    // with let bindings and variable capture (see issue #26)
-    let mut options = CompilerOptions::default();
-    options.optimization_level = fluentai_optimizer::OptimizationLevel::None;
-    let compiler = Compiler::with_options(options);
+    // Compile with optimization enabled now that the issues are fixed
+    let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
+    
+    // Debug: Print optimized bytecode
+    println!("Optimized bytecode chunks:");
+    for (i, chunk) in bytecode.chunks.iter().enumerate() {
+        println!("Chunk {}: {:?}", i, chunk.name);
+        for (j, instr) in chunk.instructions.iter().enumerate() {
+            println!("  {}: {:?}", j, instr);
+        }
+        println!("  Constants: {:?}", chunk.constants);
+    }
 
     // Create VM with effect context and runtime
     let mut vm = VM::new(bytecode);

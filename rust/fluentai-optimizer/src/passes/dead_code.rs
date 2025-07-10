@@ -208,7 +208,7 @@ impl DeadCodeEliminationPass {
                 Node::Import { .. } => false, // Imports themselves don't have side effects
                 Node::Export { .. } => false, // Exports themselves don't have side effects
                 Node::QualifiedVariable { .. } => false, // Just a reference
-                Node::Channel { .. } => false,       // Channel creation is considered pure
+                Node::Channel { .. } => true,        // Channel creation has side effects (creates stateful resource)
                 Node::Contract { .. } => false, // Contracts themselves don't have side effects
                 Node::Define { value, .. } => self.has_side_effects(graph, *value), // Define has side effects if its value does
                 Node::Begin { exprs } => {

@@ -16,4 +16,24 @@
   5. If any test fails, investigate and resolve before moving on
 
 Also very important for development, if you change something in critical parts of the system that heavely depends on order, please leave a comment on what test you changed somthing for, this way If we find later that this change broke something else we know why we made the change so we can make sure to get both issues resolved. 
+
+## Common Pitfalls to Watch For
+
+### Catch-all Pattern in Match Statements
+When adding new cases to match statements (especially in optimizers or analyzers), be aware of catch-all patterns like `_ => {}`. These can silently ignore new node types if they're placed before your new case. For example:
+
+```rust
+match node {
+    Node::Application { .. } => { /* handle */ }
+    Node::Lambda { .. } => { /* handle */ }
+    _ => {} // This catches everything else!
+    Node::Channel { .. } => { /* This will NEVER be reached! */ }
+}
+```
+
+Always check if there's a catch-all pattern and ensure your new cases are added BEFORE it. This is particularly important in:
+- Dead code elimination (mark_reachable methods)
+- Effect analysis 
+- Node copying/transformation functions
+- Any visitor pattern implementation
  

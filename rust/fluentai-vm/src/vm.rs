@@ -1899,6 +1899,14 @@ impl VM {
 
                 // Copy global state to new VM
                 new_vm.globals = self.globals.clone();
+                // Fix for spawn integration test: Copy channel senders so spawned tasks can send to them
+                // We can't copy receivers, so we only copy the senders
+                for (channel_id, (tx, _)) in &self.channels {
+                    // Clone only the sender - the receiver stays with the original VM
+                    new_vm.channels.insert(*channel_id, (tx.clone(), 
+                        // Create a dummy receiver that will error if used
+                        mpsc::channel(1).1));
+                }
 
                 // Spawn the task using the effect runtime
                 self.effect_runtime.spawn(async move {
@@ -2048,19 +2056,70 @@ impl VM {
                     }
                 };
 
-                // Try to receive non-blocking
+                // Blocking receive - wait until a value is available
+                // Fix for spawn integration test: Receive should block, not return nil
+                
+                // First check if runtime is available
+                let has_runtime = self.effect_runtime.try_handle().is_some();
+                
                 if let Some((_, rx)) = self.channels.get_mut(&channel_id) {
-                    match rx.try_recv() {
-                        Ok(value) => self.push(value)?,
-                        Err(mpsc::error::TryRecvError::Empty) => {
-                            // No value available, push nil
-                            self.push(Value::Nil)?;
+                    if has_runtime {
+                        // Try to receive with a timeout first to avoid blocking forever
+                        match rx.try_recv() {
+                            Ok(value) => self.push(value)?,
+                            Err(mpsc::error::TryRecvError::Empty) => {
+                                // Channel is empty, we need to wait
+                                // Since we can't move rx, we'll use a different approach
+                                // We'll loop with small sleeps until a value is available
+                                let mut attempts = 0;
+                                const MAX_ATTEMPTS: u32 = 1000; // 10 seconds with 10ms sleeps
+                                
+                                loop {
+                                    match rx.try_recv() {
+                                        Ok(value) => {
+                                            self.push(value)?;
+                                            break;
+                                        }
+                                        Err(mpsc::error::TryRecvError::Empty) => {
+                                            attempts += 1;
+                                            if attempts >= MAX_ATTEMPTS {
+                                                // Timeout - push nil
+                                                self.push(Value::Nil)?;
+                                                break;
+                                            }
+                                            // Sleep briefly
+                                            std::thread::sleep(std::time::Duration::from_millis(10));
+                                        }
+                                        Err(mpsc::error::TryRecvError::Disconnected) => {
+                                            return Err(VMError::AsyncError {
+                                                message: "Channel disconnected".to_string(),
+                                                stack_trace: None,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                            Err(mpsc::error::TryRecvError::Disconnected) => {
+                                return Err(VMError::AsyncError {
+                                    message: "Channel disconnected".to_string(),
+                                    stack_trace: None,
+                                });
+                            }
                         }
-                        Err(mpsc::error::TryRecvError::Disconnected) => {
-                            return Err(VMError::AsyncError {
-                                message: "Channel disconnected".to_string(),
-                                stack_trace: None,
-                            });
+                    } else {
+                        // No runtime available, fall back to try_recv
+                        match rx.try_recv() {
+                            Ok(value) => self.push(value)?,
+                            Err(mpsc::error::TryRecvError::Empty) => {
+                                // No value available, push nil
+                                self.push(Value::Nil)?;
+                            }
+                            Err(mpsc::error::TryRecvError::Disconnected) => {
+                                return Err(VMError::AsyncError {
+                                    message: "Channel disconnected".to_string(),
+                                    stack_trace: None,
+                                });
+                            }
                         }
                     }
                 } else {
