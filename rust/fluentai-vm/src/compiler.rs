@@ -1338,9 +1338,30 @@ impl Compiler {
         catch_branches: &[(Pattern, NodeId)],
         finally: Option<NodeId>,
     ) -> Result<()> {
+        // Structure:
+        // PushHandler catch_ip
+        // PushFinally finally_ip (if finally exists)
+        // <try body>
+        // PopHandler
+        // Jump finally (or end)
+        // catch:
+        //   <catch handlers>
+        //   Jump finally (or end)
+        // finally:
+        //   <preserve stack value>
+        //   <finally block>
+        //   <restore stack value>
+        // end:
+        
         // Push error handler with catch target
-        // We'll patch this later with the catch IP
         let push_handler_idx = self.emit(Instruction::new(Opcode::PushHandler));
+        
+        // If we have a finally block, push its IP too
+        let push_finally_idx = if finally.is_some() {
+            Some(self.emit(Instruction::new(Opcode::PushFinally)))
+        } else {
+            None
+        };
         
         // Compile body
         self.compile_node(graph, body)?;
@@ -1348,8 +1369,8 @@ impl Compiler {
         // Pop handler on success
         self.emit(Instruction::new(Opcode::PopHandler));
         
-        // Jump over catch branches
-        let jump_end = self.emit(Instruction::new(Opcode::Jump));
+        // Jump to finally (or end if no finally)
+        let jump_after_body = self.emit(Instruction::new(Opcode::Jump));
         
         // Mark catch handler start
         let catch_start = self.bytecode.chunks[self.current_chunk].instructions.len();
@@ -1357,6 +1378,7 @@ impl Compiler {
         // Patch the PushHandler instruction with catch IP
         self.bytecode.chunks[self.current_chunk].instructions[push_handler_idx].arg = catch_start as u32;
         
+        // Compile catch handlers
         if !catch_branches.is_empty() {
             // For now, just compile the first handler with simple variable binding
             let (pattern, handler) = &catch_branches[0];
@@ -1392,14 +1414,48 @@ impl Compiler {
             }
         }
         
-        // Patch jump
-        let end_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
-        self.patch_jump(jump_end, end_pos);
+        // Jump to finally after catch
+        let jump_after_catch = if finally.is_some() {
+            Some(self.emit(Instruction::new(Opcode::Jump)))
+        } else {
+            None
+        };
         
         // Compile finally block if present
         if let Some(finally_block) = finally {
+            // Mark finally start
+            let finally_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
+            
+            // Patch PushFinally with the finally IP
+            if let Some(idx) = push_finally_idx {
+                self.bytecode.chunks[self.current_chunk].instructions[idx].arg = finally_pos as u32;
+            }
+            
+            // Patch jumps to finally
+            self.patch_jump(jump_after_body, finally_pos);
+            if let Some(jump) = jump_after_catch {
+                self.patch_jump(jump, finally_pos);
+            }
+            
+            // At entry to finally block:
+            // - Normal path: stack has [result, marker]
+            // - Exception path: stack has [error, marker]
+            
+            // The Finally opcode will handle saving/restoring these values
+            self.emit(Instruction::new(Opcode::Finally));
+            
+            // Now compile the finally block - it runs with the saved values removed
             self.compile_node(graph, finally_block)?;
-            self.emit(Instruction::new(Opcode::Pop)); // Pop finally result
+            
+            // Pop the finally block's result (we don't use it)
+            self.emit(Instruction::new(Opcode::Pop));
+            
+            // EndFinally opcode restores saved values and continues appropriately
+            self.emit(Instruction::new(Opcode::EndFinally));
+        } else {
+            // No finally block - patch jumps directly to end
+            let end_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
+            self.patch_jump(jump_after_body, end_pos);
         }
         
         Ok(())

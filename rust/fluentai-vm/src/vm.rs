@@ -18,6 +18,8 @@ use std::time::Instant;
 use tokio::sync::{mpsc, oneshot};
 
 const STACK_SIZE: usize = 10_000;
+const FINALLY_NORMAL_MARKER: &str = "__finally_normal__";
+const FINALLY_EXCEPTION_MARKER: &str = "__finally_exception__";
 
 /// Actor state and message handling
 pub struct Actor {
@@ -3098,9 +3100,84 @@ impl VM {
             }
             
             Finally => {
-                // Finally block
-                // For now, just continue
-                // Proper implementation would ensure this code runs regardless of errors
+                // Start of finally block
+                // Stack has [value, marker] that we need to preserve
+                // We save them and let the finally block run with clean stack
+                
+                if self.stack.len() < 2 {
+                    return Err(VMError::RuntimeError {
+                        message: "Finally expects at least 2 values on stack".to_string(),
+                        stack_trace: None,
+                    });
+                }
+                
+                // Pop and save the marker and value
+                let marker = self.pop()?;
+                let value = self.pop()?;
+                
+                // Save them by pushing to a temporary location at bottom of stack
+                // We'll retrieve them in EndFinally
+                // Using a hack: insert at position 0 and 1
+                self.stack.insert(0, value);
+                self.stack.insert(1, marker);
+                
+                // Continue with finally block execution
+            }
+            
+            EndFinally => {
+                // End of finally block
+                // Retrieve saved values and handle appropriately
+                
+                if self.stack.len() < 2 {
+                    return Err(VMError::RuntimeError {
+                        message: "EndFinally: saved values not found".to_string(),
+                        stack_trace: None,
+                    });
+                }
+                
+                // Remove saved values from bottom of stack
+                let value = self.stack.remove(0);
+                let marker = self.stack.remove(0); // Now at index 0 after first remove
+                
+                match marker {
+                    Value::Symbol(s) if s == FINALLY_NORMAL_MARKER => {
+                        // Normal path - push value back and continue
+                        self.push(value)?;
+                    }
+                    Value::Symbol(s) if s == FINALLY_EXCEPTION_MARKER => {
+                        // Exception path - re-throw the error
+                        // Look for the next error handler (catch block)
+                        if let Some(handler) = self.error_handler_stack.pop() {
+                            // Unwind stack to handler's depth
+                            while self.stack.len() > handler.stack_depth {
+                                self.stack.pop();
+                            }
+                            
+                            // Push error value for catch handler
+                            self.push(value)?;
+                            
+                            // Jump to catch handler
+                            if let Some(frame) = self.call_stack.last_mut() {
+                                frame.ip = handler.catch_ip;
+                            }
+                            
+                            // Continue execution at catch handler
+                            return Ok(VMState::Continue);
+                        } else {
+                            // No handler found, convert to runtime error
+                            return Err(VMError::RuntimeError {
+                                message: format!("Uncaught error: {:?}", value),
+                                stack_trace: Some(self.build_stack_trace()),
+                            });
+                        }
+                    }
+                    _ => {
+                        return Err(VMError::RuntimeError {
+                            message: format!("Invalid finally marker: {:?}", marker),
+                            stack_trace: None,
+                        });
+                    }
+                }
             }
             
             Throw => {
@@ -3109,21 +3186,48 @@ impl VM {
                 
                 // Look for an error handler
                 if let Some(handler) = self.error_handler_stack.pop() {
-                    // Unwind stack to handler's depth
-                    while self.stack.len() > handler.stack_depth {
-                        self.stack.pop();
+                    // Check if there's a finally block to execute first
+                    if let Some(finally_ip) = handler.finally_ip {
+                        // Unwind stack to handler's depth
+                        while self.stack.len() > handler.stack_depth {
+                            self.stack.pop();
+                        }
+                        
+                        // Push error value to preserve it across finally execution
+                        self.push(error.clone())?;
+                        
+                        // Push a special marker to indicate we're in exception finally path
+                        self.push(Value::Symbol(FINALLY_EXCEPTION_MARKER.to_string()))?;
+                        
+                        // Jump to finally block
+                        if let Some(frame) = self.call_stack.last_mut() {
+                            frame.ip = finally_ip;
+                        }
+                        
+                        // Push handler back for catch execution after finally
+                        let mut catch_handler = handler.clone();
+                        catch_handler.finally_ip = None; // Prevent infinite loop
+                        self.error_handler_stack.push(catch_handler);
+                        
+                        return Ok(VMState::Continue);
+                    } else {
+                        // No finally block, execute catch directly
+                        // Unwind stack to handler's depth
+                        while self.stack.len() > handler.stack_depth {
+                            self.stack.pop();
+                        }
+                        
+                        // Push error value for catch handler
+                        self.push(error)?;
+                        
+                        // Jump to catch handler
+                        if let Some(frame) = self.call_stack.last_mut() {
+                            frame.ip = handler.catch_ip;
+                        }
+                        
+                        // Continue execution at catch handler
+                        return Ok(VMState::Continue);
                     }
-                    
-                    // Push error value for catch handler
-                    self.push(error)?;
-                    
-                    // Jump to catch handler
-                    if let Some(frame) = self.call_stack.last_mut() {
-                        frame.ip = handler.catch_ip;
-                    }
-                    
-                    // Continue execution at catch handler
-                    return Ok(VMState::Continue);
                 }
                 
                 // No handler found, convert to runtime error
@@ -3136,23 +3240,76 @@ impl VM {
             PushHandler => {
                 // Push error handler onto stack
                 let catch_ip = instruction.arg as usize;
-                let _current_frame = self.call_stack.last()
+                let current_frame = self.call_stack.last()
                     .ok_or_else(|| VMError::RuntimeError {
                         message: "No active call frame for error handler".to_string(),
                         stack_trace: None,
                     })?;
                 
+                // Validate that catch_ip is within bounds
+                let chunk = &self.bytecode.chunks[current_frame.chunk_id];
+                if catch_ip >= chunk.instructions.len() {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Invalid catch target: {} (max: {})", 
+                                       catch_ip, chunk.instructions.len() - 1),
+                        stack_trace: None,
+                    });
+                }
+                
                 self.error_handler_stack.push(ErrorHandler {
                     catch_ip,
-                    finally_ip: None, // TODO: Support finally blocks
+                    finally_ip: None, // Will be set by PushFinally if present
                     stack_depth: self.stack.len(),
                     call_frame: self.call_stack.len() - 1,
                 });
             }
             
+            PushFinally => {
+                // Set finally IP on the most recent error handler
+                let finally_ip = instruction.arg as usize;
+                
+                // Validate that finally_ip is within bounds
+                let current_frame = self.get_current_frame()?;
+                let chunk = &self.bytecode.chunks[current_frame.chunk_id];
+                if finally_ip >= chunk.instructions.len() {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Invalid finally target: {} (max: {})", 
+                                       finally_ip, chunk.instructions.len() - 1),
+                        stack_trace: None,
+                    });
+                }
+                
+                if let Some(handler) = self.error_handler_stack.last_mut() {
+                    handler.finally_ip = Some(finally_ip);
+                } else {
+                    return Err(VMError::RuntimeError {
+                        message: "PushFinally without PushHandler".to_string(),
+                        stack_trace: None,
+                    });
+                }
+            }
+            
             PopHandler => {
                 // Pop error handler from stack
-                if self.error_handler_stack.pop().is_none() {
+                if let Some(handler) = self.error_handler_stack.pop() {
+                    // If there's a finally block, execute it
+                    if let Some(finally_ip) = handler.finally_ip {
+                        // The top of stack has the result value from try block
+                        // We need to set up stack as [result, marker] for finally
+                        
+                        // Result is already on top of stack
+                        // Push marker after it
+                        self.push(Value::Symbol(FINALLY_NORMAL_MARKER.to_string()))?;
+                        
+                        // Jump to finally block
+                        if let Some(frame) = self.call_stack.last_mut() {
+                            frame.ip = finally_ip;
+                        }
+                        
+                        // Continue execution at finally block
+                        return Ok(VMState::Continue);
+                    }
+                } else {
                     return Err(VMError::RuntimeError {
                         message: "No error handler to pop".to_string(),
                         stack_trace: None,
