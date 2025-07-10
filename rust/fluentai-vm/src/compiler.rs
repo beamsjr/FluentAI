@@ -1078,9 +1078,32 @@ impl Compiler {
     }
 
     fn compile_async(&mut self, graph: &ASTGraph, body: NodeId) -> Result<()> {
-        // For now, async just executes the body
-        // In a full implementation, this would create an async context
+        // Create a new chunk for the async block body
+        let chunk_id = self.create_chunk()?;
+        
+        // Switch to the new chunk
+        let old_chunk = self.current_chunk;
+        self.current_chunk = chunk_id;
+        
+        // Compile the async block body
         self.compile_node(graph, body)?;
+        
+        // Add return instruction to the async chunk
+        self.emit(Instruction::new(Opcode::Return));
+        
+        // Switch back to the original chunk
+        self.current_chunk = old_chunk;
+        
+        // Create function value for the async block
+        let chunk_idx = self.add_constant(Value::Integer(chunk_id as i64));
+        self.emit(Instruction::with_arg(Opcode::PushConst, chunk_idx));
+        
+        // Create closure with no free variables
+        self.emit(Instruction::with_arg(Opcode::MakeFunc, 0));
+        
+        // Spawn the async function
+        self.emit(Instruction::new(Opcode::Spawn));
+        
         Ok(())
     }
 
