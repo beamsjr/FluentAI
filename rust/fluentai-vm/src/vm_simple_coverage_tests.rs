@@ -305,6 +305,7 @@ mod tests {
             max_channels: 10,
             max_memory_bytes: 1024 * 1024,
             channel_buffer_size: 256,
+            max_error_handlers: 100,
         };
 
         vm.set_resource_limits(limits);

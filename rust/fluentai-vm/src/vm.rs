@@ -3227,6 +3227,17 @@ impl VM {
                         // Push handler back for catch execution after finally
                         let mut catch_handler = handler.clone();
                         catch_handler.finally_ip = None; // Prevent infinite loop
+                        
+                        // Check resource limit
+                        if self.error_handler_stack.len() >= self.resource_limits.max_error_handlers {
+                            return Err(VMError::ResourceLimitExceeded {
+                                resource: "error handlers".to_string(),
+                                limit: self.resource_limits.max_error_handlers,
+                                requested: self.error_handler_stack.len() + 1,
+                                stack_trace: None,
+                            });
+                        }
+                        
                         self.error_handler_stack.push(catch_handler);
                         
                         return Ok(VMState::Continue);
@@ -3344,6 +3355,16 @@ impl VM {
                     });
                 }
                 
+                // Check error handler stack limit
+                if self.error_handler_stack.len() >= self.resource_limits.max_error_handlers {
+                    return Err(VMError::ResourceLimitExceeded {
+                        resource: "error handlers".to_string(),
+                        limit: self.resource_limits.max_error_handlers,
+                        requested: self.error_handler_stack.len() + 1,
+                        stack_trace: None,
+                    });
+                }
+                
                 self.error_handler_stack.push(ErrorHandler {
                     catch_ip,
                     finally_ip: None, // Will be set by PushFinally if present
@@ -3360,7 +3381,7 @@ impl VM {
                 // Validate that finally_ip is within bounds
                 let current_frame = self.call_stack.last()
                     .ok_or_else(|| VMError::RuntimeError {
-                        message: "No active call frame".to_string(),
+                        message: "No active call frame for finally handler".to_string(),
                         stack_trace: None,
                     })?;
                 let chunk = &self.bytecode.chunks[current_frame.chunk_id];
