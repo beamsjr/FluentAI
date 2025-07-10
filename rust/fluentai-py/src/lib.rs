@@ -633,6 +633,9 @@ fn opcode_to_u8(opcode: &fluentai_vm::bytecode::Opcode) -> u8 {
         PromiseAll => 122,
         PromiseRace => 123,
         WithTimeout => 124,
+        MakeFuture => 125,
+        PushFinally => 126,
+        EndFinally => 127,
     }
 }
 
