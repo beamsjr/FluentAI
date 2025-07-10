@@ -128,9 +128,11 @@ pub enum Opcode {
     // Error handling
     Try,          // Begin try block
     Catch,        // Catch errors matching pattern
-    Finally,      // Finally block
+    Finally,      // Finally block start - saves state
+    EndFinally,   // Finally block end - restores state
     Throw,        // Throw an error
-    PushHandler,  // Push error handler onto stack
+    PushHandler,  // Push error handler onto stack (with catch IP)
+    PushFinally,  // Push finally handler IP
     PopHandler,   // Pop error handler from stack
     
     // Promise operations
