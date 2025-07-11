@@ -410,7 +410,7 @@ impl Compiler {
                 
                 // The position stored is relative to the scope base
                 // We need to calculate the absolute position
-                let abs_pos = self.scope_bases[scope_idx] + rel_pos;
+                let abs_pos = self.get_scope_base(scope_idx)? + rel_pos;
                 
                 // Verify the absolute position is within current stack bounds
                 debug_assert!(
@@ -429,7 +429,7 @@ impl Compiler {
                 };
 
                 // If this is a cell variable (from letrec), dereference it
-                if self.cell_vars[scope_idx].contains(name) {
+                if self.is_cell_var(scope_idx, name)? {
                     self.emit(Instruction::new(Opcode::CellGet));
                 }
 
@@ -922,7 +922,7 @@ impl Compiler {
                 .get(name)
                 .ok_or_else(|| anyhow!("Cell not found for binding: {}", name))?;
             // Convert relative position to absolute position for Load instruction
-            let abs_pos = self.scope_bases[scope_idx] + cell_rel_pos;
+            let abs_pos = self.get_scope_base(scope_idx)? + cell_rel_pos;
             self.emit(Instruction::with_arg(Opcode::Load, abs_pos as u32));
 
             // Set current function name if this is a lambda
@@ -2035,7 +2035,7 @@ impl Compiler {
         for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
             if let Some(&rel_pos) = scope.get(name) {
                 // Calculate absolute position like in compile_variable
-                let abs_pos = self.scope_bases[scope_idx] + rel_pos;
+                let abs_pos = self.get_scope_base(scope_idx)? + rel_pos;
                 // Fix for issue 26: Properly calculate absolute stack position for captured variables
                 
                 // Use fast local opcodes for indices 0-3
@@ -2836,6 +2836,44 @@ impl Compiler {
         self.scope_bases.pop();
         self.cell_vars.pop();
     }
+    
+    /// Safe accessor for scope base values with bounds checking.
+    /// Returns the base stack position for the given scope index.
+    /// 
+    /// The scope base represents the stack depth when entering a scope,
+    /// used to convert relative variable positions to absolute stack positions.
+    /// 
+    /// # Errors
+    /// Returns an error if scope_idx is out of bounds.
+    #[inline]
+    fn get_scope_base(&self, scope_idx: usize) -> Result<usize> {
+        self.scope_bases.get(scope_idx)
+            .copied()
+            .ok_or_else(|| anyhow!(
+                "Internal compiler error: scope index {} out of bounds (max: {})", 
+                scope_idx, 
+                self.scope_bases.len().saturating_sub(1)
+            ))
+    }
+    
+    /// Check if a variable is a cell variable with bounds checking.
+    /// Cell variables are used in letrec bindings and require dereferencing.
+    /// 
+    /// When a variable is stored in a cell (for recursive bindings), it needs
+    /// special handling with CellGet instructions to access the actual value.
+    /// 
+    /// # Errors
+    /// Returns an error if scope_idx is out of bounds.
+    #[inline]
+    fn is_cell_var(&self, scope_idx: usize, name: &str) -> Result<bool> {
+        self.cell_vars.get(scope_idx)
+            .map(|cells| cells.contains(name))
+            .ok_or_else(|| anyhow!(
+                "Internal compiler error: scope index {} out of bounds for cell_vars (max: {})", 
+                scope_idx,
+                self.cell_vars.len().saturating_sub(1)
+            ))
+    }
 }
 
 #[cfg(test)]
@@ -3053,6 +3091,83 @@ mod tests {
         // Verify scope base is correct
         assert_eq!(compiler.scope_bases[1], 3);
     }
+    
+    #[test]
+    fn test_bounds_checking_get_scope_base() {
+        let compiler = Compiler::new();
+        
+        // Valid access
+        assert_eq!(compiler.get_scope_base(0).unwrap(), 0);
+        
+        // Out of bounds access
+        let result = compiler.get_scope_base(1);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("scope index 1 out of bounds"));
+    }
+    
+    #[test]
+    fn test_bounds_checking_is_cell_var() {
+        let mut compiler = Compiler::new();
+        
+        // Add a cell variable to the first scope
+        // Using direct access here is safe in test setup since we just created the compiler
+        if let Some(cell_vars) = compiler.cell_vars.get_mut(0) {
+            cell_vars.insert("test_var".to_string());
+        } else {
+            panic!("Expected at least one scope in newly created compiler");
+        }
+        
+        // Valid access - variable exists
+        assert_eq!(compiler.is_cell_var(0, "test_var").unwrap(), true);
+        
+        // Valid access - variable doesn't exist
+        assert_eq!(compiler.is_cell_var(0, "nonexistent").unwrap(), false);
+        
+        // Out of bounds access
+        let result = compiler.is_cell_var(1, "test_var");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("scope index 1 out of bounds"));
+    }
+    
+    #[test]
+    fn test_bounds_checking_deeply_nested() {
+        let mut compiler = Compiler::new();
+        
+        // Create deeply nested scopes
+        for i in 0..10 {
+            compiler.push_scope();
+            compiler.scope_bases[i + 1] = i * 2 + 1;
+        }
+        
+        // All accesses should succeed
+        for i in 0..11 {
+            let result = compiler.get_scope_base(i);
+            assert!(result.is_ok(), "Failed to access scope {} in deeply nested structure", i);
+        }
+        
+        // Out of bounds should fail
+        let result = compiler.get_scope_base(11);
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_bounds_checking_error_messages() {
+        let compiler = Compiler::new();
+        
+        // Test error message for get_scope_base
+        let err = compiler.get_scope_base(5).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Internal compiler error: scope index 5 out of bounds (max: 0)"
+        );
+        
+        // Test error message for is_cell_var
+        let err = compiler.is_cell_var(3, "var").unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Internal compiler error: scope index 3 out of bounds for cell_vars (max: 0)"
+        );
+    }
 }
 
 impl Compiler {    
@@ -3098,7 +3213,13 @@ impl Compiler {
         );
         
         // Verify all variables in scope have valid relative positions
-        let scope_base = self.scope_bases[scope_idx];
+        let scope_base = match self.get_scope_base(scope_idx) {
+            Ok(base) => base,
+            Err(_) => {
+                debug_assert!(false, "Failed to get scope base for index {}", scope_idx);
+                return;
+            }
+        };
         for (name, &rel_pos) in &self.locals[scope_idx] {
             let abs_pos = scope_base + rel_pos;
             debug_assert!(
