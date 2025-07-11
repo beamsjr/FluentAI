@@ -1,0 +1,56 @@
+// Comprehensive test for block behavior
+
+// Test 1: Block ending with expression
+let test1 = { 
+    let x = 10
+    x * 2 
+};
+print("Test 1 (block with let, ending with expression):")
+print(test1) // Should print 20
+
+// Test 2: Block ending with let statement  
+let test2 = { 
+    let x = 10
+};
+print("\nTest 2 (block ending with let):")
+print(test2) // Should print nil
+
+// Test 3: Empty block
+let test3 = { };
+print("\nTest 3 (empty block):")
+print(test3) // Should print nil
+
+// Test 4: Block with only expression
+let test4 = { 42 };
+print("\nTest 4 (block with only expression):")
+print(test4) // Should print 42
+
+// Test 5: Multiple lets with final expression
+let test5 = { 
+    let x = 5
+    let y = 10
+    x + y 
+};
+print("\nTest 5 (multiple lets with expression):")
+print(test5) // Should print 15
+
+// Test 6: Nested blocks
+let test6 = {
+    let a = 1
+    let b = {
+        let c = 2
+        c + 3
+    }
+    a + b
+};
+print("\nTest 6 (nested blocks):")
+print(test6) // Should print 6
+
+// Test 7: Block with assignment
+let test7 = {
+    let mut x = 5
+    x = 10
+    x
+};
+print("\nTest 7 (block with assignment):")
+print(test7) // Should print 10

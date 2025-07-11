@@ -2,7 +2,6 @@
 
 use fluentai_core_lib::{HostFunction, RuntimeEngine, RuntimeConfig, Value};
 use fluentai_core_lib::config::{DebugConfig, SecurityConfig};
-use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     // Create a runtime engine with custom configuration

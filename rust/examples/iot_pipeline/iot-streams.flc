@@ -1,0 +1,162 @@
+// iot-streams.flc - Core stream processing abstractions for IoT data
+// This module provides efficient stream processing primitives
+
+module iot_streams {
+    export {
+        make_stream,
+        stream_from_list,
+        stream_take,
+        stream_map,
+        stream_filter,
+        stream_window,
+        stream_fold,
+        stream_collect,
+        stream_pipe,
+        |>
+    }
+
+    // Stream representation using channels for async processing
+    // A stream is a channel that produces values over time
+    
+    // Create a new stream from a generator function
+    // The generator should return nil when done
+    let make_stream = (generator) => {
+        let ch = make_channel();
+        spawn(() => {
+            let rec loop = () => {
+                let val = generator();
+                if (nil?(val)) {
+                    close_channel(ch)
+                } else {
+                    send(ch, val);
+                    loop()
+                }
+            };
+            loop()
+        });
+        ch
+    };
+    
+    // Convert a list to a stream
+    let stream_from_list = (lst) => {
+        make_stream(() => {
+            let remaining = lst;
+            () => {
+                if (null?(remaining)) {
+                    nil
+                } else {
+                    let val = car(remaining);
+                    set!(remaining, cdr(remaining));
+                    val
+                }
+            }
+        }())
+    };
+    
+    // Take n elements from a stream
+    let stream_take = (n, stream) => {
+        make_stream(() => {
+            let count = 0;
+            () => {
+                if (count >= n) {
+                    nil
+                } else {
+                    let val = receive(stream);
+                    set!(count, count + 1);
+                    val
+                }
+            }
+        }())
+    };
+    
+    // Transform stream elements with a function
+    let stream_map = (f, stream) => {
+        make_stream(() => {
+            let val = receive(stream);
+            if (nil?(val)) {
+                nil
+            } else {
+                f(val)
+            }
+        })
+    };
+    
+    // Filter stream elements with a predicate
+    let stream_filter = (pred, stream) => {
+        make_stream(() => {
+            let rec get_next = () => {
+                let val = receive(stream);
+                cond([
+                    [nil?(val), nil],
+                    [pred(val), val],
+                    [else, get_next()]
+                ])
+            };
+            get_next()
+        })
+    };
+    
+    // Create sliding windows of size n
+    let stream_window = (n, stream) => {
+        make_stream(() => {
+            let window = [];
+            () => {
+                if (length(window) < n) {
+                    // Fill initial window
+                    let rec fill = () => {
+                        let val = receive(stream);
+                        if (nil?(val)) {
+                            if (null?(window)) { nil } else { window }
+                        } else {
+                            set!(window, append(window, [val]));
+                            if (length(window) < n) {
+                                fill()
+                            } else {
+                                window
+                            }
+                        }
+                    };
+                    fill()
+                } else {
+                    // Slide window
+                    let val = receive(stream);
+                    if (nil?(val)) {
+                        nil
+                    } else {
+                        set!(window, append(cdr(window), [val]));
+                        window
+                    }
+                }
+            }
+        }())
+    };
+    
+    // Fold over a stream
+    let stream_fold = (f, init, stream) => {
+        let rec loop = (acc) => {
+            let val = receive(stream);
+            if (nil?(val)) {
+                acc
+            } else {
+                loop(f(acc, val))
+            }
+        };
+        loop(init)
+    };
+    
+    // Collect stream into a list
+    let stream_collect = (stream) => {
+        stream_fold((acc, val) => append(acc, [val]), [], stream)
+    };
+    
+    // Pipe operator for composing stream operations
+    let stream_pipe = (stream, ...ops) => {
+        fold_left((s, op) => op(s), stream, ops)
+    };
+    
+    // Infix pipe operator (syntactic sugar)
+    macro |> {
+        (|> expr) => expr,
+        (|> expr op rest ...) => (|> (op(expr)) rest ...)
+    }
+}

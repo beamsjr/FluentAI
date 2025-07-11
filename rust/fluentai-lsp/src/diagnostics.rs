@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_no_diagnostics_for_valid_code() {
-        let code = "(+ 1 2)";
+        let code = "1 + 2";
         let ast = parse(code).unwrap();
         let diagnostics = compute_diagnostics(&ast, code);
         assert!(diagnostics.is_empty());

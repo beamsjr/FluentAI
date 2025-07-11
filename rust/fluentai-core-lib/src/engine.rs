@@ -312,7 +312,7 @@ mod tests {
         engine.register_function(add).unwrap();
 
         // Test execution
-        let result = engine.execute("(+ 1 2)").unwrap();
+        let result = engine.execute("1 + 2").unwrap();
         assert_eq!(result, Value::Integer(3));
     }
 

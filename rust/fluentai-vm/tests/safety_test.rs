@@ -189,7 +189,7 @@ fn test_typed_ids() {
 #[test]
 fn test_stack_trace_generation() {
     // Create a simple function that will be in the stack trace
-    let graph = parse("((lambda (x) (/ x 0)) 42)").unwrap();
+    let graph = parse("((x) => x / 0)(42)").unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
 

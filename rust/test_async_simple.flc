@@ -1,0 +1,7 @@
+// Simple async test
+
+// Test 1: Basic async
+let basic_async = async { print_line("Async works") };
+
+// Test 2: Basic await  
+await(basic_async)

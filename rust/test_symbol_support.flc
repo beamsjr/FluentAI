@@ -1,0 +1,24 @@
+// Test symbol support in FLC
+private function test_symbols() -> Unit {
+    let sym1 = 'hello
+    let sym2 = 'world
+    let sym3 = 'hello
+    
+    // Symbols should be equal when they have the same name
+    if (sym1 == sym3) {
+        $("Symbol equality works!").print()
+    }
+    
+    // Different symbols should not be equal
+    if (sym1 != sym2) {
+        $("Symbol inequality works!").print()
+    }
+    
+    // Test symbol in a list
+    let symbols = ['foo, 'bar, 'baz]
+    symbols.for_each(s => $(f"Symbol: {s}").print())
+}
+
+private function main() {
+    test_symbols()
+}

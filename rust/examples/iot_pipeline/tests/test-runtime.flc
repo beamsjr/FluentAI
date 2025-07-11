@@ -1,0 +1,31 @@
+// test-runtime.flc - Minimal runtime test to verify what works
+
+// Test 1: Can we print?
+print_line("Starting FluentAI runtime test...");
+
+// Test 2: Basic arithmetic
+let x = 2 + 3;
+print_line(x);
+
+// Test 3: Lists
+let nums = list(1, 2, 3, 4, 5);
+print_line(nums);
+
+// Test 4: Higher-order functions
+let doubled = map((n) => n * 2, nums);
+print_line(doubled);
+
+// Test 5: Conditionals
+let classify_temp = (temp) => {
+    cond([
+        [temp < 0, "freezing"],
+        [temp < 20, "cold"],
+        [temp < 30, "comfortable"],
+        [else, "hot"]
+    ])
+};
+
+print_line(classify_temp(25));
+
+// If we get here, basic functionality works!
+print_line("Basic tests passed!")

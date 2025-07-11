@@ -1,2 +1,0 @@
-;; Test if async is recognized
-(async 42)

@@ -21,7 +21,7 @@ mod tests {
     async fn test_eval_simple() {
         let mut state = create_test_state();
         let args = json!({
-            "code": "(+ 1 2)"
+            "code": "1 + 2"
         });
 
         let result = handle_eval(&mut state, Some(&args)).await.unwrap();
@@ -34,7 +34,7 @@ mod tests {
     async fn test_eval_variadic() {
         let mut state = create_test_state();
         let args = json!({
-            "code": "(+ 1 2 3 4 5)"
+            "code": "1 + 2 + 3 + 4 + 5"
         });
 
         let result = handle_eval(&mut state, Some(&args)).await.unwrap();
@@ -47,7 +47,7 @@ mod tests {
     async fn test_eval_error_division_by_zero() {
         let mut state = create_test_state();
         let args = json!({
-            "code": "(/ 1 0)"
+            "code": "1 / 0"
         });
 
         let result = handle_eval(&mut state, Some(&args)).await;
@@ -171,7 +171,7 @@ mod tests {
     async fn test_eval_string_operations() {
         let mut state = create_test_state();
         let args = json!({
-            "code": "(+ \"hello\" \" \" \"world\")"
+            "code": "\"hello\" + \" \" + \"world\""
         });
 
         let result = handle_eval(&mut state, Some(&args)).await.unwrap();
@@ -184,7 +184,7 @@ mod tests {
     async fn test_eval_comparison_operators() {
         let mut state = create_test_state();
         let args = json!({
-            "code": "(= 5 5)"
+            "code": "5 == 5"
         });
 
         let result = handle_eval(&mut state, Some(&args)).await.unwrap();
@@ -197,7 +197,7 @@ mod tests {
     async fn test_eval_logical_operators() {
         let mut state = create_test_state();
         let args = json!({
-            "code": "(and true true false)"
+            "code": "true && true && false"
         });
 
         let result = handle_eval(&mut state, Some(&args)).await.unwrap();
@@ -210,7 +210,7 @@ mod tests {
     async fn test_eval_nested_expression() {
         let mut state = create_test_state();
         let args = json!({
-            "code": "(* (+ 1 2) (- 10 6))"
+            "code": "(1 + 2) * (10 - 6)"
         });
 
         let result = handle_eval(&mut state, Some(&args)).await.unwrap();

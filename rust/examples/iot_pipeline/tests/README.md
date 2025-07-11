@@ -4,17 +4,17 @@ This directory contains all validation tests for the IoT Pipeline demo. The test
 
 ## Test Organization
 
-### FluentAI Language Tests (`.fl` files)
+### FluentAI Language Tests (`.flc` files)
 
 These tests are written in FluentAI and test various levels of functionality:
 
-#### 1. **test-hello.fl** - Basic Smoke Test
+#### 1. **test-hello.flc** - Basic Smoke Test
 - **Purpose**: Simplest possible test to verify FluentAI execution
 - **Tests**: Basic print statements and variable definitions
 - **Status**: ❌ Runtime crashes due to async issues
 - **Key Finding**: FluentAI CLI has Tokio runtime problems
 
-#### 2. **test-minimal.fl** - Core Features Test
+#### 2. **test-minimal.flc** - Core Features Test
 - **Purpose**: Test absolute minimum FluentAI features
 - **Tests**: 
   - List operations (map, filter, fold)
@@ -23,7 +23,7 @@ These tests are written in FluentAI and test various levels of functionality:
   - String operations
 - **Status**: ✅ Syntax valid, ❌ Runtime untested
 
-#### 3. **test-basic.fl** - Demo Concepts Test
+#### 3. **test-basic.flc** - Demo Concepts Test
 - **Purpose**: Test IoT demo-specific concepts
 - **Tests**:
   - Tagged value creation (simulated)
@@ -32,12 +32,12 @@ These tests are written in FluentAI and test various levels of functionality:
   - Channel simulation with atoms
 - **Status**: ✅ Syntax valid, ❌ Runtime untested
 
-#### 4. **test-parser-only.fl** - Effect Syntax Test
+#### 4. **test-parser-only.flc** - Effect Syntax Test
 - **Purpose**: Test effect-based I/O syntax
 - **Tests**: Effect-based printing and I/O operations
 - **Status**: ✅ Syntax valid, ❌ Runtime untested
 
-#### 5. **test-validated.fl** - Stdlib Functions Test
+#### 5. **test-validated.flc** - Stdlib Functions Test
 - **Purpose**: Use only confirmed stdlib functions
 - **Tests**:
   - print-line function
@@ -46,7 +46,7 @@ These tests are written in FluentAI and test various levels of functionality:
   - Simulated sensor pipeline
 - **Status**: ✅ Most comprehensive FluentAI test
 
-#### 6. **test-runtime.fl** - Runtime Integration Test
+#### 6. **test-runtime.flc** - Runtime Integration Test
 - **Purpose**: Minimal test for runtime verification
 - **Tests**: Basic operations that should work in any Lisp-like language
 - **Status**: ❌ Not yet executed

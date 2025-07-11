@@ -1,0 +1,6 @@
+// Debug channel creation
+let ch = chan();
+{
+    print_line("Channel value:");
+    ch
+}

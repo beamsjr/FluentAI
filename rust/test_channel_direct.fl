@@ -1,3 +1,0 @@
-;; Test channel operations more directly
-(let ((ch (chan)))
-  (send! ch "Hello"))

@@ -90,7 +90,7 @@ fn benchmark_vm_literals(c: &mut Criterion) {
 }
 
 fn benchmark_vm_control_flow(c: &mut Criterion) {
-    let mut group = c.benchmark_group("vm_control_flow");
+    let group = c.benchmark_group("vm_control_flow");
 
     // TODO: Implement control flow once built-in functions are fixed
 
@@ -98,7 +98,7 @@ fn benchmark_vm_control_flow(c: &mut Criterion) {
 }
 
 fn benchmark_vm_functions(c: &mut Criterion) {
-    let mut group = c.benchmark_group("vm_functions");
+    let group = c.benchmark_group("vm_functions");
 
     // TODO: Implement function benchmarks once built-in functions are fixed
 

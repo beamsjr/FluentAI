@@ -1,0 +1,26 @@
+// Test module system in FLC
+
+// Define a module
+mod math {
+    private function add(a: int, b: int) -> int {
+        a + b
+    }
+    
+    private function multiply(a: int, b: int) -> int {
+        a * b
+    }
+    
+    // Export functions
+    export { add, multiply }
+}
+
+// Use the module
+use math::{add, multiply};
+
+private function main() {
+    let sum = add(5, 3)
+    let product = multiply(4, 7)
+    
+    $(f"5 + 3 = {sum}").print()
+    $(f"4 * 7 = {product}").print()
+}

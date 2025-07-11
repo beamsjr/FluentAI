@@ -1,7 +1,7 @@
 //! Example demonstrating database migrations
 
 use fluentai_db::{
-    DbConfig, DbConnection, Direction, FieldType, MigrationBuilder, MigrationRunner, SchemaBuilder,
+    DbConfig, DbConnection, FieldType, MigrationBuilder, MigrationRunner, SchemaBuilder,
     SqlMigration,
 };
 use std::sync::Arc;

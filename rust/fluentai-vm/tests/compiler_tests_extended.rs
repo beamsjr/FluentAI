@@ -1295,12 +1295,10 @@ fn test_compile_pattern_matching_with_optimization() -> Result<()> {
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::None)?;
     assert_eq!(result, Value::Integer(99)); // Should match cons and return 99
 
-    // TODO: There's an issue where the optimizer is being called twice:
-    // 1. In compile_and_run_with_optimization which passes OptimizationLevel to compiler
-    // 2. Inside the compiler which then runs optimization again
-    // This appears to cause issues with node ID mappings in certain cases.
-    // For now, skip optimization tests until this is resolved.
-    /*
+    // Note: The optimizer runs in the compiler when optimization level is set,
+    // so the graph is optimized even though we're not pre-optimizing it here.
+    // This is the expected behavior.
+    
     // Test with standard optimization
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::Standard)?;
     assert_eq!(result, Value::Integer(99)); // Should match cons and return 99
@@ -1308,7 +1306,6 @@ fn test_compile_pattern_matching_with_optimization() -> Result<()> {
     // Test with aggressive optimization
     let result = compile_and_run_with_optimization(&graph, OptimizationLevel::Aggressive)?;
     assert_eq!(result, Value::Integer(99));
-    */
 
     // Test nil pattern matching with optimization
     let mut graph = Graph::new();

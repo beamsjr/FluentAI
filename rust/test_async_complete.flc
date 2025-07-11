@@ -1,0 +1,30 @@
+// Comprehensive async/await test with working spawn implementation
+let ch = chan(5);
+
+// Test 1: Basic spawn with computation
+let p1 = spawn(() => 10 + 20);
+effect(io:print, list("Basic spawn result:", await(p1)));
+
+// Test 2: Spawn with channel communication  
+spawn(() => {
+    send!(ch, "Hello from spawned task");
+    send!(ch, "Another message")
+});
+
+// Test 3: Multiple concurrent spawns
+let p2 = spawn(() => 3 * 4);
+let p3 = spawn(() => 100 - 25);
+let p4 = spawn(() => 50 / 2);
+effect(io:print, list("Multiple spawns:", await(p2), await(p3), await(p4)));
+
+// Test 4: Receive from channel
+let msg1 = receive!(ch);
+let msg2 = receive!(ch);
+effect(io:print, list("Channel messages:", msg1, msg2));
+
+// Test 5: Spawn with async effect
+let p5 = spawn(() => effect(async:sleep, 50));
+effect(io:print, list("Async effect in spawn:", await(p5)));
+
+// Final result
+"All async/await tests completed successfully!"

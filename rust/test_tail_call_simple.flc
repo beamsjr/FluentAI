@@ -1,0 +1,47 @@
+// Test tail call optimization with define
+
+// Non-tail recursive function (recursive call is not in tail position)
+private function sum_to_n(n: int) -> int {
+    if (n == 0) {
+        0
+    } else {
+        n + sum_to_n(n - 1)  // Not in tail position because of the + operation
+    }
+}
+
+// Tail recursive function (recursive call is in tail position)
+private function sum_to_n_tail(n: int, acc: int) -> int {
+    if (n == 0) {
+        acc
+    } else {
+        sum_to_n_tail(n - 1, n + acc)  // In tail position
+    }
+}
+
+// Test with a letrec version too
+private function test_letrec() {
+    let sum_tail = (n: int, acc: int) => {
+        if (n == 0) {
+            acc
+        } else {
+            sum_tail(n - 1, n + acc)
+        }
+    }
+    
+    sum_tail(100, 0)
+}
+
+private function main() {
+    // This should work with tail call optimization
+    let result1 = sum_to_n_tail(1000, 0)
+    $(f"Tail recursive sum of 1-1000: {result1}").print()
+    
+    // Test letrec version
+    let result2 = test_letrec()
+    $(f"Letrec tail recursive sum of 1-100: {result2}").print()
+    
+    // This would overflow without tail call optimization
+    // Commenting out to avoid stack overflow
+    // let result3 = sum_to_n(1000)
+    // $(f"Non-tail recursive sum: {result3}").print()
+}

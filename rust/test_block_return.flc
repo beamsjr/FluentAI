@@ -1,0 +1,5 @@
+// Test block return value directly
+{ 
+    let x = 10
+    x * 2 
+}

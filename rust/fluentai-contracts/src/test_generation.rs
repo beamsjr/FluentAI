@@ -417,6 +417,7 @@ fn format_literal(lit: &Literal) -> String {
         Literal::Integer(n) => n.to_string(),
         Literal::Float(f) => f.to_string(),
         Literal::String(s) => format!("\"{}\"", s),
+        Literal::Symbol(s) => format!("'{}", s),
         Literal::Boolean(b) => if *b { "#t" } else { "#f" }.to_string(),
         Literal::Nil => "nil".to_string(),
     }
@@ -428,6 +429,7 @@ fn format_literal_rust(lit: &Literal) -> String {
         Literal::Integer(n) => format!("{}i64", n),
         Literal::Float(f) => format!("{}f64", f),
         Literal::String(s) => format!("\"{}\"", s),
+        Literal::Symbol(s) => format!("Symbol(\"{}\")", s),
         Literal::Boolean(b) => b.to_string(),
         Literal::Nil => "None".to_string(),
     }

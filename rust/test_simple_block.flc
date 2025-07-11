@@ -1,0 +1,7 @@
+// Simple test for block behavior
+let block_result = { 
+    let x = 10
+    x * 2 
+};
+
+print(block_result)

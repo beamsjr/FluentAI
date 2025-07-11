@@ -1,6 +1,6 @@
 //! Comprehensive tests for embedding generators
 
-use fluentai_core::ast::{ContextMemory, Graph, Literal, Node, NodeMetadata, UsageStatistics};
+use fluentai_core::ast::{ContextMemory, Literal, Node, NodeMetadata, UsageStatistics};
 use fluentai_core::ast::{PerformanceHint, PerformanceHintType};
 use fluentai_embeddings::{
     generator::{EmbeddingGenerator, FeatureBasedGenerator},

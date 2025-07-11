@@ -6,9 +6,10 @@ use fluentai_vm::{Compiler, CompilerOptions, VM};
 fn test_simple_or_pattern() {
     // Test simple or pattern
     let source = r#"
-        (match 2
-            ((or 1 2 3) "small")
-            (_ "large"))
+        match(2) {
+            1 | 2 | 3 => "small",
+            _ => "large"
+        }
     "#;
 
     println!("Parsing source: {}", source);

@@ -1,0 +1,156 @@
+// iot-types.flc - Sensor data type definitions and validation
+// Defines the core data structures for IoT sensor readings
+
+module iot_types {
+    export {
+        make_sensor_reading,
+        sensor_reading?,
+        sensor_id,
+        sensor_timestamp,
+        sensor_value,
+        sensor_metadata,
+        
+        make_anomaly,
+        anomaly?,
+        anomaly_reading,
+        anomaly_type,
+        anomaly_severity,
+        
+        valid_sensor_reading?,
+        valid_anomaly?,
+        enrich_reading,
+        reading_to_string
+    }
+
+    // Sensor reading type - represents a single data point from an IoT sensor
+    // Tagged value format: ("sensor-reading" sensor-id timestamp value metadata)
+    let make_sensor_reading = (id, timestamp, value, metadata) => {
+        make_tagged("sensor-reading", id, timestamp, value, metadata)
+    };
+    
+    // Type predicate
+    let sensor_reading? = (val) => {
+        tagged?(val) && 
+        (tagged_tag(val) == "sensor-reading") && 
+        (length(tagged_values(val)) == 4)
+    };
+    
+    // Accessors
+    let sensor_id = (reading) => {
+        if (sensor_reading?(reading)) {
+            list_ref(tagged_values(reading), 0)
+        } else {
+            error("sensor_id: not a sensor reading")
+        }
+    };
+    
+    let sensor_timestamp = (reading) => {
+        if (sensor_reading?(reading)) {
+            list_ref(tagged_values(reading), 1)
+        } else {
+            error("sensor_timestamp: not a sensor reading")
+        }
+    };
+    
+    let sensor_value = (reading) => {
+        if (sensor_reading?(reading)) {
+            list_ref(tagged_values(reading), 2)
+        } else {
+            error("sensor_value: not a sensor reading")
+        }
+    };
+    
+    let sensor_metadata = (reading) => {
+        if (sensor_reading?(reading)) {
+            list_ref(tagged_values(reading), 3)
+        } else {
+            error("sensor_metadata: not a sensor reading")
+        }
+    };
+    
+    // Anomaly type - represents a detected anomaly in sensor data
+    // Tagged value format: ("anomaly" reading type severity)
+    let make_anomaly = (reading, type, severity) => {
+        make_tagged("anomaly", reading, type, severity)
+    };
+    
+    let anomaly? = (val) => {
+        tagged?(val) && 
+        (tagged_tag(val) == "anomaly") && 
+        (length(tagged_values(val)) == 3)
+    };
+    
+    // Anomaly accessors
+    let anomaly_reading = (anomaly) => {
+        if (anomaly?(anomaly)) {
+            list_ref(tagged_values(anomaly), 0)
+        } else {
+            error("anomaly_reading: not an anomaly")
+        }
+    };
+    
+    let anomaly_type = (anomaly) => {
+        if (anomaly?(anomaly)) {
+            list_ref(tagged_values(anomaly), 1)
+        } else {
+            error("anomaly_type: not an anomaly")
+        }
+    };
+    
+    let anomaly_severity = (anomaly) => {
+        if (anomaly?(anomaly)) {
+            list_ref(tagged_values(anomaly), 2)
+        } else {
+            error("anomaly_severity: not an anomaly")
+        }
+    };
+    
+    // Validation predicates
+    let valid_sensor_reading? = (reading) => {
+        sensor_reading?(reading) && 
+        string?(sensor_id(reading)) && 
+        number?(sensor_timestamp(reading)) && 
+        (sensor_timestamp(reading) >= 0) && 
+        number?(sensor_value(reading)) && 
+        map?(sensor_metadata(reading))
+    };
+    
+    let valid_anomaly? = (anomaly) => {
+        anomaly?(anomaly) && 
+        valid_sensor_reading?(anomaly_reading(anomaly)) && 
+        string?(anomaly_type(anomaly)) && 
+        member?(anomaly_type(anomaly), 
+                ["temperature-spike", "value-out-of-range", "sensor-failure", "pattern-anomaly"]) && 
+        string?(anomaly_severity(anomaly)) && 
+        member?(anomaly_severity(anomaly), ["low", "medium", "high", "critical"])
+    };
+    
+    // Enrich a reading with additional metadata
+    let enrich_reading = (reading, additional_metadata) => {
+        if (!sensor_reading?(reading)) {
+            error("enrich_reading: not a sensor reading")
+        } else {
+            let current_meta = sensor_metadata(reading);
+            let new_meta = map_merge(current_meta, additional_metadata);
+            make_sensor_reading(
+                sensor_id(reading),
+                sensor_timestamp(reading),
+                sensor_value(reading),
+                new_meta
+            )
+        }
+    };
+    
+    // String representation for debugging
+    let reading_to_string = (reading) => {
+        if (sensor_reading?(reading)) {
+            string_format("SensorReading(id={}, time={}, value={}, meta={})",
+                         sensor_id(reading),
+                         sensor_timestamp(reading),
+                         sensor_value(reading),
+                         sensor_metadata(reading))
+        } else {
+            error("reading_to_string: not a sensor reading")
+        }
+    }
+}

@@ -1,0 +1,79 @@
+// define_showcase.flc - Demonstrates various uses of define
+
+// Simple value definitions
+let x = 42;
+let y = 58;
+let message = "Hello, FluentAI!";
+
+// Function definitions using lambda
+let add = (a, b) => a + b;
+let multiply = (a, b) => a * b;
+
+// Function definitions using shorthand syntax
+let square = (n) => n * n;
+let cube = (n) => n * n * n;
+
+// Higher-order function
+let compose = (f, g) => (x) => f(g(x));
+
+// Recursive function
+let factorial = (n) => {
+    if (n == 0) {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+};
+
+// Mutual recursion example
+let even? = (n) => {
+    if (n == 0) {
+        true
+    } else {
+        odd?(n - 1)
+    }
+};
+
+let odd? = (n) => {
+    if (n == 0) {
+        false
+    } else {
+        even?(n - 1)
+    }
+};
+
+// Using the definitions
+let sum = add(x, y);
+let squared = square(7);
+let fact5 = factorial(5);
+
+// Compose example
+let square_then_cube = compose(cube, square);
+let result = square_then_cube(2);  // (2^2)^3 = 64
+
+// List operations with defined functions
+let numbers = [1, 2, 3, 4, 5];
+let squared_numbers = map(square, numbers);
+
+// Pattern matching with defined function
+let describe_number = (n) => {
+    match(n, [
+        [0, "zero"],
+        [1, "one"],
+        [n, if (even?(n)) { "even" } else { "odd" }]
+    ])
+};
+
+// Final results
+{
+    sum;           // 100
+    squared;       // 49
+    fact5;         // 120
+    result;        // 64
+    even?(10);     // true
+    odd?(7);       // true
+    squared_numbers; // [1, 4, 9, 16, 25]
+    describe_number(0);   // "zero"
+    describe_number(4);   // "even"
+    describe_number(5)    // "odd"
+}

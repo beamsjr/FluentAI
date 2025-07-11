@@ -1,2 +1,0 @@
-;; Test await
-(await (async 42))

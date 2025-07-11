@@ -1,0 +1,30 @@
+// Test map and set literals in FLC
+
+private function test_map() {
+    // Map literal
+    let user = {
+        "name": "Alice",
+        "age": 30,
+        "city": "New York"
+    }
+    
+    $(f"User map created: {user}").print()
+}
+
+private function test_set() {
+    // Set literal
+    let numbers = #{1, 2, 3, 4, 5}
+    let primes = #{2, 3, 5, 7, 11}
+    
+    // Set with spread
+    let combined = #{...numbers, ...primes, 13}
+    
+    $(f"Numbers set: {numbers}").print()
+    $(f"Primes set: {primes}").print()
+    $(f"Combined set: {combined}").print()
+}
+
+private function main() {
+    test_map()
+    test_set()
+}

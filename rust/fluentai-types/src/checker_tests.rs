@@ -102,7 +102,7 @@ mod checker_edge_case_tests {
     // Test effect checking with various scenarios
     #[test]
     fn test_check_effects_forbidden() {
-        let graph = create_test_graph("(print \"hello\")");
+        let graph = create_test_graph("print(\"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
 
@@ -121,7 +121,7 @@ mod checker_edge_case_tests {
 
     #[test]
     fn test_check_effects_allowed() {
-        let graph = create_test_graph("(print \"hello\")");
+        let graph = create_test_graph("print(\"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
 
@@ -138,7 +138,7 @@ mod checker_edge_case_tests {
     #[test]
     fn test_check_effects_multiple_forbidden() {
         // Create a more complex graph with multiple effects
-        let graph = create_test_graph("(print \"hello\")");
+        let graph = create_test_graph("print(\"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
 
@@ -170,7 +170,7 @@ mod checker_edge_case_tests {
     #[test]
     fn test_format_error() {
         let checker = TypeChecker::new();
-        let graph = create_test_graph("(+ 1 \"hello\")");
+        let graph = create_test_graph("1 + \"hello\"");
 
         let error = TypeCheckError {
             location: SourceLocation {
@@ -251,7 +251,7 @@ mod checker_edge_case_tests {
 
     #[test]
     fn test_generate_warnings_side_effects() {
-        let graph = create_test_graph("(print \"hello\")");
+        let graph = create_test_graph("print(\"hello\")");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
 

@@ -1,0 +1,56 @@
+// FLC (Fluent Lambda Chain) Syntax Demo
+// This file demonstrates the modern FLC syntax for FluentAI
+
+// Simple function definition
+def fn factorial(n) {
+    if (n <= 1) { 1 } else { n * factorial(n - 1) }
+}
+
+// Function with type annotations (planned feature)
+def fn greet(name: string) -> string {
+    f"Hello, {name}!"
+}
+
+// Lambda expressions and higher-order functions
+def fn main() {
+    // Basic lambda
+    let double = { |x| x * 2 };
+    double(21) |> print;  // Prints: 42
+    
+    // Method chaining with collections
+    [1, 2, 3, 4, 5]
+        .filter { |x| x % 2 == 0 }
+        .map { |x| x * x }
+        .fold(0, { |acc, x| acc + x })
+        |> print;  // Prints: 20
+    
+    // Pattern matching
+    let result = 5;
+    result.match()
+        .case(0, "zero")
+        .case(5, "five")
+        .case(_, "other")
+        .run()
+        |> print;  // Prints: five
+    
+    // Let bindings with destructuring
+    let {x, y} = {x: 10, y: 20};
+    f"x = {x}, y = {y}" |> print;
+    
+    // Factorial example
+    factorial(5) |> print;  // Prints: 120
+}
+
+// Async example (planned feature)
+def async fn fetch_data() {
+    let response = http.get("/api/data").await();
+    response.json().await()
+}
+
+// Effect example
+def fn save_user(user).with(Database, Logger) {
+    perform Logger::info(f"Saving user {user.name}");
+    perform Database::insert("users", user)
+}
+
+main()

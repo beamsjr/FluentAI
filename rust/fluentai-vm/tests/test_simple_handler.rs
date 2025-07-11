@@ -5,11 +5,13 @@ use fluentai_vm::{Compiler, Value, VM};
 
 #[test]
 fn test_simple_handler() {
-    // Simplest possible handler test
+    // Test handler expressions using FLC syntax
     let code = r#"
-        (handler
-            ((error (lambda (e) 99)))
-            (effect error:raise))
+        handle {
+            perform Error.raise()
+        } with {
+            Error.raise() => 99
+        }
     "#;
 
     let graph = parse(code).expect("Should parse");

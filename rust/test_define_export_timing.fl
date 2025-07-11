@@ -1,3 +1,0 @@
-(begin
-  (define double (lambda (x) (+ x x)))
-  (export double))

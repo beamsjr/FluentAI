@@ -1,0 +1,156 @@
+// iot-pipeline.flc - Main IoT data processing pipeline
+// Implements the sensor data processing logic with multiple versions
+
+module iot_pipeline {
+    import iot_types;
+    import iot_streams;
+    
+    export {
+        process_stream_v1,        // Act I: Naive implementation
+        process_stream_v2,        // Act II: With contracts
+        process_stream_v3,        // Act III: Optimized
+        process_stream_final,     // Act IV: Production-ready
+        
+        // Individual pipeline stages
+        enrich_with_metadata,
+        detect_anomalies,
+        log_anomalies
+    }
+
+    // ==================== Act I: Naive Implementation ====================
+    // Simple, clean implementation using functional constructs
+    
+    let process_stream_v1 = (data_stream) => {
+        // Step 1: Enrich each reading with metadata
+        let enriched = map(enrich_with_metadata, data_stream);
+        // Step 2: Filter for anomalies
+        let anomalies = filter(detect_anomalies, enriched);
+        // Step 3: Log the anomalies
+        map(log_anomalies, anomalies)
+    };
+    
+    // Enrichment function - adds location and unit metadata
+    let enrich_with_metadata = (reading) => {
+        enrich_reading(reading,
+            make_map("location", get_sensor_location(sensor_id(reading)),
+                    "unit", "celsius",
+                    "processed-at", current_time()))
+    };
+    
+    // Simple anomaly detection - temperature threshold based
+    let detect_anomalies = (reading) => {
+        let value = sensor_value(reading);
+        let sensor_type = map_get(sensor_metadata(reading), "type");
+        cond([
+            // Temperature sensors: flag if > 40°C or < -10°C
+            [sensor_type == "temperature",
+             (value > 40.0) || (value < -10.0)],
+            // Pressure sensors: flag if outside normal range
+            [sensor_type == "pressure",
+             (value > 1100.0) || (value < 900.0)],
+            // Humidity sensors: flag if outside 0-100%
+            [sensor_type == "humidity",
+             (value > 100.0) || (value < 0.0)],
+            // Unknown sensor type
+            [else, false]
+        ])
+    };
+    
+    // Logging function with side effect
+    let log_anomalies = (anomaly_reading) => {
+        effect(io, print_line,
+            string_format("ANOMALY DETECTED: Sensor {} at {} - Value: {}",
+                         sensor_id(anomaly_reading),
+                         sensor_timestamp(anomaly_reading),
+                         sensor_value(anomaly_reading)));
+        anomaly_reading
+    };
+    
+    // Helper to get sensor location (mock implementation)
+    let get_sensor_location = (sensor_id) => {
+        cond([
+            [string_starts_with?(sensor_id, "temp-"), "Building A"],
+            [string_starts_with?(sensor_id, "pres-"), "Building B"],
+            [string_starts_with?(sensor_id, "hum-"), "Building C"],
+            [else, "Unknown"]
+        ])
+    };
+    
+    // ==================== Act II: With Contracts ====================
+    // Same logic but with formal contracts for correctness
+    
+    // Contract specification (will be defined in iot-contracts.flc)
+    // For now, we add runtime validation
+    let process_stream_v2 = (data_stream) => {
+        // Validate input
+        if (!list?(data_stream) || !all?(valid_sensor_reading?, data_stream)) {
+            error("process_stream_v2: invalid input stream")
+        };
+        
+        // Process with validation at each step
+        let enriched = map((r) => {
+            let result = enrich_with_metadata(r);
+            if (!valid_sensor_reading?(result)) {
+                error("Enrichment produced invalid reading")
+            } else {
+                result
+            }
+        }, data_stream);
+        let anomalies = filter(detect_anomalies, enriched);
+        let logged = map(log_anomalies, anomalies);
+        
+        // Validate output
+        if (!is_subset?(logged, data_stream)) {
+            error("Output contains data not in input!")
+        } else {
+            logged
+        }
+    };
+    
+    // ==================== Act III: Optimized Implementation ====================
+    // Fused operations for single-pass processing
+    
+    let process_stream_v3 = (data_stream) => {
+        // Single pass with fused map-filter
+        fold_left((acc, reading) => {
+            let enriched = enrich_with_metadata(reading);
+            if (detect_anomalies(enriched)) {
+                cons(log_anomalies(enriched), acc)
+            } else {
+                acc
+            }
+        }, [], data_stream)
+    };
+    
+    // ==================== Act IV: Production Implementation ====================
+    // Stream-based processing with async channels
+    
+    let process_stream_final = (sensor_stream) => {
+        // Use stream processing for real-time handling
+        sensor_stream
+            |> stream_map(enrich_with_metadata)
+            |> stream_filter(detect_anomalies)
+            |> stream_map(log_anomalies)
+    };
+    
+    // Helper predicates
+    let all? = (pred, lst) => {
+        if (null?(lst)) {
+            true
+        } else {
+            pred(car(lst)) && all?(pred, cdr(lst))
+        }
+    };
+    
+    let is_subset? = (subset, superset) => {
+        all?((x) => member?(x, superset), subset)
+    };
+    
+    let member? = (x, lst) => {
+        if (null?(lst)) {
+            false
+        } else {
+            equal?(x, car(lst)) || member?(x, cdr(lst))
+        }
+    }
+}

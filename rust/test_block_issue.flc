@@ -1,0 +1,19 @@
+// Test 1: Block ending with expression
+let result1 = { let x = 10; x * 2 }
+print(result1) // Should print 20
+
+// Test 2: Block ending with let statement  
+let result2 = { let x = 10 }
+print(result2) // Currently prints nil, but what should it print?
+
+// Test 3: Empty block
+let result3 = { }
+print(result3) // Should print nil
+
+// Test 4: Block with only expression
+let result4 = { 42 }
+print(result4) // Should print 42
+
+// Test 5: Multiple lets with final expression
+let result5 = { let x = 5; let y = 10; x + y }
+print(result5) // Should print 15

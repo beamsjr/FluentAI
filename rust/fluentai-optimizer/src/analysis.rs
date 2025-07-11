@@ -305,6 +305,11 @@ pub struct EffectAnalysis {
 }
 
 impl EffectAnalysis {
+    /// Check if a node is pure (has no side effects)
+    pub fn is_pure(&self, node_id: NodeId) -> bool {
+        self.pure_nodes.contains(&node_id)
+    }
+
     /// Analyze effects in the graph
     pub fn analyze(graph: &Graph) -> Self {
         let mut analysis = Self {
@@ -897,6 +902,7 @@ impl TypeAnalysis {
                     Float(_) => ConcreteType::Float,
                     Boolean(_) => ConcreteType::Boolean,
                     String(_) => ConcreteType::String,
+                    Symbol(_) => ConcreteType::String, // Treat symbols like strings for type analysis
                     Nil => return Some(TypeInfo::Unknown),
                 };
                 Some(TypeInfo::Concrete(concrete_type))

@@ -115,6 +115,7 @@ impl Value {
             Literal::Integer(i) => ValueData::Integer(*i),
             Literal::Float(f) => ValueData::Float(*f),
             Literal::String(s) => ValueData::String(s.clone()),
+            Literal::Symbol(s) => ValueData::Symbol(s.clone()),
         };
         Self::new(data)
     }

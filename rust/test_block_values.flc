@@ -1,0 +1,23 @@
+// Test that blocks return correct values
+let a = { 
+    let x = 10
+    x * 2 
+};
+
+let b = { 
+    let x = 5
+    let y = 10
+    x + y 
+};
+
+let c = {
+    let x = 1
+    let y = {
+        let z = 2
+        z + 3
+    }
+    x + y
+};
+
+// Return the sum to verify all values are correct
+a + b + c  // Should be 20 + 15 + 6 = 41

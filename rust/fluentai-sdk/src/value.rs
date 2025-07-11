@@ -2,7 +2,6 @@
 
 use crate::error::{Error, Result};
 use fluentai_core::value::Value;
-use std::sync::Arc;
 
 /// Trait for converting Rust values to FluentAI values
 pub trait IntoValue {

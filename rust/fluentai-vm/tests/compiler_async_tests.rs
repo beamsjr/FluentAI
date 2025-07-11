@@ -2,12 +2,10 @@
 
 use anyhow::Result;
 use fluentai_core::ast::{Graph, Literal, Node};
-use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
 use fluentai_vm::{
     bytecode::Opcode,
     compiler::{Compiler, CompilerOptions},
-    VM,
 };
 
 fn compile_and_check_opcodes(graph: &Graph, expected_opcodes: &[Opcode]) -> Result<()> {

@@ -81,6 +81,7 @@ impl<'a> ConditionEvaluator<'a> {
             Literal::Integer(i) => Value::Integer(*i),
             Literal::Float(f) => Value::Float(*f),
             Literal::String(s) => Value::String(s.clone()),
+            Literal::Symbol(s) => Value::Symbol(s.clone()),
             Literal::Boolean(b) => Value::Boolean(*b),
             Literal::Nil => Value::Nil,
         })

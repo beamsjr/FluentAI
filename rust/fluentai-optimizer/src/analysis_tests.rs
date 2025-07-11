@@ -49,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_cfg_if_expression() {
-        let code = "(if (> x 0) (+ x 1) (- x 1))";
+        let code = "if (x > 0) { x + 1 } else { x - 1 }";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_cfg_let_expression() {
-        let code = "(let ((x 1) (y 2)) (+ x y))";
+        let code = "{ let x = 1; let y = 2; x + y }";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_cfg_lambda() {
-        let code = "(lambda (x) (+ x 1))";
+        let code = "(x) => x + 1";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_cfg_application() {
-        let code = "(f a b c)";
+        let code = "f(a, b, c)";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_cfg_match_expression() {
-        let code = "(match x (0 \"zero\") (1 \"one\") (_ \"other\"))";
+        let code = "match(x) { 0 => \"zero\", 1 => \"one\", _ => \"other\" }";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_cfg_nested_control_flow() {
-        let code = "(if (if a b c) (if d e f) g)";
+        let code = "if (if (a) { b } else { c }) { if (d) { e } else { f } } else { g }";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_dataflow_variable_use() {
-        let code = "(+ x y)";
+        let code = "x + y";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_dataflow_let_binding() {
-        let code = "(let ((x 1)) (+ x 2))";
+        let code = "{ let x = 1; x + 2 }";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_dataflow_lambda_params() {
-        let code = "(lambda (x y) (+ x y))";
+        let code = "(x, y) => x + y";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_dataflow_shadowing() {
-        let code = "(let ((x 1)) (let ((x 2)) x))";
+        let code = "{ let x = 1; { let x = 2; x } }";
         let graph = parse(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_effect_analysis_pure() {
-        let code = "(+ 1 2)";
+        let code = "1 + 2";
         let graph = parse(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_effect_analysis_io() {
-        let code = "(effect IO:print \"hello\")";
+        let code = "perform IO.print(\"hello\")";
         let graph = parse(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     #[ignore = "Effect propagation through let bindings not fully implemented"]
     fn test_effect_analysis_propagation() {
-        let code = "(let ((x (effect IO:read))) (+ x 1))";
+        let code = "{ let x = perform IO.read(); x + 1 }";
         let graph = parse(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
@@ -231,7 +231,7 @@ mod tests {
     #[ignore = "State effect type not yet supported in parser"]
     fn test_effect_analysis_multiple() {
         let code =
-            "(do (effect IO:print \"start\") (effect State:set x 1) (effect IO:print \"end\"))";
+            "{ perform IO.print(\"start\"); perform State.set(\"x\", 1); perform IO.print(\"end\") }";
         let graph = parse(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_effect_analysis_lambda() {
-        let code = "(lambda (x) (effect IO:print x))";
+        let code = "(x) => perform IO.print(x)";
         let graph = parse(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_alias_analysis_simple_binding() {
-        let code = "(let ((x y)) x)";
+        let code = "{ let x = y; x }";
         let graph = parse(code).unwrap();
         let alias = AliasAnalysis::analyze(&graph);
 
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_alias_analysis_multiple() {
-        let code = "(let ((a b) (c a)) (+ a c))";
+        let code = "{ let a = b; let c = a; a + c }";
         let graph = parse(code).unwrap();
         let alias = AliasAnalysis::analyze(&graph);
 
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_type_analysis_literals() {
-        let code = "(list 42 3.14 \"hello\" true)";
+        let code = "list(42, 3.14, \"hello\", true)";
         let graph = parse(code).unwrap();
         let type_info = TypeAnalysis::analyze(&graph);
 
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_type_analysis_function() {
-        let code = "(lambda (x) (+ x 1))";
+        let code = "(x) => x + 1";
         let graph = parse(code).unwrap();
         let type_info = TypeAnalysis::analyze(&graph);
 
@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_type_analysis_propagation() {
-        let code = "(let ((x 42)) (+ x 1))";
+        let code = "{ let x = 42; x + 1 }";
         let graph = parse(code).unwrap();
         let type_info = TypeAnalysis::analyze(&graph);
 

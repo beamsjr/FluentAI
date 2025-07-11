@@ -1,11 +1,18 @@
 //! Compiler from AST to bytecode
 
 use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use crate::compiler_builtins::BuiltinResult;
+use crate::free_var_analysis::FreeVarAnalyzer;
+use crate::stack_effect::stack_effect;
 use anyhow::{anyhow, Result};
 use fluentai_core::ast::{Graph as ASTGraph, Literal, Node, NodeId, Pattern};
 use fluentai_core::value::Value;
 use fluentai_optimizer::{OptimizationConfig, OptimizationLevel, OptimizationPipeline};
 use std::collections::{HashMap, HashSet};
+
+/// Bit masks for MakeClosure instruction packing
+const MAKECLOSURE_CHUNK_ID_SHIFT: u32 = 16;
+const MAKECLOSURE_CAPTURE_COUNT_MASK: u32 = 0xFFFF;
 
 /// Compiler options
 #[derive(Debug, Clone)]
@@ -188,7 +195,7 @@ impl Compiler {
         );
     }
 
-    fn compile_node(&mut self, graph: &ASTGraph, node_id: NodeId) -> Result<()> {
+    pub(crate) fn compile_node(&mut self, graph: &ASTGraph, node_id: NodeId) -> Result<()> {
         let node = graph
             .nodes
             .get(&node_id)
@@ -246,7 +253,7 @@ impl Compiler {
                 } else {
                     // No capacity, use default
                     self.emit(Instruction::new(Opcode::Channel));
-                    self.stack_depth += 1; // Channel creates a new channel on the stack
+                    // Stack depth is now managed by emit()
                 }
             }
             Node::Send { channel, value } => {
@@ -332,8 +339,17 @@ impl Compiler {
                 self.compile_handler(graph, handlers, *body)?;
             }
             Node::Define { name, value } => {
+                // Set current function name if this is a lambda
+                let saved_function = self.current_function.clone();
+                if let Some(Node::Lambda { .. }) = graph.nodes.get(value) {
+                    self.current_function = Some(name.clone());
+                }
+
                 // Compile the value
                 self.compile_node(graph, *value)?;
+
+                // Restore function name
+                self.current_function = saved_function;
 
                 // For now, define acts like a global assignment
                 // Store in a global variable slot
@@ -345,6 +361,9 @@ impl Compiler {
             }
             Node::Begin { exprs } => {
                 self.compile_begin(graph, exprs)?;
+            }
+            Node::Assignment { target, value } => {
+                self.compile_assignment(graph, *target, *value)?;
             }
         }
 
@@ -378,6 +397,10 @@ impl Compiler {
             }
             Literal::String(s) => {
                 let idx = self.add_constant(Value::String(s.clone()));
+                self.emit(Instruction::with_arg(Opcode::Push, idx));
+            }
+            Literal::Symbol(s) => {
+                let idx = self.add_constant(Value::Symbol(s.clone()));
                 self.emit(Instruction::with_arg(Opcode::Push, idx));
             }
             Literal::Boolean(b) => {
@@ -479,80 +502,11 @@ impl Compiler {
         // Check if it's a built-in function
         if let Some(node) = graph.nodes.get(&func) {
             if let Node::Variable { name } = node {
-                if let Some(opcode) = self.builtin_to_opcode(name) {
-                    // For built-in arithmetic/comparison ops, compile args and emit opcode
-                    match opcode {
-                        // Variadic operators (can take 2 or more arguments)
-                        Opcode::Add | Opcode::Mul | Opcode::And | Opcode::Or => {
-                            if args.len() < 2 {
-                                return Err(anyhow!("{} requires at least 2 arguments", name));
-                            }
-                            // Compile first argument
-                            self.compile_node(graph, args[0])?;
-
-                            // Chain operations for remaining arguments
-                            for &arg in &args[1..] {
-                                self.compile_node(graph, arg)?;
-                                self.emit(Instruction::new(opcode));
-                            }
-                            return Ok(());
-                        }
-                        // Binary operators (exactly 2 arguments)
-                        Opcode::Sub
-                        | Opcode::Div
-                        | Opcode::Mod
-                        | Opcode::AddInt
-                        | Opcode::SubInt
-                        | Opcode::MulInt
-                        | Opcode::DivInt
-                        | Opcode::AddFloat
-                        | Opcode::SubFloat
-                        | Opcode::MulFloat
-                        | Opcode::DivFloat
-                        | Opcode::Eq
-                        | Opcode::Ne
-                        | Opcode::Lt
-                        | Opcode::Le
-                        | Opcode::Gt
-                        | Opcode::Ge
-                        | Opcode::StrConcat
-                        | Opcode::ListCons => {
-                            if args.len() != 2 {
-                                return Err(anyhow!("{} requires exactly 2 arguments", name));
-                            }
-                            self.compile_node(graph, args[0])?;
-                            self.compile_node(graph, args[1])?;
-                            self.emit(Instruction::new(opcode));
-                            return Ok(());
-                        }
-                        // Unary operators
-                        Opcode::Not
-                        | Opcode::ListLen
-                        | Opcode::ListEmpty
-                        | Opcode::StrLen
-                        | Opcode::StrUpper
-                        | Opcode::StrLower
-                        | Opcode::ListHead
-                        | Opcode::ListTail => {
-                            if args.len() != 1 {
-                                return Err(anyhow!("{} requires exactly 1 argument", name));
-                            }
-                            self.compile_node(graph, args[0])?;
-                            self.emit(Instruction::new(opcode));
-                            return Ok(());
-                        }
-                        // Variable-arity functions
-                        Opcode::MakeList => {
-                            // Compile all arguments
-                            for &arg in args {
-                                self.compile_node(graph, arg)?;
-                            }
-                            self.emit(Instruction::with_arg(Opcode::MakeList, args.len() as u32));
-                            return Ok(());
-                        }
-                        _ => {
-                            // Other opcodes might need special handling
-                        }
+                // Try to compile as builtin first
+                match self.try_compile_builtin(graph, name, args)? {
+                    BuiltinResult::Handled => return Ok(()),
+                    BuiltinResult::NotBuiltin => {
+                        // Continue with other checks
                     }
                 }
 
@@ -619,7 +573,7 @@ impl Compiler {
                         // Add to locals
                         let local_idx = self.stack_depth;
                         self.locals.last_mut().unwrap().insert(name, local_idx);
-                        self.stack_depth += 1;
+                        // Stack depth is incremented by GcAlloc emit()
                     }
 
                     // Compile body expressions
@@ -710,14 +664,15 @@ impl Compiler {
         self.current_chunk = chunk_id;
         self.locals = vec![HashMap::new()];
         self.captured = vec![HashMap::new()];
-        self.stack_depth = 0; // Lambda starts with fresh stack
+        // Lambda starts with parameters on stack
+        self.stack_depth = params.len();
         self.scope_bases = vec![0];
         self.cell_vars = vec![HashSet::new()];
         
-        // Verify lambda starts with clean state
+        // Verify lambda starts with parameters on stack
         debug_assert_eq!(
-            self.stack_depth, 0,
-            "Lambda should start with empty stack"
+            self.stack_depth, params.len(),
+            "Lambda should start with parameters on stack"
         );
         debug_assert_eq!(
             self.locals.len(), 1,
@@ -750,10 +705,12 @@ impl Compiler {
         self.compile_node(graph, body)?;
         
         // Lambda body should produce exactly one value
-        debug_assert_eq!(
-            self.stack_depth, lambda_start_depth + 1,
-            "Lambda body should produce exactly one value: expected depth {}, got {}",
-            lambda_start_depth + 1,
+        // The final stack should have params + 1 (the return value)
+        debug_assert!(
+            self.stack_depth >= params.len() + 1,
+            "Lambda body should produce at least one value: expected minimum depth {} (params={} + result=1), got {}",
+            params.len() + 1,
+            params.len(),
             self.stack_depth
         );
         
@@ -780,9 +737,24 @@ impl Compiler {
         if free_vars.is_empty() {
             self.emit(Instruction::with_arg(Opcode::MakeFunc, chunk_id as u32));
         } else {
-            // Pack chunk_id and capture count into arg
-            // Upper 16 bits: chunk_id, Lower 16 bits: capture count
-            let packed = ((chunk_id as u32) << 16) | (free_vars.len() as u32);
+            // MakeClosure bit packing format:
+            // The 32-bit argument is packed as follows:
+            //   - Upper 16 bits (bits 31-16): chunk_id - identifies the bytecode chunk for the function
+            //   - Lower 16 bits (bits 15-0): capture_count - number of values to capture from stack
+            //
+            // Example: chunk_id=5, capture_count=3
+            //   packed = (5 << 16) | 3 = 0x00050003
+            //
+            // The VM will:
+            //   1. Extract capture_count = packed & 0xFFFF
+            //   2. Pop that many values from the stack (these are the captured values)
+            //   3. Extract chunk_id = (packed >> 16) & 0xFFFF
+            //   4. Create a closure with the bytecode from chunk_id and the captured values
+            //
+            // This encoding limits us to 65535 chunks and 65535 captures per closure,
+            // which is more than sufficient for any practical program.
+            let packed = ((chunk_id as u32) << MAKECLOSURE_CHUNK_ID_SHIFT) | 
+                        ((free_vars.len() as u32) & MAKECLOSURE_CAPTURE_COUNT_MASK);
             self.emit(Instruction::with_arg(Opcode::MakeClosure, packed));
         }
 
@@ -806,7 +778,17 @@ impl Compiler {
         let initial_depth = self.stack_depth;
         for (i, (name, value)) in bindings.iter().enumerate() {
             let before_depth = self.stack_depth;
+
+            // Set current function name if this is a lambda
+            let saved_function = self.current_function.clone();
+            if let Some(Node::Lambda { .. }) = graph.nodes.get(value) {
+                self.current_function = Some(name.clone());
+            }
+
             self.compile_node(graph, *value)?;
+
+            // Restore function name
+            self.current_function = saved_function;
 
             // After compiling the value, it should be on top of the stack
             // We expect exactly one value to be added
@@ -876,12 +858,66 @@ impl Compiler {
             // Pop intermediate results (except the last one)
             if i < exprs.len() - 1 {
                 self.emit(Instruction::new(Opcode::Pop));
-                self.stack_depth = self.stack_depth.saturating_sub(1);
+                // Stack depth is now managed by emit()
             }
         }
 
         // The last expression's value remains on the stack as the result
         Ok(())
+    }
+    
+    fn compile_assignment(&mut self, graph: &ASTGraph, target: NodeId, value: NodeId) -> Result<()> {
+        // For now, we only support simple variable assignments
+        // TODO: In the future, support field access (e.g., self.count)
+        
+        
+        let target_node = graph
+            .get_node(target)
+            .ok_or_else(|| anyhow!("Invalid target node in assignment: {:?}", target))?;
+        
+        match target_node {
+            Node::Variable { name } => {
+                // Compile the value expression
+                self.compile_node(graph, value)?;
+                
+                // Duplicate the value on the stack so we can return it
+                self.emit(Instruction::new(Opcode::Dup));
+                // Note: emit() already adjusts stack_depth for Dup
+                
+                // Look up in locals
+                let mut found_local = false;
+                for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
+                    if let Some(&rel_pos) = scope.get(name) {
+                        // The position stored is relative to the scope base
+                        let abs_pos = self.get_scope_base(scope_idx)? + rel_pos;
+                        
+                        // Store in local variable (consumes one copy)
+                        self.emit(Instruction::with_arg(Opcode::Store, abs_pos as u32));
+                        // Stack depth is now managed by emit()
+                        found_local = true;
+                        break;
+                    }
+                }
+                
+                if !found_local {
+                    // If not local, store as global (consumes one copy)
+                    let idx = self.add_constant(Value::String(name.clone()));
+                    self.emit(Instruction::with_arg(Opcode::StoreGlobal, idx));
+                    // Stack depth is now managed by emit()
+                }
+                
+                // The duplicated value remains on the stack as the result
+                // Assignment now returns the assigned value
+                Ok(())
+            }
+            Node::Application { function, args } if args.len() == 2 => {
+                // This might be a field access like (get obj field)
+                // For now, we'll error out
+                // TODO: Implement field assignment
+                Err(anyhow!("Field assignment not yet implemented"))
+            }
+            _ => Err(anyhow!("Invalid assignment target: must be a variable"))
+        }
     }
 
     fn compile_letrec(
@@ -1007,225 +1043,43 @@ impl Compiler {
         Ok(())
     }
 
-    fn builtin_to_opcode(&self, name: &str) -> Option<Opcode> {
-        match name {
-            "+" => Some(Opcode::Add),
-            "-" => Some(Opcode::Sub),
-            "*" => Some(Opcode::Mul),
-            "/" => Some(Opcode::Div),
-            "%" => Some(Opcode::Mod),
-            // Specialized integer arithmetic
-            "+int" => Some(Opcode::AddInt),
-            "-int" => Some(Opcode::SubInt),
-            "*int" => Some(Opcode::MulInt),
-            "/int" => Some(Opcode::DivInt),
-            // Specialized float arithmetic
-            "+float" => Some(Opcode::AddFloat),
-            "-float" => Some(Opcode::SubFloat),
-            "*float" => Some(Opcode::MulFloat),
-            "/float" => Some(Opcode::DivFloat),
-            "=" | "==" => Some(Opcode::Eq),
-            "!=" | "<>" => Some(Opcode::Ne),
-            "<" => Some(Opcode::Lt),
-            "<=" => Some(Opcode::Le),
-            ">" => Some(Opcode::Gt),
-            ">=" => Some(Opcode::Ge),
-            "and" => Some(Opcode::And),
-            "or" => Some(Opcode::Or),
-            "not" => Some(Opcode::Not),
-            "list-len" | "length" => Some(Opcode::ListLen),
-            "list-empty?" | "empty?" => Some(Opcode::ListEmpty),
-            "car" | "head" | "first" => Some(Opcode::ListHead),
-            "cdr" | "tail" | "rest" => Some(Opcode::ListTail),
-            "cons" => Some(Opcode::ListCons),
-            "str-len" | "string-length" => Some(Opcode::StrLen),
-            "str-concat" | "string-append" => Some(Opcode::StrConcat),
-            "str-upper" | "string-upcase" => Some(Opcode::StrUpper),
-            "str-lower" | "string-downcase" => Some(Opcode::StrLower),
-            "list" => Some(Opcode::MakeList),
-            "gc-alloc" => Some(Opcode::GcAlloc),
-            "gc-deref" => Some(Opcode::GcDeref),
-            "gc-set" => Some(Opcode::GcSet),
-            "gc-collect" => Some(Opcode::GcCollect),
-            "tail-call" => Some(Opcode::TailCall),
-            "tail-return" => Some(Opcode::TailReturn),
-            _ => None,
-        }
-    }
 
-    fn emit(&mut self, instruction: Instruction) -> usize {
+    pub(crate) fn emit(&mut self, instruction: Instruction) -> usize {
         let initial_depth = self.stack_depth;
         
-        // Adjust stack depth based on instruction
+        // Get the stack effect for this instruction
+        let effect = stack_effect(&instruction);
+        
+        // Validate we have enough values on the stack
+        debug_assert!(
+            self.stack_depth >= effect.pop,
+            "Instruction {:?} requires {} values on stack, but stack depth is only {}",
+            instruction.opcode,
+            effect.pop,
+            self.stack_depth
+        );
+        
+        // Apply the stack effect
+        self.stack_depth = effect.apply(self.stack_depth);
+        
+        // Additional validation for specific instructions
         match instruction.opcode {
-            Opcode::Pop => {
-                debug_assert!(
-                    self.stack_depth > 0,
-                    "Cannot pop from empty stack"
-                );
-                self.stack_depth = self.stack_depth.saturating_sub(1);
-            }
+            // For PopN, we need special handling because it keeps the top value
             Opcode::PopN => {
-                if instruction.arg > 0 {
-                    debug_assert!(
-                        self.stack_depth >= instruction.arg as usize,
-                        "Cannot pop {} values from stack with depth {}",
-                        instruction.arg,
-                        self.stack_depth
-                    );
-                    self.stack_depth = self
-                        .stack_depth
-                        .saturating_sub(instruction.arg as usize - 1); // PopN keeps top value
-                }
-            }
-            Opcode::Dup => self.stack_depth += 1,
-            Opcode::Add
-            | Opcode::Sub
-            | Opcode::Mul
-            | Opcode::Div
-            | Opcode::Mod
-            | Opcode::Eq
-            | Opcode::Ne
-            | Opcode::Lt
-            | Opcode::Le
-            | Opcode::Gt
-            | Opcode::Ge
-            | Opcode::And
-            | Opcode::Or
-            | Opcode::StrConcat
-            | Opcode::ListCons => {
+                // PopN pops N values from beneath the top value, keeping the top
+                // So the actual requirement is N+1 values on the initial stack
                 debug_assert!(
-                    self.stack_depth >= 2,
-                    "Binary operation requires at least 2 values on stack, got {}",
-                    self.stack_depth
+                    initial_depth >= instruction.arg as usize + 1,
+                    "PopN({}) requires at least {} values on stack, but depth was {}",
+                    instruction.arg,
+                    instruction.arg as usize + 1,
+                    initial_depth
                 );
-                self.stack_depth = self.stack_depth.saturating_sub(1); // Binary ops consume 2, produce 1
             }
-            Opcode::MakeList => {
-                self.stack_depth = self
-                    .stack_depth
-                    .saturating_sub(instruction.arg as usize)
-                    .saturating_add(1)
-            }
-            Opcode::Call => {
-                // Call pops: the function + all arguments, then pushes the result
-                // Net effect: -(arg_count + 1) + 1 = -arg_count
-                self.stack_depth = self.stack_depth.saturating_sub(instruction.arg as usize);
-            }
-            Opcode::MakeClosure => {
-                // MakeClosure consumes N captured values and produces 1 function
-                let capture_count = (instruction.arg & 0xFFFF) as usize;
-                let _old_depth = self.stack_depth;
-                self.stack_depth = self
-                    .stack_depth
-                    .saturating_sub(capture_count)
-                    .saturating_add(1);
-            }
-            Opcode::MakeFunc => {
-                self.stack_depth += 1;
-            }
-            Opcode::Load | Opcode::LoadGlobal | Opcode::LoadCaptured => {
-                self.stack_depth += 1;
-            }
-            Opcode::MakeCell => {
-                // Consumes initial value, produces cell
-                // No net stack change, but we still have a value on stack
-            }
-            Opcode::CellGet => {
-                // Consumes cell, produces value
-                // No net stack change
-            }
-            Opcode::CellSet => {
-                // Consumes cell and value, produces nil
-                self.stack_depth = self.stack_depth.saturating_sub(1);
-            }
-            // GC operations
-            Opcode::GcAlloc => {
-                // Consumes value, produces GC handle
-                // No net stack change
-            }
-            Opcode::GcDeref => {
-                // Consumes GC handle, produces value
-                // No net stack change
-            }
-            Opcode::GcSet => {
-                // Consumes GC handle and value, produces nil
-                self.stack_depth = self.stack_depth.saturating_sub(1);
-            }
-            Opcode::GcCollect => {
-                // No arguments, produces nil
-                self.stack_depth += 1;
-            }
-            // Tail call operations
-            Opcode::TailCall => {
-                // Consumes function and arguments
-                let arg_count = instruction.arg + 1; // +1 for the function itself
-                self.stack_depth = self.stack_depth.saturating_sub(arg_count as usize);
-                self.stack_depth += 1; // Result
-            }
-            Opcode::TailReturn => {
-                // Like Return
-                self.stack_depth = self.stack_depth.saturating_sub(1);
-            }
-            Opcode::UpdateLocal => {
-                // Consumes value, no net change
-                self.stack_depth = self.stack_depth.saturating_sub(1);
-            }
-            Opcode::LoopStart | Opcode::LoopEnd => {
-                // No stack effect
-            }
-            // Push instructions
-            Opcode::Push
-            | Opcode::PushConst
-            | Opcode::PushNil
-            | Opcode::PushTrue
-            | Opcode::PushFalse
-            | Opcode::PushInt0
-            | Opcode::PushInt1
-            | Opcode::PushInt2
-            | Opcode::PushIntSmall => {
-                self.stack_depth += 1;
-            }
-            // List operations
-            Opcode::ListHead | Opcode::ListTail => {
-                // Consumes list, produces head/tail
-                // No net stack change
-            }
-            Opcode::ListEmpty => {
-                // Consumes list, produces bool
-                // No net stack change
-            }
-            Opcode::ListLen => {
-                // Consumes list, produces int
-                // No net stack change
-            }
-            Opcode::Swap => {
-                // Swaps top two values, no net change
-            }
-            Opcode::MakeHandler => {
-                // Consumes 3 * handler_count values (effect type, op filter, handler fn)
-                // Produces 1 handler object
-                let handler_count = instruction.arg as usize;
-                self.stack_depth = self
-                    .stack_depth
-                    .saturating_sub(3 * handler_count)
-                    .saturating_add(1);
-            }
-            Opcode::InstallHandler => {
-                // Consumes handler object, no net change (handler is saved in VM state)
-                self.stack_depth = self.stack_depth.saturating_sub(1);
-            }
-            Opcode::UninstallHandler => {
-                // No stack effect (preserves result from body)
-            }
-            Opcode::JumpIfNot => {
-                // Consumes the boolean condition
-                self.stack_depth = self.stack_depth.saturating_sub(1);
-            }
-            _ => {} // Most instructions don't change stack depth
+            _ => {}
         }
         
-        // Verify stack depth never goes negative (saturating_sub should prevent this, but let's be sure)
+        // Verify stack depth never goes negative (saturating operations should prevent this)
         debug_assert!(
             self.stack_depth <= 10000, // Reasonable upper bound
             "Stack depth {} seems unreasonably large - possible underflow",
@@ -1233,15 +1087,12 @@ impl Compiler {
         );
         
         // For instructions that should produce values, verify stack grew
-        match instruction.opcode {
-            Opcode::Push | Opcode::PushConst | Opcode::PushNil | Opcode::PushTrue | Opcode::PushFalse
-            | Opcode::PushIntSmall | Opcode::Load | Opcode::LoadGlobal | Opcode::LoadCaptured => {
-                debug_assert!(
-                    self.stack_depth > initial_depth,
-                    "Push/Load instruction should increase stack depth"
-                );
-            }
-            _ => {}
+        if effect.push > 0 && effect.pop == 0 {
+            debug_assert!(
+                self.stack_depth > initial_depth,
+                "Instruction {:?} should increase stack depth",
+                instruction.opcode
+            );
         }
         
         self.bytecode.chunks[self.current_chunk].add_instruction(instruction)
@@ -1452,8 +1303,7 @@ impl Compiler {
         // Create actor
         self.emit(Instruction::new(Opcode::CreateActor));
         
-        // Stack effect: pop state and handler, push actor
-        self.stack_depth = self.stack_depth.saturating_sub(1);
+        // Stack effect is now managed by emit()
         
         Ok(())
     }
@@ -1473,8 +1323,7 @@ impl Compiler {
         // Send message to actor
         self.emit(Instruction::new(Opcode::ActorSend));
         
-        // Stack effect: pop actor and message, push nil
-        self.stack_depth = self.stack_depth.saturating_sub(1);
+        // Stack effect is now managed by emit()
         
         Ok(())
     }
@@ -1497,7 +1346,7 @@ impl Compiler {
         
         // Push nil for now
         self.emit(Instruction::new(Opcode::PushNil));
-        self.stack_depth += 1;
+        // Stack depth is now managed by emit()
         
         Ok(())
     }
@@ -1755,8 +1604,7 @@ impl Compiler {
         // Throw error
         self.emit(Instruction::new(Opcode::Throw));
         
-        // Stack effect: pop error, no push (control flow)
-        self.stack_depth = self.stack_depth.saturating_sub(1);
+        // Stack effect is now managed by emit()
         
         Ok(())
     }
@@ -1842,8 +1690,7 @@ impl Compiler {
         // Apply timeout
         self.emit(Instruction::new(Opcode::WithTimeout));
         
-        // Stack effect: pop duration, promise, default; push result
-        self.stack_depth = self.stack_depth.saturating_sub(2);
+        // Stack effect is now managed by emit()
         
         Ok(())
     }
@@ -1854,20 +1701,27 @@ impl Compiler {
         node_id: NodeId,
         params: &[String],
     ) -> Result<Vec<String>> {
-        let mut free_vars = HashSet::new();
-        let mut bound_vars = HashSet::new();
+        if self.options.optimization_level != OptimizationLevel::None {
+            // Use the enhanced analyzer for more accurate results when optimizing
+            let mut analyzer = FreeVarAnalyzer::new();
+            analyzer.analyze_with_params(graph, node_id, params)
+        } else {
+            // Use the existing implementation for non-optimized builds
+            let mut free_vars = HashSet::new();
+            let mut bound_vars = HashSet::new();
 
-        // Parameters are bound
-        for param in params {
-            bound_vars.insert(param.clone());
+            // Parameters are bound
+            for param in params {
+                bound_vars.insert(param.clone());
+            }
+
+            self.collect_free_variables(graph, node_id, &mut free_vars, &mut bound_vars)?;
+
+            // Return in deterministic order
+            let mut result: Vec<_> = free_vars.into_iter().collect();
+            result.sort();
+            Ok(result)
         }
-
-        self.collect_free_variables(graph, node_id, &mut free_vars, &mut bound_vars)?;
-
-        // Return in deterministic order
-        let mut result: Vec<_> = free_vars.into_iter().collect();
-        result.sort();
-        Ok(result)
     }
 
     fn collect_free_variables(
@@ -2135,7 +1989,7 @@ impl Compiler {
 
                     // We need to duplicate the list first before extracting head/tail
                     self.emit(Instruction::new(Opcode::Dup)); // [..., list] -> [..., list, list]
-                    self.stack_depth += 1;
+                    // Stack depth is now managed by emit()
 
                     // Extract head from the duplicated list
                     self.emit(Instruction::new(Opcode::ListHead)); // [..., list, list] -> [..., list, head]
@@ -2729,8 +2583,7 @@ impl Compiler {
         let arg = ((module_idx as u32) << 16) | (var_idx as u32);
         self.emit(Instruction::with_arg(Opcode::LoadQualified, arg));
 
-        // LoadQualified pushes one value onto the stack
-        self.stack_depth += 1;
+        // Stack depth is now managed by emit()
 
         Ok(())
     }

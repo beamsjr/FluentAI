@@ -158,13 +158,13 @@ fn collect_source_files(project_path: &Path, _project: &Project) -> Result<Vec<P
     let mut files = Vec::new();
 
     // Main entry point
-    let main_file = project_path.join("Program.ai");
+    let main_file = project_path.join("Program.flc");
     if main_file.exists() {
         files.push(main_file);
     }
 
     // Library entry point
-    let lib_file = project_path.join("lib.ai");
+    let lib_file = project_path.join("lib.flc");
     if lib_file.exists() {
         files.push(lib_file);
     }
@@ -172,21 +172,21 @@ fn collect_source_files(project_path: &Path, _project: &Project) -> Result<Vec<P
     // Source directory
     let src_dir = project_path.join("src");
     if src_dir.exists() {
-        collect_ai_files(&src_dir, &mut files)?;
+        collect_flc_files(&src_dir, &mut files)?;
     }
 
     Ok(files)
 }
 
-/// Recursively collect .ai files
-fn collect_ai_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+/// Recursively collect .flc files
+fn collect_flc_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
 
         if path.is_dir() {
-            collect_ai_files(&path, files)?;
-        } else if path.extension().and_then(|s| s.to_str()) == Some("ai") {
+            collect_flc_files(&path, files)?;
+        } else if path.extension().and_then(|s| s.to_str()) == Some("flc") {
             files.push(path);
         }
     }
@@ -210,8 +210,7 @@ fn compile_file(source_file: &Path, config: &BuildConfig) -> Result<CompiledModu
     let source = fs::read_to_string(source_file)?;
 
     // Parse
-    let mut parser = fluentai_parser::Parser::new(&source);
-    let ast = parser.parse().context("Failed to parse source file")?;
+    let ast = fluentai_parser::parse(&source).context("Failed to parse source file")?;
 
     // Optimize
     let ast = if config.optimization_level > 0 {
@@ -255,7 +254,7 @@ fn link_modules(
     project_name: &str,
     config: &BuildConfig,
 ) -> Result<PathBuf> {
-    use fluentai_core_lib::embed::{EmbeddedApp, EmbeddedAppBuilder};
+    
 
     let output_file = match config.target {
         BuildTarget::Executable => {

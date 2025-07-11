@@ -20,12 +20,12 @@ fn main() -> anyhow::Result<()> {
     
     // Test 2: Basic arithmetic
     println!("\nTest 2: Basic arithmetic");
-    let code = "(+ 1 2)";
+    let code = "1 + 2";
     run_test("Arithmetic", code, context.clone(), runtime.clone())?;
     
     // Test 3: Let binding
     println!("\nTest 3: Let binding");
-    let code = "(let ((x 10) (y 20)) (+ x y))";
+    let code = "{ let x = 10; let y = 20; x + y }";
     run_test("Let binding", code, context.clone(), runtime.clone())?;
     
     println!("\n=== All tests completed! ===");

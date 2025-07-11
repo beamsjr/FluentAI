@@ -1,0 +1,121 @@
+// test-basic.flc - Basic validation test for IoT demo concepts
+// This tests core functionality before running the full demo
+
+// Test 1: Basic data types
+let test_sensor_reading = make_tagged("sensor-reading", "temp-001", 1000, 25.5, make_map("type", "temperature"));
+
+effect(io, print_line, "Test 1: Basic sensor reading creation");
+effect(io, print_line, string_format("Created: {}", test_sensor_reading));
+effect(io, print_line, "");
+
+// Test 2: Simple map/filter operations
+let test_data = [
+    make_tagged("sensor-reading", "temp-001", 1000, 25.5, make_map("type", "temperature")),
+    make_tagged("sensor-reading", "temp-002", 1100, 45.0, make_map("type", "temperature")),  // Anomaly
+    make_tagged("sensor-reading", "temp-003", 1200, 22.0, make_map("type", "temperature"))
+];
+
+effect(io, print_line, "Test 2: Map/Filter operations");
+effect(io, print_line, "Original data count: 3");
+
+// Simple filter for high temperatures
+let filtered = filter((reading) => {
+    list_ref(tagged_values(reading), 2) > 40.0
+}, test_data);
+
+effect(io, print_line, string_format("Filtered anomalies: {}", length(filtered)));
+effect(io, print_line, "");
+
+// Test 3: Basic contract validation
+effect(io, print_line, "Test 3: Contract validation");
+
+let validate_reading = (reading) => {
+    tagged?(reading) && 
+    (tagged_tag(reading) == "sensor-reading") && 
+    (length(tagged_values(reading)) == 4)
+};
+
+let all_valid? = all?(validate_reading, test_data);
+
+effect(io, print_line, string_format("All readings valid: {}", all_valid?));
+effect(io, print_line, "");
+
+// Test 4: Simple optimization demonstration
+effect(io, print_line, "Test 4: Optimization concept");
+
+// Naive version - separate map and filter
+let process_naive = (data) => {
+    let enriched = map((r) => r, data);  // Identity map for demo
+    filter((r) => {
+        list_ref(tagged_values(r), 2) > 40.0
+    }, enriched)
+};
+
+// Optimized version - fused map-filter
+let process_optimized = (data) => {
+    fold_left((acc, reading) => {
+        if (list_ref(tagged_values(reading), 2) > 40.0) {
+            cons(reading, acc)
+        } else {
+            acc
+        }
+    }, [], data)
+};
+
+effect(io, print_line, "Both versions produce same result:");
+effect(io, print_line, string_format("Naive: {} anomalies", length(process_naive(test_data))));
+effect(io, print_line, string_format("Optimized: {} anomalies", length(process_optimized(test_data))));
+effect(io, print_line, "");
+
+// Test 5: Basic channel simulation (if supported)
+effect(io, print_line, "Test 5: Channel concept (mock)");
+
+// Mock channel using a list
+let mock_channel = atom([]);
+
+let mock_send = (ch, val) => {
+    ch('swap!, (lst) => append(lst, [val]))
+};
+
+let mock_receive = (ch) => {
+    let vals = ch('get);
+    if (null?(vals)) {
+        nil
+    } else {
+        {
+            ch('set!, cdr(vals));
+            car(vals)
+        }
+    }
+};
+
+// Test mock channel
+mock_send(mock_channel, "data1");
+mock_send(mock_channel, "data2");
+effect(io, print_line, string_format("Received: {}", mock_receive(mock_channel)));
+effect(io, print_line, string_format("Received: {}", mock_receive(mock_channel)));
+effect(io, print_line, string_format("Received: {}", mock_receive(mock_channel)));  // Should be nil
+effect(io, print_line, "");
+
+// Helper functions that might be missing
+let all? = (pred, lst) => {
+    if (null?(lst)) {
+        true
+    } else {
+        pred(car(lst)) && all?(pred, cdr(lst))
+    }
+};
+
+let atom = (initial) => {
+    let value = initial;
+    (op, ...args) => {
+        cond([
+            [op == 'get, value],
+            [op == 'set!, { set!(value, args[0]) }],
+            [op == 'swap!, { set!(value, args[0](value)) }]
+        ])
+    }
+};
+
+effect(io, print_line, "Basic tests completed!");
+effect(io, print_line, "If all tests passed, the full demo should work with minor adjustments.")

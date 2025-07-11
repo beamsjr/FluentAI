@@ -1,0 +1,5 @@
+{
+  let foo = 42;
+  export { foo };
+  nil
+}

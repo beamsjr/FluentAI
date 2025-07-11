@@ -1,5 +1,0 @@
-;; Debug channel creation
-(let ((ch (chan)))
-  (do
-    (print-line "Channel value:")
-    ch))

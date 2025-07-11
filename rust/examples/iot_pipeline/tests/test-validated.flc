@@ -1,0 +1,79 @@
+// test-validated.flc - Validated syntax test for IoT demo concepts
+// Uses only functions confirmed to exist in stdlib
+
+// Test 1: Basic values and printing
+print_line("=== IoT Demo Validation Test ===");
+print_line("");
+
+let sensor_values = [25.5, 45.0, 22.0, 38.5, 55.0, 18.0];
+print_line("Sensor values:");
+print_line(sensor_values);
+print_line("");
+
+// Test 2: Map operation
+print_line("Testing map operation:");
+let celsius_to_fahrenheit = (c) => (c * 1.8) + 32;
+let fahrenheit_values = map(celsius_to_fahrenheit, sensor_values);
+print_line("Fahrenheit values:");
+print_line(fahrenheit_values);
+print_line("");
+
+// Test 3: Filter operation
+print_line("Testing filter operation:");
+let is_anomaly? = (temp) => (temp > 40.0) || (temp < 10.0);
+let anomalies = filter(is_anomaly?, sensor_values);
+print_line("Anomalies detected (>40°C or <10°C):");
+print_line(anomalies);
+print_line("");
+
+// Test 4: Fold operation
+print_line("Testing fold operation:");
+let sum = fold_left((acc, x) => acc + x, 0, sensor_values);
+let count = length(sensor_values);
+let average = sum / count;
+print_line(string_append("Sum: ", number_to_string(sum)));
+print_line(string_append("Count: ", number_to_string(count)));
+print_line(string_append("Average: ", number_to_string(average)));
+print_line("");
+
+// Test 5: Simulated sensor reading using lists
+print_line("Testing sensor reading structure:");
+let make_sensor_reading = (id, timestamp, value, type) => {
+    list('sensor_reading, id, timestamp, value, type)
+};
+
+let sensor_value = (reading) => list_ref(reading, 3);
+
+let sensor_type = (reading) => list_ref(reading, 4);
+
+let test_readings = list(
+    make_sensor_reading("temp-001", 1000, 25.5, "temperature"),
+    make_sensor_reading("temp-002", 1100, 45.0, "temperature"),
+    make_sensor_reading("pres-001", 1200, 1020.0, "pressure")
+);
+
+print_line("Created sensor readings:");
+map((r) => {
+    print_line(
+        string_append("  Sensor: ", 
+                     list_ref(r, 1), 
+                     " Value: ", 
+                     number_to_string(sensor_value(r)))
+    )
+}, test_readings);
+print_line("");
+
+// Test 6: Pipeline simulation
+print_line("Testing pipeline concept:");
+let process_readings = (readings) => {
+    filter((r) => {
+        string_eq?(sensor_type(r), "temperature") && (sensor_value(r) > 40.0)
+    }, readings)
+};
+
+let processed = process_readings(test_readings);
+print_line(string_append("Anomalies found: ", number_to_string(length(processed))));
+print_line("");
+
+print_line("=== Validation Complete ===");
+print_line("If you see this, the core concepts work!")

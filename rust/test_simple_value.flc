@@ -1,0 +1,3 @@
+// Test simple value assignment
+let x = 42;
+print(x)

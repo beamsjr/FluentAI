@@ -1,0 +1,43 @@
+// Working async/await test for FluentAI
+
+// Test 1: Channels work
+print_line("=== Test 1: Channel creation ===");
+print_line(chan());
+
+// Test 2: Send/Receive in sequence
+print_line("\n=== Test 2: Send/Receive ===");
+let my_channel = chan();
+let _ = send!(my_channel, "Hello from channel");
+let msg = recv!(my_channel);
+print_line(msg);
+
+// Test 3: Spawn
+print_line("\n=== Test 3: Spawn ===");
+spawn(() => print_line("Spawned task executed"));
+
+// Give spawned task time to run
+1 + 2 + 3;
+
+// Test 4: Async (currently just executes body)
+print_line("\n=== Test 4: Async ===");
+async { print_line("Inside async block") };
+
+// Test 5: Multiple spawns with channels
+print_line("\n=== Test 5: Multiple spawns with channels ===");
+let ch1 = chan();
+let ch2 = chan();
+
+// Spawn first sender
+spawn(() => send!(ch1, "Message from task 1"));
+
+// Spawn second sender  
+spawn(() => send!(ch2, "Message from task 2"));
+
+// Small computation to let spawns run
+10 + 20 + 30;
+
+// Receive from both
+print_line(recv!(ch1));
+print_line(recv!(ch2));
+
+print_line("\n=== All tests complete ===")

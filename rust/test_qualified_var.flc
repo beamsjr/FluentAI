@@ -1,0 +1,11 @@
+// Test qualified variable access
+mod math {
+    private const PI = 3.14159
+    export { PI }
+}
+
+private function main() {
+    // Access exported constant using qualified variable
+    let pi_value = math.PI
+    $(f"PI = {pi_value}").print()
+}

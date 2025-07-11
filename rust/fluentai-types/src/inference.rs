@@ -234,6 +234,11 @@ impl TypeInferencer {
                     promise_type
                 }
             }
+            Node::Assignment { target: _, value } => {
+                // Assignment returns unit type
+                self.infer_node(graph, *value)?;
+                TypedValue::primitive(PrimitiveType::unit())
+            }
         };
 
         // Store the inferred type
@@ -247,6 +252,7 @@ impl TypeInferencer {
             Literal::Integer(_) => TypedValue::primitive(PrimitiveType::int()),
             Literal::Float(_) => TypedValue::primitive(PrimitiveType::float()),
             Literal::String(_) => TypedValue::primitive(PrimitiveType::string()),
+            Literal::Symbol(_) => TypedValue::primitive(PrimitiveType::symbol()),
             Literal::Boolean(_) => TypedValue::primitive(PrimitiveType::bool()),
             Literal::Nil => TypedValue::primitive(PrimitiveType::unit()),
         })
@@ -946,26 +952,26 @@ mod tests {
         assert_eq!(infer_code("42").unwrap().to_string(), "Int");
         assert_eq!(infer_code("3.14").unwrap().to_string(), "Float");
         assert_eq!(infer_code("\"hello\"").unwrap().to_string(), "String");
-        assert_eq!(infer_code("#t").unwrap().to_string(), "Bool");
+        assert_eq!(infer_code("true").unwrap().to_string(), "Bool");
     }
 
     #[test]
     fn test_arithmetic_inference() {
-        assert_eq!(infer_code("(+ 1 2)").unwrap().to_string(), "Int");
-        assert_eq!(infer_code("(* 3 4)").unwrap().to_string(), "Int");
+        assert_eq!(infer_code("1 + 2").unwrap().to_string(), "Int");
+        assert_eq!(infer_code("3 * 4").unwrap().to_string(), "Int");
     }
 
     #[test]
     fn test_comparison_inference() {
-        assert_eq!(infer_code("(< 1 2)").unwrap().to_string(), "Bool");
-        assert_eq!(infer_code("(= 5 5)").unwrap().to_string(), "Bool");
+        assert_eq!(infer_code("1 < 2").unwrap().to_string(), "Bool");
+        assert_eq!(infer_code("5 == 5").unwrap().to_string(), "Bool");
     }
 
     #[test]
     fn test_if_inference() {
-        assert_eq!(infer_code("(if #t 1 2)").unwrap().to_string(), "Int");
+        assert_eq!(infer_code("if (true) { 1 } else { 2 }").unwrap().to_string(), "Int");
         assert_eq!(
-            infer_code("(if (< 1 2) \"yes\" \"no\")")
+            infer_code("if (1 < 2) { \"yes\" } else { \"no\" }")
                 .unwrap()
                 .to_string(),
             "String"
@@ -974,9 +980,9 @@ mod tests {
 
     #[test]
     fn test_let_inference() {
-        assert_eq!(infer_code("(let ((x 42)) x)").unwrap().to_string(), "Int");
+        assert_eq!(infer_code("{ let x = 42; x }").unwrap().to_string(), "Int");
         assert_eq!(
-            infer_code("(let ((x 42) (y 3)) (+ x y))")
+            infer_code("{ let x = 42; let y = 3; x + y }")
                 .unwrap()
                 .to_string(),
             "Int"
@@ -985,21 +991,21 @@ mod tests {
 
     #[test]
     fn test_lambda_inference() {
-        let result = infer_code("(lambda (x) x)").unwrap();
+        let result = infer_code("(x) => x").unwrap();
         assert!(result.to_string().contains("→"));
 
         assert_eq!(
-            infer_code("((lambda (x) (+ x 1)) 5)").unwrap().to_string(),
+            infer_code("((x) => x + 1)(5)").unwrap().to_string(),
             "Int"
         );
     }
 
     #[test]
     fn test_list_inference() {
-        let result = infer_code("(list 1 2 3)").unwrap();
+        let result = infer_code("list(1, 2, 3)").unwrap();
         assert_eq!(result.to_string(), "[Int]");
 
-        let result = infer_code("(car (list 1 2 3))").unwrap();
+        let result = infer_code("car(list(1, 2, 3))").unwrap();
         assert_eq!(result.to_string(), "Int");
     }
 }

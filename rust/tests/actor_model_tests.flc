@@ -1,0 +1,60 @@
+// Test cases for actor model implementation
+
+// Test 1: Basic await should wait for promise completion
+let test_basic_await = () => {
+    let promise = spawn({
+        print("Computing...");
+        40 + 2
+    });
+    print("Waiting for result...");
+    let result = await(promise);
+    print("Got result:", result);
+    result
+};
+
+// Test 2: Buffered channels
+let test_buffered_channel = () => {
+    let ch = chan(3); // buffered channel with capacity 3
+    send!(ch, 1);
+    send!(ch, 2);
+    send!(ch, 3);
+    // Should not block since buffer not full
+    list(recv!(ch), recv!(ch), recv!(ch))
+};
+
+// Test 3: Non-blocking channel operations
+let test_try_operations = () => {
+    let ch = chan();
+    let sent = try_send!(ch, 42);
+    if (sent) {
+        recv!(ch)
+    } else {
+        'channel_full
+    }
+};
+
+// Test 4: Select on multiple channels
+let test_select = () => {
+    let ch1 = chan();
+    let ch2 = chan();
+    spawn(send!(ch1, 'from_ch1));
+    spawn(send!(ch2, 'from_ch2));
+    select([
+        [recv!(ch1), (val) => list('ch1, val)],
+        [recv!(ch2), (val) => list('ch2, val)],
+        [timeout(100), 'timeout]
+    ])
+};
+
+// Run tests
+print("Test 1 - Basic await:");
+test_basic_await();
+
+print("\nTest 2 - Buffered channels:");
+test_buffered_channel();
+
+print("\nTest 3 - Try operations:");
+test_try_operations();
+
+print("\nTest 4 - Select:");
+test_select()

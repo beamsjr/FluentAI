@@ -6,7 +6,7 @@
 use crate::error::{Result, RuntimeError};
 use fluentai_core::value::Value;
 use fluentai_optimizer::GraphOptimizer;
-use fluentai_parser::Parser;
+use fluentai_parser::parse;
 use fluentai_vm::{Bytecode, VM};
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -197,9 +197,7 @@ impl EmbeddedAppBuilder {
         // Compile all sources
         for (filename, source) in self.sources {
             // Parse
-            let mut parser = Parser::new(&source);
-            let ast = parser
-                .parse()
+            let ast = parse(&source)
                 .map_err(|e| anyhow::anyhow!("Parse error in {}: {:?}", filename, e))?;
 
             // Optimize

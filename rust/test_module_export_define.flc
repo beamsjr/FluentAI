@@ -1,0 +1,4 @@
+module test_module {
+    export { x }
+    let x = 10
+}
