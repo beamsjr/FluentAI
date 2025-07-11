@@ -2837,7 +2837,14 @@ impl Compiler {
         self.cell_vars.pop();
     }
     
-    /// Safe accessor for scope base values with bounds checking
+    /// Safe accessor for scope base values with bounds checking.
+    /// Returns the base stack position for the given scope index.
+    /// 
+    /// The scope base represents the stack depth when entering a scope,
+    /// used to convert relative variable positions to absolute stack positions.
+    /// 
+    /// # Errors
+    /// Returns an error if scope_idx is out of bounds.
     #[inline]
     fn get_scope_base(&self, scope_idx: usize) -> Result<usize> {
         self.scope_bases.get(scope_idx)
@@ -2849,7 +2856,14 @@ impl Compiler {
             ))
     }
     
-    /// Check if a variable is a cell variable with bounds checking
+    /// Check if a variable is a cell variable with bounds checking.
+    /// Cell variables are used in letrec bindings and require dereferencing.
+    /// 
+    /// When a variable is stored in a cell (for recursive bindings), it needs
+    /// special handling with CellGet instructions to access the actual value.
+    /// 
+    /// # Errors
+    /// Returns an error if scope_idx is out of bounds.
     #[inline]
     fn is_cell_var(&self, scope_idx: usize, name: &str) -> Result<bool> {
         self.cell_vars.get(scope_idx)
@@ -3096,7 +3110,12 @@ mod tests {
         let mut compiler = Compiler::new();
         
         // Add a cell variable to the first scope
-        compiler.cell_vars[0].insert("test_var".to_string());
+        // Using direct access here is safe in test setup since we just created the compiler
+        if let Some(cell_vars) = compiler.cell_vars.get_mut(0) {
+            cell_vars.insert("test_var".to_string());
+        } else {
+            panic!("Expected at least one scope in newly created compiler");
+        }
         
         // Valid access - variable exists
         assert_eq!(compiler.is_cell_var(0, "test_var").unwrap(), true);
