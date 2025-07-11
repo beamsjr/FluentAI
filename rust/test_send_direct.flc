@@ -1,0 +1,2 @@
+// Test send directly  
+send!(chan(), "Hello")

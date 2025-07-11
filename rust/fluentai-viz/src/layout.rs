@@ -279,6 +279,7 @@ impl ASTLayouter {
             Node::PromiseAll { .. } => "promise-all".to_string(),
             Node::PromiseRace { .. } => "promise-race".to_string(),
             Node::Timeout { .. } => "with-timeout".to_string(),
+            Node::Assignment { .. } => "=".to_string(),
         }
     }
 
@@ -322,6 +323,7 @@ impl ASTLayouter {
             Node::PromiseAll { .. } => "promise-all",
             Node::PromiseRace { .. } => "promise-race",
             Node::Timeout { .. } => "timeout",
+            Node::Assignment { .. } => "assignment",
         }
         .to_string()
     }

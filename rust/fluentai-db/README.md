@@ -17,66 +17,69 @@ A functional database effect system for FluentAi that provides type-safe, compos
 
 ### Basic Queries
 
-```clojure
-; Connect to database
-(effect db:connect "postgresql://localhost/mydb")
+```flc
+// Connect to database
+db.connect("postgresql://localhost/mydb");
 
-; Execute a query
-(effect db:query "SELECT * FROM users WHERE age > ?" [18])
+// Execute a query
+let users = db.query("SELECT * FROM users WHERE age > ?", [18]);
 
-; Execute a command
-(effect db:execute "INSERT INTO users (name, email) VALUES (?, ?)" ["Alice" "alice@example.com"])
+// Execute a command
+db.execute("INSERT INTO users (name, email) VALUES (?, ?)", ["Alice", "alice@example.com"]);
 ```
 
 ### Functional Query DSL
 
-```clojure
-; Build queries functionally
-(db:from 'users
-  (db:where (db:and
-    (db:gt 'age 18)
-    (db:eq 'active true)))
-  (db:select '(id name email))
-  (db:order-by 'created_at :desc)
-  (db:limit 10))
+```flc
+// Build queries functionally
+db.from("users")
+  .where(db.and(
+    db.gt("age", 18),
+    db.eq("active", true)
+  ))
+  .select(["id", "name", "email"])
+  .order_by("created_at", "desc")
+  .limit(10)
 ```
 
 ### Schema Definition
 
-```clojure
-; Define a schema
-(define-schema user
-  {:id {:type :int :primary-key true}
-   :name {:type :string :max-length 100 :not-null true}
-   :email {:type :string :unique true :not-null true}
-   :age {:type :int :check "age >= 0"}
-   :created_at {:type :timestamp :default :current-timestamp}})
+```flc
+// Define a schema
+private struct UserSchema {
+  id: int.primary_key(),
+  name: string.max_length(100).not_null(),
+  email: string.unique().not_null(),
+  age: int.check("age >= 0"),
+  created_at: timestamp.default("current_timestamp")
+}
 ```
 
 ### Transactions
 
-```clojure
-; Use transactions for atomic operations
-(effect db:begin-transaction)
-(try
-  (effect db:execute "INSERT INTO accounts (id, balance) VALUES (?, ?)" [1 1000])
-  (effect db:execute "INSERT INTO accounts (id, balance) VALUES (?, ?)" [2 1000])
-  (effect db:execute "UPDATE accounts SET balance = balance - 100 WHERE id = 1")
-  (effect db:execute "UPDATE accounts SET balance = balance + 100 WHERE id = 2")
-  (effect db:commit-transaction)
-  (catch e
-    (effect db:rollback-transaction)
-    (error:raise "transaction-failed" e)))
+```flc
+// Use transactions for atomic operations
+db.begin_transaction();
+try {
+  db.execute("INSERT INTO accounts (id, balance) VALUES (?, ?)", [1, 1000]);
+  db.execute("INSERT INTO accounts (id, balance) VALUES (?, ?)", [2, 1000]);
+  db.execute("UPDATE accounts SET balance = balance - 100 WHERE id = 1");
+  db.execute("UPDATE accounts SET balance = balance + 100 WHERE id = 2");
+  db.commit_transaction();
+} catch (e) {
+  db.rollback_transaction();
+  error.raise("transaction-failed", e);
+}
 ```
 
 ### Prepared Statements
 
-```clojure
-; Prepare a statement for repeated use
-(effect db:prepare "find-user" "SELECT * FROM users WHERE email = ?")
+```flc
+// Prepare a statement for repeated use
+db.prepare("find-user", "SELECT * FROM users WHERE email = ?");
 
-; Execute prepared statement
-(effect db:execute-prepared "find-user" ["alice@example.com"])
+// Execute prepared statement
+let user = db.execute_prepared("find-user", ["alice@example.com"]);
 ```
 
 ## Architecture

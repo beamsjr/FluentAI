@@ -1,0 +1,4 @@
+// Basic test
+private function main() {
+    $("Hello, world!").print()
+}

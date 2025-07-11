@@ -8,10 +8,9 @@ use fluentai_embeddings::{
     doc_embeddings::DocumentationEmbeddingService,
     generator::FeatureBasedGenerator,
     similarity::{cosine_similarity, kmeans_cluster, knn_search, SimilarityMetric},
-    storage::{FileStorage, InMemoryStorage},
+    storage::FileStorage,
     EmbeddingConfig, EmbeddingService, ModelType,
 };
-use std::sync::Arc;
 use tempfile::TempDir;
 use tokio;
 

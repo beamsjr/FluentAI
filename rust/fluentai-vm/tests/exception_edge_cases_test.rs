@@ -3,12 +3,11 @@ use fluentai_vm::error::VMError;
 use fluentai_vm::VM;
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parser::Parser;
+use fluentai_parser::parse;
 
 fn compile_and_run(code: &str) -> Result<Value, VMError> {
     // Parse the code to get an AST
-    let mut parser = Parser::new(code);
-    let ast = parser.parse().map_err(|e| VMError::RuntimeError {
+    let ast = parse(code).map_err(|e| VMError::RuntimeError {
         message: format!("Parse error: {:?}", e),
         stack_trace: None,
     })?;
@@ -34,26 +33,32 @@ fn test_deep_nested_try_catch() {
     // Test multiple nested try-catch blocks to ensure stack management works correctly
     let result = compile_and_run(
         r#"
-        (let ((ch1 (chan))
-              (ch2 (chan))
-              (ch3 (chan)))
-          (begin
-            (send! ch1 "level1")
-            (send! ch2 "level2")
-            (send! ch3 "level3")
-            (try
-              (let ((x (recv! ch1)))
-                (try
-                  (let ((y (recv! ch2)))
-                    (try
-                      (let ((z (recv! ch3)))
-                        (throw "deep error"))
-                      (catch (e1)
-                        (+ x y z))))
-                  (catch (e2)
-                    (+ x y "caught2"))))
-              (catch (e3)
-                (+ x "caught3")))))
+        {
+            let ch1 = Channel.new();
+            let ch2 = Channel.new();
+            let ch3 = Channel.new();
+            
+            ch1.send("level1");
+            ch2.send("level2");
+            ch3.send("level3");
+            
+            try {
+                let x = ch1.receive();
+                try {
+                    let y = ch2.receive();
+                    try {
+                        let z = ch3.receive();
+                        throw "deep error";
+                    } catch (e1) {
+                        x + y + z
+                    }
+                } catch (e2) {
+                    x + y + "caught2"
+                }
+            } catch (e3) {
+                x + "caught3"
+            }
+        }
         "#
     );
     
@@ -72,16 +77,28 @@ fn test_many_locals_in_try_catch() {
     // Test with many local variables to ensure bounds checking works
     let result = compile_and_run(
         r#"
-        (let ((ch (chan))
-              (v1 1) (v2 2) (v3 3) (v4 4) (v5 5)
-              (v6 6) (v7 7) (v8 8) (v9 9) (v10 10))
-          (begin
-            (send! ch "test")
-            (try
-              (let ((data (recv! ch)))
-                (throw "error"))
-              (catch (e)
-                (+ v1 v2 v3 v4 v5 v6 v7 v8 v9 v10)))))
+        {
+            let ch = Channel.new();
+            let v1 = 1;
+            let v2 = 2;
+            let v3 = 3;
+            let v4 = 4;
+            let v5 = 5;
+            let v6 = 6;
+            let v7 = 7;
+            let v8 = 8;
+            let v9 = 9;
+            let v10 = 10;
+            
+            ch.send("test");
+            
+            try {
+                let data = ch.receive();
+                throw "error";
+            } catch (e) {
+                v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10
+            }
+        }
         "#
     );
     
@@ -99,19 +116,23 @@ fn test_exception_with_finally_and_locals() {
     // Test that locals are preserved across both catch and finally blocks
     let result = compile_and_run(
         r#"
-        (let ((ch (chan))
-              (result-ch (chan)))
-          (begin
-            (send! ch "data")
-            (send! result-ch "final")
-            (try
-              (let ((x (recv! ch)))
-                (throw "error"))
-              (catch (e)
-                (let ((y (recv! result-ch)))
-                  y))
-              (finally
-                (recv! result-ch)))))
+        {
+            let ch = Channel.new();
+            let result_ch = Channel.new();
+            
+            ch.send("data");
+            result_ch.send("final");
+            
+            try {
+                let x = ch.receive();
+                throw "error";
+            } catch (e) {
+                let y = result_ch.receive();
+                y
+            } finally {
+                result_ch.receive()
+            }
+        }
         "#
     );
     
@@ -129,10 +150,11 @@ fn test_empty_try_catch() {
     // Test edge case with no locals in try-catch
     let result = compile_and_run(
         r#"
-        (try
-          (throw "error")
-          (catch (e)
-            "caught"))
+        try {
+            throw "error";
+        } catch (e) {
+            "caught"
+        }
         "#
     );
     
@@ -150,16 +172,20 @@ fn test_exception_in_nested_let() {
     // Test that nested let bindings work correctly with exception handling
     let result = compile_and_run(
         r#"
-        (let ((ch (chan)))
-          (begin
-            (send! ch "outer")
-            (try
-              (let ((outer (recv! ch)))
-                (let ((inner "inner"))
-                  (let ((nested "nested"))
-                    (throw "error"))))
-              (catch (e)
-                (recv! ch)))))
+        {
+            let ch = Channel.new();
+            
+            ch.send("outer");
+            
+            try {
+                let outer = ch.receive();
+                let inner = "inner";
+                let nested = "nested";
+                throw "error";
+            } catch (e) {
+                ch.receive()
+            }
+        }
         "#
     );
     

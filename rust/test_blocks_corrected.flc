@@ -1,0 +1,38 @@
+// Test 1: Block ending with expression
+let test1 = { 
+    let x = 10
+    x * 2 
+};
+print("Test 1 (block with let, ending with expression):")
+print(test1) // Should print 20
+print("")
+
+// Test 2: Block ending with let  
+let test2 = { 
+    let x = 10
+};
+print("Test 2 (block ending with let):")
+print(test2) // Should print nil
+print("")
+
+// Test 3: Multiple lets with expression
+let test3 = { 
+    let x = 5
+    let y = 10
+    x + y 
+};
+print("Test 3 (multiple lets with expression):")
+print(test3) // Should print 15
+print("")
+
+// Test 4: Nested blocks
+let test4 = {
+    let a = 1
+    let b = {
+        let c = 2
+        c + 3
+    }
+    a + b
+};
+print("Test 4 (nested blocks):")
+print(test4) // Should print 6

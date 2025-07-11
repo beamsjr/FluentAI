@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::error::MetaprogrammingError;
+    
     use crate::macros::{ExpansionContext, MacroDefinition, MacroExpander};
-    use fluentai_core::ast::{Literal, Node, NodeId};
+    use fluentai_core::ast::Node;
     use fluentai_parser::parse;
 
     // ===== MacroDefinition Tests =====
@@ -13,13 +13,13 @@ mod tests {
             name: "test_macro".to_string(),
             params: vec!["x".to_string(), "y".to_string()],
             pattern: None,
-            body: "(+ $x $y)".to_string(),
+            body: "$x + $y".to_string(),
             hygenic: true,
         };
 
         assert_eq!(macro_def.name, "test_macro");
         assert_eq!(macro_def.params.len(), 2);
-        assert_eq!(macro_def.body, "(+ $x $y)");
+        assert_eq!(macro_def.body, "$x + $y");
         assert!(macro_def.hygenic);
     }
 
@@ -95,7 +95,7 @@ mod tests {
             name: "double".to_string(),
             params: vec!["x".to_string()],
             pattern: None,
-            body: "(* $x 2)".to_string(),
+            body: "$x * 2".to_string(),
             hygenic: true,
         };
 
@@ -112,7 +112,7 @@ mod tests {
             name: "test".to_string(),
             params: vec!["x".to_string()],
             pattern: None,
-            body: "(+ $x 1)".to_string(),
+            body: "$x + 1".to_string(),
             hygenic: true,
         };
 
@@ -151,7 +151,7 @@ mod tests {
         assert_eq!(when_macro.params[0], "condition");
         assert_eq!(when_macro.params[1], "body");
         assert!(when_macro.hygenic);
-        assert_eq!(when_macro.body, "(if $condition $body nil)");
+        assert_eq!(when_macro.body, "if ($condition) { $body } else { nil }");
     }
 
     #[test]
@@ -160,7 +160,7 @@ mod tests {
         expander.register_builtins();
 
         let unless_macro = &expander.macros["unless"];
-        assert_eq!(unless_macro.body, "(if $condition nil $body)");
+        assert_eq!(unless_macro.body, "if ($condition) { nil } else { $body }");
     }
 
     #[test]
@@ -196,20 +196,20 @@ mod tests {
             name: "double".to_string(),
             params: vec!["x".to_string()],
             pattern: None,
-            body: "(* $x 2)".to_string(),
+            body: "$x * 2".to_string(),
             hygenic: true,
         };
 
         expander.register_macro(double_macro);
 
         // Test expansion
-        let code = "(double 5)";
+        let code = "double(5)";
         let mut graph = parse(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
         assert!(result.is_ok());
 
-        // After expansion, should have (* 5 2)
+        // After expansion, should have 5 * 2
         if let Some(root) = graph.root_id {
             if let Some(Node::Application { function: _, args }) = graph.get_node(root) {
                 // Check if expanded properly
@@ -225,7 +225,7 @@ mod tests {
         expander.register_builtins();
 
         // (when (when true 1) 2) should expand to nested ifs
-        let code = "(when (when true 1) 2)";
+        let code = "when(when(true, 1), 2)";
         let mut graph = parse(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
@@ -247,13 +247,13 @@ mod tests {
             name: "recurse".to_string(),
             params: vec!["x".to_string()],
             pattern: None,
-            body: "(recurse (+ $x 1))".to_string(),
+            body: "recurse($x + 1)".to_string(),
             hygenic: true,
         };
 
         expander.register_macro(recursive_macro);
 
-        let code = "(recurse 0)";
+        let code = "recurse(0)";
         let mut graph = parse(code).unwrap();
 
         // Should fail due to exceeding depth limit
@@ -270,17 +270,17 @@ mod tests {
         let mut expander = MacroExpander::new();
 
         let let_macro = MacroDefinition {
-            name: "my-let".to_string(),
+            name: "my_let".to_string(),
             params: vec!["var".to_string(), "val".to_string(), "body".to_string()],
             pattern: None,
-            body: "(let (($var $val)) $body)".to_string(),
+            body: "{ let $var = $val; $body }".to_string(),
             hygenic: true,
         };
 
         expander.register_macro(let_macro);
 
         // Variable names should be renamed to avoid capture
-        let code = "(my-let x 10 (+ x y))";
+        let code = "my_let(x, 10, x + y)";
         let mut graph = parse(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
@@ -299,14 +299,14 @@ mod tests {
             name: "capture".to_string(),
             params: vec!["body".to_string()],
             pattern: None,
-            body: "(let ((x 42)) $body)".to_string(),
+            body: "{ let x = 42; $body }".to_string(),
             hygenic: false,
         };
 
         expander.register_macro(capture_macro);
 
         // Non-hygenic macro should allow variable capture
-        let code = "(capture x)";
+        let code = "capture(x)";
         let mut graph = parse(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
@@ -331,13 +331,13 @@ mod tests {
                     crate::patterns::Pattern::Bind("b".to_string()),
                 ]),
             )),
-            body: "[$b $a]".to_string(),
+            body: "[$b, $a]".to_string(),
             hygenic: true,
         };
 
         expander.register_macro(swap_macro);
 
-        let code = "(swap [1 2])";
+        let code = "swap([1, 2])";
         let mut graph = parse(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
@@ -362,7 +362,7 @@ mod tests {
 
         expander.register_macro(list_macro);
 
-        let code = "(list 1 2 3 4)";
+        let code = "list(1, 2, 3, 4)";
         let mut graph = parse(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
@@ -378,7 +378,7 @@ mod tests {
     fn test_expand_unknown_macro() {
         let expander = MacroExpander::new();
 
-        let code = "(unknown-macro 42)";
+        let code = "unknown_macro(42)";
         let mut graph = parse(code).unwrap();
 
         // Should not error on unknown macros
@@ -394,13 +394,13 @@ mod tests {
             name: "bad".to_string(),
             params: vec!["x".to_string()],
             pattern: None,
-            body: "(+ $x $undefined)".to_string(), // References undefined parameter
+            body: "$x + $undefined".to_string(), // References undefined parameter
             hygenic: true,
         };
 
         expander.register_macro(bad_macro);
 
-        let code = "(bad 5)";
+        let code = "bad(5)";
         let mut graph = parse(code).unwrap();
 
         // Malformed macro should not panic - it's ok to either fail gracefully or expand partially
@@ -423,7 +423,7 @@ mod tests {
 
         expander.register_macro(empty_macro);
 
-        let code = "(empty)";
+        let code = "empty()";
         let mut graph = parse(code).unwrap();
 
         // Empty body macros should not panic - implementation may vary

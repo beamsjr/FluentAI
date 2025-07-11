@@ -1,0 +1,56 @@
+// Stock rebalancer type definitions
+
+// Note: FluentAI FLC syntax doesn't have full struct/enum support yet
+// Using simple object representations
+
+// Create a stock object
+def fn create_stock(symbol, shares, current_price) {
+    {
+        symbol: symbol,
+        shares: shares,
+        current_price: current_price
+    }
+}
+
+// Create an allocation object
+def fn create_allocation(symbol, target_percentage) {
+    {
+        symbol: symbol,
+        target_percentage: target_percentage
+    }
+}
+
+// Create a portfolio object
+def fn create_portfolio() {
+    {
+        stocks: [],
+        allocations: [],
+        total_value: 0.0
+    }
+}
+
+// Create rebalance action objects
+def fn create_buy_action(symbol, shares, value) {
+    {
+        type: "buy",
+        symbol: symbol,
+        shares: shares,
+        value: value
+    }
+}
+
+def fn create_sell_action(symbol, shares, value) {
+    {
+        type: "sell",
+        symbol: symbol,
+        shares: shares,
+        value: value
+    }
+}
+
+def fn create_hold_action(symbol) {
+    {
+        type: "hold",
+        symbol: symbol
+    }
+}

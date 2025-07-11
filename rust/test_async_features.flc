@@ -1,0 +1,112 @@
+// Test basic async/await functionality in FluentAI
+
+// Test 1: Basic async function
+let simple_async = async {
+    {
+        print_line("Starting async function");
+        print_line("Async function complete");
+        42
+    }
+};
+
+// Test 2: Await on async function
+let test_await = async {
+    {
+        print_line("Test 2: Testing await");
+        let result = await(simple_async);
+        {
+            print_line("Got await result");
+            result
+        }
+    }
+};
+
+// Test 3: Spawn async task
+let test_spawn = async {
+    {
+        print_line("Test 3: Testing spawn");
+        // Spawn an async task
+        let task = spawn(
+            async {
+                {
+                    print_line("Spawned task running");
+                    "spawned result"
+                }
+            }
+        );
+        {
+            print_line("Main task continuing");
+            // Wait for spawned task
+            let result = await(task);
+            print_line("Got spawned task result")
+        }
+    }
+};
+
+// Test 4: Channel operations
+let test_channels = async {
+    {
+        print_line("Test 4: Testing channels");
+        // Create a channel
+        let ch = chan();
+        {
+            // Spawn a sender task
+            spawn(
+                async {
+                    {
+                        print_line("Sender: sending message");
+                        send!(ch, "Hello from sender")
+                    }
+                }
+            );
+            // Receive message
+            let msg = await(recv!(ch));
+            print_line("Receiver: got message")
+        }
+    }
+};
+
+// Test 5: Multiple async operations
+let test_multiple_async = async {
+    {
+        print_line("Test 5: Testing multiple async operations");
+        let task1 = spawn(
+            async {
+                {
+                    print_line("Task 1 running");
+                    1
+                }
+            }
+        );
+        let task2 = spawn(
+            async {
+                {
+                    print_line("Task 2 running");
+                    2
+                }
+            }
+        );
+        let result1 = await(task1);
+        let result2 = await(task2);
+        {
+            print_line("Got both results");
+            result1 + result2
+        }
+    }
+};
+
+// Main entry point
+let main = async {
+    {
+        print_line("=== FluentAI Async/Await Test Suite ===");
+        // Run all tests
+        await(test_await);
+        await(test_spawn);
+        await(test_channels);
+        await(test_multiple_async);
+        print_line("=== All tests completed ===")
+    }
+};
+
+// Execute main
+await(main)

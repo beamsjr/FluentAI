@@ -30,6 +30,7 @@ pub enum UnboxedValue {
 #[derive(Debug, Clone)]
 pub enum BoxedValue {
     String(String),
+    Symbol(String),
     List(Vec<UnboxedValue>),
     Closure {
         chunk_id: usize,
@@ -76,7 +77,7 @@ impl UnboxedValue {
             Value::Integer(i) => UnboxedValue::Int(i),
             Value::Float(f) => UnboxedValue::Float(f),
             Value::String(s) => UnboxedValue::Boxed(Box::new(BoxedValue::String(s))),
-            Value::Symbol(s) => UnboxedValue::Boxed(Box::new(BoxedValue::String(s))), // Treat symbols as strings
+            Value::Symbol(s) => UnboxedValue::Boxed(Box::new(BoxedValue::Symbol(s))),
             Value::List(items) => {
                 let unboxed_items = items.into_iter().map(UnboxedValue::from_value).collect();
                 UnboxedValue::Boxed(Box::new(BoxedValue::List(unboxed_items)))
@@ -159,6 +160,7 @@ impl UnboxedValue {
             UnboxedValue::Float(f) => Value::Float(f),
             UnboxedValue::Boxed(boxed) => match *boxed {
                 BoxedValue::String(s) => Value::String(s),
+                BoxedValue::Symbol(s) => Value::Symbol(s),
                 BoxedValue::List(items) => {
                     let values = items.into_iter().map(|v| v.to_value()).collect();
                     Value::List(values)
@@ -225,6 +227,7 @@ impl fmt::Display for UnboxedValue {
             UnboxedValue::Float(fl) => write!(f, "{}", fl),
             UnboxedValue::Boxed(boxed) => match &**boxed {
                 BoxedValue::String(s) => write!(f, "\"{}\"", s),
+                BoxedValue::Symbol(s) => write!(f, "{}", s),
                 BoxedValue::List(items) => {
                     write!(f, "[")?;
                     for (i, item) in items.iter().enumerate() {

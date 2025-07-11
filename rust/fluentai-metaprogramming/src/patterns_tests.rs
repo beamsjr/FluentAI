@@ -3,8 +3,8 @@ mod tests {
     use crate::patterns::{MatchResult, NodePattern, Pattern, PatternMatcher};
     use fluentai_core::ast::{Graph, Literal, Node, NodeId};
     use fluentai_parser::parse;
-    use rustc_hash::FxHashMap;
-    use std::num::NonZeroU32;
+    
+    
 
     // ===== Pattern Construction Tests =====
 
@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_match_lambda_pattern() {
-        let code = "(lambda (x y) (+ x y))";
+        let code = "(x, y) => x + y";
         let graph = parse(code).unwrap();
         let root_id = graph.root_id.unwrap();
 
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_match_application_pattern() {
-        let code = "(+ 1 2)";
+        let code = "1 + 2";
         let graph = parse(code).unwrap();
         let root_id = graph.root_id.unwrap();
 
@@ -378,7 +378,7 @@ mod tests {
     #[ignore = "Pattern matching with backreferences not fully implemented"]
     fn test_complex_pattern() {
         // Match: (if <condition> <then> <else>) where then and else are the same
-        let code = "(if (> x 0) 42 42)";
+        let code = "if (x > 0) { 42 } else { 42 }";
         let graph = parse(code).unwrap();
         let root_id = graph.root_id.unwrap();
 
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_match_multiple_nodes() {
-        let code = "(+ 1 (+ 2 (+ 3 4)))";
+        let code = "1 + (2 + (3 + 4))";
         let graph = parse(code).unwrap();
 
         // Pattern to match all additions

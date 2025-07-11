@@ -18,24 +18,27 @@ fn main() -> anyhow::Result<()> {
     
     // Test 1: Print effect (defaults to IO)
     println!("Test 1: Print Effect");
-    let code = r#"(effect println "Hello from FluentAi!")"#;
+    let code = r#"$("Hello from FluentAi!").print()"#;
     run_test(code, context.clone(), runtime.clone())?;
     
     // Test 2: Effects in sequence  
     println!("\nTest 2: Effects in Sequence");
     let code = r#"
-        (do
-          (effect println "First message")
-          (effect println "Second message")
-          42)
+        {
+          $("First message").print();
+          $("Second message").print();
+          42
+        }
     "#;
     run_test(code, context.clone(), runtime.clone())?;
     
     // Test 3: Simple lambda
     println!("\nTest 3: Simple Lambda");
     let code = r#"
-        (let ((add (lambda (x y) (+ x y))))
-          (add 10 32))
+        {
+          let add = (x, y) => x + y;
+          add(10, 32)
+        }
     "#;
     run_test(code, context.clone(), runtime.clone())?;
     

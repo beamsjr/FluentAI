@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde_json::{json, Value as JsonValue};
 use tracing::debug;
 
-use fluentai_parser::Parser;
+use fluentai_parser::parse;
 use fluentai_vm::security::SecurityPolicy;
 use fluentai_vm::Value;
 use fluentai_vm::{Bytecode, Compiler, VMBuilder, VM};
@@ -37,9 +37,7 @@ pub async fn handle_eval(_state: &mut ServerState, args: Option<&JsonValue>) -> 
         tokio::time::Duration::from_secs(timeout_secs),
         tokio::task::spawn_blocking(move || {
             // Parse the code
-            let mut parser = Parser::new(&code);
-            let ast = parser
-                .parse()
+            let ast = parse(&code)
                 .map_err(|e| anyhow::anyhow!("Parse error: {:?}", e))?;
 
             // Compile the AST to bytecode

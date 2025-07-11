@@ -59,6 +59,7 @@ impl PyNode {
                             Literal::Integer(_) => "int",
                             Literal::Float(_) => "float",
                             Literal::String(_) => "string",
+                            Literal::Symbol(_) => "symbol",
                             Literal::Boolean(_) => "bool",
                             Literal::Nil => "nil",
                         }
@@ -71,6 +72,7 @@ impl PyNode {
                             Literal::Integer(n) => n.to_object(py),
                             Literal::Float(f) => f.to_object(py),
                             Literal::String(s) => s.to_object(py),
+                            Literal::Symbol(s) => s.to_object(py),
                             Literal::Boolean(b) => b.to_object(py),
                             Literal::Nil => py.None(),
                         },
@@ -349,6 +351,11 @@ impl PyNode {
                     data.insert("promise".to_string(), promise.to_string().to_object(py));
                     data.insert("has_default".to_string(), default.is_some().to_object(py));
                     "Timeout"
+                }
+                Node::Assignment { target, value } => {
+                    data.insert("target".to_string(), target.get().to_object(py));
+                    data.insert("value".to_string(), value.get().to_object(py));
+                    "Assignment"
                 }
             };
 

@@ -28,16 +28,16 @@ Demonstrating dramatic performance improvements and automatic bug prevention.
 iot_pipeline/
 ├── README.md              # This file
 ├── WISHLIST.md           # Future feature ideas
-├── demo.fl               # Main demo runner
-├── iot-types.fl          # Sensor data types
-├── iot-streams.fl        # Stream abstractions
-├── iot-pipeline.fl       # Pipeline implementations
-├── iot-contracts.fl      # Formal specifications
-├── iot-optimizer.fl      # AI optimization engine
-├── iot-benchmark.fl      # Performance utilities
+├── demo.flc              # Main demo runner
+├── iot-types.flc         # Sensor data types
+├── iot-streams.flc       # Stream abstractions
+├── iot-pipeline.flc      # Pipeline implementations
+├── iot-contracts.flc     # Formal specifications
+├── iot-optimizer.flc     # AI optimization engine
+├── iot-benchmark.flc     # Performance utilities
 └── tests/                # Validation test suite
     ├── README.md         # Detailed test documentation
-    ├── test-*.fl         # FluentAI language tests
+    ├── test-*.flc        # FluentAI language tests
     ├── test_*.py         # Python validation tests
     └── validate.rs       # Rust validation helper
 ```
@@ -65,7 +65,7 @@ iot_pipeline/
 
 1. **Runtime Execution**
    - ❌ FluentAI CLI crashes with Tokio runtime errors
-   - ❌ Cannot execute any `.fl` files
+   - ❌ Cannot execute any `.flc` files
    - ❌ VM integration tests fail to compile
 
 2. **Missing Functions**
@@ -90,10 +90,10 @@ cargo test -p fluentai-parser iot_syntax_test
 ```
 
 ### FluentAI Tests (Currently Broken)
-```fluentai
-;; These would work if runtime was functional:
-(load "examples/iot_pipeline/demo.fl")
-(load "examples/iot_pipeline/tests/test-validated.fl")
+```flc
+// These would work if runtime was functional:
+load("examples/iot_pipeline/demo.flc");
+load("examples/iot_pipeline/tests/test-validated.flc");
 ```
 
 ## Demo Code Examples

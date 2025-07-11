@@ -73,21 +73,21 @@ impl MacroExpander {
 
     /// Register built-in macros
     pub fn register_builtins(&mut self) {
-        // when macro: (when condition body) -> (if condition body nil)
+        // when macro: when(condition, body) -> if (condition) { body } else { nil }
         self.register_macro(MacroDefinition {
             name: "when".to_string(),
             params: vec!["condition".to_string(), "body".to_string()],
             pattern: None,
-            body: "(if $condition $body nil)".to_string(),
+            body: "if ($condition) { $body } else { nil }".to_string(),
             hygenic: true,
         });
 
-        // unless macro: (unless condition body) -> (if condition nil body)
+        // unless macro: unless(condition, body) -> if (condition) { nil } else { body }
         self.register_macro(MacroDefinition {
             name: "unless".to_string(),
             params: vec!["condition".to_string(), "body".to_string()],
             pattern: None,
-            body: "(if $condition nil $body)".to_string(),
+            body: "if ($condition) { nil } else { $body }".to_string(),
             hygenic: true,
         });
 

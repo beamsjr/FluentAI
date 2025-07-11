@@ -2,10 +2,20 @@
 
 use anyhow::{anyhow, Result};
 use fluentai_core::ast::{
-    Graph, ImportItem, Literal, Node, NodeId, Pattern,
+    EffectType, ExportItem, Graph, ImportItem, Literal, Node, NodeId, Pattern, RangePattern,
 };
 
 use crate::flc_lexer::{Lexer, Token};
+
+#[derive(Debug, Clone)]
+struct ContractInfo {
+    function_name: Option<String>,
+    preconditions: Vec<NodeId>,
+    postconditions: Vec<NodeId>,
+    invariants: Vec<NodeId>,
+    complexity: Option<String>,
+    pure: bool,
+}
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -45,37 +55,68 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_top_level(&mut self) -> Result<NodeId> {
-        match self.current {
+        let node = match self.current {
             Some(Token::Use) => self.parse_use_statement(),
             Some(Token::Mod) => self.parse_module(),
-            Some(Token::Def) => self.parse_definition(),
-            _ => self.parse_expression(),
-        }
-    }
-    
-    fn parse_definition(&mut self) -> Result<NodeId> {
-        self.consume(Token::Def)?;
+            Some(Token::Export) => self.parse_export_statement(),
+            Some(Token::At) | Some(Token::Private) | Some(Token::Public) => self.parse_definition(),
+            Some(Token::UpperIdent(_)) => {
+                // Check if this is a trait implementation (Type as Trait)
+                if self.peek_ahead_for_as() {
+                    self.parse_trait_impl(false)
+                } else {
+                    self.parse_expression()
+                }
+            }
+            _ => self.parse_statement(),
+        }?;
         
-        let is_public = matches!(self.current, Some(Token::Pub));
-        if is_public {
+        // Consume optional semicolon at top level
+        if matches!(self.current, Some(Token::Semicolon)) {
             self.advance();
         }
         
-        match self.current {
-            Some(Token::Fn) => self.parse_function_definition(is_public),
+        Ok(node)
+    }
+    
+    fn parse_definition(&mut self) -> Result<NodeId> {
+        // Check for contract annotations
+        let mut contract_info = None;
+        if matches!(self.current, Some(Token::At)) {
+            contract_info = Some(self.parse_contract_annotations()?);
+        }
+        
+        // Determine visibility
+        let is_public = matches!(self.current, Some(Token::Public));
+        if is_public {
+            self.consume(Token::Public)?;
+        } else {
+            self.consume(Token::Private)?;
+        }
+        
+        let node_id = match self.current {
+            Some(Token::Async) => {
+                self.advance();
+                self.parse_function_definition(is_public, contract_info)
+            }
+            Some(Token::Function) => self.parse_function_definition(is_public, contract_info),
+            Some(Token::Handle) => self.parse_handler_definition(is_public),
             Some(Token::Struct) => self.parse_struct_definition(is_public),
             Some(Token::Enum) => self.parse_enum_definition(is_public),
             Some(Token::Trait) => self.parse_trait_definition(is_public),
             Some(Token::Type) => self.parse_type_alias(is_public),
             Some(Token::Actor) => self.parse_actor_definition(is_public),
             Some(Token::Effect) => self.parse_effect_definition(is_public),
+            Some(Token::UpperIdent(_)) => self.parse_trait_impl(is_public),
             Some(Token::LowerIdent(_)) => self.parse_value_definition(is_public),
-            _ => Err(anyhow!("Expected definition after 'def'")),
-        }
+            _ => Err(anyhow!("Expected definition after visibility modifier")),
+        }?;
+        
+        Ok(node_id)
     }
     
-    fn parse_function_definition(&mut self, _is_public: bool) -> Result<NodeId> {
-        self.consume(Token::Fn)?;
+    fn parse_function_definition(&mut self, _is_public: bool, contract_info: Option<ContractInfo>) -> Result<NodeId> {
+        self.consume(Token::Function)?;
         
         let name = match self.current {
             Some(Token::LowerIdent(n)) => {
@@ -89,21 +130,23 @@ impl<'a> Parser<'a> {
         let mut params = vec![];
         
         while !matches!(self.current, Some(Token::RParen)) {
-            if let Some(Token::LowerIdent(param)) = self.current {
-                params.push(param.to_string());
+            let param_name = match self.current {
+                Some(Token::LowerIdent(param)) => param.to_string(),
+                Some(Token::Self_) => "self".to_string(),
+                _ => return Err(anyhow!("Expected parameter name")),
+            };
+            
+            params.push(param_name);
+            self.advance();
+            
+            // Optional type annotation
+            if matches!(self.current, Some(Token::Colon)) {
                 self.advance();
-                
-                // Optional type annotation
-                if matches!(self.current, Some(Token::Colon)) {
-                    self.advance();
-                    self.parse_type()?;
-                }
-                
-                if matches!(self.current, Some(Token::Comma)) {
-                    self.advance();
-                }
-            } else {
-                return Err(anyhow!("Expected parameter name"));
+                self.parse_type()?;
+            }
+            
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
             }
         }
         
@@ -115,12 +158,145 @@ impl<'a> Parser<'a> {
             self.parse_type()?;
         }
         
+        // Optional effect annotation with .with(EffectName)
+        let body = if matches!(self.current, Some(Token::Dot)) {
+            self.advance();
+            
+            // Expect "with"
+            match self.current {
+                Some(Token::With) => {
+                    self.advance();
+                }
+                _ => return Err(anyhow!("Expected 'with' after '.' in function definition")),
+            }
+            
+            self.consume(Token::LParen)?;
+            
+            // Parse effect name
+            let effect_name = match self.current {
+                Some(Token::UpperIdent(name)) => {
+                    let name = name.to_string();
+                    self.advance();
+                    name
+                }
+                _ => return Err(anyhow!("Expected effect name in .with()")),
+            };
+            
+            self.consume(Token::RParen)?;
+            
+            // Now parse the function body
+            self.consume(Token::LBrace)?;
+            let inner_body = self.parse_block_expression()?;
+            self.consume(Token::RBrace)?;
+            
+            // Create an Effect node that wraps the body
+            // Map effect name to EffectType
+            let effect_type = match effect_name.as_str() {
+                "Database" => EffectType::IO,  // Database operations are IO effects
+                "Network" => EffectType::Network,
+                "State" => EffectType::State,
+                "Error" => EffectType::Error,
+                "Time" => EffectType::Time,
+                "Random" => EffectType::Random,
+                "Dom" => EffectType::Dom,
+                "Async" => EffectType::Async,
+                "Concurrent" => EffectType::Concurrent,
+                _ => EffectType::IO,  // Default to IO for user-defined effects
+            };
+            
+            // Create an effect node
+            self.add_node(Node::Effect {
+                effect_type,
+                operation: format!("{}_{}", effect_name, name),
+                args: vec![inner_body],
+            })?
+        } else {
+            // No effect annotation, parse body normally
+            self.consume(Token::LBrace)?;
+            let body = self.parse_block_expression()?;
+            self.consume(Token::RBrace)?;
+            body
+        };
+        
+        let lambda = self.add_node(Node::Lambda { params, body })?;
+        let define_node = self.add_node(Node::Define { name: name.clone(), value: lambda })?;
+        
+        // If we have contract annotations, create a Contract node
+        if let Some(contract) = contract_info {
+            let contract_node = self.add_node(Node::Contract {
+                function_name: contract.function_name.unwrap_or(name),
+                preconditions: contract.preconditions,
+                postconditions: contract.postconditions,
+                invariants: contract.invariants,
+                complexity: contract.complexity,
+                pure: contract.pure,
+            })?;
+            
+            // Return a begin node that includes both the contract and the definition
+            self.add_node(Node::Begin { 
+                exprs: vec![contract_node, define_node] 
+            })
+        } else {
+            Ok(define_node)
+        }
+    }
+    
+    fn parse_handler_definition(&mut self, _is_public: bool) -> Result<NodeId> {
+        // handle MessageType(param1: Type, param2: Type) { ... }
+        self.consume(Token::Handle)?;
+        
+        let message_type = match self.current {
+            Some(Token::UpperIdent(name)) => {
+                let name = name.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected message type after 'handle'")),
+        };
+        
+        self.consume(Token::LParen)?;
+        let mut params = vec![];
+        
+        while !matches!(self.current, Some(Token::RParen)) {
+            let param_name = match self.current {
+                Some(Token::LowerIdent(n)) => {
+                    self.advance();
+                    n.to_string()
+                }
+                _ => return Err(anyhow!("Expected parameter name")),
+            };
+            
+            // Optional type annotation
+            if matches!(self.current, Some(Token::Colon)) {
+                self.advance();
+                self.parse_type()?;
+            }
+            
+            params.push(param_name);
+            
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        self.consume(Token::RParen)?;
+        
+        // Parse optional return type
+        if matches!(self.current, Some(Token::Arrow)) {
+            self.advance();
+            self.parse_type()?;
+        }
+        
         self.consume(Token::LBrace)?;
         let body = self.parse_block_expression()?;
         self.consume(Token::RBrace)?;
         
+        // Create handler as a special function
+        let handler_name = format!("handle_{}", message_type);
         let lambda = self.add_node(Node::Lambda { params, body })?;
-        self.add_node(Node::Define { name, value: lambda })
+        self.add_node(Node::Define { 
+            name: handler_name, 
+            value: lambda 
+        })
     }
     
     fn parse_value_definition(&mut self, _is_public: bool) -> Result<NodeId> {
@@ -143,7 +319,29 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_expression(&mut self) -> Result<NodeId> {
-        self.parse_pipe_expression()
+        self.parse_assignment_expression()
+    }
+    
+    fn parse_assignment_expression(&mut self) -> Result<NodeId> {
+        // Parse the left-hand side first
+        let left = self.parse_pipe_expression()?;
+        
+        // Check if this is an assignment (= for assignment, := for mutation)
+        if matches!(self.current, Some(Token::Eq) | Some(Token::ColonEq)) {
+            self.advance(); // consume '=' or ':='
+            
+            // Parse the right-hand side recursively to ensure right-associativity
+            // This allows for chained assignments like a = b = c
+            let right = self.parse_assignment_expression()?;
+            
+            // Create the assignment node
+            // TODO: In the future, we might want to distinguish between = and :=
+            // For now, both create Assignment nodes
+            self.add_node(Node::Assignment { target: left, value: right })
+        } else {
+            // Not an assignment, just return the expression
+            Ok(left)
+        }
     }
     
     fn parse_pipe_expression(&mut self) -> Result<NodeId> {
@@ -210,7 +408,7 @@ impl<'a> Parser<'a> {
         
         loop {
             let op_name = match self.current {
-                Some(Token::EqEq) => "==",
+                Some(Token::EqEq) => "=",  // Map == to = for compatibility with s-expr builtins
                 Some(Token::NotEq) => "!=",
                 _ => break,
             };
@@ -325,41 +523,166 @@ impl<'a> Parser<'a> {
         
         loop {
             match self.current {
-                Some(Token::Dot) => {
+                Some(Token::OptionalChain) => {
+                    // Optional chaining: obj.?method()
                     self.advance();
-                    match self.current {
+                    
+                    // Get method/property name
+                    let method_name = match self.current {
                         Some(Token::LowerIdent(method)) => {
-                            let method_name = method.to_string();
+                            let name = method.to_string();
                             self.advance();
-                            
-                            if matches!(self.current, Some(Token::LParen)) {
-                                // Method call with arguments
+                            name
+                        }
+                        Some(Token::UpperIdent(method)) => {
+                            // Allow PascalCase method names too
+                            let name = method.to_string();
+                            self.advance();
+                            name
+                        }
+                        _ => return Err(anyhow!("Expected method name after '.?'"))
+                    };
+                    
+                    // Create the optional chain node
+                    // For now, we'll represent it as a special function call
+                    let optional_chain_fn = self.add_node(Node::Variable { 
+                        name: format!("optional_chain_{}", method_name) 
+                    })?;
+                    
+                    if matches!(self.current, Some(Token::LParen)) {
+                        // Method call with arguments: obj.?method(args)
+                        self.advance();
+                        let mut args = vec![expr];
+                        
+                        while !matches!(self.current, Some(Token::RParen)) {
+                            args.push(self.parse_expression()?);
+                            if matches!(self.current, Some(Token::Comma)) {
                                 self.advance();
-                                let mut args = vec![expr];
-                                
-                                while !matches!(self.current, Some(Token::RParen)) {
-                                    args.push(self.parse_expression()?);
-                                    if matches!(self.current, Some(Token::Comma)) {
-                                        self.advance();
-                                    }
-                                }
-                                
-                                self.consume(Token::RParen)?;
-                                let method = self.add_node(Node::Variable { name: method_name })?;
-                                expr = self.add_node(Node::Application { 
-                                    function: method, 
-                                    args 
-                                })?;
-                            } else {
-                                // Property access or method without parens
-                                let method = self.add_node(Node::Variable { name: method_name })?;
-                                expr = self.add_node(Node::Application { 
-                                    function: method, 
-                                    args: vec![expr] 
-                                })?;
                             }
                         }
-                        _ => return Err(anyhow!("Expected method name after '.'")),
+                        
+                        self.consume(Token::RParen)?;
+                        expr = self.add_node(Node::Application { 
+                            function: optional_chain_fn, 
+                            args 
+                        })?;
+                    } else {
+                        // Property access: obj.?property
+                        expr = self.add_node(Node::Application { 
+                            function: optional_chain_fn, 
+                            args: vec![expr] 
+                        })?;
+                    }
+                }
+                Some(Token::Dot) => {
+                    self.advance();
+                    
+                    // Get method name (can be identifier or certain keywords)
+                    let method_name = match self.current {
+                        Some(Token::LowerIdent(method)) => {
+                            let name = method.to_string();
+                            self.advance();
+                            name
+                        }
+                        Some(Token::Match) => {
+                            self.advance();
+                            "match".to_string()
+                        }
+                        Some(Token::Await) => {
+                            self.advance();
+                            "await".to_string()
+                        }
+                        Some(Token::Case) => {
+                            self.advance();
+                            "case".to_string()
+                        }
+                        _ => return Err(anyhow!("Expected method name after '.'"))
+                    };
+                    
+                    if matches!(self.current, Some(Token::LParen)) {
+                                // Method call with arguments
+                                self.advance();
+                                
+                                // Special handling for channel operations
+                                if method_name == "send" {
+                                    // channel.send(value) -> Node::Send
+                                    if matches!(self.current, Some(Token::RParen)) {
+                                        return Err(anyhow!("send() requires a value argument"));
+                                    }
+                                    let value = self.parse_expression()?;
+                                    self.consume(Token::RParen)?;
+                                    expr = self.add_node(Node::Send { 
+                                        channel: expr, 
+                                        value 
+                                    })?;
+                                } else if method_name == "receive" {
+                                    // channel.receive() -> Node::Receive
+                                    self.consume(Token::RParen)?;
+                                    expr = self.add_node(Node::Receive { 
+                                        channel: expr 
+                                    })?;
+                                } else if method_name == "await" {
+                                    // expr.await() -> Node::Await
+                                    self.consume(Token::RParen)?;
+                                    expr = self.add_node(Node::Await { 
+                                        expr 
+                                    })?;
+                                } else if method_name == "case" {
+                                    // Special handling for case method: case(pattern, value)
+                                    // The first argument is a pattern, not an expression
+                                    let pattern = self.parse_pattern()?;
+                                    
+                                    // Convert pattern to expression (simplified for now)
+                                    let pattern_expr = self.pattern_to_expression(pattern)?;
+                                    
+                                    let mut args = vec![expr, pattern_expr];
+                                    
+                                    // Parse remaining arguments (the value)
+                                    if matches!(self.current, Some(Token::Comma)) {
+                                        self.advance();
+                                        args.push(self.parse_expression()?);
+                                    }
+                                    
+                                    self.consume(Token::RParen)?;
+                                    let method = self.add_node(Node::Variable { name: method_name })?;
+                                    expr = self.add_node(Node::Application { 
+                                        function: method, 
+                                        args 
+                                    })?;
+                                } else {
+                                    // Regular method call
+                                    let mut args = vec![expr];
+                                    
+                                    while !matches!(self.current, Some(Token::RParen)) {
+                                        args.push(self.parse_expression()?);
+                                        if matches!(self.current, Some(Token::Comma)) {
+                                            self.advance();
+                                        }
+                                    }
+                                    
+                                    self.consume(Token::RParen)?;
+                                    let method = self.add_node(Node::Variable { name: method_name })?;
+                                    expr = self.add_node(Node::Application { 
+                                        function: method, 
+                                        args 
+                                    })?;
+                                }
+                    } else {
+                        // Check if the expr is a simple variable and this could be a qualified variable
+                        if let Some(Node::Variable { name: module_name }) = self.graph.get_node(expr) {
+                            // This is module.variable syntax - create a QualifiedVariable node
+                            expr = self.add_node(Node::QualifiedVariable {
+                                module_name: module_name.clone(),
+                                variable_name: method_name,
+                            })?;
+                        } else {
+                            // Property access or method without parens
+                            let method = self.add_node(Node::Variable { name: method_name })?;
+                            expr = self.add_node(Node::Application { 
+                                function: method, 
+                                args: vec![expr] 
+                            })?;
+                        }
                     }
                 }
                 Some(Token::LParen) => {
@@ -400,6 +723,9 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_primary_expression(&mut self) -> Result<NodeId> {
+        #[cfg(test)]
+        eprintln!("parse_primary_expression: current token: {:?}", self.current);
+        
         match self.current.clone() {
             Some(Token::Integer(n)) => {
                 self.advance();
@@ -412,6 +738,17 @@ impl<'a> Parser<'a> {
             Some(Token::String(s)) => {
                 self.advance();
                 self.add_node(Node::Literal(Literal::String(s.to_string())))
+            }
+            Some(Token::Symbol(s)) => {
+                self.advance();
+                self.add_node(Node::Literal(Literal::Symbol(s.to_string())))
+            }
+            Some(Token::FString(s)) => {
+                let s = s.to_string();
+                self.advance();
+                // For now, treat f-strings as regular strings
+                // TODO: Implement proper interpolation parsing
+                self.add_node(Node::Literal(Literal::String(s)))
             }
             Some(Token::True) => {
                 self.advance();
@@ -428,7 +765,36 @@ impl<'a> Parser<'a> {
             Some(Token::LowerIdent(name)) => {
                 let name = name.to_string();
                 self.advance();
-                self.add_node(Node::Variable { name })
+                
+                // Check if this is a lambda (single parameter)
+                if matches!(self.current, Some(Token::FatArrow)) {
+                    self.advance();
+                    let body = self.parse_expression()?;
+                    self.add_node(Node::Lambda { 
+                        params: vec![name], 
+                        body 
+                    })
+                } else if name == "channel" && matches!(self.current, Some(Token::LParen)) {
+                    // channel() function
+                    self.advance(); // consume (
+                    
+                    // Check for optional capacity argument
+                    let capacity = if matches!(self.current, Some(Token::RParen)) {
+                        None
+                    } else {
+                        let cap = self.parse_expression()?;
+                        Some(cap)
+                    };
+                    
+                    self.consume(Token::RParen)?;
+                    self.add_node(Node::Channel { capacity })
+                } else {
+                    self.add_node(Node::Variable { name })
+                }
+            }
+            Some(Token::Self_) => {
+                self.advance();
+                self.add_node(Node::Variable { name: "self".to_string() })
             }
             Some(Token::UpperIdent(name)) => {
                 let name = name.to_string();
@@ -437,69 +803,236 @@ impl<'a> Parser<'a> {
                 // Check for struct construction
                 if matches!(self.current, Some(Token::LBrace)) {
                     self.parse_struct_construction(name)
+                } else if name == "Channel" && matches!(self.current, Some(Token::Dot)) {
+                    // Channel.new() syntax
+                    self.advance(); // consume dot
+                    if let Some(Token::LowerIdent(method)) = self.current {
+                        if method == "new" {
+                            self.advance(); // consume "new"
+                            self.consume(Token::LParen)?;
+                            
+                            // Check for optional capacity argument
+                            let capacity = if matches!(self.current, Some(Token::RParen)) {
+                                None
+                            } else {
+                                let cap = self.parse_expression()?;
+                                Some(cap)
+                            };
+                            
+                            self.consume(Token::RParen)?;
+                            self.add_node(Node::Channel { capacity })
+                        } else {
+                            // Unknown method on Channel
+                            return Err(anyhow!("Unknown method '{}' on Channel", method));
+                        }
+                    } else {
+                        return Err(anyhow!("Expected method name after Channel."));
+                    }
                 } else {
                     self.add_node(Node::Variable { name })
                 }
             }
             Some(Token::LParen) => {
                 self.advance();
+                
+                // Check for empty lambda: () => expr
+                if matches!(self.current, Some(Token::RParen)) {
+                    self.advance();
+                    if matches!(self.current, Some(Token::FatArrow)) {
+                        // It's an empty parameter lambda
+                        self.advance(); // consume =>
+                        let body = self.parse_expression()?;
+                        return self.add_node(Node::Lambda { params: vec![], body });
+                    } else {
+                        return Err(anyhow!("Empty parentheses"));
+                    }
+                }
+                
+                // Try to parse as a lambda parameter list
+                // We'll use a more careful approach that doesn't consume tokens unnecessarily
+                let checkpoint = self.position;
+                let checkpoint_lexer = self.lexer.clone();
+                let checkpoint_current = self.current.clone();
+                
+                // Try to collect parameter names
+                let mut params = vec![];
+                let mut could_be_lambda = true;
+                
+                // First, check if we have a valid parameter list
+                loop {
+                    match self.current {
+                        Some(Token::LowerIdent(name)) => {
+                            params.push(name.to_string());
+                            self.advance();
+                            
+                            match self.current {
+                                Some(Token::Comma) => {
+                                    self.advance(); // continue to next parameter
+                                }
+                                Some(Token::RParen) => {
+                                    self.advance();
+                                    // Check if followed by =>
+                                    if matches!(self.current, Some(Token::FatArrow)) {
+                                        // It's definitely a lambda!
+                                        self.advance(); // consume =>
+                                        let body = self.parse_expression()?;
+                                        return self.add_node(Node::Lambda { params, body });
+                                    } else {
+                                        // Not a lambda, break and restore
+                                        could_be_lambda = false;
+                                        break;
+                                    }
+                                }
+                                _ => {
+                                    // Not a valid parameter list
+                                    could_be_lambda = false;
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {
+                            // Not starting with an identifier, can't be lambda params
+                            could_be_lambda = false;
+                            break;
+                        }
+                    }
+                }
+                
+                // If it wasn't a lambda, restore and parse as regular expression
+                self.position = checkpoint;
+                self.lexer = checkpoint_lexer;
+                self.current = checkpoint_current;
+                
                 let expr = self.parse_expression()?;
                 self.consume(Token::RParen)?;
                 Ok(expr)
             }
             Some(Token::LBrace) => {
-                // Lambda or block
+                // Could be a block expression or a map literal
+                // Peek ahead to distinguish: if we see string:value pattern, it's a map
                 self.advance();
                 
-                if matches!(self.current, Some(Token::Or)) {
-                    // Lambda
+                // Check if this is an empty map {}
+                if matches!(self.current, Some(Token::RBrace)) {
                     self.advance();
-                    let mut params = vec![];
-                    
-                    while !matches!(self.current, Some(Token::Or)) {
-                        if let Some(Token::LowerIdent(param)) = self.current {
-                            params.push(param.to_string());
-                            self.advance();
-                            
-                            if matches!(self.current, Some(Token::Comma)) {
-                                self.advance();
-                            }
-                        } else {
-                            return Err(anyhow!("Expected parameter name"));
-                        }
-                    }
-                    
-                    self.consume(Token::Or)?;
-                    let body = self.parse_expression()?;
-                    self.consume(Token::RBrace)?;
-                    
-                    self.add_node(Node::Lambda { params, body })
+                    // Create empty map: make_map()
+                    let make_map = self.add_node(Node::Variable { name: "make_map".to_string() })?;
+                    return self.add_node(Node::Application { 
+                        function: make_map, 
+                        args: vec![] 
+                    });
+                }
+                
+                // Look ahead to determine if this is a map literal
+                let is_map = self.is_map_literal();
+                
+                if is_map {
+                    self.parse_map_literal()
                 } else {
-                    // Block expression
+                    // It's a block expression
                     let expr = self.parse_block_expression()?;
                     self.consume(Token::RBrace)?;
                     Ok(expr)
                 }
             }
+            Some(Token::Hash) => {
+                // Set literal #{...} with spread support
+                self.advance();
+                self.consume(Token::LBrace)?;
+                
+                let mut items = vec![];
+                let mut has_spread = false;
+                
+                while !matches!(self.current, Some(Token::RBrace)) {
+                    if matches!(self.current, Some(Token::DotDotDot)) {
+                        // Spread operator: #{...other_set}
+                        self.advance();
+                        has_spread = true;
+                        let spread_expr = self.parse_expression()?;
+                        
+                        // Mark this as a spread element
+                        let spread_fn = self.add_node(Node::Variable { name: "__spread__".to_string() })?;
+                        let spread_item = self.add_node(Node::Application {
+                            function: spread_fn,
+                            args: vec![spread_expr],
+                        })?;
+                        items.push(spread_item);
+                    } else {
+                        items.push(self.parse_expression()?);
+                    }
+                    
+                    if matches!(self.current, Some(Token::Comma)) {
+                        self.advance();
+                        if matches!(self.current, Some(Token::RBrace)) {
+                            // Trailing comma is allowed
+                            break;
+                        }
+                    } else if !matches!(self.current, Some(Token::RBrace)) {
+                        return Err(anyhow!("Expected ',' or '}}' in set literal"));
+                    }
+                }
+                
+                self.consume(Token::RBrace)?;
+                
+                // Convert to appropriate function call
+                let fn_name = if has_spread { "set_with_spread" } else { "make_set" };
+                let set_fn = self.add_node(Node::Variable { name: fn_name.to_string() })?;
+                self.add_node(Node::Application { 
+                    function: set_fn, 
+                    args: items 
+                })
+            }
             Some(Token::LBracket) => {
-                // List literal
+                // List literal with spread support
                 self.advance();
                 let mut items = vec![];
+                let mut has_spread = false;
                 
                 while !matches!(self.current, Some(Token::RBracket)) {
-                    items.push(self.parse_expression()?);
+                    if matches!(self.current, Some(Token::DotDotDot)) {
+                        // Spread operator: [...other_list]
+                        self.advance();
+                        has_spread = true;
+                        let spread_expr = self.parse_expression()?;
+                        
+                        // Mark this as a spread element by wrapping in a special call
+                        let spread_fn = self.add_node(Node::Variable { name: "__spread__".to_string() })?;
+                        let spread_item = self.add_node(Node::Application {
+                            function: spread_fn,
+                            args: vec![spread_expr],
+                        })?;
+                        items.push(spread_item);
+                    } else {
+                        items.push(self.parse_expression()?);
+                    }
+                    
                     if matches!(self.current, Some(Token::Comma)) {
                         self.advance();
                     }
                 }
                 
                 self.consume(Token::RBracket)?;
-                self.add_node(Node::List(items))
+                
+                if has_spread {
+                    // If we have spread elements, create a call to list_with_spread
+                    let list_fn = self.add_node(Node::Variable { name: "list_with_spread".to_string() })?;
+                    self.add_node(Node::Application {
+                        function: list_fn,
+                        args: items,
+                    })
+                } else {
+                    // Regular list without spread
+                    self.add_node(Node::List(items))
+                }
             }
             Some(Token::If) => self.parse_if_expression(),
             Some(Token::Let) => self.parse_let_expression(),
             Some(Token::Match) => self.parse_match_expression(),
             Some(Token::Try) => self.parse_try_expression(),
+            Some(Token::Spawn) => self.parse_spawn_expression(),
+            Some(Token::Perform) => self.parse_perform_expression(),
+            Some(Token::Handle) => self.parse_handle_expression(),
+            Some(Token::Dollar) => self.parse_printable(),
             _ => Err(anyhow!("Unexpected token in expression: {:?}", self.current)),
         }
     }
@@ -542,18 +1075,57 @@ impl<'a> Parser<'a> {
             self.advance();
         }
         
-        // Parse first binding
-        let name = match self.current {
-            Some(Token::LowerIdent(n)) => {
-                self.advance();
-                n.to_string()
+        // Check if this is a destructuring pattern
+        if matches!(self.current, Some(Token::LBrace)) {
+            // Parse destructuring pattern: let {x, y} = expr
+            self.advance(); // consume {
+            
+            let mut field_names = vec![];
+            while !matches!(self.current, Some(Token::RBrace)) {
+                match self.current {
+                    Some(Token::LowerIdent(name)) => {
+                        field_names.push(name.to_string());
+                        self.advance();
+                    }
+                    _ => return Err(anyhow!("Expected field name in destructuring pattern")),
+                }
+                
+                if matches!(self.current, Some(Token::Comma)) {
+                    self.advance();
+                }
             }
-            _ => return Err(anyhow!("Expected variable name after 'let'")),
-        };
-        
-        self.consume(Token::Eq)?;
-        let value = self.parse_expression()?;
-        bindings.push((name, value));
+            self.consume(Token::RBrace)?;
+            self.consume(Token::Eq)?;
+            let value = self.parse_expression()?;
+            
+            // Generate a temporary variable for the struct value
+            let temp_var = format!("_struct{}", self.graph.nodes.len());
+            bindings.push((temp_var.clone(), value));
+            
+            // Create field access for each destructured field
+            for field_name in field_names {
+                let struct_var = self.add_node(Node::Variable { name: temp_var.clone() })?;
+                let getter_fn = self.add_node(Node::Variable { name: format!("get_{}", field_name) })?;
+                let field_access = self.add_node(Node::Application {
+                    function: getter_fn,
+                    args: vec![struct_var],
+                })?;
+                bindings.push((field_name, field_access));
+            }
+        } else {
+            // Parse regular binding
+            let name = match self.current {
+                Some(Token::LowerIdent(n)) => {
+                    self.advance();
+                    n.to_string()
+                }
+                _ => return Err(anyhow!("Expected variable name after 'let'")),
+            };
+            
+            self.consume(Token::Eq)?;
+            let value = self.parse_expression()?;
+            bindings.push((name, value));
+        }
         
         self.consume(Token::Semicolon)?;
         
@@ -586,25 +1158,104 @@ impl<'a> Parser<'a> {
         }
     }
     
-    fn parse_block_expression(&mut self) -> Result<NodeId> {
-        let mut stmts = vec![];
+    fn parse_block(&mut self) -> Result<NodeId> {
+        let mut let_bindings = vec![];
+        let mut exprs = vec![];
         
         while !matches!(self.current, Some(Token::RBrace)) && self.current.is_some() {
-            stmts.push(self.parse_expression()?);
+            // Debug: print current token before parsing statement
+            #[cfg(test)]
+            if let Some(ref token) = self.current {
+                eprintln!("parse_block: about to parse statement, current token: {:?}", token);
+            }
             
-            // Optional semicolon
-            if matches!(self.current, Some(Token::Semicolon)) {
-                self.advance();
+            // Check if this is a let binding
+            if matches!(self.current, Some(Token::Let)) {
+                // Parse the let binding directly here instead of creating a Let node
+                self.advance(); // consume 'let'
+                
+                let name = match self.current {
+                    Some(Token::LowerIdent(n)) => {
+                        self.advance();
+                        n.to_string()
+                    }
+                    _ => return Err(anyhow!("Expected variable name after 'let'")),
+                };
+                
+                self.consume(Token::Eq)?;
+                let value = self.parse_expression()?;
+                
+                let_bindings.push((name, value));
+                
+                // Optional semicolon after let binding
+                if matches!(self.current, Some(Token::Semicolon)) {
+                    self.advance();
+                }
+            } else {
+                // Parse as regular statement/expression
+                let expr = self.parse_statement()?;
+                exprs.push(expr);
+                
+                // Optional semicolon (already consumed by parse_statement for statements)
+                if matches!(self.current, Some(Token::Semicolon)) {
+                    self.advance();
+                }
             }
         }
         
-        if stmts.is_empty() {
-            self.add_node(Node::Literal(Literal::Nil))
-        } else if stmts.len() == 1 {
-            Ok(stmts[0])
+        // Determine the body of the block
+        let body = if exprs.is_empty() {
+            self.add_node(Node::Literal(Literal::Nil))?
+        } else if exprs.len() == 1 {
+            exprs[0]
         } else {
-            self.add_node(Node::Begin { exprs: stmts })
+            self.add_node(Node::Begin { exprs })?
+        };
+        
+        // If we have let bindings, wrap the body in a Let node
+        if !let_bindings.is_empty() {
+            self.add_node(Node::Let { bindings: let_bindings, body })
+        } else {
+            Ok(body)
         }
+    }
+    
+    fn parse_block_expression(&mut self) -> Result<NodeId> {
+        // For backward compatibility, delegate to parse_block
+        self.parse_block()
+    }
+    
+    fn parse_statement(&mut self) -> Result<NodeId> {
+        // Note: Let bindings are now handled directly in parse_block
+        // Assignments are now handled as expressions in parse_assignment_expression
+        
+        // Just parse as expression - assignments are now expressions
+        self.parse_expression()
+    }
+    
+    fn parse_let_statement(&mut self) -> Result<NodeId> {
+        // This is a simplified version of parse_let_expression that doesn't expect a body
+        // Used for let statements in blocks
+        self.consume(Token::Let)?;
+        
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                self.advance();
+                n.to_string()
+            }
+            _ => return Err(anyhow!("Expected variable name after 'let'")),
+        };
+        
+        self.consume(Token::Eq)?;
+        let value = self.parse_expression()?;
+        
+        // Create a let node with the binding and nil as body
+        // This effectively makes it a statement that binds the variable
+        let nil = self.add_node(Node::Literal(Literal::Nil))?;
+        self.add_node(Node::Let { 
+            bindings: vec![(name, value)], 
+            body: nil 
+        })
     }
     
     // Stub implementations that need to be completed
@@ -615,8 +1266,29 @@ impl<'a> Parser<'a> {
         
         let mut path = vec![];
         
-        // Parse module path
-        loop {
+        // Handle ModulePath token (e.g., "std::collections::HashMap")
+        if let Some(Token::ModulePath(module_path)) = self.current {
+            path = module_path.split("::").map(|s| s.to_string()).collect();
+            self.advance();
+            
+            // Check for ::* after ModulePath
+            if matches!(self.current, Some(Token::ColonColon)) {
+                self.advance();
+                if matches!(self.current, Some(Token::Star)) {
+                    self.advance();
+                    self.consume(Token::Semicolon)?;
+                    return self.add_node(Node::Import {
+                        module_path: path.join("::"),
+                        import_list: vec![],
+                        import_all: true,
+                    });
+                } else {
+                    return Err(anyhow!("Expected identifier or '*' after '::'"));
+                }
+            }
+        } else {
+            // Parse module path segment by segment
+            // First segment is required
             let segment = match self.current {
                 Some(Token::LowerIdent(name)) => {
                     let name = name.to_string();
@@ -627,22 +1299,62 @@ impl<'a> Parser<'a> {
             };
             path.push(segment);
             
-            if matches!(self.current, Some(Token::ColonColon)) {
+            // Parse additional segments if :: is present
+            while matches!(self.current, Some(Token::ColonColon)) {
                 self.advance();
-            } else {
-                break;
+                
+                // Check if this is ::{...} for imports
+                if matches!(self.current, Some(Token::LBrace)) {
+                    break;
+                }
+                
+                // Check for wildcard import after ::
+                if matches!(self.current, Some(Token::Star)) {
+                    self.advance();
+                    self.consume(Token::Semicolon)?;
+                    return self.add_node(Node::Import {
+                        module_path: path.join("::"),
+                        import_list: vec![],
+                        import_all: true,
+                    });
+                }
+                
+                let segment = match self.current {
+                    Some(Token::LowerIdent(name)) => {
+                        let name = name.to_string();
+                        self.advance();
+                        name
+                    }
+                    _ => return Err(anyhow!("Expected module path segment after ::"))
+                };
+                path.push(segment);
             }
         }
         
-        // Check for wildcard import
-        if matches!(self.current, Some(Token::Star)) {
+        // After parsing the full path, check what comes next
+        
+        // Check for module alias: use module::path as alias;
+        if matches!(self.current, Some(Token::As)) {
             self.advance();
-            self.consume(Token::Semicolon)?;
-            return self.add_node(Node::Import {
-                module_path: path.join("::"),
-                import_list: vec![],
-                import_all: true,
-            });
+            match self.current {
+                Some(Token::LowerIdent(alias)) | Some(Token::UpperIdent(alias)) => {
+                    let alias_str = alias.to_string();
+                    self.advance();
+                    self.consume(Token::Semicolon)?;
+                    
+                    // For module aliasing, treat the last segment as the import name
+                    let import_name = path.last().cloned().unwrap_or_default();
+                    return self.add_node(Node::Import {
+                        module_path: path.join("::"),
+                        import_list: vec![ImportItem { 
+                            name: import_name, 
+                            alias: Some(alias_str) 
+                        }],
+                        import_all: false,
+                    });
+                }
+                _ => return Err(anyhow!("Expected alias name after 'as'")),
+            }
         }
         
         // Parse import list
@@ -708,11 +1420,11 @@ impl<'a> Parser<'a> {
         self.consume(Token::LBrace)?;
         
         let mut definitions = vec![];
-        let exports = vec![];
+        let mut exports = vec![];
         
         while !matches!(self.current, Some(Token::RBrace)) {
             match self.current {
-                Some(Token::Def) => {
+                Some(Token::Private) | Some(Token::Public) => {
                     let def = self.parse_definition()?;
                     definitions.push(def);
                 }
@@ -720,7 +1432,19 @@ impl<'a> Parser<'a> {
                     let import = self.parse_use_statement()?;
                     definitions.push(import);
                 }
-                _ => return Err(anyhow!("Expected definition or use statement in module")),
+                Some(Token::Export) => {
+                    // Parse export statement and collect exported names
+                    let export_node = self.parse_export_statement()?;
+                    definitions.push(export_node);
+                    
+                    // Extract export names from the node for the module's export list
+                    if let Node::Export { export_list } = &self.graph.nodes[&export_node] {
+                        for item in export_list {
+                            exports.push(item.name.clone());
+                        }
+                    }
+                }
+                _ => return Err(anyhow!("Expected definition, use, or export statement in module")),
             }
         }
         
@@ -742,6 +1466,50 @@ impl<'a> Parser<'a> {
         })
     }
     
+    fn parse_export_statement(&mut self) -> Result<NodeId> {
+        // export { name1, name2 as alias2, name3 }
+        self.consume(Token::Export)?;
+        self.consume(Token::LBrace)?;
+        
+        let mut export_list = vec![];
+        
+        while !matches!(self.current, Some(Token::RBrace)) {
+            let name = match self.current {
+                Some(Token::LowerIdent(n)) | Some(Token::UpperIdent(n)) => {
+                    let name = n.to_string();
+                    self.advance();
+                    name
+                }
+                _ => return Err(anyhow!("Expected export name")),
+            };
+            
+            let alias = if matches!(self.current, Some(Token::As)) {
+                self.advance();
+                match self.current {
+                    Some(Token::LowerIdent(n)) | Some(Token::UpperIdent(n)) => {
+                        let alias = n.to_string();
+                        self.advance();
+                        Some(alias)
+                    }
+                    _ => return Err(anyhow!("Expected alias name after 'as'")),
+                }
+            } else {
+                None
+            };
+            
+            export_list.push(ExportItem { name, alias });
+            
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        self.consume(Token::Semicolon)?;
+        
+        self.add_node(Node::Export { export_list })
+    }
+    
     fn parse_struct_definition(&mut self, _is_public: bool) -> Result<NodeId> {
         // struct StructName { field1: Type1, field2: Type2 }
         self.consume(Token::Struct)?;
@@ -760,7 +1528,7 @@ impl<'a> Parser<'a> {
         let mut fields = vec![];
         while !matches!(self.current, Some(Token::RBrace)) {
             // Check for pub modifier
-            let _field_public = matches!(self.current, Some(Token::Pub));
+            let _field_public = matches!(self.current, Some(Token::Public));
             if _field_public {
                 self.advance();
             }
@@ -893,10 +1661,10 @@ impl<'a> Parser<'a> {
         let mut methods = vec![];
         while !matches!(self.current, Some(Token::RBrace)) {
             // Parse method signature
-            if matches!(self.current, Some(Token::Def)) {
+            if matches!(self.current, Some(Token::Private)) || matches!(self.current, Some(Token::Public)) {
                 self.advance();
                 
-                if matches!(self.current, Some(Token::Fn)) {
+                if matches!(self.current, Some(Token::Function)) {
                     self.advance();
                 }
                 
@@ -950,52 +1718,72 @@ impl<'a> Parser<'a> {
         })
     }
     
-    fn parse_impl_definition(&mut self) -> Result<NodeId> {
-        // impl TraitName for TypeName { ... } or impl TypeName { ... }
-        self.consume(Token::Impl)?;
+    fn peek_ahead_for_as(&mut self) -> bool {
+        // Save current position
+        let saved_lexer = self.lexer.clone();
+        let saved_current = self.current.clone();
         
-        let first_name = match self.current {
+        // Advance past the type name
+        self.advance();
+        
+        // Check if next token is 'as'
+        let is_as = matches!(self.current, Some(Token::As));
+        
+        // Restore position
+        self.lexer = saved_lexer;
+        self.current = saved_current;
+        
+        is_as
+    }
+    
+    fn parse_trait_impl(&mut self, _is_public: bool) -> Result<NodeId> {
+        // Type as Trait { ... }
+        let type_name = match self.current {
             Some(Token::UpperIdent(name)) => {
                 let name = name.to_string();
                 self.advance();
                 name
             }
-            _ => return Err(anyhow!("Expected type or trait name after 'impl'")),
+            _ => return Err(anyhow!("Expected type name")),
         };
         
-        let (_trait_name, _type_name) = if matches!(self.current, Some(Token::For)) {
-            // impl Trait for Type
-            self.advance();
-            let type_name = match self.current {
-                Some(Token::UpperIdent(name)) => {
-                    let name = name.to_string();
-                    self.advance();
-                    name
-                }
-                _ => return Err(anyhow!("Expected type name after 'for'")),
-            };
-            (Some(first_name), type_name)
-        } else {
-            // impl Type
-            (None, first_name)
+        self.consume(Token::As)?;
+        
+        let trait_name = match self.current {
+            Some(Token::UpperIdent(name)) => {
+                let name = name.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected trait name after 'as'")),
         };
         
         self.consume(Token::LBrace)?;
         
         let mut definitions = vec![];
         while !matches!(self.current, Some(Token::RBrace)) {
-            if matches!(self.current, Some(Token::Def)) {
-                let def = self.parse_definition()?;
-                definitions.push(def);
-            } else {
-                return Err(anyhow!("Expected definition in impl block"));
-            }
+            // Parse method implementations
+            let def = self.parse_definition()?;
+            definitions.push(def);
         }
         
         self.consume(Token::RBrace)?;
         
-        // Create a begin node containing all definitions
-        self.add_node(Node::Begin { exprs: definitions })
+        // For now, just return a placeholder - in a real implementation
+        // we'd need a proper AST node for trait implementations
+        let impl_body = if definitions.is_empty() {
+            self.add_node(Node::Literal(Literal::Nil))?
+        } else if definitions.len() == 1 {
+            definitions[0]
+        } else {
+            self.add_node(Node::Begin { exprs: definitions })?
+        };
+        
+        // Create a define node with special naming for trait impl
+        self.add_node(Node::Define {
+            name: format!("{}@{}", type_name, trait_name),
+            value: impl_body,
+        })
     }
     
     fn parse_type_alias(&mut self, _is_public: bool) -> Result<NodeId> {
@@ -1042,8 +1830,9 @@ impl<'a> Parser<'a> {
         
         while !matches!(self.current, Some(Token::RBrace)) {
             match self.current {
-                Some(Token::LowerIdent(_)) => {
+                Some(Token::LowerIdent(field_name)) => {
                     // State field
+                    let _field_name = field_name.to_string();
                     self.advance();
                     self.consume(Token::Colon)?;
                     self.parse_type()?;
@@ -1056,8 +1845,8 @@ impl<'a> Parser<'a> {
                     
                     self.consume(Token::Semicolon)?;
                 }
-                Some(Token::Def) => {
-                    // Handler method
+                Some(Token::Private) | Some(Token::Public) => {
+                    // Handler method or other definition
                     let def = self.parse_definition()?;
                     definitions.push(def);
                 }
@@ -1092,8 +1881,12 @@ impl<'a> Parser<'a> {
         
         let mut operations = vec![];
         while !matches!(self.current, Some(Token::RBrace)) {
-            if matches!(self.current, Some(Token::Def)) {
+            if matches!(self.current, Some(Token::Private)) || matches!(self.current, Some(Token::Public)) {
                 self.advance();
+                
+                if matches!(self.current, Some(Token::Function)) {
+                    self.advance();
+                }
                 
                 let op_name = match self.current {
                     Some(Token::LowerIdent(n)) => {
@@ -1241,6 +2034,60 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_pattern(&mut self) -> Result<Pattern> {
+        let pattern = self.parse_or_pattern()?;
+        
+        // Check for Guard pattern (pattern when condition)
+        if matches!(self.current, Some(Token::When)) {
+            self.advance(); // consume when
+            let condition = self.parse_expression()?;
+            return Ok(Pattern::Guard {
+                pattern: Box::new(pattern),
+                condition,
+            });
+        }
+        
+        Ok(pattern)
+    }
+    
+    fn parse_or_pattern(&mut self) -> Result<Pattern> {
+        let pattern = self.parse_single_pattern()?;
+        
+        // Check for Or pattern (pattern1 | pattern2 | ...)
+        if matches!(self.current, Some(Token::Or)) {
+            let mut patterns = vec![pattern];
+            while matches!(self.current, Some(Token::Or)) {
+                self.advance(); // consume |
+                patterns.push(self.parse_single_pattern()?);
+            }
+            return Ok(Pattern::Or(patterns));
+        }
+        
+        Ok(pattern)
+    }
+    
+    fn parse_single_pattern(&mut self) -> Result<Pattern> {
+        let pattern = self.parse_base_pattern()?;
+        
+        // Check for As pattern (pattern as binding)
+        if matches!(self.current, Some(Token::As)) {
+            self.advance(); // consume as
+            match self.current {
+                Some(Token::LowerIdent(binding)) => {
+                    let binding_name = binding.to_string();
+                    self.advance();
+                    return Ok(Pattern::As {
+                        binding: binding_name,
+                        pattern: Box::new(pattern),
+                    });
+                }
+                _ => return Err(anyhow!("Expected binding name after 'as' in pattern")),
+            }
+        }
+        
+        Ok(pattern)
+    }
+    
+    fn parse_base_pattern(&mut self) -> Result<Pattern> {
         match &self.current {
             Some(Token::Underscore) => {
                 self.advance();
@@ -1274,7 +2121,32 @@ impl<'a> Parser<'a> {
             Some(Token::Integer(n)) => {
                 let n = *n;
                 self.advance();
-                Ok(Pattern::Literal(Literal::Integer(n)))
+                
+                // Check for range pattern (1..10 or 1..=10)
+                if matches!(self.current, Some(Token::DotDot)) {
+                    self.advance(); // consume ..
+                    let inclusive = if matches!(self.current, Some(Token::Eq)) {
+                        self.advance(); // consume =
+                        true
+                    } else {
+                        false
+                    };
+                    
+                    match self.current {
+                        Some(Token::Integer(end)) => {
+                            let end_val = end;
+                            self.advance();
+                            Ok(Pattern::Range(RangePattern {
+                                start: Literal::Integer(n),
+                                end: Literal::Integer(end_val),
+                                inclusive,
+                            }))
+                        }
+                        _ => Err(anyhow!("Expected integer after .. in range pattern")),
+                    }
+                } else {
+                    Ok(Pattern::Literal(Literal::Integer(n)))
+                }
             }
             Some(Token::Float(f)) => {
                 let f = *f;
@@ -1285,6 +2157,11 @@ impl<'a> Parser<'a> {
                 let s = s.to_string();
                 self.advance();
                 Ok(Pattern::Literal(Literal::String(s)))
+            }
+            Some(Token::Symbol(s)) => {
+                let s = s.to_string();
+                self.advance();
+                Ok(Pattern::Literal(Literal::Symbol(s)))
             }
             Some(Token::True) => {
                 self.advance();
@@ -1300,6 +2177,176 @@ impl<'a> Parser<'a> {
             }
             _ => Err(anyhow!("Expected pattern")),
         }
+    }
+    
+    fn parse_printable(&mut self) -> Result<NodeId> {
+        self.consume(Token::Dollar)?;
+        self.consume(Token::LParen)?;
+        let expr = self.parse_expression()?;
+        self.consume(Token::RParen)?;
+        
+        // Create a printable wrapper node
+        // For now, we'll use a special application of a "Printable" constructor
+        let printable_constructor = self.add_node(Node::Variable { 
+            name: "Printable".to_string() 
+        })?;
+        self.add_node(Node::Application {
+            function: printable_constructor,
+            args: vec![expr],
+        })
+    }
+    
+    fn parse_perform_expression(&mut self) -> Result<NodeId> {
+        // perform IO.print("Hello")
+        self.consume(Token::Perform)?;
+        
+        #[cfg(test)]
+        eprintln!("parse_perform_expression: after consume perform, current token: {:?}", self.current);
+        
+        // Parse the effect type (e.g., IO)
+        let effect_type = match self.current {
+            Some(Token::UpperIdent(name)) | Some(Token::ConstIdent(name)) => {
+                let effect_name = name.to_string();
+                self.advance();
+                
+                // Convert string to EffectType
+                match effect_name.as_str() {
+                    "IO" => EffectType::IO,
+                    "State" => EffectType::State,
+                    "Error" => EffectType::Error,
+                    "Async" => EffectType::Async,
+                    "Time" => EffectType::Time,
+                    "Network" => EffectType::Network,
+                    "Random" => EffectType::Random,
+                    "Dom" => EffectType::Dom,
+                    "Concurrent" => EffectType::Concurrent,
+                    _ => return Err(anyhow!("Unknown effect type: {}", effect_name)),
+                }
+            }
+            _ => return Err(anyhow!("Expected effect type after 'perform'")),
+        };
+        
+        self.consume(Token::Dot)?;
+        
+        // Parse the operation name
+        let operation = match self.current {
+            Some(Token::LowerIdent(op)) => {
+                let op_name = op.to_string();
+                self.advance();
+                op_name
+            }
+            _ => return Err(anyhow!("Expected operation name after effect type")),
+        };
+        
+        // Parse arguments
+        self.consume(Token::LParen)?;
+        let mut args = vec![];
+        
+        while !matches!(self.current, Some(Token::RParen)) {
+            args.push(self.parse_expression()?);
+            
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        
+        self.consume(Token::RParen)?;
+        
+        self.add_node(Node::Effect {
+            effect_type,
+            operation,
+            args,
+        })
+    }
+    
+    fn parse_handle_expression(&mut self) -> Result<NodeId> {
+        // handle { body } with { Effect.operation(params) => handler_expr, ... }
+        self.consume(Token::Handle)?;
+        self.consume(Token::LBrace)?;
+        
+        // Parse the body as a block
+        let body = self.parse_block()?;
+        self.consume(Token::RBrace)?;
+        
+        self.consume(Token::With)?;
+        self.consume(Token::LBrace)?;
+        
+        let mut handlers = vec![];
+        
+        while !matches!(self.current, Some(Token::RBrace)) {
+            // Parse effect type
+            let effect_type = match self.current {
+                Some(Token::UpperIdent(name)) | Some(Token::ConstIdent(name)) => {
+                    let effect_name = name.to_string();
+                    self.advance();
+                    
+                    match effect_name.as_str() {
+                        "IO" => EffectType::IO,
+                        "State" => EffectType::State,
+                        "Error" => EffectType::Error,
+                        "Async" => EffectType::Async,
+                        "Time" => EffectType::Time,
+                        "Network" => EffectType::Network,
+                        "Random" => EffectType::Random,
+                        "Dom" => EffectType::Dom,
+                        "Concurrent" => EffectType::Concurrent,
+                        _ => return Err(anyhow!("Unknown effect type: {}", effect_name)),
+                    }
+                }
+                _ => return Err(anyhow!("Expected effect type in handler")),
+            };
+            
+            self.consume(Token::Dot)?;
+            
+            // Parse operation name
+            let operation = match self.current {
+                Some(Token::LowerIdent(op)) => {
+                    let op_name = op.to_string();
+                    self.advance();
+                    Some(op_name)
+                }
+                _ => return Err(anyhow!("Expected operation name after effect type")),
+            };
+            
+            // Parse parameters
+            self.consume(Token::LParen)?;
+            let mut params = vec![];
+            
+            while !matches!(self.current, Some(Token::RParen)) {
+                match self.current {
+                    Some(Token::LowerIdent(param)) => {
+                        params.push(param.to_string());
+                        self.advance();
+                    }
+                    _ => return Err(anyhow!("Expected parameter name")),
+                }
+                
+                if matches!(self.current, Some(Token::Comma)) {
+                    self.advance();
+                }
+            }
+            
+            self.consume(Token::RParen)?;
+            self.consume(Token::FatArrow)?;
+            
+            // Parse handler expression as a lambda
+            let handler_body = self.parse_expression()?;
+            let handler_fn = self.add_node(Node::Lambda {
+                params,
+                body: handler_body,
+            })?;
+            
+            handlers.push((effect_type, operation, handler_fn));
+            
+            // Check for comma or end of handlers
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        self.add_node(Node::Handler { handlers, body })
     }
     
     fn parse_try_expression(&mut self) -> Result<NodeId> {
@@ -1338,6 +2385,29 @@ impl<'a> Parser<'a> {
         })
     }
     
+    fn parse_spawn_expression(&mut self) -> Result<NodeId> {
+        // spawn { expr } or spawn(expr)
+        self.consume(Token::Spawn)?;
+        
+        let expr = if matches!(self.current, Some(Token::LBrace)) {
+            // spawn { expr }
+            self.advance(); // consume {
+            let expr = self.parse_expression()?;
+            self.consume(Token::RBrace)?;
+            expr
+        } else if matches!(self.current, Some(Token::LParen)) {
+            // spawn(expr)
+            self.advance(); // consume (
+            let expr = self.parse_expression()?;
+            self.consume(Token::RParen)?;
+            expr
+        } else {
+            return Err(anyhow!("Expected '{{' or '(' after 'spawn'"));
+        };
+        
+        self.add_node(Node::Spawn { expr })
+    }
+    
     // Helper methods
     
     fn advance(&mut self) {
@@ -1354,8 +2424,209 @@ impl<'a> Parser<'a> {
         }
     }
     
+    fn parse_contract_annotations(&mut self) -> Result<ContractInfo> {
+        let mut contract_info = ContractInfo {
+            function_name: None,
+            preconditions: vec![],
+            postconditions: vec![],
+            invariants: vec![],
+            complexity: None,
+            pure: false,
+        };
+        
+        // Parse multiple @annotations
+        while matches!(self.current, Some(Token::At)) {
+            self.advance(); // consume @
+            
+            match self.current {
+                Some(Token::LowerIdent(annotation)) => {
+                    let annotation_name = annotation.to_string();
+                    self.advance();
+                    
+                    self.consume(Token::LParen)?;
+                    
+                    match annotation_name.as_str() {
+                        "contract" => {
+                            // @contract(function_name)
+                            match self.current {
+                                Some(Token::LowerIdent(name)) => {
+                                    contract_info.function_name = Some(name.to_string());
+                                    self.advance();
+                                }
+                                _ => return Err(anyhow!("Expected function name in @contract")),
+                            }
+                        }
+                        "requires" => {
+                            // @requires(condition)
+                            let condition = self.parse_expression()?;
+                            contract_info.preconditions.push(condition);
+                        }
+                        "ensures" => {
+                            // @ensures(condition)
+                            let condition = self.parse_expression()?;
+                            contract_info.postconditions.push(condition);
+                        }
+                        "invariant" => {
+                            // @invariant(condition)
+                            let condition = self.parse_expression()?;
+                            contract_info.invariants.push(condition);
+                        }
+                        "complexity" => {
+                            // @complexity("O(n)")
+                            match &self.current {
+                                Some(Token::String(s)) => {
+                                    contract_info.complexity = Some(s.to_string());
+                                }
+                                _ => return Err(anyhow!("Expected string in @complexity")),
+                            }
+                            self.advance();
+                        }
+                        "pure" => {
+                            // @pure(true) or @pure(false)
+                            match self.current {
+                                Some(Token::True) => {
+                                    contract_info.pure = true;
+                                    self.advance();
+                                }
+                                Some(Token::False) => {
+                                    contract_info.pure = false;
+                                    self.advance();
+                                }
+                                _ => return Err(anyhow!("Expected true or false in @pure")),
+                            }
+                        }
+                        _ => return Err(anyhow!("Unknown annotation: @{}", annotation_name)),
+                    }
+                    
+                    self.consume(Token::RParen)?;
+                }
+                _ => return Err(anyhow!("Expected annotation name after @")),
+            }
+        }
+        
+        Ok(contract_info)
+    }
+    
+    fn is_map_literal(&self) -> bool {
+        // Check if the current pattern looks like a map literal
+        // Maps start with string keys: "key": value
+        matches!(self.current, Some(Token::String(_)))
+    }
+    
+    fn parse_map_literal(&mut self) -> Result<NodeId> {
+        // Parse map literal: {"key1": value1, "key2": value2}
+        // Convert to: make_map("key1", value1, "key2", value2)
+        let mut args = vec![];
+        
+        loop {
+            // Parse key (must be a string)
+            let key = match &self.current {
+                Some(Token::String(s)) => {
+                    let key_node = self.add_node(Node::Literal(Literal::String(s.to_string())))?;
+                    self.advance();
+                    key_node
+                }
+                _ => return Err(anyhow!("Expected string key in map literal")),
+            };
+            
+            self.consume(Token::Colon)?;
+            
+            // Parse value
+            let value = self.parse_expression()?;
+            
+            args.push(key);
+            args.push(value);
+            
+            // Check for comma or end of map
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
+                if matches!(self.current, Some(Token::RBrace)) {
+                    // Trailing comma is allowed
+                    break;
+                }
+            } else if matches!(self.current, Some(Token::RBrace)) {
+                break;
+            } else {
+                return Err(anyhow!("Expected ',' or '}}' in map literal"));
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        // Create make_map(args...)
+        let make_map = self.add_node(Node::Variable { name: "make_map".to_string() })?;
+        self.add_node(Node::Application { 
+            function: make_map, 
+            args 
+        })
+    }
+    
     fn add_node(&mut self, node: Node) -> Result<NodeId> {
         self.graph.add_node(node).map_err(|e| anyhow!("{}", e))
+    }
+    
+    fn pattern_to_expression(&mut self, pattern: Pattern) -> Result<NodeId> {
+        // Convert a pattern to an expression that represents it
+        // This is a simplified conversion for now
+        match pattern {
+            Pattern::Wildcard => self.add_node(Node::Variable { name: "_".to_string() }),
+            Pattern::Variable(name) => self.add_node(Node::Variable { name }),
+            Pattern::Literal(lit) => self.add_node(Node::Literal(lit)),
+            Pattern::Constructor { name, patterns } => {
+                let constructor = self.add_node(Node::Variable { name })?;
+                let mut args = vec![];
+                for p in patterns {
+                    args.push(self.pattern_to_expression(p)?);
+                }
+                self.add_node(Node::Application { function: constructor, args })
+            }
+            Pattern::Or(patterns) => {
+                // For or patterns, we'll create a special "OrPattern" node
+                // This is a simplification - in a real implementation, we'd need
+                // a proper pattern representation in the AST
+                let or_fn = self.add_node(Node::Variable { name: "OrPattern".to_string() })?;
+                let mut args = vec![];
+                for p in patterns {
+                    args.push(self.pattern_to_expression(p)?);
+                }
+                self.add_node(Node::Application { function: or_fn, args })
+            }
+            Pattern::Guard { pattern, condition } => {
+                // Guard pattern: pattern when condition
+                let guard_fn = self.add_node(Node::Variable { name: "GuardPattern".to_string() })?;
+                let pattern_expr = self.pattern_to_expression(*pattern)?;
+                self.add_node(Node::Application { 
+                    function: guard_fn, 
+                    args: vec![pattern_expr, condition] 
+                })
+            }
+            Pattern::As { binding, pattern } => {
+                // As pattern: pattern as binding
+                let as_fn = self.add_node(Node::Variable { name: "AsPattern".to_string() })?;
+                let pattern_expr = self.pattern_to_expression(*pattern)?;
+                let binding_expr = self.add_node(Node::Variable { name: binding })?;
+                self.add_node(Node::Application { 
+                    function: as_fn, 
+                    args: vec![pattern_expr, binding_expr] 
+                })
+            }
+            Pattern::Range(range) => {
+                // Range pattern: start..end or start..=end
+                let range_fn = self.add_node(Node::Variable { 
+                    name: if range.inclusive { "RangeInclusive" } else { "RangeExclusive" }.to_string() 
+                })?;
+                let start = self.add_node(Node::Literal(range.start))?;
+                let end = self.add_node(Node::Literal(range.end))?;
+                self.add_node(Node::Application { 
+                    function: range_fn, 
+                    args: vec![start, end] 
+                })
+            }
+            _ => {
+                // For other pattern types, just create a generic pattern node
+                self.add_node(Node::Variable { name: "UnknownPattern".to_string() })
+            }
+        }
     }
 }
 
@@ -1393,7 +2664,21 @@ mod tests {
     
     #[test]
     fn test_parse_lambda() {
-        let parser = Parser::new("{ |x| x * 2 }");
+        let parser = Parser::new("x => x * 2");
+        let graph = parser.parse().unwrap();
+        assert!(graph.root_id.is_some());
+    }
+    
+    #[test]
+    fn test_parse_lambda_multiple_params() {
+        let parser = Parser::new("(x, y) => x + y");
+        let graph = parser.parse().unwrap();
+        assert!(graph.root_id.is_some());
+    }
+    
+    #[test]
+    fn test_parse_lambda_no_params() {
+        let parser = Parser::new("() => 42");
         let graph = parser.parse().unwrap();
         assert!(graph.root_id.is_some());
     }

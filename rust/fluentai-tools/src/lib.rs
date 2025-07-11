@@ -1,5 +1,4 @@
 //! Tools for FluentAI language
 
-pub mod sexpr_to_flc;
-
-pub use sexpr_to_flc::Translator;
+// Currently empty as migration tools have been removed
+// This crate can be used for future language tools

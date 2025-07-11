@@ -856,6 +856,10 @@ impl GraphOptimizer {
             Node::Channel { capacity } => Node::Channel {
                 capacity: capacity.as_ref().map(map_node_id).transpose()?,
             },
+            Node::Assignment { target, value } => Node::Assignment {
+                target: map_node_id(target)?,
+                value: map_node_id(value)?,
+            },
             _ => node.clone(),
         };
 
@@ -988,6 +992,10 @@ impl GraphOptimizer {
             },
             Node::Channel { capacity } => Node::Channel {
                 capacity: capacity.map(|id| mapping.get(&id).copied().unwrap_or(id)),
+            },
+            Node::Assignment { target, value } => Node::Assignment {
+                target: mapping.get(target).copied().unwrap_or(*target),
+                value: mapping.get(value).copied().unwrap_or(*value),
             },
             _ => node.clone(),
         }

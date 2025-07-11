@@ -17,7 +17,7 @@ Execute FluentAi code and return results.
 {
   "name": "eval",
   "arguments": {
-    "code": "(+ 1 2)"
+    "code": "1 + 2"
   }
 }
 ```

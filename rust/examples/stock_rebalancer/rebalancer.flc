@@ -1,0 +1,82 @@
+// Rebalancing calculation logic
+
+// Calculate rebalancing actions
+def fn calculate_rebalance(portfolio) {
+    if (!validate_allocations(portfolio)) {
+        []
+    } else if (portfolio.total_value <= 0.0) {
+        print("Error: Portfolio has no value");
+        []
+    } else {
+        portfolio.allocations.map { |allocation|
+            let target_value = portfolio.total_value * allocation.target_percentage / 100.0;
+            
+            // Find corresponding stock
+            let stock = portfolio.stocks
+                .filter { |s| s.symbol == allocation.symbol }
+                .first();
+            
+            if (stock) {
+                let current_value = stock.shares * stock.current_price;
+                let value_difference = target_value - current_value;
+                let shares_difference = value_difference / stock.current_price;
+                
+                if (shares_difference.abs() < 0.01) {
+                    create_hold_action(stock.symbol)
+                } else if (shares_difference > 0.0) {
+                    create_buy_action(stock.symbol, shares_difference, value_difference)
+                } else {
+                    create_sell_action(stock.symbol, -shares_difference, -value_difference)
+                }
+            } else {
+                print(f"Error: Stock {allocation.symbol} not found in portfolio");
+                create_hold_action(allocation.symbol)
+            }
+        }
+    }
+}
+
+// Display rebalancing results
+def fn display_rebalance(portfolio) {
+    print("Fetching current prices...");
+    let updated_portfolio = update_prices(portfolio);
+    
+    print("\n=== Current Portfolio ===");
+    print(get_summary(updated_portfolio));
+    
+    print("\n=== Rebalancing Actions ===");
+    let actions = calculate_rebalance(updated_portfolio);
+    
+    let total_buy_value = 0.0;
+    let total_sell_value = 0.0;
+    
+    actions.for_each { |action|
+        if (action.type == "buy") {
+            print(f"BUY  {action.symbol}: {action.shares} shares (${action.value})");
+            total_buy_value = total_buy_value + action.value;
+        } else if (action.type == "sell") {
+            print(f"SELL {action.symbol}: {action.shares} shares (${action.value})");
+            total_sell_value = total_sell_value + action.value;
+        } else {
+            print(f"HOLD {action.symbol}: No action needed");
+        }
+    };
+    
+    print("\n=== Summary ===");
+    print(f"Total to buy:  ${total_buy_value}");
+    print(f"Total to sell: ${total_sell_value}");
+    print(f"Net cash flow: ${total_sell_value - total_buy_value}");
+    
+    updated_portfolio
+}
+
+// Display help
+def fn display_help() {
+    print("\n=== Stock Rebalancer Commands ===");
+    print("add <symbol> <shares>     - Add a stock to your portfolio");
+    print("alloc <symbol> <percent>  - Set target allocation percentage");
+    print("rebalance                 - Calculate rebalancing actions");
+    print("portfolio                 - Show current portfolio");
+    print("help                      - Show this help message");
+    print("quit                      - Exit the application");
+}

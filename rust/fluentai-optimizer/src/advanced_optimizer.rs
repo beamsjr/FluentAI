@@ -396,6 +396,11 @@ impl AdvancedOptimizer {
                                 stack.push(WorkItem::Process(*def));
                             }
                         }
+                        Node::Assignment { target, value } => {
+                            // Process target and value expressions
+                            stack.push(WorkItem::Process(*target));
+                            stack.push(WorkItem::Process(*value));
+                        }
                     }
                 }
                 WorkItem::Complete(node_id, placeholder_id) => {
@@ -506,6 +511,44 @@ impl AdvancedOptimizer {
                                     opt_cap.map(|cap| Node::Channel { capacity: Some(cap) })
                                 }
                                 None => Some(Node::Channel { capacity: None })
+                            }
+                        }
+                        Node::Assignment { target, value } => {
+                            // For Assignment nodes, we need to ensure both target and value are
+                            // properly mapped to nodes in the optimized graph
+                            
+                            // First check if they were already optimized via node_mapping
+                            let opt_target = if let Some(mapped_id) = self.node_mapping.get(target) {
+                                Some(*mapped_id)
+                            } else if let Some(result) = results.get(target) {
+                                *result
+                            } else {
+                                None
+                            };
+                            
+                            let opt_value = if let Some(mapped_id) = self.node_mapping.get(value) {
+                                Some(*mapped_id)
+                            } else if let Some(result) = results.get(value) {
+                                *result
+                            } else {
+                                None
+                            };
+                            
+                            // Both must be optimized for the assignment to be valid
+                            if let (Some(opt_t), Some(opt_v)) = (opt_target, opt_value) {
+                                // Verify the nodes actually exist in the optimized graph
+                                if self.optimized.nodes.contains_key(&opt_t) && self.optimized.nodes.contains_key(&opt_v) {
+                                    Some(Node::Assignment { target: opt_t, value: opt_v })
+                                } else {
+                                    // This shouldn't happen, but let's be defensive
+                                    eprintln!("ERROR: Assignment references non-existent nodes - target: {:?} (exists: {}), value: {:?} (exists: {})", 
+                                             opt_t, self.optimized.nodes.contains_key(&opt_t),
+                                             opt_v, self.optimized.nodes.contains_key(&opt_v));
+                                    None
+                                }
+                            } else {
+                                // If either target or value wasn't optimized, skip this assignment
+                                None
                             }
                         }
                         _ => {
@@ -1187,6 +1230,19 @@ impl AdvancedOptimizer {
                     }
                 }
                 Node::Begin { exprs: opt_exprs }
+            }
+            Node::Assignment { target, value } => {
+                // Fix for issue where Assignment nodes were not properly remapping NodeIds
+                // This ensures target and value references are updated to point to nodes in the optimized graph
+                if let (Some(opt_target), Some(opt_value)) = 
+                    (self.optimize_node(target)?, self.optimize_node(value)?) {
+                    Node::Assignment { 
+                        target: opt_target, 
+                        value: opt_value 
+                    }
+                } else {
+                    return Ok(None);
+                }
             }
             _ => node.clone(),
         };
@@ -1989,6 +2045,11 @@ impl AdvancedOptimizer {
                             stack.push(*cap_id);
                         }
                     }
+                    Node::Assignment { target, value } => {
+                        // Mark both target and value as reachable
+                        stack.push(*target);
+                        stack.push(*value);
+                    }
                     _ => {}
                 }
             }
@@ -2064,6 +2125,11 @@ impl AdvancedOptimizer {
                         for (_, _, handler_fn) in handlers {
                             work_stack.push(*handler_fn);
                         }
+                    }
+                    Node::Assignment { target, value } => {
+                        // Mark both target and value as reachable
+                        work_stack.push(*target);
+                        work_stack.push(*value);
                     }
                     _ => {}
                 }

@@ -1,0 +1,53 @@
+// test-minimal.flc - Absolutely minimal test using only core FluentAI features
+
+// Test basic list operations
+let readings = [25.5, 45.0, 22.0, 38.5, 55.0];
+
+// Test map
+let doubled = map((x) => x * 2, readings);
+print("Doubled values:");
+print(doubled);
+
+// Test filter  
+let high_temps = filter((x) => x > 40.0, readings);
+print("High temperatures:");
+print(high_temps);
+
+// Test fold
+let sum = fold_left((acc, x) => acc + x, 0, readings);
+let count = length(readings);
+let average = sum / count;
+print("Average temperature:");
+print(average);
+
+// Test basic predicates
+print("Has anomalies:");
+print(any?((x) => x > 50.0, readings));
+
+// Define a simple record using lists
+let make_reading = (id, value) => list('reading, id, value);
+
+let reading_id = (r) => list_ref(r, 1);
+
+let reading_value = (r) => list_ref(r, 2);
+
+// Test with structured data
+let sensor_data = [
+    make_reading("s1", 25.5),
+    make_reading("s2", 45.0),
+    make_reading("s3", 22.0)
+];
+
+print("Sensor readings:");
+map((r) => {
+    print(string_append("Sensor ", reading_id(r), ": ", number_to_string(reading_value(r))))
+}, sensor_data);
+
+// Helper for any?
+let any? = (pred, lst) => {
+    if (null?(lst)) {
+        false
+    } else {
+        pred(car(lst)) || any?(pred, cdr(lst))
+    }
+}

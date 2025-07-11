@@ -72,7 +72,6 @@ fn test_string_case_functions() {
 }
 
 #[test]
-#[ignore = "TODO: Implement string-pad-left, string-pad-right, string-pad-center functions"]
 fn test_string_padding() {
     let stdlib = init_stdlib();
 
@@ -141,7 +140,6 @@ fn test_string_padding() {
 }
 
 #[test]
-#[ignore = "TODO: Implement string-repeat function"]
 fn test_string_repeat() {
     let stdlib = init_stdlib();
 
@@ -173,7 +171,6 @@ fn test_string_repeat() {
 }
 
 #[test]
-#[ignore = "TODO: Implement string-reverse function"]
 fn test_string_reverse() {
     let stdlib = init_stdlib();
 
@@ -202,7 +199,6 @@ fn test_string_reverse() {
 }
 
 #[test]
-#[ignore = "TODO: Implement string-index-of function"]
 fn test_string_index_of() {
     let stdlib = init_stdlib();
 
@@ -276,7 +272,6 @@ fn test_string_index_of() {
 }
 
 #[test]
-#[ignore = "TODO: Implement string-format function"]
 fn test_string_format() {
     let stdlib = init_stdlib();
 
@@ -408,7 +403,6 @@ fn test_string_conversion_functions() {
 }
 
 #[test]
-#[ignore = "TODO: Implement char predicate functions"]
 fn test_char_predicates() {
     let stdlib = init_stdlib();
 
@@ -488,7 +482,6 @@ fn test_char_predicates() {
 }
 
 #[test]
-#[ignore = "TODO: Implement missing string functions for error tests"]
 fn test_error_handling() {
     let stdlib = init_stdlib();
 

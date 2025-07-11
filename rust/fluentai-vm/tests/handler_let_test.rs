@@ -1,14 +1,17 @@
+// Test handler expressions in let bindings using FLC syntax
 #[test]
 fn test_handler_in_let_binding() {
     use fluentai_parser::parse;
     use fluentai_vm::{compiler::Compiler, VM};
 
+    // Using FLC handler expression syntax
     let code = r#"
-(let ((result
-        (handler
-            ((error (lambda (e) 42)))
-            (effect error:raise "test"))))
-    result)
+let result = handle {
+    perform Error.raise("test")
+} with {
+    Error.raise(e) => 42
+};
+result
 "#;
 
     let ast = parse(code).expect("Failed to parse");

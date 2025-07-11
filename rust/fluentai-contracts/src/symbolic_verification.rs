@@ -540,11 +540,15 @@ mod tests {
 
     #[test]
     fn test_basic_verification() {
+        // Using FLC function definition syntax
         let program = r#"
-            (define (abs x)
-              (if (< x 0)
-                  (- 0 x)
-                  x))
+            private function abs(x: int) -> int {
+                if (x < 0) {
+                  0 - x
+                } else {
+                  x
+                }
+            }
         "#;
 
         let graph = parse(program).unwrap();

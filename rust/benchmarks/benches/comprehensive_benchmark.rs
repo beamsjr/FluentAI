@@ -1,7 +1,6 @@
 //! Comprehensive benchmark comparing all FluentAi implementations
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use fluentai_jit::JitCompiler;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, vm::VM};
 
@@ -47,8 +46,8 @@ fn benchmark_all_implementations(c: &mut Criterion) {
         let mut parse_time = 0.0;
         let mut compile_time = 0.0;
         let mut vm_time = 0.0;
-        let mut jit_compile_time = None;
-        let mut jit_exec_time = None;
+        let jit_compile_time = None;
+        let jit_exec_time = None;
 
         // Benchmark parsing
         group.bench_with_input(BenchmarkId::new("parse", name), source, |b, source| {

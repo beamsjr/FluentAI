@@ -73,6 +73,7 @@ impl FeatureBasedGenerator {
                     Literal::Integer(_) => features[1] = 1.0,
                     Literal::Float(_) => features[2] = 1.0,
                     Literal::String(_) => features[3] = 1.0,
+                    Literal::Symbol(_) => features[3] = 1.0, // Treat symbols like strings
                     Literal::Boolean(_) => features[4] = 1.0,
                     Literal::Nil => features[5] = 1.0,
                 }

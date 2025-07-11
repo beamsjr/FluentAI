@@ -1,0 +1,23 @@
+// Test 1: Block ending with expression
+let test1 = { 
+    let x = 10
+    x * 2 
+};
+print("Test 1:")
+print(test1)
+
+// Test 2: Block ending with let  
+let test2 = { 
+    let x = 10
+};
+print("Test 2:")
+print(test2)
+
+// Test 3: Multiple lets with expression
+let test3 = { 
+    let x = 5
+    let y = 10
+    x + y 
+};
+print("Test 3:")
+print(test3)

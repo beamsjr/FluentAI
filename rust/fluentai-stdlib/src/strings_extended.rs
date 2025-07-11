@@ -275,71 +275,43 @@ fn string_format(args: &[Value]) -> Result<Value> {
     let mut arg_index = 1;
 
     while let Some(ch) = chars.next() {
-        if ch == '~' {
+        if ch == '{' {
             if let Some(&next_ch) = chars.peek() {
-                chars.next(); // consume the next character
-                match next_ch {
-                    'a' | 'A' => {
-                        // ~a or ~A - aesthetic (human-readable) output
-                        if arg_index < args.len() {
-                            result.push_str(&format_value(&args[arg_index], false));
-                            arg_index += 1;
-                        } else {
-                            return Err(anyhow!("string-format: not enough arguments"));
-                        }
+                if next_ch == '}' {
+                    // {} - consume next argument
+                    chars.next(); // consume the '}'
+                    if arg_index < args.len() {
+                        result.push_str(&format_value(&args[arg_index], false));
+                        arg_index += 1;
+                    } else {
+                        // Not enough arguments - leave placeholder as is
+                        result.push_str("{}");
                     }
-                    's' | 'S' => {
-                        // ~s or ~S - standard (machine-readable) output
-                        if arg_index < args.len() {
-                            result.push_str(&format_value(&args[arg_index], true));
-                            arg_index += 1;
-                        } else {
-                            return Err(anyhow!("string-format: not enough arguments"));
-                        }
-                    }
-                    'd' | 'D' => {
-                        // ~d or ~D - decimal integer
-                        if arg_index < args.len() {
-                            match &args[arg_index] {
-                                Value::Integer(i) => result.push_str(&i.to_string()),
-                                _ => return Err(anyhow!("string-format: ~d expects integer")),
-                            }
-                            arg_index += 1;
-                        } else {
-                            return Err(anyhow!("string-format: not enough arguments"));
-                        }
-                    }
-                    'f' | 'F' => {
-                        // ~f or ~F - floating point
-                        if arg_index < args.len() {
-                            match &args[arg_index] {
-                                Value::Float(f) => result.push_str(&f.to_string()),
-                                Value::Integer(i) => result.push_str(&(*i as f64).to_string()),
-                                _ => return Err(anyhow!("string-format: ~f expects number")),
-                            }
-                            arg_index += 1;
-                        } else {
-                            return Err(anyhow!("string-format: not enough arguments"));
-                        }
-                    }
-                    '~' => {
-                        // ~~ - literal tilde
-                        result.push('~');
-                    }
-                    '%' => {
-                        // ~% - newline
-                        result.push('\n');
-                    }
-                    _ => {
-                        return Err(anyhow!(
-                            "string-format: unknown format directive ~{}",
-                            next_ch
-                        ));
-                    }
+                } else if next_ch == '{' {
+                    // {{ - literal brace
+                    chars.next(); // consume the second '{'
+                    result.push('{');
+                } else {
+                    // Just a single { - keep as is
+                    result.push(ch);
                 }
             } else {
-                // Trailing ~ at end of string
-                result.push('~');
+                // Trailing { at end of string
+                result.push(ch);
+            }
+        } else if ch == '}' {
+            if let Some(&next_ch) = chars.peek() {
+                if next_ch == '}' {
+                    // }} - literal brace
+                    chars.next(); // consume the second '}'
+                    result.push('}');
+                } else {
+                    // Just a single } - keep as is
+                    result.push(ch);
+                }
+            } else {
+                // Trailing } at end of string
+                result.push(ch);
             }
         } else {
             result.push(ch);
@@ -491,26 +463,43 @@ mod tests {
 
     #[test]
     fn test_string_format() {
+        // Basic formatting
         let result = string_format(&[
-            Value::String("Hello ~a!".to_string()),
-            Value::String("world".to_string()),
+            Value::String("Hello, {}!".to_string()),
+            Value::String("World".to_string()),
         ])
         .unwrap();
-        assert_eq!(result, Value::String("Hello world!".to_string()));
+        assert_eq!(result, Value::String("Hello, World!".to_string()));
 
+        // Multiple placeholders
         let result = string_format(&[
-            Value::String("~s + ~d = ~f".to_string()),
-            Value::String("PI".to_string()),
-            Value::Integer(1),
-            Value::Float(4.14159),
+            Value::String("{} + {} = {}".to_string()),
+            Value::Integer(2),
+            Value::Integer(3),
+            Value::Integer(5),
         ])
         .unwrap();
-        assert_eq!(result, Value::String("\"PI\" + 1 = 4.14159".to_string()));
+        assert_eq!(result, Value::String("2 + 3 = 5".to_string()));
 
-        let result = string_format(&[Value::String("Line 1~%Line 2".to_string())]).unwrap();
-        assert_eq!(result, Value::String("Line 1\nLine 2".to_string()));
+        // Literal braces
+        let result = string_format(&[Value::String("{{escaped}}".to_string())]).unwrap();
+        assert_eq!(result, Value::String("{escaped}".to_string()));
 
-        let result = string_format(&[Value::String("100~~ complete".to_string())]).unwrap();
-        assert_eq!(result, Value::String("100~ complete".to_string()));
+        // Not enough arguments
+        let result = string_format(&[
+            Value::String("Only {}".to_string()),
+            Value::String("one".to_string()),
+            Value::String("extra".to_string()),
+        ])
+        .unwrap();
+        assert_eq!(result, Value::String("Only one".to_string()));
+
+        // Fewer args than placeholders
+        let result = string_format(&[
+            Value::String("{} and {}".to_string()),
+            Value::String("one".to_string()),
+        ])
+        .unwrap();
+        assert_eq!(result, Value::String("one and {}".to_string()));
     }
 }

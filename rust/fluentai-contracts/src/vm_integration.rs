@@ -235,13 +235,14 @@ mod tests {
 
     #[test]
     fn test_contract_registry() {
+        // Using FLC contract syntax
         let code = r#"
-            (spec:contract add
-                :requires [(>= a 0) (>= b 0)]
-                :ensures [(>= result 0)]
-                :pure true)
-            
-            (define (add a b) (+ a b))
+            @requires(a >= 0)
+            @requires(b >= 0)
+            @ensures(result >= 0)
+            private function add(a: int, b: int) -> int {
+              a + b
+            }
         "#;
 
         let graph = parse(code).unwrap();

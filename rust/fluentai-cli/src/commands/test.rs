@@ -1,6 +1,6 @@
 //! Run FluentAI tests
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use std::fs;
 use std::path::{Path, PathBuf};

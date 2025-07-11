@@ -266,6 +266,26 @@ impl InlinePass {
                     else_branch: new_else,
                 }
             }
+            Node::Assignment { target, value } => {
+                let new_target = self.copy_with_substitution(
+                    graph,
+                    *target,
+                    substitutions,
+                    node_mapping,
+                    optimized,
+                )?;
+                let new_value = self.copy_with_substitution(
+                    graph,
+                    *value,
+                    substitutions,
+                    node_mapping,
+                    optimized,
+                )?;
+                Node::Assignment {
+                    target: new_target,
+                    value: new_value,
+                }
+            }
             _ => node.clone(),
         };
 
@@ -428,6 +448,14 @@ impl InlinePass {
                     condition: new_cond,
                     then_branch: new_then,
                     else_branch: new_else,
+                }
+            }
+            Node::Assignment { target, value } => {
+                let new_target = mapping.get(target).copied().unwrap_or(*target);
+                let new_value = mapping.get(value).copied().unwrap_or(*value);
+                Node::Assignment {
+                    target: new_target,
+                    value: new_value,
                 }
             }
             _ => node.clone(),

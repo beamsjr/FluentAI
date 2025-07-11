@@ -1,0 +1,209 @@
+// iot-benchmark.flc - Performance benchmarking utilities
+// Measures throughput and performance of different pipeline implementations
+
+module iot_benchmark {
+    import iot_types;
+    import iot_pipeline;
+    import iot_streams;
+    
+    export {
+        benchmark_pipeline,
+        generate_sensor_data,
+        measure_throughput,
+        compare_implementations,
+        print_benchmark_results
+    }
+
+    // Benchmark configuration
+    let *default_data_size* = 10000;
+    let *warmup_iterations* = 3;
+    let *benchmark_iterations* = 10;
+    
+    // Main benchmarking function
+    let benchmark_pipeline = (pipeline_fn, data_size) => {
+        let test_data = generate_sensor_data(data_size || *default_data_size*);
+        // Warmup runs
+        repeat(*warmup_iterations*, () => pipeline_fn(test_data));
+        
+        // Actual benchmark
+        let timings = map((_) => {
+            let start_time = current_time_millis();
+            pipeline_fn(test_data);
+            current_time_millis() - start_time
+        }, range(0, *benchmark_iterations*));
+        
+        // Calculate statistics
+        make_map(
+            "min-time", apply(min, timings),
+            "max-time", apply(max, timings),
+            "avg-time", apply(+, timings) / length(timings),
+            "throughput", data_size / (apply(min, timings) / 1000.0),  // events/second
+            "data-size", data_size
+        )
+    };
+    
+    // Generate realistic sensor data with various patterns
+    let generate_sensor_data = (size) => {
+        let sensor_ids = ["temp-001", "temp-002", "temp-003", 
+                          "pres-001", "pres-002",
+                          "hum-001", "hum-002"];
+        map((i) => {
+            let sensor_id = list_ref(sensor_ids, modulo(i, length(sensor_ids)));
+            let base_time = i * 100;
+            let sensor_type = cond([
+                [string_starts_with?(sensor_id, "temp-"), "temperature"],
+                [string_starts_with?(sensor_id, "pres-"), "pressure"],
+                [string_starts_with?(sensor_id, "hum-"), "humidity"],
+                [else, "unknown"]
+            ]);
+            let value = generate_sensor_value(sensor_type, i);
+            make_sensor_reading(
+                sensor_id,
+                base_time,
+                value,
+                make_map("type", sensor_type,
+                        "quality", if (random() < 0.95) { "good" } else { "poor" })
+            )
+        }, range(0, size))
+    };
+    
+    // Generate realistic sensor values with occasional anomalies
+    let generate_sensor_value = (sensor_type, index) => {
+        let anomaly_chance = 0.05;  // 5% chance of anomaly
+        let is_anomaly = random() < anomaly_chance;
+        cond([
+            [sensor_type == "temperature",
+             if (is_anomaly) {
+                 45.0 + (random() * 20.0)  // Anomaly: 45-65°C
+             } else {
+                 18.0 + (random() * 8.0)   // Normal: 18-26°C
+             }],
+            
+            [sensor_type == "pressure",
+             if (is_anomaly) {
+                 1150.0 + (random() * 100.0)  // Anomaly: 1150-1250 hPa
+             } else {
+                 1000.0 + (random() * 30.0)   // Normal: 1000-1030 hPa
+             }],
+            
+            [sensor_type == "humidity",
+             if (is_anomaly) {
+                 110.0 + (random() * 20.0)  // Anomaly: 110-130%
+             } else {
+                 40.0 + (random() * 30.0)   // Normal: 40-70%
+             }],
+            
+            [else, 0.0]
+        ])
+    };
+    
+    // Measure throughput in events per second
+    let measure_throughput = (pipeline_fn, data_stream) => {
+        let start_time = current_time_millis();
+        let result = pipeline_fn(data_stream);
+        let end_time = current_time_millis();
+        let duration_ms = end_time - start_time;
+        let duration_sec = duration_ms / 1000.0;
+        let throughput = length(data_stream) / duration_sec;
+        make_map(
+            "duration-ms", duration_ms,
+            "events-processed", length(data_stream),
+            "throughput", throughput,
+            "anomalies-found", length(result)
+        )
+    };
+    
+    // Compare different implementations
+    let compare_implementations = (data_sizes) => {
+        map((size) => {
+            let results = make_map();
+            // Benchmark each version
+            map_set(results, "v1-naive", 
+                   benchmark_pipeline(process_stream_v1, size));
+            map_set(results, "v2-contracts", 
+                   benchmark_pipeline(process_stream_v2, size));
+            map_set(results, "v3-optimized", 
+                   benchmark_pipeline(process_stream_v3, size));
+            
+            // For stream version, we need to convert to stream first
+            map_set(results, "v4-streams", {
+                let test_data = generate_sensor_data(size);
+                benchmark_pipeline((data) => {
+                    stream_collect(
+                        process_stream_final(
+                            stream_from_list(data)
+                        )
+                    )
+                }, size)
+            });
+            
+            make_map("data-size", size, "results", results)
+        }, data_sizes)
+    };
+    
+    // Pretty print benchmark results
+    let print_benchmark_results = (results) => {
+        effect(io, print_line, "");
+        effect(io, print_line, "=== IoT Pipeline Benchmark Results ===");
+        effect(io, print_line, "");
+        
+        map((size_result) => {
+            let size = map_get(size_result, "data-size");
+            let versions = map_get(size_result, "results");
+            effect(io, print_line, 
+                  string_format("Data size: {} events", size));
+            effect(io, print_line, "");
+            
+            // Print each version's results
+            map((version_name) => {
+                let stats = map_get(versions, version_name);
+                effect(io, print_line,
+                      string_format("  {}: {:.0f} events/sec (avg: {:.1f}ms)",
+                                   version_name,
+                                   map_get(stats, "throughput"),
+                                   map_get(stats, "avg-time")))
+            }, ["v1-naive", "v2-contracts", "v3-optimized", "v4-streams"]);
+            
+            effect(io, print_line, "");
+            
+            // Calculate speedup
+            let v1_throughput = map_get(map_get(versions, "v1-naive"), "throughput");
+            let v3_throughput = map_get(map_get(versions, "v3-optimized"), "throughput");
+            effect(io, print_line,
+                  string_format("  Optimization speedup: {:.1f}x",
+                               v3_throughput / v1_throughput))
+        }, results)
+    };
+    
+    // Helper functions
+    let range = (start, end) => {
+        if (start >= end) {
+            []
+        } else {
+            cons(start, range(start + 1, end))
+        }
+    };
+    
+    let repeat = (n, f) => {
+        if (n <= 0) {
+            nil
+        } else {
+            { f(); repeat(n - 1, f) }
+        }
+    };
+    
+    let modulo = (a, b) => {
+        a - (b * quotient(a, b))
+    };
+    
+    let apply = (f, args) => {
+        cond([
+            [f == +, fold_left((a, b) => a + b, 0, args)],
+            [f == min, fold_left((a, b) => if (a < b) { a } else { b }, 
+                                car(args), cdr(args))],
+            [f == max, fold_left((a, b) => if (a > b) { a } else { b },
+                                car(args), cdr(args))],
+            [else, error("Unknown function for apply")]
+        ])
+    }
+}

@@ -4,7 +4,6 @@ use fluentai_core::documentation::DocumentationRegistry;
 use fluentai_stdlib::StdlibRegistry;
 use fluentai_vm::{Bytecode, VM};
 use serde_json::json;
-use tokio::time::{sleep, Duration};
 
 #[test]
 fn test_documentation_registry_integration() {
@@ -38,8 +37,8 @@ fn test_stdlib_registry() {
 
 #[cfg(test)]
 mod transport_tests {
-    use super::*;
-    use fluentai_mcp::server::McpServer;
+    
+    
     use fluentai_mcp::transport::TransportType;
 
     #[tokio::test]
@@ -91,13 +90,13 @@ mod http_api_tests {
 
         // Test 1: Simple arithmetic (should work)
         let args = json!({
-            "code": "(+ 1 2)"
+            "code": "1 + 2"
         });
         let result = handle_eval(&mut state, Some(&args)).await;
         assert!(result.is_ok(), "Simple arithmetic should work");
 
         // Test 2: Code size limit
-        let large_code = "(".to_string() + &"+ 1 ".repeat(30_000) + ")";
+        let large_code = "1 ".to_string() + &"+ 1 ".repeat(30_000);
         let args = json!({
             "code": large_code
         });

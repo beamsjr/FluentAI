@@ -1,0 +1,5 @@
+// Simple symbol test
+private function main() {
+    let sym = 'hello
+    $("Symbol created!").print()
+}

@@ -15,6 +15,7 @@ pub mod math;
 pub mod registry;
 pub mod strings;
 pub mod strings_extended;
+pub mod test_support;
 pub mod value;
 pub mod vm_bridge;
 
@@ -42,6 +43,7 @@ pub fn init_stdlib() -> StdlibRegistry {
     functional::register(&mut registry);
     datetime::register(&mut registry);
     logger::register(&mut registry);
+    test_support::register(&mut registry);
 
     registry
 }

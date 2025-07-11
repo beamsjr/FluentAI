@@ -1,0 +1,12 @@
+// Test channel operations
+let ch = chan();
+{
+    print_line("Created channel");
+    send!(ch, "Hello");
+    print_line("Sent message");
+    let msg = recv!(ch);
+    {
+        print_line("Received:");
+        print_line(msg)
+    }
+}

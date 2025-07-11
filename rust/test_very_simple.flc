@@ -1,0 +1,6 @@
+// Very simple test
+let x = { 
+    let y = 5
+    y + 5 
+};
+x  // Return x as the result

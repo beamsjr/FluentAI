@@ -1,6 +1,6 @@
 //! Publish FluentAI projects
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;

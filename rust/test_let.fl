@@ -1,3 +1,0 @@
-;; Test basic let
-(let ((x 42))
-  x)

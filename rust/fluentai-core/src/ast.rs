@@ -447,6 +447,10 @@ impl Graph {
                             stack.push(*expr);
                         }
                     }
+                    Node::Assignment { target, value } => {
+                        stack.push(*target);
+                        stack.push(*value);
+                    }
                     _ => {} // Leaf nodes
                 }
             }
@@ -525,6 +529,10 @@ impl Graph {
                     for expr in exprs {
                         self.dfs_helper(*expr, visited, visitor);
                     }
+                }
+                Node::Assignment { target, value } => {
+                    self.dfs_helper(*target, visited, visitor);
+                    self.dfs_helper(*value, visited, visitor);
                 }
                 _ => {} // Leaf nodes
             }
@@ -651,6 +659,10 @@ impl Graph {
                 }
                 Node::Begin { exprs } => {
                     children.extend(exprs);
+                }
+                Node::Assignment { target, value } => {
+                    children.push(*target);
+                    children.push(*value);
                 }
                 _ => {} // Leaf nodes have no children
             }
@@ -918,6 +930,12 @@ pub enum Node {
         value: NodeId,
     },
 
+    // Assignment statement
+    Assignment {
+        target: NodeId,  // The lvalue to assign to
+        value: NodeId,   // The rvalue expression
+    },
+
     // Sequencing
     Begin {
         exprs: Vec<NodeId>,
@@ -1012,6 +1030,7 @@ pub enum Literal {
     Integer(i64),
     Float(f64),
     String(String),
+    Symbol(String),
     Boolean(bool),
     Nil,
 }
@@ -1022,6 +1041,7 @@ impl fmt::Display for Literal {
             Literal::Integer(i) => write!(f, "{i}"),
             Literal::Float(fl) => write!(f, "{fl}"),
             Literal::String(s) => write!(f, "\"{s}\""),
+            Literal::Symbol(s) => write!(f, "{s}"),
             Literal::Boolean(b) => write!(f, "{b}"),
             Literal::Nil => write!(f, "nil"),
         }
@@ -1369,6 +1389,15 @@ impl Node {
                     syntax: "nil".to_string(),
                     description: "Nil represents the absence of a value. It is the only value of its type.".to_string(),
                     examples: vec!["nil".to_string()],
+                    category: DocumentationCategory::Literal,
+                    see_also: vec![],
+                    visibility: DocumentationVisibility::Public,
+                },
+                Literal::Symbol(_) => Documentation {
+                    name: "Symbol".to_string(),
+                    syntax: "'<symbol>".to_string(),
+                    description: "Symbol literals represent unique identifiers. Symbols are interned strings used for efficient comparison.".to_string(),
+                    examples: vec!["'foo".to_string(), "'bar".to_string(), "'my-symbol".to_string()],
                     category: DocumentationCategory::Literal,
                     see_also: vec![],
                     visibility: DocumentationVisibility::Public,
@@ -1732,6 +1761,19 @@ impl Node {
                 ],
                 category: DocumentationCategory::Verification,
                 see_also: vec!["Lambda".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Assignment { .. } => Documentation {
+                name: "Assignment".to_string(),
+                syntax: "<target> = <value>".to_string(),
+                description: "Assigns a value to a variable. The target must be a variable name. Returns nil.".to_string(),
+                examples: vec![
+                    "x = 42".to_string(),
+                    "count = count + 1".to_string(),
+                    "result = process(data)".to_string()
+                ],
+                category: DocumentationCategory::ControlFlow,
+                see_also: vec!["Let".to_string(), "Define".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
         }

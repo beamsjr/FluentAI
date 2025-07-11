@@ -80,6 +80,10 @@ impl CommonSubexpressionEliminationPass {
                         "string".hash(hasher);
                         s.hash(hasher);
                     }
+                    Literal::Symbol(s) => {
+                        "symbol".hash(hasher);
+                        s.hash(hasher);
+                    }
                     Literal::Boolean(b) => {
                         "bool".hash(hasher);
                         b.hash(hasher);

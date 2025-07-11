@@ -1,0 +1,9 @@
+// test-hello.flc - Simplest possible test
+
+print("Hello from FluentAI!");
+
+let x = 42;
+print(x);
+
+let y = 10 + 20;
+print(y)

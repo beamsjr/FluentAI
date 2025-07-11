@@ -316,6 +316,10 @@ fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
                 .collect();
             Node::Begin { exprs: new_exprs }
         }
+        Node::Assignment { target, value } => Node::Assignment {
+            target: mapping.get(target).copied().unwrap_or(*target),
+            value: mapping.get(value).copied().unwrap_or(*value),
+        },
         _ => node.clone(),
     }
 }

@@ -1,0 +1,130 @@
+// Portfolio management functions
+
+// Add or update a stock in the portfolio
+def fn add_stock(portfolio, symbol, shares) {
+    let existing_index = portfolio.stocks
+        .map { |s, i| if (s.symbol == symbol) { i } else { -1 } }
+        .filter { |i| i >= 0 }
+        .first();
+    
+    if (existing_index) {
+        // Update existing stock
+        let updated_stocks = portfolio.stocks;
+        updated_stocks[existing_index] = create_stock(symbol, shares, 0.0);
+        {
+            stocks: updated_stocks,
+            allocations: portfolio.allocations,
+            total_value: portfolio.total_value
+        }
+    } else {
+        // Add new stock
+        {
+            stocks: portfolio.stocks.append(create_stock(symbol, shares, 0.0)),
+            allocations: portfolio.allocations,
+            total_value: portfolio.total_value
+        }
+    }
+}
+
+// Set allocation for a stock
+def fn set_allocation(portfolio, symbol, percentage) {
+    if (percentage < 0.0 || percentage > 100.0) {
+        print("Error: Percentage must be between 0 and 100");
+        portfolio
+    } else {
+        let existing_index = portfolio.allocations
+            .map { |a, i| if (a.symbol == symbol) { i } else { -1 } }
+            .filter { |i| i >= 0 }
+            .first();
+        
+        if (existing_index) {
+            // Update existing allocation
+            let updated_allocations = portfolio.allocations;
+            updated_allocations[existing_index] = create_allocation(symbol, percentage);
+            {
+                stocks: portfolio.stocks,
+                allocations: updated_allocations,
+                total_value: portfolio.total_value
+            }
+        } else {
+            // Add new allocation
+            {
+                stocks: portfolio.stocks,
+                allocations: portfolio.allocations.append(create_allocation(symbol, percentage)),
+                total_value: portfolio.total_value
+            }
+        }
+    }
+}
+
+// Validate allocations sum to 100%
+def fn validate_allocations(portfolio) {
+    let total = portfolio.allocations
+        .map { |a| a.target_percentage }
+        .fold(0.0, { |sum, pct| sum + pct });
+    
+    let diff = (total - 100.0).abs();
+    if (diff > 0.01) {
+        print(f"Error: Allocations sum to {total}%, must equal 100%");
+        false
+    } else {
+        true
+    }
+}
+
+// Update portfolio with mock prices (since we can't do real API calls yet)
+def fn update_prices(portfolio) {
+    // Mock prices for demo
+    let mock_prices = {
+        "AAPL": 178.25,
+        "GOOGL": 142.30,
+        "MSFT": 195.96,
+        "AMZN": 127.85,
+        "TSLA": 245.50
+    };
+    
+    let updated_stocks = portfolio.stocks.map { |stock|
+        let price = mock_prices.get(stock.symbol, 100.0);
+        create_stock(stock.symbol, stock.shares, price)
+    };
+    
+    let total_value = updated_stocks
+        .map { |s| s.shares * s.current_price }
+        .fold(0.0, { |sum, val| sum + val });
+    
+    {
+        stocks: updated_stocks,
+        allocations: portfolio.allocations,
+        total_value: total_value
+    }
+}
+
+// Calculate portfolio value
+def fn calculate_value(portfolio) {
+    portfolio.stocks
+        .map { |s| s.shares * s.current_price }
+        .fold(0.0, { |sum, val| sum + val })
+}
+
+// Get portfolio summary string
+def fn get_summary(portfolio) {
+    let value_str = f"Portfolio Value: ${portfolio.total_value}\n\n";
+    
+    let holdings_str = "Current Holdings:\n" + 
+        portfolio.stocks.map { |stock|
+            let value = stock.shares * stock.current_price;
+            let percentage = if (portfolio.total_value > 0.0) {
+                (value / portfolio.total_value) * 100.0
+            } else {
+                0.0
+            };
+            f"  {stock.symbol}: {stock.shares} shares @ ${stock.current_price} = ${value} ({percentage}%)"
+        }.join("\n");
+    
+    let allocations_str = "\n\nTarget Allocations:\n" +
+        portfolio.allocations.map { |alloc|
+            f"  {alloc.symbol}: {alloc.target_percentage}%"
+        }.join("\n");
+    
+    value_str + holdings_str + allocations_str
+}

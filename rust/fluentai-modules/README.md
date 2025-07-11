@@ -35,29 +35,40 @@ let module = loader.load_module("math").unwrap();
 
 ### Defining a Module
 
-```clojure
-(module math (export add multiply pi)
-  (let ((pi 3.14159)
-        (add (lambda (a b) (+ a b)))
-        (multiply (lambda (a b) (* a b)))
-        (internal (lambda () "private")))  ; Not exported
-    nil))
+```flc
+mod math {
+  public const pi = 3.14159;
+  
+  public function add(a, b) {
+    a + b
+  }
+  
+  public function multiply(a, b) {
+    a * b
+  }
+  
+  private function internal() {
+    "private"  // Not exported
+  }
+}
 ```
 
 ### Importing from Modules
 
-```clojure
-; Import specific symbols
-(import "math" (add multiply))
+```flc
+// Import specific symbols
+use math::{add, multiply};
 
-; Import with aliases
-(import "math" (pi as PI))
+// Import with aliases  
+// TODO: Aliasing not yet implemented
+// use math::{pi as PI};
 
-; Import all exports
-(import "math" *)
+// Import all exports
+// TODO: Import all not yet implemented
+// use math::*;
 
-; Qualified access
-(math.add 2 3)
+// Qualified access
+math::add(2, 3);
 ```
 
 ## Architecture

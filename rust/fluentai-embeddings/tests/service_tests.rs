@@ -9,7 +9,6 @@ use fluentai_embeddings::{
     EmbeddingConfig, EmbeddingService, ModelType,
 };
 use futures;
-use std::sync::Arc;
 use tempfile::TempDir;
 use tokio;
 

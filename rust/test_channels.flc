@@ -1,0 +1,3 @@
+// Test just channels
+let ch = chan();
+send!(ch, "test")

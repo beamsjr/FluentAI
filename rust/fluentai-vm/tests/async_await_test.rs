@@ -1,5 +1,5 @@
 use fluentai_core::ast::{Graph, Literal, Node};
-use fluentai_parser::parser::Parser;
+use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM, VMBuilder};
 use fluentai_effects::runtime::EffectRuntime;
 use std::sync::Arc;
@@ -7,14 +7,12 @@ use std::sync::Arc;
 #[tokio::test]
 async fn test_basic_await() {
     // Test that await properly blocks until promise resolves
-    let code = r#"
-        (begin
-            (let ((f (lambda () 42)))
-                (await (spawn f))))
-    "#;
+    let code = r#"{
+    let f = () => 42;
+    spawn { f() }.await()
+}"#;
 
-    let mut parser = Parser::new(code);
-    let graph = parser.parse().unwrap();
+    let graph = parse(code).unwrap();
     
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
@@ -40,17 +38,13 @@ async fn test_basic_await() {
 #[tokio::test]
 async fn test_await_with_computation() {
     // Test await with actual async computation
-    let code = r#"
-        (begin
-            (let ((compute (lambda () 
-                (begin
-                    (+ 10 20)))))
-                (let ((result (await (spawn compute))))
-                    result)))
-    "#;
+    let code = r#"{
+    let compute = () => 10 + 20;
+    let result = spawn { compute() }.await();
+    result
+}"#;
 
-    let mut parser = Parser::new(code);
-    let graph = parser.parse().unwrap();
+    let graph = parse(code).unwrap();
     
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
@@ -72,17 +66,15 @@ async fn test_await_with_computation() {
 #[tokio::test]
 async fn test_multiple_awaits() {
     // Test multiple awaits in sequence
-    let code = r#"
-        (begin
-            (let ((f1 (lambda () 10))
-                  (f2 (lambda () 20)))
-                (let ((r1 (await (spawn f1)))
-                      (r2 (await (spawn f2))))
-                    (+ r1 r2))))
-    "#;
+    let code = r#"{
+    let f1 = () => 10;
+    let f2 = () => 20;
+    let r1 = spawn { f1() }.await();
+    let r2 = spawn { f2() }.await();
+    r1 + r2
+}"#;
 
-    let mut parser = Parser::new(code);
-    let graph = parser.parse().unwrap();
+    let graph = parse(code).unwrap();
     
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();

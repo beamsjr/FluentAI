@@ -125,6 +125,11 @@ impl PrimitiveType {
     pub fn unit() -> Self {
         Self::new("Unit")
     }
+
+    /// Create a Symbol primitive type
+    pub fn symbol() -> Self {
+        Self::new("Symbol")
+    }
 }
 
 impl fmt::Display for PrimitiveType {

@@ -9,46 +9,51 @@ FluentAI is an experimental programming language designed for AI systems rather 
 
 ### ✅ Working Features (Tested and Verified)
 - **Core Language**: 
-  - S-expressions, arithmetic (`+`, `-`, `*`, `/`, `mod`)
-  - Comparisons (`=`, `<`, `>`, `<=`, `>=`)
-  - Conditionals (`if` with both then and else branches)
-  - `begin` blocks for sequencing multiple expressions
+  - FLC (Fluent Lambda Chain) syntax with method chaining
+  - Arithmetic operators: `+`, `-`, `*`, `/`, `%`
+  - Comparisons: `==`, `!=`, `<`, `>`, `<=`, `>=`
+  - Conditionals: `if (condition) { then } else { else }`
+  - Block expressions: `{ expr1; expr2; expr3 }`
 - **Functions**: 
-  - Lambda expressions: `(lambda (x) (* x x))`
-  - Function calls work correctly
-  - Higher-order functions: `map`, `filter`, `fold` (Note: `fold` requires lambda, not bare `+`)
+  - Lambda expressions: `x => x * x` or `(x, y) => x + y`
+  - Function definitions: `private function square(x) { x * x }`
+  - Method chaining: `list.map(x => x * 2).filter(x => x > 10)`
+  - Higher-order functions: `map`, `filter`, `fold`
   - Recursion works correctly (factorial, fibonacci, etc.)
-  - `define` for top-level function and value definitions
 - **Data Structures**: 
-  - Lists: `list`, `cons`, `head`, `tail`, `length`, `empty?`
-  - Additional: `reverse`, `append`, `take`, `drop`, `range`, `nth`
+  - List literals: `[1, 2, 3]`
+  - List operations: `list.head()`, `list.tail()`, `list.length()`, `list.is_empty()`
+  - Additional: `reverse()`, `append()`, `take()`, `drop()`, `range()`, `nth()`
 - **I/O Functions**:
-  - `print` - prints value without newline
-  - `print-line` - prints value with newline
+  - `print(value)` - prints value without newline
+  - `println(value)` - prints value with newline
+  - `$("text")` - printable construct
 - **Pattern Matching**: 
-  - Literal patterns with `match` expressions and wildcard `_`
+  - Pattern matching with method chaining
+  - Literal patterns and wildcard `_`
   - Variable binding in patterns
-  - List patterns with `Cons`/`Nil` (uppercase) or `cons`/`nil` (lowercase)
-  - Example: `(match x (0 "zero") (1 "one") (_ "other"))`
-  - Example: `(match lst (Nil "empty") ((Cons x xs) x))`
+  - List patterns with `Cons`/`Nil`
+  - Example: `x.match().case(0, "zero").case(1, "one").case(_, "other").get()`
+  - Example: `lst.match().case(Nil, "empty").case(Cons(x, xs), x).get()`
 - **Effect System**: 
-  - Effects work with default handlers: `(effect io:print "Hello")`
-  - Custom effect handlers work correctly: `(handler ((error (lambda (e) 99))) ...)`
-  - `(effect io:print "message")` - prints to stdout
-  - `(effect state:set "key" value)` and `(effect state:get "key")`
-  - `(effect time:now)` - returns timestamp
-  - `(effect random:int min max)` - random integers
-  - `(effect random:float)` - random float [0,1)
+  - Effects work with default handlers
+  - Custom effect handlers work correctly
+  - `io.print("message")` - prints to stdout
+  - `state.set("key", value)` and `state.get("key")`
+  - `time.now()` - returns timestamp
+  - `random.int(min, max)` - random integers
+  - `random.float()` - random float [0,1)
 - **Let Bindings**: 
-  - Single expression in body only
-  - Supports multiple bindings: `(let ((x 1) (y 2)) (+ x y))`
+  - Let expressions: `let x = 1; let y = 2; x + y`
+  - Block scoping with `{ }` braces
 - **Multiple Top-Level Expressions**: 
-  - Multiple expressions are now wrapped in implicit `begin`
-  - Example: `1 2 3` evaluates all expressions and returns `3`
+  - Multiple expressions can be defined at top level
+  - Last expression is the return value
 
 ### 🚧 Partially Implemented
 - **Module System**: Full parsing and loading infrastructure but cannot export/import values at runtime
-  - `module`, `import`, `export` syntax parses correctly
+  - `mod name { ... }` module definitions
+  - `use module::{item1, item2}` import syntax
   - Module loading from filesystem works
   - Missing global binding mechanism for exports
 - **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
@@ -60,25 +65,25 @@ FluentAI is an experimental programming language designed for AI systems rather 
 
 ### ✅ Newly Completed (July 2025)
 - **Async/Await & Concurrency**: Comprehensive concurrent programming support
-  - ✅ Channels: `(chan)`, `(chan capacity)` for buffered channels
-  - ✅ Send/Receive: `(send! ch val)`, `(recv! ch)`
-  - ✅ Non-blocking ops: `(try-send! ch val)`, `(try-recv! ch)` return [success, value]
-  - ✅ Spawn: `(spawn expr)` creates concurrent tasks
-  - ✅ Select: `(select branches...)` for multi-channel operations (AST/parser ready)
-  - ❌ Async/await: Parser support complete, runtime not implemented
+  - ✅ Channels: `channel()`, `channel(capacity)` for buffered channels
+  - ✅ Send/Receive: `ch.send(val)`, `ch.receive()`
+  - ✅ Non-blocking ops: `ch.try_send(val)`, `ch.try_receive()` return [success, value]
+  - ✅ Spawn: `spawn { expr }` creates concurrent tasks
+  - ✅ Select: `select { ... }` for multi-channel operations (AST/parser ready)
+  - ❌ Async/await: `async function` and `.await()` (Parser support complete, runtime not implemented)
 - **Error Handling**: Try-catch-throw error handling system
-  - ✅ Try-catch blocks: `(try expr (catch (err) handler))`
-  - ✅ Throw statements: `(throw error-value)`
+  - ✅ Try-catch blocks: `try { expr } catch (err) { handler }`
+  - ✅ Throw statements: `throw error_value`
   - ✅ Error propagation with proper stack unwinding
   - ✅ Pattern matching in catch handlers
   - ✅ Error value type with metadata (kind, message, stack trace)
-  - ❌ Finally blocks: Parser support complete, runtime not implemented
+  - ❌ Finally blocks: `finally { ... }` (Parser support complete, runtime not implemented)
   - ❌ Promise operations: AST/compiler ready, runtime not implemented
 - **Actor Model**: Basic actor primitives with message passing
-  - ✅ Actor creation: `(actor initial-state handler-fn)`
-  - ✅ Send messages: `(! actor message)`
-  - ❌ Receive patterns: `(receive patterns...)` not implemented
-  - ❌ Become: `(become new-state)` not implemented
+  - ✅ Actor definition: `private actor Name { state; handle MessageType(...) { ... } }`
+  - ✅ Send messages: `actor.send(message)`
+  - ❌ Receive patterns: Not yet implemented
+  - ❌ Become: Not yet implemented
 
 ### 📋 Planned/Aspirational Features
 - **Network Effects**: Built-in HTTP client/server capabilities
@@ -240,79 +245,82 @@ FluentAI is an experimental programming language designed for AI systems rather 
 ## Quick Example
 
 > **Working Examples**: 
-> - [Simple Arithmetic](rust/examples/arithmetic.ai) - Basic arithmetic operations
-> - [Hello World](rust/examples/hello.ai) - Minimal FluentAI program
-> - [Lists](rust/examples/lists.ai) - Basic list operations
-> - [Pattern Matching](rust/examples/pattern_match.ai) - Simple pattern matching
-> - [Lambda Functions](rust/examples/lambda.ai) - Anonymous functions
-> - [Let Bindings](rust/examples/let_binding.ai) - Variable binding
+> - Simple Arithmetic - Basic arithmetic operations
+> - Hello World - Minimal FluentAI program
+> - Lists - Basic list operations
+> - Pattern Matching - Simple pattern matching
+> - Lambda Functions - Anonymous functions
+> - Let Bindings - Variable binding
 > - [All examples](rust/examples/)
 > 
 > **Note**: The comprehensive examples contain some features that don't work yet. Refer to the Implementation Status section above for what's actually working.
 
-```lisp
-;; Working FluentAI Example
+```flc
+// Working FluentAI Example
 
-;; Basic arithmetic and comparisons
-(+ 1 2 3)                    ; => 6
-(* (+ 2 3) (- 10 5))        ; => 25
-(= 10 10)                   ; => true
+// Basic arithmetic and comparisons
+1 + 2 + 3;                    // => 6
+(2 + 3) * (10 - 5);          // => 25
+10 == 10;                    // => true
 
-;; Lambda functions
-(let ((square (lambda (x) (* x x)))
-      (add (lambda (x y) (+ x y))))
-  (add (square 3) (square 4))) ; => 25
+// Lambda functions
+let square = x => x * x;
+let add = (x, y) => x + y;
+add(square(3), square(4));   // => 25
 
-;; Lists and list operations  
-(let ((nums (list 1 2 3 4 5)))
-  (effect io:print (head nums))           ; prints: 1
-  (effect io:print (tail nums))           ; prints: (2 3 4 5)
-  (effect io:print (length nums))         ; prints: 5
-  (effect io:print (cons 0 nums)))        ; prints: (0 1 2 3 4 5)
+// Lists and list operations  
+let nums = [1, 2, 3, 4, 5];
+print(nums.head());          // prints: 1
+print(nums.tail());          // prints: [2, 3, 4, 5]
+print(nums.length());        // prints: 5
+print(nums.cons(0));         // prints: [0, 1, 2, 3, 4, 5]
 
-;; Higher-order functions
-(let ((nums (list 1 2 3 4 5)))
-  ;; Map - note: returns the result
-  (map (lambda (x) (* x x)) nums))        ; => (1 4 9 16 25)
+// Higher-order functions
+let nums = [1, 2, 3, 4, 5];
+// Map - note: returns the result
+nums.map(x => x * x);        // => [1, 4, 9, 16, 25]
 
-(let ((nums (range 1 10)))
-  ;; Filter  
-  (filter (lambda (x) (= (mod x 2) 0)) nums)) ; => (2 4 6 8 10)
+let nums = range(1, 10);
+// Filter  
+nums.filter(x => x % 2 == 0); // => [2, 4, 6, 8, 10]
 
-(let ((nums (list 1 2 3 4 5)))
-  ;; Fold - note: requires lambda, not bare +
-  (fold (lambda (acc x) (+ acc x)) 0 nums))   ; => 15
+let nums = [1, 2, 3, 4, 5];
+// Fold - note: requires lambda
+nums.fold((acc, x) => acc + x, 0);   // => 15
 
-;; Pattern matching
-(let ((value 42))
-  (match value
-    (0 "zero")
-    (1 "one") 
-    (42 "the answer")
-    (_ "something else")))    ; => "the answer"
+// Pattern matching
+let value = 42;
+value.match()
+  .case(0, "zero")
+  .case(1, "one") 
+  .case(42, "the answer")
+  .case(_, "something else")
+  .get();                    // => "the answer"
 
-;; Working effects
-(effect io:print "Hello, FluentAI!")      ; prints to stdout
-(effect state:set "counter" 0)            ; store state
-(effect state:set "counter" 
-  (+ (effect state:get "counter") 1))     ; increment
-(effect io:print (effect state:get "counter")) ; prints: 1
-(effect io:print (effect time:now))       ; prints timestamp
-(effect io:print (effect random:int 1 100)) ; prints random number
+// Working effects
+print("Hello, FluentAI!");   // prints to stdout
+state.set("counter", 0);     // store state
+state.set("counter", 
+  state.get("counter") + 1); // increment
+print(state.get("counter")); // prints: 1
+print(time.now());           // prints timestamp
+print(random.int(1, 100));   // prints random number
 
-;; Recursive functions (basic cases work)
-(let ((factorial 
-        (lambda (n)
-          (if (= n 0)
-              1
-              (* n (factorial (- n 1)))))))
-  (factorial 5))              ; => 120
+// Recursive functions (basic cases work)
+private function factorial(n) {
+  if (n == 0) {
+    1
+  } else {
+    n * factorial(n - 1)
+  }
+}
+factorial(5);                // => 120
 
-;; List manipulation example
-(let ((evens (filter (lambda (x) (= (mod x 2) 0)) (range 1 20)))
-      (squared (map (lambda (x) (* x x)) evens))
-      (sum (fold (lambda (acc x) (+ acc x)) 0 squared)))
-  sum)                        ; => 1140
+// List manipulation example
+let evens = range(1, 20).filter(x => x % 2 == 0);
+let squared = evens.map(x => x * x);
+let sum = squared.fold((acc, x) => acc + x, 0);
+sum;                         // => 1140
 ```
 
 ## Installation
@@ -658,6 +666,65 @@ FluentAI's optimizations make it ideal for high-performance network applications
 (is-integer? x)                 ; Type predicates
 (is-callable? f)                ; Check if procedure or native fn
 (as-number x)                   ; Safe type conversions with Result
+```
+
+### FLC (Fluent Lambda Chain) Syntax
+
+FluentAI now supports FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling. You can gradually migrate from S-expressions to FLC using our migration tool.
+
+```flc
+// Function definitions
+def fn add(x, y) {
+    x + y
+}
+
+// Lambda expressions  
+let square = { |x| x * x };
+
+// Method chaining
+users
+    .filter { |user| user.age > 18 }
+    .map { |{name, email}| f"{name} <{email}>" }
+    .sort_by { |user| user.name }
+
+// Pattern matching
+response.match()
+    .case(Ok(data), { |data| process(data) })
+    .case(Err(ApiError.NotFound), { || "Not found" })
+    .run()
+
+// Async/await
+def async fn fetch_user_data(id: Uuid) -> User {
+    http.get(f"/users/{id}").await()
+}
+
+// Actor model
+def actor Counter {
+    count: int = 0;
+    def handle Inc(|amount: int|) { self.count += amount; }
+    def handle Get(||) -> int { self.count }
+}
+
+// Effects with type safety
+def fn get_user(id: Uuid).with(Database) -> Result<User, DbError> {
+    perform Database::query(f"SELECT * FROM users WHERE id = {id}")
+        .map { |row| User.from_row(row) }
+}
+```
+
+**Migration Tool**: Convert your existing S-expression code to FLC:
+```bash
+# Convert a single file
+cargo run --bin flc-migrate -- input.fl
+
+# Convert with backup
+cargo run --bin flc-migrate -- --no-backup input.fl  
+
+# Dry run to preview changes
+cargo run --bin flc-migrate -- --dry-run input.fl
+
+# Convert entire directory recursively
+cargo run --bin flc-migrate -- --recursive src/
 ```
 
 ### Modern Web Development

@@ -1,0 +1,33 @@
+// FluentAI Async/Await Feature Test
+
+// Test 1: Channel creation works
+print_line("Test 1: Channel creation");
+let ch = chan();
+print_line(ch);
+
+// Test 2: Async executes immediately (no promises yet)
+print_line("\nTest 2: Async block");
+async { print_line("Async executes immediately") };
+
+// Test 3: Spawn creates goroutines
+print_line("\nTest 3: Spawn");
+spawn(() => print_line("Spawned task running"));
+
+// Small delay
+let x = 1 + 2 + 3 + 4 + 5;
+x;
+
+// Test 4: Channel send/receive works
+print_line("\nTest 4: Channel communication");
+let ch = chan();
+{
+    send!(ch, "Hello channels!");
+    print_line(recv!(ch))
+};
+
+print_line("\nConclusion: Basic async primitives work!");
+print_line("- Channels: YES");
+print_line("- Send/Receive: YES");
+print_line("- Spawn: YES (creates goroutines)");
+print_line("- Async: PARTIAL (executes immediately, no promises)");
+print_line("- Await: NO (requires promises to be implemented)")

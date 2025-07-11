@@ -361,21 +361,21 @@ mod tests {
 
     #[test]
     fn test_successful_type_check() {
-        let result = check_code("(+ 1 2)");
+        let result = check_code("1 + 2");
         assert!(result.success);
         assert!(result.errors.is_empty());
     }
 
     #[test]
     fn test_type_error() {
-        let result = check_code("(+ 1 \"hello\")");
+        let result = check_code("1 + \"hello\"");
         assert!(!result.success);
         assert!(!result.errors.is_empty());
     }
 
     #[test]
     fn test_effect_checking() {
-        let graph = parse("(print \"hello\")").unwrap();
+        let graph = parse("print(\"hello\")").unwrap();
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
 
@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_warnings() {
-        let result = check_code("(lambda (x) x)");
+        let result = check_code("(x) => x");
         // Should warn about unconstrained type variable
         assert!(!result.warnings.is_empty());
     }

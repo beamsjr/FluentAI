@@ -1,0 +1,8 @@
+// Simple debug test
+print("Before block")
+let result = { 
+    let x = 10
+    x * 2 
+};
+print("After block")
+print(result)

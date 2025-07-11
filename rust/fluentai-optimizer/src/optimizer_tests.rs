@@ -30,7 +30,7 @@ mod tests {
     #[test]
     fn test_optimize_simple_expression() {
         let mut optimizer = GraphOptimizer::new();
-        let graph = parse("(+ 1 2)").unwrap();
+        let graph = parse("1 + 2").unwrap();
 
         let result = optimizer.optimize(&graph);
         assert!(result.is_ok());
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn test_optimization_idempotent() {
         let mut optimizer = GraphOptimizer::new();
-        let graph = parse("(+ 1 2)").unwrap();
+        let graph = parse("1 + 2").unwrap();
 
         let result1 = optimizer.optimize(&graph);
         assert!(result1.is_ok());
@@ -251,7 +251,7 @@ mod tests {
         // Create deeply nested expression
         let mut expr = "1".to_string();
         for _ in 0..20 {
-            expr = format!("(+ {} 1)", expr);
+            expr = format!("{} + 1", expr);
         }
 
         let graph = parse(&expr).unwrap();
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn test_cyclic_references() {
         let mut optimizer = GraphOptimizer::new();
-        let code = "(letrec ((x y) (y x)) x)";
+        let code = "{ private function x() { y() }; private function y() { x() }; x() }";
         let graph = parse(code).unwrap();
 
         let result = optimizer.optimize(&graph);

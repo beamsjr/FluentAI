@@ -1,0 +1,22 @@
+// Test file that uses only syntax validated by parser tests
+
+// Basic operations that we know parse correctly
+let x = 42;
+let lst = [1, 2, 3, 4, 5];
+let doubled = map((x) => x * 2, lst);
+
+// Print is the issue - let's check alternatives
+// The parser tests use effect syntax
+effect(io, print_line, "Hello from FluentAI!");
+effect(io, print_line, "Doubled values:");
+effect(io, print, doubled);
+
+// Test filter
+let high = filter((x) => x > 5, doubled);
+effect(io, print_line, "Values > 5:");
+effect(io, print, high);
+
+// Test fold
+let sum = fold_left((acc, x) => acc + x, 0, lst);
+effect(io, print_line, "Sum:");
+effect(io, print, sum)

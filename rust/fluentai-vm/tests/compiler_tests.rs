@@ -20,8 +20,9 @@ fn create_simple_graph(node: Node) -> Graph {
 
 /// Helper to compile and run a graph, returning the result
 fn compile_and_run(graph: &Graph) -> Result<Value> {
-    // TODO: There's still a stack overflow issue with the optimizer
-    // Use no optimization until the root cause is found
+    // NOTE: Optimization is disabled here to avoid potential stack overflow issues
+    // that can occur with deeply nested AST structures. The optimizer has
+    // iterative implementations but some edge cases may still cause issues.
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,

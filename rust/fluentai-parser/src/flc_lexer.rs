@@ -5,20 +5,19 @@ use logos::{Lexer as LogosLexer, Logos};
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token<'a> {
     // Keywords - Definition keywords (highest priority)
-    #[token("def", priority = 10)]
-    Def,
-    #[token("pub", priority = 10)]
-    Pub,
-    #[token("fn", priority = 10)]
-    Fn,
+    #[token("private", priority = 10)]
+    Private,
+    #[token("public", priority = 10)]
+    Public,
+    #[token("function", priority = 10)]
+    Function,
     #[token("struct", priority = 10)]
     Struct,
     #[token("enum", priority = 10)]
     Enum,
     #[token("trait", priority = 10)]
     Trait,
-    #[token("impl", priority = 10)]
-    Impl,
+    // 'impl' removed - using 'as' for trait implementation
     #[token("type", priority = 10)]
     Type,
     #[token("actor", priority = 10)]
@@ -43,6 +42,8 @@ pub enum Token<'a> {
     For,
     #[token("while", priority = 10)]
     While,
+    #[token("when", priority = 10)]
+    When,
     #[token("in", priority = 10)]
     In,
     #[token("let", priority = 10)]
@@ -55,6 +56,8 @@ pub enum Token<'a> {
     Async,
     #[token("await", priority = 10)]
     Await,
+    #[token("spawn", priority = 10)]
+    Spawn,
     #[token("parallel", priority = 10)]
     Parallel,
     #[token("handle", priority = 10)]
@@ -73,6 +76,8 @@ pub enum Token<'a> {
     Use,
     #[token("mod", priority = 10)]
     Mod,
+    #[token("export", priority = 10)]
+    Export,
     
     // Other keywords
     #[token("true", priority = 10)]
@@ -159,6 +164,8 @@ pub enum Token<'a> {
     // Operators - Assignment
     #[token("=", priority = 8)]
     Eq,
+    #[token(":=", priority = 8)]
+    ColonEq,
     
     // Operators - Other
     #[token("::", priority = 8)]
@@ -189,6 +196,8 @@ pub enum Token<'a> {
     Question,
     #[token("_")]
     Underscore,
+    #[token("$")]
+    Dollar,
     
     // Literals
     #[regex(r"-?[0-9]+", priority = 5, callback = |lex| lex.slice().parse::<i64>().ok())]
@@ -204,6 +213,13 @@ pub enum Token<'a> {
         process_string_escapes(content)
     })]
     String(String),
+    
+    // Symbol literals - start with single quote
+    #[regex(r"'[a-zA-Z_][a-zA-Z0-9_-]*", priority = 5, callback = |lex| {
+        let s = lex.slice();
+        s[1..].to_string() // Remove the leading quote
+    })]
+    Symbol(String),
     
     // F-strings (formatted strings)
     #[regex(r#"f"([^"\\]|\\.)*""#, priority = 6, callback = |lex| {
@@ -266,6 +282,7 @@ pub fn process_string_escapes(s: &str) -> String {
     result
 }
 
+#[derive(Clone)]
 pub struct Lexer<'a> {
     inner: LogosLexer<'a, Token<'a>>,
     peeked: Option<(Token<'a>, std::ops::Range<usize>)>,
@@ -316,10 +333,10 @@ mod tests {
     
     #[test]
     fn test_keywords() {
-        let mut lexer = Lexer::new("def pub fn struct let if true false");
-        assert_eq!(lexer.next_token(), Some(Token::Def));
-        assert_eq!(lexer.next_token(), Some(Token::Pub));
-        assert_eq!(lexer.next_token(), Some(Token::Fn));
+        let mut lexer = Lexer::new("private public function struct let if true false");
+        assert_eq!(lexer.next_token(), Some(Token::Private));
+        assert_eq!(lexer.next_token(), Some(Token::Public));
+        assert_eq!(lexer.next_token(), Some(Token::Function));
         assert_eq!(lexer.next_token(), Some(Token::Struct));
         assert_eq!(lexer.next_token(), Some(Token::Let));
         assert_eq!(lexer.next_token(), Some(Token::If));
@@ -346,13 +363,14 @@ mod tests {
     
     #[test]
     fn test_operators() {
-        let mut lexer = Lexer::new(". |> + == && =");
+        let mut lexer = Lexer::new(". |> + == && = :=");
         assert_eq!(lexer.next_token(), Some(Token::Dot));
         assert_eq!(lexer.next_token(), Some(Token::Pipe));
         assert_eq!(lexer.next_token(), Some(Token::Plus));
         assert_eq!(lexer.next_token(), Some(Token::EqEq));
         assert_eq!(lexer.next_token(), Some(Token::AndAnd));
         assert_eq!(lexer.next_token(), Some(Token::Eq));
+        assert_eq!(lexer.next_token(), Some(Token::ColonEq));
     }
     
     #[test]
@@ -363,9 +381,9 @@ mod tests {
     
     #[test]
     fn test_comments() {
-        let mut lexer = Lexer::new("def // comment\n fn /* block */ struct");
-        assert_eq!(lexer.next_token(), Some(Token::Def));
-        assert_eq!(lexer.next_token(), Some(Token::Fn));
+        let mut lexer = Lexer::new("private // comment\n function /* block */ struct");
+        assert_eq!(lexer.next_token(), Some(Token::Private));
+        assert_eq!(lexer.next_token(), Some(Token::Function));
         assert_eq!(lexer.next_token(), Some(Token::Struct));
     }
 }

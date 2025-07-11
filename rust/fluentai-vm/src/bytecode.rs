@@ -1,6 +1,7 @@
 //! Bytecode representation for FluentAi VM
 
 use fluentai_core::value::Value;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {

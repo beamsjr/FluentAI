@@ -1,0 +1,29 @@
+// Test tail call optimization
+
+// Define a tail-recursive factorial
+private function factorial_tail(n, acc) {
+    if (n == 0) {
+        acc
+    } else {
+        factorial_tail(n - 1, n * acc)
+    }
+}
+
+// Define a regular recursive factorial (not tail recursive)
+private function factorial(n) {
+    if (n == 0) {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+private function main() {
+    // Test tail recursive version with a large number
+    let result1 = factorial_tail(10, 1)
+    perform IO.println(f"Tail recursive factorial(10) = {result1}")
+    
+    // Test with even larger number - should work with tail call optimization
+    let result2 = factorial_tail(100, 1) 
+    perform IO.println(f"Tail recursive factorial(100) works!")
+}
