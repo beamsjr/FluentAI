@@ -355,4 +355,53 @@ mod tests {
         // Should have parsed numeric literals
         assert!(!graph.nodes.is_empty());
     }
+
+    #[test]
+    fn test_dual_parser_sexpr() {
+        let code = "(+ 1 2)";
+        let result = parse_with_format(code, SyntaxFormat::SExpression).unwrap();
+        assert!(!result.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_dual_parser_flc() {
+        let code = "1 + 2";
+        let result = parse_with_format(code, SyntaxFormat::FLC).unwrap();
+        assert!(!result.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_dual_parser_auto_sexpr() {
+        let code = "(define foo 42)";
+        let result = parse_with_format(code, SyntaxFormat::Auto).unwrap();
+        assert!(!result.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_dual_parser_auto_flc() {
+        let code = "def fn foo() { 42 }";
+        let result = parse_with_format(code, SyntaxFormat::Auto).unwrap();
+        assert!(!result.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_parse_flc_basic() {
+        let code = "42";
+        let result = parse_flc(code).unwrap();
+        assert!(!result.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_parse_auto_empty() {
+        let code = "";
+        let result = parse_auto(code).unwrap();
+        assert!(result.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_parse_auto_whitespace() {
+        let code = "   \n\t  ";
+        let result = parse_auto(code).unwrap();
+        assert!(result.nodes.is_empty());
+    }
 }

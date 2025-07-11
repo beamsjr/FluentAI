@@ -47,10 +47,51 @@ pub use threaded_parser::{
 
 use fluentai_core::ast::Graph;
 
+/// Syntax format for parsing
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxFormat {
+    /// S-expression syntax (legacy)
+    SExpression,
+    /// FLC (Fluent Lambda Chain) syntax
+    FLC,
+    /// Auto-detect based on content
+    Auto,
+}
+
 /// Parse FluentAi source code into an AST graph
 pub fn parse(source: &str) -> Result<Graph, ParseError> {
     let mut parser = Parser::new(source);
     parser.parse()
+}
+
+/// Parse source code with specified syntax format
+pub fn parse_with_format(source: &str, format: SyntaxFormat) -> Result<Graph, ParseError> {
+    match format {
+        SyntaxFormat::SExpression => parse(source),
+        SyntaxFormat::FLC => parse_flc(source),
+        SyntaxFormat::Auto => parse_auto(source),
+    }
+}
+
+/// Parse FLC syntax into an AST graph
+pub fn parse_flc(source: &str) -> Result<Graph, ParseError> {
+    let parser = flc_parser::Parser::new(source);
+    parser.parse().map_err(|e| ParseError::InvalidSyntax(e.to_string()))
+}
+
+/// Auto-detect syntax and parse accordingly
+pub fn parse_auto(source: &str) -> Result<Graph, ParseError> {
+    // Simple heuristic: if source starts with '(' it's likely s-expr
+    let trimmed = source.trim();
+    if trimmed.is_empty() {
+        return Ok(Graph::new());
+    }
+    
+    if trimmed.starts_with('(') {
+        parse(source)
+    } else {
+        parse_flc(source)
+    }
 }
 
 /// Parse with custom allocator for better performance
