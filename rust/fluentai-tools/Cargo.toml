@@ -1,0 +1,10 @@
+[package]
+name = "fluentai-tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+
+[dev-dependencies]

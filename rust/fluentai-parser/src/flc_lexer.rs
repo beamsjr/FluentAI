@@ -95,6 +95,8 @@ pub enum Token<'a> {
     Nil,
     #[token("rec", priority = 10)]
     Rec,
+    #[token("as", priority = 10)]
+    As,
     
     // Delimiters
     #[token("(")]
@@ -149,6 +151,8 @@ pub enum Token<'a> {
     AndAnd,
     #[token("||", priority = 8)]
     OrOr,
+    #[token("|", priority = 7)]
+    Or,
     #[token("!", priority = 8)]
     Bang,
     
@@ -183,6 +187,8 @@ pub enum Token<'a> {
     Hash,
     #[token("?")]
     Question,
+    #[token("_")]
+    Underscore,
     
     // Literals
     #[regex(r"-?[0-9]+", priority = 5, callback = |lex| lex.slice().parse::<i64>().ok())]
@@ -195,15 +201,14 @@ pub enum Token<'a> {
     #[regex(r#""([^"\\]|\\.)*""#, priority = 5, callback = |lex| {
         let s = lex.slice();
         let content = &s[1..s.len()-1];
-        Some(process_string_escapes(content))
+        process_string_escapes(content)
     })]
     String(String),
     
     // F-strings (formatted strings)
     #[regex(r#"f"([^"\\]|\\.)*""#, priority = 6, callback = |lex| {
         let s = lex.slice();
-        let content = &s[2..s.len()-1];
-        Some(content.to_string())
+        &s[2..s.len()-1]
     })]
     FString(&'a str),
     

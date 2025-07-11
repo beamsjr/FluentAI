@@ -10,6 +10,7 @@ members = [
     "fluentai-core-lib",
     "fluentai-sdk",
     "fluentai-cli",
+    "fluentai-tools",
     "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-interpreter", "fluentai-repl", "fluentai-ui-compiler", "fluentai-lint", "fluentai-metaprogramming", "fluentai-actors", "fluentai-embeddings", "examples",
 ]
 resolver = "2"

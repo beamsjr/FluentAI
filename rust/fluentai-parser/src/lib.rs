@@ -8,6 +8,7 @@
 
 pub mod error;
 pub mod flc_lexer;
+pub mod flc_parser;
 pub mod iterative_parser;
 pub mod lexer;
 pub mod parser;
