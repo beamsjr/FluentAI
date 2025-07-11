@@ -7,6 +7,7 @@
 //! - Minimal allocations
 
 pub mod error;
+pub mod flc_lexer;
 pub mod iterative_parser;
 pub mod lexer;
 pub mod parser;
