@@ -2072,8 +2072,51 @@ impl VM {
     
     // Native function calls
     pub fn call_native_function(&mut self, native_func: &str, args: Vec<Value>) -> VMResult<()> {
-        // Implementation simplified for now - would need to handle native functions properly
-        self.push(Value::Nil)?;
+        // Check if it's a stdlib function with __stdlib__ prefix
+        if let Some(func_name) = native_func.strip_prefix("__stdlib__") {
+            // Handle stdlib function calls
+            if let Some(stdlib_func) = self.stdlib.get(func_name) {
+                // Convert VM values to stdlib values
+                let stdlib_args: Vec<StdlibValue> = args
+                    .iter()
+                    .map(|v| self.vm_value_to_stdlib_value(v))
+                    .collect();
+
+                // Create StdlibContext with just the effect context for now
+                let mut context = fluentai_stdlib::vm_bridge::StdlibContext::default();
+                context.effect_context_override = Some(self.effect_context.clone());
+
+                // Call the stdlib function with context
+                let stdlib_result = stdlib_func
+                    .call_with_context(&mut context, &stdlib_args)
+                    .map_err(|e| VMError::RuntimeError {
+                        message: format!("Stdlib function '{}' failed: {}", func_name, e),
+                        stack_trace: Some(self.build_stack_trace()),
+                    })?;
+
+                // Convert result back to VM value
+                let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
+                self.push(vm_result)?;
+            } else {
+                return Err(VMError::UnknownIdentifier {
+                    name: func_name.to_string(),
+                    location: None,
+                    stack_trace: None,
+                });
+            }
+        } else if let Some(func_name) = native_func.strip_prefix("__builtin__") {
+            // Handle builtin function calls
+            return Err(VMError::RuntimeError {
+                message: format!("Builtin function '{}' should be compiled to opcode", func_name),
+                stack_trace: Some(self.build_stack_trace()),
+            });
+        } else {
+            // Regular native function - not implemented yet
+            return Err(VMError::RuntimeError {
+                message: format!("Native function '{}' not implemented", native_func),
+                stack_trace: Some(self.build_stack_trace()),
+            });
+        }
         Ok(())
     }
     

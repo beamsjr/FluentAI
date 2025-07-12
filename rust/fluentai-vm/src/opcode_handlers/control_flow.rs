@@ -85,6 +85,10 @@ impl OpcodeHandler for ControlFlowHandler {
                     Value::NativeFunction { name, .. } => {
                         vm.call_native_function(&name, args)?;
                     }
+                    Value::String(s) if s.starts_with("__stdlib__") || s.starts_with("__builtin__") => {
+                        // Handle special function strings from LoadGlobal
+                        vm.call_native_function(&s, args)?;
+                    }
                     Value::Module { .. } => {
                         return Err(VMError::TypeError {
                             operation: "call".to_string(),
