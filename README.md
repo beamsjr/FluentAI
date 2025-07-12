@@ -56,7 +56,11 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - `use module::{item1, item2}` import syntax
   - Module loading from filesystem works
   - Missing global binding mechanism for exports
-- **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
+- **JIT Compilation**: Cranelift-based JIT with VM integration (x86_64 and ARM64/AArch64, requires `jit` feature flag)
+  - Automatic hot function detection (>1000 calls)
+  - Seamless fallback to interpreter
+  - ARM64 support via PIC workaround for Cranelift PLT limitations
+  - Currently disabled by default (use `--features jit` to enable)
 - **Multiple expressions in `let` body**: Currently causes parse errors
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
@@ -77,7 +81,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Error propagation with proper stack unwinding
   - ✅ Pattern matching in catch handlers
   - ✅ Error value type with metadata (kind, message, stack trace)
-  - ❌ Finally blocks: `finally { ... }` (Parser support complete, runtime not implemented)
+  - ✅ Finally blocks: `finally { ... }` - Execute cleanup code regardless of try/catch outcome
   - ❌ Promise operations: AST/compiler ready, runtime not implemented
 - **Actor Model**: Basic actor primitives with message passing
   - ✅ Actor definition: `private actor Name { state; handle MessageType(...) { ... } }`
@@ -807,6 +811,18 @@ try {
 } catch (err) {
     $(f"Error occurred: {err.message}").print();
     "default-value"
+}
+
+// Try/catch/finally for cleanup
+let file = open_file("data.txt");
+try {
+    process_file(file)
+} catch (err) {
+    log_error("File processing failed", err);
+    null
+} finally {
+    // Always close the file, even if an error occurred
+    close_file(file)
 }
 
 // Throwing errors

@@ -7,10 +7,6 @@ use fluentai_core::value::Value;
 
 #[test]
 fn test_multiplication() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     let test_cases = vec![
         ("(* 3 4)", 12),
@@ -34,10 +30,6 @@ fn test_multiplication() {
 
 #[test]
 fn test_division() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     let test_cases = vec![
         ("(/ 12 3)", 4),
@@ -60,10 +52,6 @@ fn test_division() {
 
 #[test]
 fn test_modulo() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     let test_cases = vec![
         ("(% 10 3)", 1),
@@ -86,10 +74,6 @@ fn test_modulo() {
 
 #[test]
 fn test_comparison_operations() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     let test_cases = vec![
         ("(< 3 5)", true),
@@ -125,10 +109,6 @@ fn test_comparison_operations() {
 
 #[test]
 fn test_boolean_operations() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test AND
@@ -161,10 +141,6 @@ fn test_boolean_operations() {
 
 #[test]
 fn test_complex_arithmetic() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Complex expression: (+ (* 3 4) (- 10 (/ 20 5)))
