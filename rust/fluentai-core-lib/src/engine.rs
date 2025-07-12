@@ -119,14 +119,22 @@ impl RuntimeEngine {
         let mut vm = self.context.create_vm(module.bytecode.as_ref().clone())?;
 
         // Register host functions with VM
-        for _func in self.context.host_registry().all() {
-            // TODO: Register host functions with VM
-            // This would require extending the VM to support host functions
+        for func in self.context.host_registry().all() {
+            // Create a NativeFunction value that wraps the host function
+            let host_func = func.clone();
+            let native_func = Value::NativeFunction {
+                name: func.name.clone(),
+                arity: func.arity,
+                function: Arc::new(move |args| {
+                    host_func.call(args).map_err(|e| fluentai_core::value::ValueError::InvalidOperation(e.to_string()))
+                }),
+            };
+            vm.set_global(func.name.clone(), native_func);
         }
 
         // Set globals in VM
-        for (_name, _value) in self.context.globals() {
-            // TODO: Set globals in VM
+        for (name, value) in self.context.globals() {
+            vm.set_global(name.clone(), value.clone());
         }
 
         // Execute based on execution mode
@@ -191,8 +199,8 @@ impl RuntimeEngine {
 
     /// Evaluate an expression
     pub fn eval(&mut self, expr: &str) -> Result<Value> {
-        let source = format!("(begin {})", expr);
-        self.execute(&source)
+        // Just execute the expression directly
+        self.execute(expr)
     }
 
     /// Call a function
@@ -311,7 +319,7 @@ mod tests {
 
         engine.register_function(add).unwrap();
 
-        // Test execution
+        // Test execution  
         let result = engine.execute("1 + 2").unwrap();
         assert_eq!(result, Value::Integer(3));
     }

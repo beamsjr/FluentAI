@@ -1,9 +1,7 @@
 //! Comprehensive tests for FluentAI VM optimization module
 
-use fluentai_vm::{
-    bytecode::{Instruction, Opcode},
-    optimization::{CachedValue, FusedOpcode, InlineCache, InstructionFusion, ProfileInfo},
-};
+use fluentai_bytecode::{Instruction, Opcode};
+use fluentai_vm::optimization::{CachedValue, FusedOpcode, InlineCache, InstructionFusion, ProfileInfo};
 use std::sync::Arc;
 use std::thread;
 use std::time::Instant;

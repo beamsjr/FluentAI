@@ -7,6 +7,15 @@ use fluentai_core::ast::{
 
 use crate::flc_lexer::{Lexer, Token};
 
+// Helper function to build module path from components
+fn build_module_path(path_components: &[String], relative_prefix: Option<&str>) -> String {
+    if let Some(prefix) = relative_prefix {
+        format!("{}/{}", prefix, path_components.join("/"))
+    } else {
+        path_components.join("/")
+    }
+}
+
 #[derive(Debug, Clone)]
 struct ContractInfo {
     function_name: Option<String>,
@@ -22,6 +31,8 @@ pub struct Parser<'a> {
     graph: Graph,
     current: Option<Token<'a>>,
     position: usize,
+    /// Module name if declared at the top of the file
+    module_name: Option<String>,
 }
 
 impl<'a> Parser<'a> {
@@ -33,10 +44,16 @@ impl<'a> Parser<'a> {
             graph: Graph::new(),
             current,
             position: 0,
+            module_name: None,
         }
     }
     
     pub fn parse(mut self) -> Result<Graph> {
+        // Check for optional module declaration at the top
+        if matches!(self.current, Some(Token::Mod)) {
+            self.parse_module_declaration()?;
+        }
+        
         let mut items = vec![];
         
         while self.current.is_some() {
@@ -49,6 +66,11 @@ impl<'a> Parser<'a> {
             self.graph.root_id = Some(items[0]);
         } else {
             self.graph.root_id = Some(self.add_node(Node::Begin { exprs: items })?);
+        }
+        
+        // Store module name in graph metadata if present
+        if let Some(module_name) = self.module_name {
+            self.graph.graph_metadata.insert("module_name".to_string(), module_name);
         }
         
         Ok(self.graph)
@@ -628,18 +650,39 @@ impl<'a> Parser<'a> {
                                 // Method call with arguments
                                 self.advance();
                                 
-                                // Special handling for channel operations
+                                // Special handling for send operations
                                 if method_name == "send" {
-                                    // channel.send(value) -> Node::Send
+                                    // Could be channel.send(value) or actor.send(message)
                                     if matches!(self.current, Some(Token::RParen)) {
                                         return Err(anyhow!("send() requires a value argument"));
                                     }
                                     let value = self.parse_expression()?;
                                     self.consume(Token::RParen)?;
-                                    expr = self.add_node(Node::Send { 
-                                        channel: expr, 
-                                        value 
-                                    })?;
+                                    
+                                    // We need to determine if this is a channel or actor send
+                                    // For now, we'll check if the receiver is an actor type
+                                    // This is a heuristic - in a real implementation, we'd need type information
+                                    let is_actor_send = match self.graph.get_node(expr) {
+                                        Some(Node::Actor { .. }) => true,
+                                        Some(Node::Variable { name }) => {
+                                            // Check if it's a variable name that refers to an actor
+                                            // For now, assume it's an actor if it's not a common channel pattern
+                                            !name.starts_with("ch") && !name.contains("channel")
+                                        }
+                                        _ => false,
+                                    };
+                                    
+                                    if is_actor_send {
+                                        expr = self.add_node(Node::ActorSend { 
+                                            actor: expr, 
+                                            message: value 
+                                        })?;
+                                    } else {
+                                        expr = self.add_node(Node::Send { 
+                                            channel: expr, 
+                                            value 
+                                        })?;
+                                    }
                                 } else if method_name == "receive" {
                                     // channel.receive() -> Node::Receive
                                     self.consume(Token::RParen)?;
@@ -1382,14 +1425,41 @@ impl<'a> Parser<'a> {
     // Stub implementations that need to be completed
     
     fn parse_use_statement(&mut self) -> Result<NodeId> {
-        // use module::path::{Item1, Item2};
+        // Supported import syntaxes:
+        // use Stock;
+        // use Stock::{from_json, to_json};
+        // use PriceService::*;
+        // use VeryLongModuleName as VLMN;
+        // use short_name from Utils;  // import specific item
+        // use ./utils/Helper;  // relative imports
+        // use ../shared/Common;
         self.consume(Token::Use)?;
         
         let mut path = vec![];
+        let mut is_relative = false;
+        
+        // Check for relative path imports (./path or ../path)
+        let mut relative_prefix = None;
+        if matches!(self.current, Some(Token::Dot)) {
+            self.advance();
+            if matches!(self.current, Some(Token::Slash)) {
+                self.advance();
+                relative_prefix = Some(".");
+                is_relative = true;
+            } else {
+                return Err(anyhow!("Expected '/' after '.' in relative import"));
+            }
+        } else if matches!(self.current, Some(Token::DotDot)) {
+            self.advance();
+            self.consume(Token::Slash)?;
+            relative_prefix = Some("..");
+            is_relative = true;
+        }
         
         // Handle ModulePath token (e.g., "std::collections::HashMap")
         if let Some(Token::ModulePath(module_path)) = self.current {
-            path = module_path.split("::").map(|s| s.to_string()).collect();
+            let segments: Vec<String> = module_path.split("::").map(|s| s.to_string()).collect();
+            path.extend(segments);
             self.advance();
             
             // Check for ::* after ModulePath
@@ -1399,7 +1469,7 @@ impl<'a> Parser<'a> {
                     self.advance();
                     self.consume(Token::Semicolon)?;
                     return self.add_node(Node::Import {
-                        module_path: path.join("::"),
+                        module_path: build_module_path(&path, relative_prefix),
                         import_list: vec![],
                         import_all: true,
                     });
@@ -1407,18 +1477,20 @@ impl<'a> Parser<'a> {
                     return Err(anyhow!("Expected identifier or '*' after '::'"));
                 }
             }
-        } else {
+        } else if !path.is_empty() || matches!(self.current, Some(Token::LowerIdent(_)) | Some(Token::UpperIdent(_))) {
             // Parse module path segment by segment
-            // First segment is required
-            let segment = match self.current {
-                Some(Token::LowerIdent(name)) => {
-                    let name = name.to_string();
-                    self.advance();
-                    name
-                }
-                _ => return Err(anyhow!("Expected module path segment")),
-            };
-            path.push(segment);
+            // First segment is required if path is empty
+            if path.is_empty() {
+                let segment = match self.current {
+                    Some(Token::LowerIdent(name)) | Some(Token::UpperIdent(name)) => {
+                        let name = name.to_string();
+                        self.advance();
+                        name
+                    }
+                    _ => return Err(anyhow!("Expected module path segment")),
+                };
+                path.push(segment);
+            }
             
             // Parse additional segments if :: is present
             while matches!(self.current, Some(Token::ColonColon)) {
@@ -1434,14 +1506,14 @@ impl<'a> Parser<'a> {
                     self.advance();
                     self.consume(Token::Semicolon)?;
                     return self.add_node(Node::Import {
-                        module_path: path.join("::"),
+                        module_path: build_module_path(&path, relative_prefix),
                         import_list: vec![],
                         import_all: true,
                     });
                 }
                 
                 let segment = match self.current {
-                    Some(Token::LowerIdent(name)) => {
+                    Some(Token::LowerIdent(name)) | Some(Token::UpperIdent(name)) => {
                         let name = name.to_string();
                         self.advance();
                         name
@@ -1450,25 +1522,93 @@ impl<'a> Parser<'a> {
                 };
                 path.push(segment);
             }
+            
+            // For relative paths, parse the first segment after the ./ or ../
+            if is_relative && matches!(self.current, Some(Token::LowerIdent(_)) | Some(Token::UpperIdent(_))) {
+                let segment = match self.current {
+                    Some(Token::LowerIdent(name)) | Some(Token::UpperIdent(name)) => {
+                        let name = name.to_string();
+                        self.advance();
+                        name
+                    }
+                    _ => unreachable!()
+                };
+                path.push(segment);
+            }
+            
+            // Continue parsing path segments separated by /
+            while is_relative && matches!(self.current, Some(Token::Slash)) {
+                self.advance();
+                let segment = match self.current {
+                    Some(Token::LowerIdent(name)) | Some(Token::UpperIdent(name)) => {
+                        let name = name.to_string();
+                        self.advance();
+                        name
+                    }
+                    _ => return Err(anyhow!("Expected module name after '/'"))
+                };
+                path.push(segment);
+            }
+        } else {
+            return Err(anyhow!("Expected module name after 'use'"));
         }
         
-        // After parsing the full path, check what comes next
+        // Helper to build the final module path
+        let build_module_path = |path: &[String], relative_prefix: Option<&str>| -> String {
+            if let Some(prefix) = relative_prefix {
+                let mut full_path = vec![prefix.to_string()];
+                full_path.extend(path.iter().cloned());
+                full_path.join("/")
+            } else {
+                path.join("::")
+            }
+        };
+        
+        // After parsing the path, determine what kind of import this is
+        
+        // Check for "use item from Module" syntax (path has single item)
+        if path.len() == 1 && matches!(self.current, Some(Token::From)) {
+            let item_name = path[0].clone();
+            self.advance(); // consume 'from'
+            
+            let module_name = match self.current {
+                Some(Token::LowerIdent(m)) | Some(Token::UpperIdent(m)) => {
+                    let name = m.to_string();
+                    self.advance();
+                    name
+                }
+                _ => return Err(anyhow!("Expected module name after 'from'"))
+            };
+            
+            self.consume(Token::Semicolon)?;
+            return self.add_node(Node::Import {
+                module_path: module_name,
+                import_list: vec![ImportItem {
+                    name: item_name,
+                    alias: None,
+                }],
+                import_all: false,
+            });
+        }
         
         // Check for module alias: use module::path as alias;
         if matches!(self.current, Some(Token::As)) {
             self.advance();
             match self.current {
-                Some(Token::LowerIdent(alias)) | Some(Token::UpperIdent(alias)) => {
+                Some(Token::LowerIdent(alias)) | Some(Token::UpperIdent(alias)) | Some(Token::ConstIdent(alias)) => {
                     let alias_str = alias.to_string();
                     self.advance();
                     self.consume(Token::Semicolon)?;
                     
-                    // For module aliasing, treat the last segment as the import name
-                    let import_name = path.last().cloned().unwrap_or_default();
+                    // Determine module path format
+                    let module_path = build_module_path(&path, relative_prefix);
+                    
+                    // For module aliasing, import the module itself
+                    let module_name = path.last().cloned().unwrap_or_default();
                     return self.add_node(Node::Import {
-                        module_path: path.join("::"),
+                        module_path,
                         import_list: vec![ImportItem { 
-                            name: import_name, 
+                            name: module_name, 
                             alias: Some(alias_str) 
                         }],
                         import_all: false,
@@ -1476,6 +1616,23 @@ impl<'a> Parser<'a> {
                 }
                 _ => return Err(anyhow!("Expected alias name after 'as'")),
             }
+        }
+        
+        // Check for simple import: use Stock;
+        if matches!(self.current, Some(Token::Semicolon)) {
+            self.advance();
+            let module_path = build_module_path(&path, relative_prefix);
+            
+            // Import the module itself as a constructor/function
+            let module_name = path.last().cloned().unwrap_or_default();
+            return self.add_node(Node::Import {
+                module_path,
+                import_list: vec![ImportItem {
+                    name: module_name,
+                    alias: None,
+                }],
+                import_all: false,
+            });
         }
         
         // Parse import list
@@ -1520,7 +1677,7 @@ impl<'a> Parser<'a> {
         self.consume(Token::Semicolon)?;
         
         self.add_node(Node::Import {
-            module_path: path.join("::"),
+            module_path: build_module_path(&path, relative_prefix),
             import_list: imports,
             import_all: false,
         })
@@ -1585,6 +1742,23 @@ impl<'a> Parser<'a> {
             exports,
             body,
         })
+    }
+    
+    fn parse_module_declaration(&mut self) -> Result<()> {
+        // module ModuleName;
+        self.consume(Token::Mod)?;
+        let name = match self.current {
+            Some(Token::UpperIdent(n)) | Some(Token::LowerIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected module name after 'module'")),
+        };
+        
+        self.consume(Token::Semicolon)?;
+        self.module_name = Some(name);
+        Ok(())
     }
     
     fn parse_export_statement(&mut self) -> Result<NodeId> {
@@ -2009,7 +2183,7 @@ impl<'a> Parser<'a> {
     }
     
     fn parse_actor_definition(&mut self, _is_public: bool) -> Result<NodeId> {
-        // actor ActorName { state: Type; def handle MessageType(...) { ... } }
+        // private actor ActorName { state: Type = initial_value; private handle message(msg: any) { ... } }
         self.consume(Token::Actor)?;
         
         let actor_name = match self.current {
@@ -2023,41 +2197,111 @@ impl<'a> Parser<'a> {
         
         self.consume(Token::LBrace)?;
         
-        let mut definitions = vec![];
+        let mut initial_state = None;
+        let mut handler = None;
         
         while !matches!(self.current, Some(Token::RBrace)) {
             match self.current {
-                Some(Token::LowerIdent(field_name)) => {
-                    // State field
-                    let _field_name = field_name.to_string();
-                    self.advance();
+                Some(Token::LowerIdent(field_name)) if field_name == "state" => {
+                    // State field: state: Type = initial_value;
+                    self.advance(); // consume "state"
                     self.consume(Token::Colon)?;
+                    
+                    // Parse type (we'll ignore it for now)
                     self.parse_type()?;
                     
-                    // Skip initializer if present
+                    // Parse initial value
                     if matches!(self.current, Some(Token::Eq)) {
                         self.advance();
-                        self.parse_expression()?;
+                        initial_state = Some(self.parse_expression()?);
+                    } else {
+                        return Err(anyhow!("Actor state must have an initial value"));
                     }
                     
                     self.consume(Token::Semicolon)?;
                 }
                 Some(Token::Private) | Some(Token::Public) => {
-                    // Handler method or other definition
-                    let def = self.parse_definition()?;
-                    definitions.push(def);
+                    // Could be handler method
+                    let is_public = matches!(self.current, Some(Token::Public));
+                    self.advance(); // consume visibility
+                    
+                    if matches!(self.current, Some(Token::Handle)) {
+                        // Handler method: private handle message(msg: any) { ... }
+                        self.advance(); // consume "handle"
+                        
+                        // Parse handler name (usually "message")
+                        let _handler_name = match self.current {
+                            Some(Token::LowerIdent(name)) => {
+                                let name = name.to_string();
+                                self.advance();
+                                name
+                            }
+                            _ => return Err(anyhow!("Expected handler name after 'handle'")),
+                        };
+                        
+                        // Parse parameters
+                        self.consume(Token::LParen)?;
+                        let mut params = vec![];
+                        
+                        while !matches!(self.current, Some(Token::RParen)) {
+                            let param_name = match self.current {
+                                Some(Token::LowerIdent(name)) => {
+                                    let name = name.to_string();
+                                    self.advance();
+                                    name
+                                }
+                                _ => return Err(anyhow!("Expected parameter name")),
+                            };
+                            
+                            // Skip type annotation if present
+                            if matches!(self.current, Some(Token::Colon)) {
+                                self.advance();
+                                self.parse_type()?;
+                            }
+                            
+                            params.push(param_name);
+                            
+                            if matches!(self.current, Some(Token::Comma)) {
+                                self.advance();
+                            }
+                        }
+                        
+                        self.consume(Token::RParen)?;
+                        
+                        // Parse handler body
+                        self.consume(Token::LBrace)?;
+                        let body = self.parse_block_expression()?;
+                        self.consume(Token::RBrace)?; // Consume closing brace of handler method
+                        
+                        // Create lambda with (state, msg) parameters
+                        handler = Some(self.add_node(Node::Lambda {
+                            params: vec!["state".to_string(), "msg".to_string()],
+                            body,
+                        })?);
+                    } else {
+                        return Err(anyhow!("Only 'handle' methods are allowed in actors"));
+                    }
                 }
-                _ => return Err(anyhow!("Expected field or handler in actor")),
+                _ => return Err(anyhow!("Expected 'state' field or 'handle' method in actor")),
             }
         }
         
         self.consume(Token::RBrace)?;
         
-        // Create a define node for the actor
-        let actor_value = self.add_node(Node::Begin { exprs: definitions })?;
+        // Ensure we have both state and handler
+        let initial_state = initial_state.ok_or_else(|| anyhow!("Actor must have a state field"))?;
+        let handler = handler.ok_or_else(|| anyhow!("Actor must have a handle method"))?;
+        
+        // Create the actor node
+        let actor_node = self.add_node(Node::Actor {
+            initial_state,
+            handler,
+        })?;
+        
+        // Define the actor name
         self.add_node(Node::Define {
             name: actor_name,
-            value: actor_value,
+            value: actor_node,
         })
     }
     
@@ -2160,7 +2404,7 @@ impl<'a> Parser<'a> {
                 
                 Ok(name)
             }
-            Some(Token::LowerIdent(name)) if matches!(name, "string" | "int" | "float" | "bool") => {
+            Some(Token::LowerIdent(name)) if matches!(name, "string" | "int" | "float" | "bool" | "any") => {
                 // Allow primitive types as lowercase
                 let name = name.to_string();
                 self.advance();

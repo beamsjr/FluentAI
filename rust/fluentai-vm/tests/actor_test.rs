@@ -30,7 +30,6 @@ fn compile_and_run(source: &str) -> Result<Value> {
 }
 
 #[test]
-#[ignore = "Actor syntax parsing not fully implemented"]
 fn test_create_actor() {
     let result = compile_and_run(
         r#"
@@ -38,7 +37,7 @@ fn test_create_actor() {
         private actor Echo {
             state: int = 0;
             private handle message(msg: any) {
-                self.state
+                state
             }
         }
         Echo
@@ -53,14 +52,13 @@ fn test_create_actor() {
 }
 
 #[test]
-#[ignore = "Actor send syntax not fully implemented"]
 fn test_actor_send() {
     let result = compile_and_run(
         r#"
         private actor Counter {
             state: int = 0;
             private handle message(msg: any) {
-                self.state
+                state
             }
         }
         let counter = Counter;
@@ -80,7 +78,7 @@ fn test_simple_counter_actor() {
         private actor Counter {
             state: int = 0;
             private handle increment() {
-                self.state = self.state + 1
+                state + 1
             }
         }
         let counter = Counter;

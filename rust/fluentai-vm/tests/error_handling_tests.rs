@@ -6,7 +6,7 @@ use anyhow::Result;
 use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_vm::bytecode::{BytecodeChunk, Instruction, Opcode};
+use fluentai_bytecode::{BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::compiler::{Compiler, CompilerOptions};
 use fluentai_vm::error::{value_type_name, VMError};
 use fluentai_vm::safety::ResourceLimits;

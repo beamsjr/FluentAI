@@ -2,6 +2,8 @@
 //! 
 //! This crate defines the bytecode format used by both the VM and JIT compiler.
 
+#![warn(missing_docs)]
+
 pub mod source_map;
 
 use fluentai_core::value::Value;
@@ -61,8 +63,11 @@ pub enum Opcode {
     // Variables
     Load,
     Store,
+    LoadLocal,
+    StoreLocal,
     LoadGlobal,
     StoreGlobal,
+    DefineGlobal,
 
     // Fast local variable access
     LoadLocal0,
@@ -73,6 +78,10 @@ pub enum Opcode {
     StoreLocal1,
     StoreLocal2,
     StoreLocal3,
+
+    // Upvalue operations
+    LoadUpvalue,
+    StoreUpvalue,
 
     // Functions
     MakeFunc,
@@ -88,11 +97,18 @@ pub enum Opcode {
 
     // Lists
     MakeList,
+    ListGet,
+    ListSet,
     ListHead,
     ListTail,
     ListCons,
     ListLen,
     ListEmpty,
+
+    // Maps
+    MakeMap,
+    MapGet,
+    MapSet,
 
     // Strings
     StrLen,
@@ -113,10 +129,13 @@ pub enum Opcode {
     // Effects
     Effect,
     EffectAsync,
+    Perform,
+    Resume,
     Await,
     Spawn,
     Channel,
     ChannelWithCapacity,
+    MakeChannel,
     Send,
     Receive,
     TrySend,
@@ -125,14 +144,20 @@ pub enum Opcode {
     
     // Actor model
     CreateActor,
+    MakeActor,
     ActorSend,
     ActorReceive,
     Become,
     
     // Error handling
     Try,          // Begin try block
+    TryStart,
+    TryStartWithFinally,
+    TryEnd,
     Catch,        // Catch errors matching pattern
     Finally,      // Finally block start - saves state
+    FinallyStart,
+    FinallyEnd,
     EndFinally,   // Finally block end - restores state
     Throw,        // Throw an error
     PushHandler,  // Push error handler onto stack (with catch IP)
@@ -152,6 +177,8 @@ pub enum Opcode {
 
     // Mutable cells
     MakeCell, // Create a cell with initial value
+    LoadCell,
+    StoreCell,
     CellGet,  // Get value from cell
     CellSet,  // Set value in cell
 

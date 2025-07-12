@@ -2,7 +2,7 @@
 
 use fluentai_vm::{Bytecode, VM};
 use fluentai_vm::async_vm::AsyncVM;
-use fluentai_vm::bytecode::{BytecodeChunk, Instruction, Opcode};
+use fluentai_bytecode::{BytecodeChunk, Instruction, Opcode};
 use fluentai_core::value::Value;
 
 #[tokio::test]

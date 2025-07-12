@@ -1,7 +1,7 @@
 //! Test VM optimizations: shared bytecode, COW globals, lightweight tasks
 
 use fluentai_vm::{Bytecode, VM};
-use fluentai_vm::bytecode::{BytecodeChunk, Instruction, Opcode};
+use fluentai_bytecode::{BytecodeChunk, Instruction, Opcode};
 use fluentai_core::value::Value;
 use std::sync::Arc;
 use std::time::Instant;

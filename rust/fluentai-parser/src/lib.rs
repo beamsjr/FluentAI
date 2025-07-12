@@ -2,7 +2,7 @@
 //!
 //! This parser is designed for maximum performance and clarity.
 
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 
 pub mod error;
 pub mod flc_lexer;

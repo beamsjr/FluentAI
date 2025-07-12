@@ -106,6 +106,8 @@ pub enum Token<'a> {
     Rec,
     #[token("as", priority = 10)]
     As,
+    #[token("from", priority = 10)]
+    From,
     
     // Delimiters
     #[token("(")]

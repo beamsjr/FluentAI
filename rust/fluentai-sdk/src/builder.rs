@@ -165,8 +165,8 @@ mod tests {
 
         let mut session = FluentAIBuilder::new().add_function(double).build().unwrap();
 
-        let result = session.eval("(double 21)").unwrap();
-        assert_eq!(result, Value::Float(42.0));
+        let result = session.eval("double(21)").unwrap();
+        assert_eq!(result, Value::Integer(42));
     }
 
     #[test]

@@ -194,6 +194,11 @@ impl StdlibRegistry {
     pub fn contains(&self, name: &str) -> bool {
         self.functions.read().contains_key(name)
     }
+
+    /// Get all functions in the registry
+    pub fn all_functions(&self) -> Vec<StdlibFunction> {
+        self.functions.read().values().cloned().collect()
+    }
 }
 
 impl Default for StdlibRegistry {
