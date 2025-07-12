@@ -228,14 +228,6 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         
         // Special
         Nop => StackEffect::new(0, 0), // No operation
-        
-        // Catch-all for any missing opcodes (should not happen)
-        _ => {
-            panic!(
-                "Unknown opcode in stack_effect: {:?}. This is a bug - all opcodes should have defined stack effects.",
-                instruction.opcode
-            );
-        }
     }
 }
 

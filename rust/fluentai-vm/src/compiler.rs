@@ -2739,6 +2739,8 @@ impl Compiler {
                 fluentai_core::ast::EffectType::Async => "Async",
                 fluentai_core::ast::EffectType::Concurrent => "Concurrent",
                 fluentai_core::ast::EffectType::Pure => "Pure",
+                fluentai_core::ast::EffectType::HttpServer => "HttpServer",
+                fluentai_core::ast::EffectType::WebSocket => "WebSocket",
             }
             .to_string();
             let idx = self.add_constant(Value::String(effect_str));
