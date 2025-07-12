@@ -1,0 +1,9 @@
+// Simple finally test
+let result = try {
+    42
+} finally {
+    // Finally block should execute but not affect the return value
+    1 + 1
+};
+
+$(f"Result: {result}").print()

@@ -1,0 +1,6 @@
+// Very simple finally test
+try {
+    $("In try block").print()
+} finally {
+    $("In finally block").print()
+}

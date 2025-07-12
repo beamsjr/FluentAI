@@ -216,8 +216,13 @@ impl OpcodeHandler for ConcurrentHandler {
             }
             
             ActorReceive => {
-                // Simplified implementation
-                vm.push(Value::Nil)?;
+                // ActorReceive is used within actor handlers to pattern match on messages
+                // The current implementation will be in the actor message processing logic
+                // For now, this opcode should not be called directly
+                return Err(VMError::RuntimeError {
+                    message: "ActorReceive opcode should only be used within actor handlers".to_string(),
+                    stack_trace: None,
+                });
             }
             
             Become => {

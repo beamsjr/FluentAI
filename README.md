@@ -61,7 +61,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Seamless fallback to interpreter
   - ARM64 support via PIC workaround for Cranelift PLT limitations
   - Currently disabled by default (use `--features jit` to enable)
-- **Multiple expressions in `let` body**: Currently causes parse errors
+- **Multiple expressions in `let` body**: Requires explicit block syntax `{ }` (e.g., `let x = 5; { expr1; expr2 }`)
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
   - UI syntax (`ui:element`, `ui:text`, etc.) not recognized by parser
