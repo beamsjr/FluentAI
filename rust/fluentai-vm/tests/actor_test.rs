@@ -33,7 +33,7 @@ fn compile_and_run(source: &str) -> Result<Value> {
 fn test_create_actor() {
     let result = compile_and_run(
         r#"
-        (actor 0 (lambda (state msg) state))
+        CreateActor(0, (state, msg) => state)
         "#
     ).unwrap();
     
@@ -48,8 +48,8 @@ fn test_create_actor() {
 fn test_actor_send() {
     let result = compile_and_run(
         r#"
-        (let ((counter (actor 0 (lambda (state msg) state))))
-          (! counter "hello"))
+        let counter = CreateActor(0, (state, msg) => state);
+        ActorSend(counter, "hello")
         "#
     ).unwrap();
     
@@ -61,12 +61,11 @@ fn test_actor_send() {
 fn test_simple_counter_actor() {
     let result = compile_and_run(
         r#"
-        (let ((counter (actor 0 (lambda (state msg) 
-                                  (+ state 1)))))
-          (let ((_ (! counter "inc"))
-                (_ (! counter "inc"))
-                (_ (! counter "inc")))
-            counter))
+        let counter = CreateActor(0, (state, msg) => state + 1);
+        let _ = ActorSend(counter, "inc");
+        let _ = ActorSend(counter, "inc");
+        let _ = ActorSend(counter, "inc");
+        counter
         "#
     ).unwrap();
     
@@ -82,13 +81,15 @@ fn test_simple_counter_actor() {
 fn test_actor_receive() {
     let result = compile_and_run(
         r#"
-        (let ((echo (actor nil (lambda (state msg)
-                                (receive
-                                  ((ping) "pong")
-                                  ((hello name) (str "Hello, " name))
-                                  (_ "unknown"))))))
-          (let ((_ (! echo (ping))))
-            echo))
+        let echo = CreateActor(nil, (state, msg) => 
+            match msg {
+                "ping" => "pong",
+                hello(name) => "Hello, " + name,
+                _ => "unknown"
+            }
+        );
+        let _ = ActorSend(echo, "ping");
+        echo
         "#
     ).unwrap();
     
@@ -103,16 +104,17 @@ fn test_actor_receive() {
 fn test_actor_become() {
     let result = compile_and_run(
         r#"
-        (let ((stateful (actor "initial" 
-                              (lambda (state msg)
-                                (receive
-                                  ((set new-state) (become new-state))
-                                  ((get reply-to) (! reply-to state))
-                                  (_ state))))))
-          (let ((ch (chan)))
-            (let ((_ (! stateful (set "changed")))
-                  (_ (! stateful (get ch))))
-              (recv! ch))))
+        let stateful = CreateActor("initial", (state, msg) => 
+            match msg {
+                set(new_state) => Become(new_state),
+                get(reply_to) => { ActorSend(reply_to, state); state },
+                _ => state
+            }
+        );
+        let ch = Channel();
+        let _ = ActorSend(stateful, set("changed"));
+        let _ = ActorSend(stateful, get(ch));
+        Receive(ch)
         "#
     ).unwrap();
     

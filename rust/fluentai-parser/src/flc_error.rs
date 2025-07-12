@@ -105,34 +105,43 @@ fn extract_expected(message: &str) -> String {
 /// Helper function to create syntax suggestions
 pub fn suggest_fix(error: &ParseError, source: &str) -> Option<String> {
     match error {
-        ParseError::UnexpectedToken { position, expected, found } => {
+        ParseError::UnexpectedToken {
+            position,
+            expected,
+            found,
+        } => {
             // Get context around the error
             let line_start = source[..*position].rfind('\n').map(|i| i + 1).unwrap_or(0);
-            let line_end = source[*position..].find('\n').map(|i| *position + i).unwrap_or(source.len());
+            let line_end = source[*position..]
+                .find('\n')
+                .map(|i| *position + i)
+                .unwrap_or(source.len());
             let _error_line = &source[line_start..line_end];
             let _column = position - line_start;
-            
+
             // Create suggestion based on common mistakes
             if found.contains("'='") && expected.contains("expression") {
                 Some("Did you mean '==' for comparison?".to_string())
             } else if found.contains("keyword") && expected.contains("expression") {
-                Some(format!("Unexpected {}. Try wrapping in parentheses or braces.", found))
+                Some(format!(
+                    "Unexpected {}. Try wrapping in parentheses or braces.",
+                    found
+                ))
             } else if found.contains("';'") && expected.contains("expression") {
                 Some("Unexpected semicolon. FLC uses semicolons only after statements.".to_string())
             } else {
                 None
             }
         }
-        ParseError::UnclosedDelimiter(delim) => {
-            Some(format!("Missing closing {} - check your parentheses, braces, or brackets", 
-                match delim.as_str() {
-                    "(" => "')'",
-                    "{" => "'}'",
-                    "[" => "']'",
-                    _ => delim,
-                }
-            ))
-        }
+        ParseError::UnclosedDelimiter(delim) => Some(format!(
+            "Missing closing {} - check your parentheses, braces, or brackets",
+            match delim.as_str() {
+                "(" => "')'",
+                "{" => "'}'",
+                "[" => "']'",
+                _ => delim,
+            }
+        )),
         _ => None,
     }
 }

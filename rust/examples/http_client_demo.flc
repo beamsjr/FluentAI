@@ -1,0 +1,122 @@
+// HTTP Client Demo
+// This example demonstrates the HTTP client capabilities
+
+use http;
+
+private async function test_get_request() {
+    $("Testing GET request...").print();
+    
+    let response = perform http.get("https://httpbin.org/get").await();
+    
+    $(f"Status: {response.status}").print();
+    $(f"Headers: {response.headers}").print();
+    $("Body preview:").print();
+    $(response.body.substring(0, 200) + "...").print();
+    $("").print();
+}
+
+private async function test_post_request() {
+    $("Testing POST request...").print();
+    
+    let data = {
+        "name": "FluentAI User",
+        "message": "Hello from FluentAI!"
+    };
+    
+    let response = perform http.post(
+        "https://httpbin.org/post",
+        data.to_json(),
+        {"Content-Type": "application/json"}
+    ).await();
+    
+    $(f"Status: {response.status}").print();
+    
+    // Parse the response
+    let body = response.body.from_json();
+    $(f"Posted data echo: {body.data}").print();
+    $("").print();
+}
+
+private async function test_custom_headers() {
+    $("Testing custom headers...").print();
+    
+    let response = perform http.get(
+        "https://httpbin.org/headers",
+        {
+            "User-Agent": "FluentAI/1.0",
+            "X-Custom-Header": "FluentAI-Test"
+        }
+    ).await();
+    
+    let body = response.body.from_json();
+    $(f"Server saw headers: {body.headers}").print();
+    $("").print();
+}
+
+private async function test_query_parameters() {
+    $("Testing query parameters...").print();
+    
+    let response = perform http.get(
+        "https://httpbin.org/get?page=1&limit=10&filter=active"
+    ).await();
+    
+    let body = response.body.from_json();
+    $(f"Query params: {body.args}").print();
+    $("").print();
+}
+
+private async function test_put_request() {
+    $("Testing PUT request...").print();
+    
+    let update_data = {
+        "id": 123,
+        "status": "updated"
+    };
+    
+    let response = perform http.put(
+        "https://httpbin.org/put",
+        update_data.to_json(),
+        {"Content-Type": "application/json"}
+    ).await();
+    
+    $(f"PUT Status: {response.status}").print();
+    $("").print();
+}
+
+private async function test_delete_request() {
+    $("Testing DELETE request...").print();
+    
+    let response = perform http.delete("https://httpbin.org/delete").await();
+    
+    $(f"DELETE Status: {response.status}").print();
+    $("").print();
+}
+
+private async function test_error_handling() {
+    $("Testing error handling...").print();
+    
+    try {
+        // This should fail
+        let response = perform http.get("https://invalid-domain-that-does-not-exist.com").await();
+        $("This shouldn't print").print();
+    } catch (e) {
+        $(f"Caught expected error: {e}").print();
+    }
+    $("").print();
+}
+
+private async function main() {
+    $("=== FluentAI HTTP Client Demo ===").print();
+    $("").print();
+    
+    // Run all tests
+    test_get_request().await();
+    test_post_request().await();
+    test_custom_headers().await();
+    test_query_parameters().await();
+    test_put_request().await();
+    test_delete_request().await();
+    test_error_handling().await();
+    
+    $("All tests completed!").print();
+}

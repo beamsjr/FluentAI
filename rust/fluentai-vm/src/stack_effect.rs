@@ -127,6 +127,7 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         
         // Channel operations
         Channel => StackEffect::new(0, 1), // Creates channel
+        ChannelWithCapacity => StackEffect::new(1, 1), // Consumes capacity, produces channel
         Send => StackEffect::new(2, 1), // Consumes channel and value, produces nil
         Receive => StackEffect::new(1, 1), // Consumes channel, produces value
         TrySend => StackEffect::new(2, 1), // Consumes channel and value, produces bool
@@ -211,8 +212,12 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         WithTimeout => StackEffect::new(2, 1), // Consumes promise and timeout, produces promise
         
         // Actor model operations
-        CreateActor => StackEffect::new(0, 1), // Creates actor
+        CreateActor => StackEffect::new(2, 1), // Pops initial_state and handler, pushes actor
         ActorReceive => StackEffect::new(1, 1), // Consumes actor, produces message
+        
+        // Async operations
+        Spawn => StackEffect::new(1, 1), // Consumes function, produces promise/future
+        Await => StackEffect::new(1, 1), // Consumes promise/future, produces result
         
         // Effect operations
         EffectAsync => StackEffect::new(2, 1), // Like Effect but async

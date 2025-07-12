@@ -153,7 +153,7 @@ impl OpcodeHandler for ControlFlowHandler {
             // Halt execution
             Halt => return Ok(VMState::Halt),
             
-            _ => unreachable!("ControlFlowHandler received non-control-flow opcode"),
+            _ => unreachable!("ControlFlowHandler received non-control-flow opcode: {:?}", instruction.opcode),
         }
         
         Ok(VMState::Continue)

@@ -1,0 +1,192 @@
+// User interface module
+// Handles user interaction and command processing
+
+use Types;
+use Portfolio;
+use Rebalancer;
+
+// Display help message
+public function show_help() -> void {
+    $("").print();
+    $("Stock Portfolio Rebalancer Commands:").print();
+    $("  add <symbol> <shares>     - Add a stock to your portfolio").print();
+    $("  alloc <symbol> <percent>  - Set target allocation percentage").print();
+    $("  remove <symbol>           - Remove a stock from portfolio").print();
+    $("  rebalance                 - Calculate rebalancing actions").print();
+    $("  portfolio                 - Show current portfolio").print();
+    $("  help                      - Show this help message").print();
+    $("  quit                      - Exit the application").print();
+    $("").print();
+}
+
+// Parse user command
+public function parse_command(input: string) -> map {
+    let parts = input.trim().split(" ");
+    
+    if (parts.is_empty()) {
+        return Types.create_error("No command entered");
+    }
+    
+    let command = parts[0].to_lowercase();
+    let args = parts.slice(1);
+    
+    {
+        "command": command,
+        "args": args
+    }
+}
+
+// Process add command
+public function process_add(portfolio: map, args: list) -> map {
+    if (args.length() < 2) {
+        $(Types.create_error("Usage: add <symbol> <shares>")).print();
+        return portfolio;
+    }
+    
+    let symbol = args[0].to_uppercase();
+    let shares = parse_float(args[1]);
+    
+    if (shares.is_none() || shares.unwrap() <= 0) {
+        $(Types.create_error("Invalid share count")).print();
+        return portfolio;
+    }
+    
+    let updated = Portfolio.add_stock(portfolio, symbol, shares.unwrap());
+    $(f"Added {shares.unwrap()} shares of {symbol}").print();
+    
+    updated
+}
+
+// Process allocation command
+public function process_alloc(portfolio: map, args: list) -> map {
+    if (args.length() < 2) {
+        $(Types.create_error("Usage: alloc <symbol> <percent>")).print();
+        return portfolio;
+    }
+    
+    let symbol = args[0].to_uppercase();
+    let percent = parse_float(args[1]);
+    
+    if (percent.is_none() || percent.unwrap() < 0 || percent.unwrap() > 100) {
+        $(Types.create_error("Invalid percentage (must be 0-100)")).print();
+        return portfolio;
+    }
+    
+    let updated = Portfolio.set_allocation(portfolio, symbol, percent.unwrap());
+    $(f"Set allocation for {symbol} to {percent.unwrap()}%").print();
+    
+    updated
+}
+
+// Process remove command
+public function process_remove(portfolio: map, args: list) -> map {
+    if (args.is_empty()) {
+        $(Types.create_error("Usage: remove <symbol>")).print();
+        return portfolio;
+    }
+    
+    let symbol = args[0].to_uppercase();
+    let updated = Portfolio.remove_stock(portfolio, symbol);
+    $(f"Removed {symbol} from portfolio").print();
+    
+    updated
+}
+
+// Show portfolio status
+public function show_portfolio(portfolio: map) -> void {
+    let updated = Portfolio.update_prices(portfolio);
+    
+    $("").print();
+    $("=== Current Portfolio ===").print();
+    $(f"Total Value: ${updated.get('total_value'):.2f}").print();
+    $("").print();
+    
+    let current_allocations = Portfolio.calculate_current_allocations(updated);
+    
+    $("Holdings:").print();
+    updated.get("stocks").for_each(stock => {
+        let symbol = stock.get("symbol");
+        let shares = stock.get("shares");
+        let price = stock.get("current_price");
+        let value = stock.get("value");
+        let pct = current_allocations.get(symbol, 0.0);
+        
+        $(f"  {symbol}: {shares:.2f} shares @ ${price:.2f} = ${value:.2f} ({pct:.1f}%)").print();
+    });
+    
+    $("").print();
+    $("Target Allocations:").print();
+    let allocations = updated.get("allocations");
+    if (allocations.is_empty()) {
+        $("  None set").print();
+    } else {
+        allocations.entries().for_each(entry => {
+            $(f"  {entry[0]}: {entry[1]:.1f}%").print();
+        });
+    }
+    $("").print();
+}
+
+// Process rebalance command
+public function process_rebalance(portfolio: map) -> void {
+    $("Calculating rebalancing actions...").print();
+    $("").print();
+    
+    let result = Rebalancer.calculate_rebalance_actions(portfolio);
+    
+    if (!Types.is_success(result)) {
+        $(f"Error: {Types.get_error_message(result)}").print();
+        return;
+    }
+    
+    let report = Rebalancer.generate_report(
+        result.get("data").get("portfolio"),
+        result.get("data")
+    );
+    
+    report.for_each(line => $(line).print());
+}
+
+// Main command processing
+public function process_command(portfolio: map, input: string) -> map {
+    let parsed = parse_command(input);
+    let command = parsed.get("command");
+    let args = parsed.get("args");
+    
+    match command {
+        "add" => process_add(portfolio, args),
+        "alloc" => process_alloc(portfolio, args),
+        "remove" => process_remove(portfolio, args),
+        "portfolio" => {
+            show_portfolio(portfolio);
+            portfolio
+        },
+        "rebalance" => {
+            process_rebalance(portfolio);
+            portfolio
+        },
+        "help" => {
+            show_help();
+            portfolio
+        },
+        "quit" => {
+            $("Goodbye!").print();
+            portfolio.set("_quit", true)
+        },
+        _ => {
+            $(f"Unknown command: {command}. Type 'help' for available commands.").print();
+            portfolio
+        }
+    }
+}
+
+// Helper to parse float from string
+private function parse_float(s: string) -> option {
+    // This would need proper implementation
+    // For now, assuming valid float strings
+    try {
+        some(float(s))
+    } catch {
+        none
+    }
+}

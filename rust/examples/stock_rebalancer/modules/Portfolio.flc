@@ -1,0 +1,107 @@
+// Portfolio management module
+// Handles portfolio state and operations
+
+use Types;
+use PriceService;
+
+// Add a stock to the portfolio
+public function add_stock(portfolio: map, symbol: string, shares: float) -> map {
+    let stocks = portfolio.get("stocks");
+    
+    // Check if stock already exists
+    let existing_index = stocks.find_index(stock => stock.get("symbol") == symbol);
+    
+    if (existing_index >= 0) {
+        // Update existing stock
+        let updated_stocks = stocks.map_indexed((stock, i) => {
+            if (i == existing_index) {
+                Types.create_stock(symbol, shares, stock.get("current_price", 0.0))
+            } else {
+                stock
+            }
+        });
+        portfolio.set("stocks", updated_stocks)
+    } else {
+        // Add new stock
+        let new_stock = Types.create_stock(symbol, shares, 0.0);
+        portfolio.set("stocks", stocks.append(new_stock))
+    }
+}
+
+// Set target allocation for a symbol
+public function set_allocation(portfolio: map, symbol: string, percentage: float) -> map {
+    let allocations = portfolio.get("allocations");
+    allocations.set(symbol, percentage);
+    portfolio.set("allocations", allocations)
+}
+
+// Update all stock prices and calculate total value
+public function update_prices(portfolio: map) -> map {
+    let stocks = portfolio.get("stocks");
+    let updated_stocks = stocks.map(stock => PriceService.update_stock_price(stock));
+    
+    let total_value = updated_stocks.reduce(0.0, (sum, stock) => 
+        sum + stock.get("value", 0.0)
+    );
+    
+    portfolio
+        .set("stocks", updated_stocks)
+        .set("total_value", total_value)
+}
+
+// Calculate current allocation percentages
+public function calculate_current_allocations(portfolio: map) -> map {
+    let total_value = portfolio.get("total_value");
+    let allocations = {};
+    
+    if (total_value > 0) {
+        portfolio.get("stocks").for_each(stock => {
+            let symbol = stock.get("symbol");
+            let value = stock.get("value", 0.0);
+            let percentage = (value / total_value) * 100.0;
+            allocations.set(symbol, percentage);
+        });
+    }
+    
+    allocations
+}
+
+// Validate that allocations sum to 100%
+public function validate_allocations(portfolio: map) -> map {
+    let allocations = portfolio.get("allocations");
+    let total = allocations.values().reduce(0.0, (sum, pct) => sum + pct);
+    
+    if (Math.abs(total - 100.0) < 0.01) {
+        Types.create_success(true)
+    } else {
+        Types.create_error(f"Allocations sum to {total}%, must equal 100%")
+    }
+}
+
+// Get stock by symbol
+public function get_stock(portfolio: map, symbol: string) -> option {
+    portfolio.get("stocks").find(stock => stock.get("symbol") == symbol)
+}
+
+// Remove a stock from the portfolio
+public function remove_stock(portfolio: map, symbol: string) -> map {
+    let stocks = portfolio.get("stocks").filter(stock => 
+        stock.get("symbol") != symbol
+    );
+    
+    let allocations = portfolio.get("allocations");
+    allocations.remove(symbol);
+    
+    portfolio
+        .set("stocks", stocks)
+        .set("allocations", allocations)
+}
+
+// Get portfolio summary
+public function get_summary(portfolio: map) -> string {
+    let total_value = portfolio.get("total_value");
+    let stock_count = portfolio.get("stocks").length();
+    let allocation_count = portfolio.get("allocations").size();
+    
+    f"Portfolio: {stock_count} stocks, ${total_value:.2f} total value, {allocation_count} allocations set"
+}

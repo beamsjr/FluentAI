@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use fluentai_parser::*;
     use bumpalo::Bump;
     use fluentai_core::ast::Node;
+    use fluentai_parser::*;
 
     #[test]
     fn test_parse_basic() {
@@ -110,7 +110,7 @@ mod tests {
     fn test_parse_lambda_expression() {
         let code = "list.map(x => x * 2)";
         let graph = parse(code).unwrap();
-        
+
         // Should have nodes
         assert!(!graph.nodes.is_empty());
     }
@@ -124,7 +124,7 @@ mod tests {
             }
         "#;
         let graph = parse(code).unwrap();
-        
+
         // Should successfully parse async function
         assert!(!graph.nodes.is_empty());
     }
@@ -145,7 +145,7 @@ mod tests {
                 .sort()
         "#;
         let graph = parse(code).unwrap();
-        
+
         // Should parse method chain
         assert!(!graph.nodes.is_empty());
     }
@@ -159,7 +159,7 @@ mod tests {
                 .get()
         "#;
         let graph = parse(code).unwrap();
-        
+
         // Should parse pattern matching
         assert!(!graph.nodes.is_empty());
     }

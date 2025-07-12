@@ -1,0 +1,166 @@
+// Rebalancing calculation module
+// Calculates buy/sell actions to reach target allocations
+
+use Types;
+use Portfolio;
+
+// Calculate rebalancing actions for the portfolio
+public function calculate_rebalance_actions(portfolio: map) -> map {
+    // First validate allocations
+    let validation = Portfolio.validate_allocations(portfolio);
+    if (!Types.is_success(validation)) {
+        return validation;
+    }
+    
+    // Update prices before calculating
+    let updated_portfolio = Portfolio.update_prices(portfolio);
+    let total_value = updated_portfolio.get("total_value");
+    
+    if (total_value <= 0) {
+        return Types.create_error("Portfolio has no value");
+    }
+    
+    let stocks = updated_portfolio.get("stocks");
+    let target_allocations = updated_portfolio.get("allocations");
+    let current_allocations = Portfolio.calculate_current_allocations(updated_portfolio);
+    
+    let actions = [];
+    
+    // Calculate actions for each stock
+    stocks.for_each(stock => {
+        let symbol = stock.get("symbol");
+        let current_shares = stock.get("shares");
+        let current_price = stock.get("current_price");
+        let current_value = stock.get("value");
+        
+        let target_pct = target_allocations.get(symbol, 0.0);
+        let target_value = (target_pct / 100.0) * total_value;
+        let value_diff = target_value - current_value;
+        
+        if (Math.abs(value_diff) < 1.0) {
+            // Close enough, hold
+            actions.push(Types.create_hold_action(symbol));
+        } else if (value_diff > 0) {
+            // Need to buy
+            let shares_to_buy = value_diff / current_price;
+            actions.push(Types.create_buy_action(symbol, shares_to_buy, value_diff));
+        } else {
+            // Need to sell
+            let shares_to_sell = Math.abs(value_diff) / current_price;
+            actions.push(Types.create_sell_action(symbol, shares_to_sell, Math.abs(value_diff)));
+        }
+    });
+    
+    // Check for stocks in allocations but not in portfolio
+    target_allocations.keys().for_each(symbol => {
+        if (!stocks.any(stock => stock.get("symbol") == symbol)) {
+            let target_value = (target_allocations.get(symbol) / 100.0) * total_value;
+            // Would need price to calculate shares, return error for now
+            actions.push(Types.create_error(f"Stock {symbol} has allocation but not in portfolio"));
+        }
+    });
+    
+    Types.create_success({
+        "actions": actions,
+        "portfolio": updated_portfolio,
+        "current_allocations": current_allocations
+    })
+}
+
+// Calculate total buy/sell values
+public function summarize_actions(actions: list) -> map {
+    let total_buy = 0.0;
+    let total_sell = 0.0;
+    let buy_count = 0;
+    let sell_count = 0;
+    
+    actions.for_each(action => {
+        let type = action.get("type");
+        let value = action.get("value", 0.0);
+        
+        if (type == "buy") {
+            total_buy = total_buy + value;
+            buy_count = buy_count + 1;
+        } else if (type == "sell") {
+            total_sell = total_sell + value;
+            sell_count = sell_count + 1;
+        }
+    });
+    
+    {
+        "total_buy": total_buy,
+        "total_sell": total_sell,
+        "net_cash_flow": total_sell - total_buy,
+        "buy_count": buy_count,
+        "sell_count": sell_count,
+        "hold_count": actions.length() - buy_count - sell_count
+    }
+}
+
+// Format action for display
+public function format_action(action: map) -> string {
+    let type = action.get("type");
+    let symbol = action.get("symbol");
+    let shares = action.get("shares", 0.0);
+    let value = action.get("value", 0.0);
+    
+    if (type == "buy") {
+        f"BUY  {symbol}: {shares:.2f} shares (${value:.2f})"
+    } else if (type == "sell") {
+        f"SELL {symbol}: {shares:.2f} shares (${value:.2f})"
+    } else if (type == "hold") {
+        f"HOLD {symbol}"
+    } else {
+        f"ERROR {symbol}: {action.get('message', 'Unknown error')}"
+    }
+}
+
+// Generate full rebalancing report
+public function generate_report(portfolio: map, result: map) -> list {
+    let lines = [];
+    
+    // Header
+    lines.push("=== Rebalancing Report ===");
+    lines.push("");
+    
+    // Portfolio summary
+    lines.push(f"Total Portfolio Value: ${portfolio.get('total_value'):.2f}");
+    lines.push("");
+    
+    // Current holdings
+    lines.push("Current Holdings:");
+    portfolio.get("stocks").for_each(stock => {
+        let symbol = stock.get("symbol");
+        let shares = stock.get("shares");
+        let price = stock.get("current_price");
+        let value = stock.get("value");
+        let current_pct = result.get("current_allocations").get(symbol, 0.0);
+        lines.push(f"  {symbol}: {shares:.2f} shares @ ${price:.2f} = ${value:.2f} ({current_pct:.1f}%)");
+    });
+    lines.push("");
+    
+    // Target allocations
+    lines.push("Target Allocations:");
+    portfolio.get("allocations").entries().for_each(entry => {
+        let symbol = entry[0];
+        let target_pct = entry[1];
+        lines.push(f"  {symbol}: {target_pct:.1f}%");
+    });
+    lines.push("");
+    
+    // Actions
+    lines.push("=== Rebalancing Actions ===");
+    result.get("actions").for_each(action => {
+        lines.push(format_action(action));
+    });
+    lines.push("");
+    
+    // Summary
+    let summary = summarize_actions(result.get("actions"));
+    lines.push("=== Summary ===");
+    lines.push(f"Total to buy:  ${summary.get('total_buy'):.2f}");
+    lines.push(f"Total to sell: ${summary.get('total_sell'):.2f}");
+    lines.push(f"Net cash flow: ${summary.get('net_cash_flow'):.2f}");
+    
+    lines
+}

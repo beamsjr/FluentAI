@@ -182,6 +182,8 @@ pub struct Graph {
     next_id: u32,
     /// Optional metadata for nodes
     pub metadata: AstHashMap<NodeId, NodeMetadata>,
+    /// Graph-level metadata (e.g., module name)
+    pub graph_metadata: AstHashMap<String, String>,
 }
 
 impl Default for Graph {
@@ -197,6 +199,7 @@ impl Graph {
             root_id: None,
             next_id: 1, // Start at 1 since 0 is reserved for null
             metadata: AstHashMap::default(),
+            graph_metadata: AstHashMap::default(),
         }
     }
 
@@ -1223,6 +1226,7 @@ pub enum EffectType {
     Dom,
     Async,
     Concurrent,
+    HttpServer,
 }
 
 impl fmt::Display for EffectType {
@@ -1238,6 +1242,7 @@ impl fmt::Display for EffectType {
             EffectType::Dom => write!(f, "Dom"),
             EffectType::Async => write!(f, "Async"),
             EffectType::Concurrent => write!(f, "Concurrent"),
+            EffectType::HttpServer => write!(f, "HttpServer"),
         }
     }
 }
