@@ -1,0 +1,143 @@
+// Advanced Actor Patterns in FLC
+
+// Example 1: Request-Reply Pattern
+private actor RequestHandler {
+    pending: list = [];
+    
+    private handle Message(msg: any) {
+        receive {
+            {type: "request", id, query, reply_to} => {
+                // Process the request
+                let response = process_query(query);
+                // Send reply back to sender
+                reply_to.send({type: "response", id: id, result: response});
+                state  // Return unchanged state
+            },
+            {type: "status"} => {
+                f"Pending requests: {pending.length()}"
+            },
+            _ => state
+        }
+    }
+}
+
+// Example 2: State Machine Actor
+private actor Connection {
+    state: string = "disconnected";
+    
+    private handle Message(msg: any) {
+        receive {
+            "connect" => {
+                match state {
+                    "disconnected" => "connected",
+                    "connected" => state,  // Already connected
+                    _ => state
+                }
+            },
+            "disconnect" => {
+                match state {
+                    "connected" => "disconnected",
+                    "disconnected" => state,  // Already disconnected
+                    _ => state
+                }
+            },
+            {type: "send", data} => {
+                match state {
+                    "connected" => {
+                        // Process data
+                        $("Sending: {data}").print();
+                        state
+                    },
+                    "disconnected" => {
+                        $("Error: Not connected").print();
+                        state
+                    },
+                    _ => state
+                }
+            },
+            "status" => state,
+            _ => state
+        }
+    }
+}
+
+// Example 3: Actor with Timeout (conceptual - requires runtime support)
+private actor TimeoutActor {
+    last_message_time: int = 0;
+    
+    private handle Message(msg: any) {
+        receive {
+            {type: "ping"} => {
+                time.now()  // Update last message time
+            },
+            {type: "check_timeout", timeout_ms} => {
+                let current = time.now();
+                if (current - last_message_time > timeout_ms) {
+                    "timeout"
+                } else {
+                    "alive"
+                }
+            },
+            _ => last_message_time
+        }
+        // Could have timeout clause:
+        // timeout 5000 => {
+        //     $("No message received for 5 seconds").print();
+        //     last_message_time
+        // }
+    }
+}
+
+// Example 4: Worker Pool Pattern
+private actor WorkerPool {
+    workers: list = [];
+    queue: list = [];
+    
+    private handle Message(msg: any) {
+        receive {
+            {type: "add_worker", worker} => {
+                {
+                    workers: workers.append(worker),
+                    queue: queue
+                }
+            },
+            {type: "submit", task} => {
+                if (workers.is_empty()) {
+                    // Queue the task
+                    {
+                        workers: workers,
+                        queue: queue.append(task)
+                    }
+                } else {
+                    // Assign to first available worker
+                    let worker = workers.head();
+                    let remaining = workers.tail();
+                    worker.send({type: "execute", task: task});
+                    {
+                        workers: remaining,
+                        queue: queue
+                    }
+                }
+            },
+            {type: "worker_done", worker} => {
+                if (queue.is_empty()) {
+                    // Add worker back to pool
+                    {
+                        workers: workers.append(worker),
+                        queue: queue
+                    }
+                } else {
+                    // Assign next task
+                    let task = queue.head();
+                    let remaining_queue = queue.tail();
+                    worker.send({type: "execute", task: task});
+                    {
+                        workers: workers,
+                        queue: remaining_queue
+                    }
+                }
+            },
+            _ => { workers: workers, queue: queue }
+        }
+    }
+}

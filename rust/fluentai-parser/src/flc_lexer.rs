@@ -28,7 +28,7 @@ pub enum Token<'a> {
     Macro,
     #[token("extern", priority = 10)]
     Extern,
-    
+
     // Control flow keywords
     #[token("if", priority = 10)]
     If,
@@ -50,7 +50,7 @@ pub enum Token<'a> {
     Let,
     #[token("const", priority = 10)]
     Const,
-    
+
     // Concurrency keywords
     #[token("async", priority = 10)]
     Async,
@@ -62,7 +62,11 @@ pub enum Token<'a> {
     Parallel,
     #[token("handle", priority = 10)]
     Handle,
-    
+    #[token("receive", priority = 10)]
+    Receive,
+    #[token("become", priority = 10)]
+    Become,
+
     // Error handling keywords
     #[token("try", priority = 10)]
     Try,
@@ -70,7 +74,7 @@ pub enum Token<'a> {
     Catch,
     #[token("finally", priority = 10)]
     Finally,
-    
+
     // Module keywords
     #[token("use", priority = 10)]
     Use,
@@ -78,7 +82,7 @@ pub enum Token<'a> {
     Mod,
     #[token("export", priority = 10)]
     Export,
-    
+
     // Other keywords
     #[token("true", priority = 10)]
     True,
@@ -102,7 +106,7 @@ pub enum Token<'a> {
     Rec,
     #[token("as", priority = 10)]
     As,
-    
+
     // Delimiters
     #[token("(")]
     LParen,
@@ -116,7 +120,7 @@ pub enum Token<'a> {
     LBracket,
     #[token("]")]
     RBracket,
-    
+
     // Operators - Chaining (highest priority after keywords)
     #[token(".", priority = 9)]
     Dot,
@@ -124,7 +128,7 @@ pub enum Token<'a> {
     Pipe,
     #[token(".?", priority = 9)]
     OptionalChain,
-    
+
     // Operators - Arithmetic
     #[token("+", priority = 8)]
     Plus,
@@ -136,7 +140,7 @@ pub enum Token<'a> {
     Slash,
     #[token("%", priority = 8)]
     Percent,
-    
+
     // Operators - Comparison
     #[token("==", priority = 8)]
     EqEq,
@@ -150,7 +154,7 @@ pub enum Token<'a> {
     LessEq,
     #[token(">=", priority = 8)]
     GreaterEq,
-    
+
     // Operators - Logical
     #[token("&&", priority = 8)]
     AndAnd,
@@ -160,13 +164,13 @@ pub enum Token<'a> {
     Or,
     #[token("!", priority = 8)]
     Bang,
-    
+
     // Operators - Assignment
     #[token("=", priority = 8)]
     Eq,
     #[token(":=", priority = 8)]
     ColonEq,
-    
+
     // Operators - Other
     #[token("::", priority = 8)]
     ColonColon,
@@ -180,7 +184,7 @@ pub enum Token<'a> {
     DotDotDot,
     #[token("++", priority = 8)]
     PlusPlus,
-    
+
     // Punctuation
     #[token(",")]
     Comma,
@@ -198,14 +202,14 @@ pub enum Token<'a> {
     Underscore,
     #[token("$")]
     Dollar,
-    
+
     // Literals
     #[regex(r"-?[0-9]+", priority = 5, callback = |lex| lex.slice().parse::<i64>().ok())]
     Integer(i64),
-    
+
     #[regex(r"-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", priority = 5, callback = |lex| lex.slice().parse::<f64>().ok())]
     Float(f64),
-    
+
     // String literals - regular strings
     #[regex(r#""([^"\\]|\\.)*""#, priority = 5, callback = |lex| {
         let s = lex.slice();
@@ -213,43 +217,42 @@ pub enum Token<'a> {
         process_string_escapes(content)
     })]
     String(String),
-    
+
     // Symbol literals - start with single quote
     #[regex(r"'[a-zA-Z_][a-zA-Z0-9_-]*", priority = 5, callback = |lex| {
         let s = lex.slice();
         s[1..].to_string() // Remove the leading quote
     })]
     Symbol(String),
-    
+
     // F-strings (formatted strings)
     #[regex(r#"f"([^"\\]|\\.)*""#, priority = 6, callback = |lex| {
         let s = lex.slice();
         &s[2..s.len()-1]
     })]
     FString(&'a str),
-    
+
     // Identifiers (after keywords to avoid conflicts)
     // snake_case for variables/functions
     #[regex(r"[a-z_][a-z0-9_]*", priority = 3)]
     LowerIdent(&'a str),
-    
+
     // PascalCase for types
     #[regex(r"[A-Z][a-zA-Z0-9_]*", priority = 3)]
     UpperIdent(&'a str),
-    
+
     // SCREAMING_SNAKE_CASE for constants
     #[regex(r"[A-Z][A-Z0-9_]*", priority = 4)]
     ConstIdent(&'a str),
-    
+
     // Module paths (e.g., std::collections::HashMap)
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*(::[a-zA-Z_][a-zA-Z0-9_]*)+", priority = 7)]
     ModulePath(&'a str),
-    
+
     // Comments and whitespace (automatically skipped)
     #[regex(r"//[^\n]*", logos::skip)]
     #[regex(r"/\*([^*]|\*[^/])*\*/", logos::skip)]
     #[regex(r"[ \t\n\r]+", logos::skip)]
-    
     // Error token
     Error,
 }
@@ -258,7 +261,7 @@ pub enum Token<'a> {
 pub fn process_string_escapes(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut chars = s.chars();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '\\' {
             match chars.next() {
@@ -278,7 +281,7 @@ pub fn process_string_escapes(s: &str) -> String {
             result.push(ch);
         }
     }
-    
+
     result
 }
 
@@ -295,7 +298,7 @@ impl<'a> Lexer<'a> {
             peeked: None,
         }
     }
-    
+
     pub fn next_token(&mut self) -> Option<Token<'a>> {
         if let Some((token, _)) = self.peeked.take() {
             Some(token)
@@ -303,7 +306,7 @@ impl<'a> Lexer<'a> {
             self.inner.next().and_then(Result::ok)
         }
     }
-    
+
     pub fn peek_token(&mut self) -> Option<&Token<'a>> {
         if self.peeked.is_none() {
             if let Some(Ok(token)) = self.inner.next() {
@@ -313,7 +316,7 @@ impl<'a> Lexer<'a> {
         }
         self.peeked.as_ref().map(|(token, _)| token)
     }
-    
+
     pub fn span(&self) -> std::ops::Range<usize> {
         if let Some((_, span)) = &self.peeked {
             span.clone()
@@ -321,7 +324,7 @@ impl<'a> Lexer<'a> {
             self.inner.span()
         }
     }
-    
+
     pub fn slice(&self) -> &'a str {
         self.inner.slice()
     }
@@ -330,7 +333,7 @@ impl<'a> Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_keywords() {
         let mut lexer = Lexer::new("private public function struct let if true false");
@@ -343,7 +346,7 @@ mod tests {
         assert_eq!(lexer.next_token(), Some(Token::True));
         assert_eq!(lexer.next_token(), Some(Token::False));
     }
-    
+
     #[test]
     fn test_identifiers() {
         let mut lexer = Lexer::new("user_name UserType MAX_SIZE");
@@ -351,7 +354,7 @@ mod tests {
         assert_eq!(lexer.next_token(), Some(Token::UpperIdent("UserType")));
         assert_eq!(lexer.next_token(), Some(Token::ConstIdent("MAX_SIZE")));
     }
-    
+
     #[test]
     fn test_literals() {
         let mut lexer = Lexer::new(r#"42 3.14 "hello" f"Hello {name}""#);
@@ -360,7 +363,7 @@ mod tests {
         assert_eq!(lexer.next_token(), Some(Token::String("hello".to_string())));
         assert_eq!(lexer.next_token(), Some(Token::FString("Hello {name}")));
     }
-    
+
     #[test]
     fn test_operators() {
         let mut lexer = Lexer::new(". |> + == && = :=");
@@ -372,13 +375,16 @@ mod tests {
         assert_eq!(lexer.next_token(), Some(Token::Eq));
         assert_eq!(lexer.next_token(), Some(Token::ColonEq));
     }
-    
+
     #[test]
     fn test_module_paths() {
         let mut lexer = Lexer::new("std::collections::HashMap");
-        assert_eq!(lexer.next_token(), Some(Token::ModulePath("std::collections::HashMap")));
+        assert_eq!(
+            lexer.next_token(),
+            Some(Token::ModulePath("std::collections::HashMap"))
+        );
     }
-    
+
     #[test]
     fn test_comments() {
         let mut lexer = Lexer::new("private // comment\n function /* block */ struct");

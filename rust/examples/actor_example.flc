@@ -1,0 +1,72 @@
+// Actor Model Examples in FLC
+
+// Example 1: Simple Echo Actor
+private actor Echo {
+    state: string = "ready";
+    
+    private handle Message(msg: any) {
+        receive {
+            "ping" => "pong",
+            {type: "echo", text} => text,
+            {type: "get_state"} => state,
+            _ => "unknown message"
+        }
+    }
+}
+
+// Example 2: Counter Actor with State
+private actor Counter {
+    count: int = 0;
+    
+    private handle Message(msg: any) {
+        receive {
+            "increment" => {
+                count + 1  // Return new state
+            },
+            "decrement" => {
+                count - 1  // Return new state  
+            },
+            "get" => count,
+            {type: "add", value} => count + value,
+            _ => count  // Return unchanged state
+        }
+    }
+}
+
+// Example 3: Calculator Actor
+private actor Calculator {
+    result: float = 0.0;
+    
+    private handle Operation(msg: any) {
+        receive {
+            {op: "add", value} => result + value,
+            {op: "subtract", value} => result - value,
+            {op: "multiply", value} => result * value,
+            {op: "divide", value} => {
+                if (value != 0) {
+                    result / value
+                } else {
+                    result  // Don't divide by zero
+                }
+            },
+            {op: "reset"} => 0.0,
+            {op: "get"} => result,
+            _ => result
+        }
+    }
+}
+
+// Usage examples (would work if actor runtime was complete):
+// let echo = Echo.new();
+// echo.send("ping");  // Would return "pong"
+// echo.send({type: "echo", text: "hello"});  // Would return "hello"
+
+// let counter = Counter.new();
+// counter.send("increment");
+// counter.send("increment");
+// counter.send("get");  // Would return 2
+
+// let calc = Calculator.new();
+// calc.send({op: "add", value: 10});
+// calc.send({op: "multiply", value: 2});
+// calc.send({op: "get"});  // Would return 20.0

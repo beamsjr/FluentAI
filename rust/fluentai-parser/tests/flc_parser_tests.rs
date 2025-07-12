@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use fluentai_parser::parse_flc;
-    
+
     #[test]
     fn test_parse_arithmetic() {
         let cases = vec![
@@ -16,13 +16,13 @@ mod tests {
             ("(1 + 2) * 3", "parentheses"),
             ("1 + 2 + 3", "left associative"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_comparison() {
         let cases = vec![
@@ -35,29 +35,35 @@ mod tests {
             ("x > 5 && y < 10", "logical and"),
             ("x == 0 || y == 0", "logical or"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_functions() {
         let cases = vec![
             ("private function add(x, y) { x + y }", "simple function"),
-            ("public function greet(name) { f\"Hello, {name}!\" }", "public function"),
-            ("private function factorial(n) { if (n <= 1) { 1 } else { n * factorial(n - 1) } }", "recursive function"),
+            (
+                "public function greet(name) { f\"Hello, {name}!\" }",
+                "public function",
+            ),
+            (
+                "private function factorial(n) { if (n <= 1) { 1 } else { n * factorial(n - 1) } }",
+                "recursive function",
+            ),
             ("private function identity(x) { x }", "identity function"),
             ("private function no_params() { 42 }", "no parameters"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_lambdas() {
         let cases = vec![
@@ -65,13 +71,13 @@ mod tests {
             ("(x, y) => x + y", "multi-param lambda"),
             ("() => 42", "no-param lambda"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_let_bindings() {
         let cases = vec![
@@ -80,13 +86,13 @@ mod tests {
             // TODO: Destructuring in let bindings not yet implemented in FLC parser
             // ("let {x, y} = point; x + y", "destructuring let"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_method_chains() {
         let cases = vec![
@@ -95,42 +101,48 @@ mod tests {
             ("users.filter(u => u.age > 18)", "method with lambda"),
             ("data.process().validate().save()", "long chain"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_pattern_matching() {
         let cases = vec![
             ("x.match().case(0, \"zero\").get()", "simple match"),
-            ("x.match().case(Ok(v), v).case(Err(e), 0).get()", "result match"),
+            (
+                "x.match().case(Ok(v), v).case(Err(e), 0).get()",
+                "result match",
+            ),
             ("x.match().case(_, \"default\").get()", "wildcard match"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_async_await() {
         let cases = vec![
             // Async is used with function definitions, not blocks
-            ("private async function fetch_data() { http.get(\"/api\") }", "async function"),
+            (
+                "private async function fetch_data() { http.get(\"/api\") }",
+                "async function",
+            ),
             ("fetch(url).await()", "await expression"),
             ("data.fetch().await().process()", "await in chain"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_collections() {
         let cases = vec![
@@ -138,33 +150,42 @@ mod tests {
             ("{\"key\": \"value\"}", "map literal"),
             ("#{1, 2, 3}", "set literal"),
             ("[1, 2, [3, 4]]", "nested list"),
-            ("{\"name\": \"Alice\", \"age\": 30}", "map with multiple entries"),
+            (
+                "{\"name\": \"Alice\", \"age\": 30}",
+                "map with multiple entries",
+            ),
             ("#{1, 2, 3, 4, 5}", "set with multiple items"),
             ("{}", "empty map"),
             ("#{}", "empty set"),
             ("[]", "empty list"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_error_handling() {
         let cases = vec![
-            ("try { risky() } catch (e) { process_error(e) }", "try-catch"),
+            (
+                "try { risky() } catch (e) { process_error(e) }",
+                "try-catch",
+            ),
             ("try { risky() } finally { cleanup() }", "try-finally"),
-            ("try { risky() } catch (e) { process_error(e) } finally { cleanup() }", "try-catch-finally"),
+            (
+                "try { risky() } catch (e) { process_error(e) } finally { cleanup() }",
+                "try-catch-finally",
+            ),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_modules() {
         let cases = vec![
@@ -172,15 +193,18 @@ mod tests {
             ("use math::{sin, cos, tan};", "multi import"),
             // TODO: Aliased imports not yet implemented in FLC parser
             // ("use http::client as http_client;", "aliased import"),
-            ("mod math { private function add(x, y) { x + y } }", "module definition"),
+            (
+                "mod math { private function add(x, y) { x + y } }",
+                "module definition",
+            ),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_pipes() {
         let cases = vec![
@@ -188,27 +212,30 @@ mod tests {
             ("5 |> double |> add(10)", "pipe chain"),
             ("[1, 2, 3] |> map(double) |> sum", "collection pipe"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_string_interpolation() {
         let cases = vec![
             (r#"f"Hello, {name}!""#, "simple interpolation"),
             (r#"f"Result: {x + y}""#, "expression interpolation"),
-            (r#"f"User: {user.name} (ID: {user.id})""#, "multiple interpolations"),
+            (
+                r#"f"User: {user.name} (ID: {user.id})""#,
+                "multiple interpolations",
+            ),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_error_cases() {
         let error_cases = vec![
@@ -219,13 +246,18 @@ mod tests {
             ("1 +", "incomplete expression"),
             ("private 123", "invalid definition"),
         ];
-        
+
         for (input, desc) in error_cases {
             let result = parse_flc(input);
-            assert!(result.is_err(), "Should fail to parse {}: {:?}", desc, result);
+            assert!(
+                result.is_err(),
+                "Should fail to parse {}: {:?}",
+                desc,
+                result
+            );
         }
     }
-    
+
     #[test]
     fn test_parse_mutation() {
         // First test just the lexer
@@ -235,7 +267,7 @@ mod tests {
         while let Some(token) = lexer.next_token() {
             println!("  {:?}", token);
         }
-        
+
         // Start with simpler test cases
         let simple_tests = vec![
             "x := 20",
@@ -243,7 +275,7 @@ mod tests {
             "{ x := 20; }",
             "{ let x = 10; x := 20 }",
         ];
-        
+
         for test in simple_tests {
             println!("\nTesting simple: {}", test);
             let result = parse_flc(test);
@@ -252,14 +284,14 @@ mod tests {
                 Err(e) => println!("Simple parse error: {:?}", e),
             }
         }
-        
+
         let cases = vec![
             ("{ let x = 10; x := 20; x }", "mutation with :="),
             // Note: = is not supported for mutation in FLC, only :=
             // ("{ let x = 10; x = 30; x }", "mutation with ="),
             ("{ let x = 10; x.set(40); x }", "mutation with .set()"),
         ];
-        
+
         for (input, desc) in cases {
             println!("\nTesting: {} - {}", desc, input);
             let result = parse_flc(input);
@@ -268,18 +300,22 @@ mod tests {
                 Err(e) => println!("Parse error: {:?}", e),
             }
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
-            
+
             // Check that we have Assignment nodes
             if let Ok(graph) = result {
-                let has_assignment = graph.nodes.values().any(|node| {
-                    matches!(node, fluentai_core::ast::Node::Assignment { .. })
-                });
-                assert!(has_assignment || desc.contains(".set()"), 
-                    "Expected Assignment node for {}", desc);
+                let has_assignment = graph
+                    .nodes
+                    .values()
+                    .any(|node| matches!(node, fluentai_core::ast::Node::Assignment { .. }));
+                assert!(
+                    has_assignment || desc.contains(".set()"),
+                    "Expected Assignment node for {}",
+                    desc
+                );
             }
         }
     }
-    
+
     #[test]
     fn test_parse_complex_example() {
         let input = r#"
@@ -296,11 +332,15 @@ private async function main() {
     save_results(processed).await()
 }
 "#;
-        
+
         let result = parse_flc(input);
-        assert!(result.is_ok(), "Failed to parse complex example: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Failed to parse complex example: {:?}",
+            result
+        );
     }
-    
+
     #[test]
     fn test_parse_effect_statements() {
         let cases = vec![
@@ -309,24 +349,28 @@ private async function main() {
             (r#"perform State.get()"#, "state effect"),
             (r#"perform State.set(42)"#, "state effect with arg"),
             (r#"perform IO.println("Starting process")"#, "io effect"),
-            (r#"{ perform IO.print("Hello"); perform IO.print("World") }"#, "multiple effects"),
+            (
+                r#"{ perform IO.print("Hello"); perform IO.print("World") }"#,
+                "multiple effects",
+            ),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             match &result {
                 Ok(graph) => {
                     // Check that we have Effect nodes
-                    let has_effect = graph.nodes.values().any(|node| {
-                        matches!(node, fluentai_core::ast::Node::Effect { .. })
-                    });
+                    let has_effect = graph
+                        .nodes
+                        .values()
+                        .any(|node| matches!(node, fluentai_core::ast::Node::Effect { .. }));
                     assert!(has_effect, "Expected Effect node for {}", desc);
                 }
                 Err(e) => panic!("Failed to parse {}: {:?}", desc, e),
             }
         }
     }
-    
+
     #[test]
     fn test_parse_printable_construct() {
         let cases = vec![
@@ -335,13 +379,13 @@ private async function main() {
             ("$(users.count())", "method call printable"),
             ("let x = 5; $(x)", "printable after statement"),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_parse_trait_implementation() {
         let input = r#"
@@ -351,49 +395,66 @@ User as Serializable {
     }
 }
 "#;
-        
+
         let result = parse_flc(input);
-        assert!(result.is_ok(), "Failed to parse trait implementation: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Failed to parse trait implementation: {:?}",
+            result
+        );
     }
-    
+
     #[test]
     fn test_parse_module_with_exports() {
         let cases = vec![
             (r#"export { add, subtract };"#, "simple export"),
-            (r#"export { add as plus, subtract as minus };"#, "export with aliases"),
-            (r#"
+            (
+                r#"export { add as plus, subtract as minus };"#,
+                "export with aliases",
+            ),
+            (
+                r#"
 mod math {
     private function add(x, y) { x + y }
     private function subtract(x, y) { x - y }
     export { add, subtract };
 }
-"#, "module with exports"),
-            (r#"
+"#,
+                "module with exports",
+            ),
+            (
+                r#"
 mod utils {
     use std::io;
     private function debug(x) { perform IO.println(x) }
     public function log(msg) { debug(msg) }
     export { log, debug as debug_print };
 }
-"#, "complex module with exports"),
+"#,
+                "complex module with exports",
+            ),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             match &result {
                 Ok(graph) => {
                     // Check for Export or Module nodes
                     let has_export_or_module = graph.nodes.values().any(|node| {
-                        matches!(node, fluentai_core::ast::Node::Export { .. }) ||
-                        matches!(node, fluentai_core::ast::Node::Module { .. })
+                        matches!(node, fluentai_core::ast::Node::Export { .. })
+                            || matches!(node, fluentai_core::ast::Node::Module { .. })
                     });
-                    assert!(has_export_or_module, "Expected Export or Module node for {}", desc);
+                    assert!(
+                        has_export_or_module,
+                        "Expected Export or Module node for {}",
+                        desc
+                    );
                 }
                 Err(e) => panic!("Failed to parse {}: {:?}", desc, e),
             }
         }
     }
-    
+
     #[test]
     fn test_parse_actor_handlers() {
         // Test a simple actor with state and handlers
@@ -410,62 +471,82 @@ private actor Counter {
     }
 }
 "#;
-        
+
         let result = parse_flc(input);
-        assert!(result.is_ok(), "Failed to parse actor handlers: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Failed to parse actor handlers: {:?}",
+            result
+        );
     }
-    
+
     #[test]
     fn test_parse_handler_expressions() {
         let cases = vec![
-            (r#"handle { perform IO.print("Hello") } with { IO.print(msg) => captured.push(msg) }"#, "simple handler"),
-            (r#"handle {
+            (
+                r#"handle { perform IO.print("Hello") } with { IO.print(msg) => captured.push(msg) }"#,
+                "simple handler",
+            ),
+            (
+                r#"handle {
                 perform State.set(42);
                 perform State.get()
             } with {
                 State.set(value) => { current_state := value },
                 State.get() => current_state
-            }"#, "multiple handlers"),
-            (r#"handle {
+            }"#,
+                "multiple handlers",
+            ),
+            (
+                r#"handle {
                 perform IO.print("test");
                 perform Error.throw("oops")
             } with {
                 IO.print(msg) => log.push(msg),
                 Error.throw(err) => default_value
-            }"#, "error handling"),
+            }"#,
+                "error handling",
+            ),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             match &result {
                 Ok(graph) => {
                     // Check for Handler nodes
-                    let has_handler = graph.nodes.values().any(|node| {
-                        matches!(node, fluentai_core::ast::Node::Handler { .. })
-                    });
+                    let has_handler = graph
+                        .nodes
+                        .values()
+                        .any(|node| matches!(node, fluentai_core::ast::Node::Handler { .. }));
                     assert!(has_handler, "Expected Handler node for {}", desc);
                 }
                 Err(e) => panic!("Failed to parse {}: {:?}", desc, e),
             }
         }
     }
-    
+
     #[test]
     fn test_parse_assignment_statements() {
         let cases = vec![
             ("x = 5;", "simple assignment"),
             ("x = y + z;", "assignment with expression"),
-            ("let x = 5; x + 1", "let with expression body (not assignment)"),
+            (
+                "let x = 5; x + 1",
+                "let with expression body (not assignment)",
+            ),
             ("{ x = 5; y = x + 1; }", "multiple assignments in block"),
-            ("private function inc_x() { x = x + 1; }", "assignment in function"),
+            (
+                "private function inc_x() { x = x + 1; }",
+                "assignment in function",
+            ),
         ];
-        
+
         for (input, desc) in cases {
             let result = parse_flc(input);
             assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
         }
     }
-    
+
     #[test]
     fn test_assignment_vs_expression() {
         // Test that expressions without assignment work correctly
@@ -475,10 +556,76 @@ private actor Counter {
             ("f(x)", "function call"),
             ("{ x; y; z }", "expression block"),
         ];
-        
+
         for (input, desc) in expr_cases {
             let result = parse_flc(input);
-            assert!(result.is_ok(), "Failed to parse expression {}: {:?}", desc, result);
+            assert!(
+                result.is_ok(),
+                "Failed to parse expression {}: {:?}",
+                desc,
+                result
+            );
+        }
+    }
+    
+    #[test]
+    fn test_parse_actor_with_receive_patterns() {
+        let cases = vec![
+            (r#"
+                private actor Echo {
+                    state: string = "ready";
+                    
+                    private handle Message(msg: any) {
+                        receive {
+                            "ping" => "pong",
+                            "hello" => "world",
+                            _ => "unknown"
+                        }
+                    }
+                }
+            "#, "simple actor with receive"),
+            (r#"
+                private actor Counter {
+                    count: int = 0;
+                    
+                    private handle Command(msg: any) {
+                        receive {
+                            "inc" => count + 1,
+                            "dec" => count - 1,
+                            "get" => count,
+                            _ => count
+                        }
+                    }
+                }
+            "#, "counter actor with receive"),
+            (r#"
+                let result = receive {
+                    "add" => 1 + 2,
+                    "multiply" => 3 * 4,
+                    "divide" => 10 / 2,
+                    _ => 0
+                };
+                result
+            "#, "standalone receive expression"),
+        ];
+
+        for (input, desc) in cases {
+            let result = parse_flc(input);
+            match &result {
+                Ok(graph) => {
+                    // Check for Actor or ActorReceive nodes
+                    let has_actor_or_receive = graph.nodes.values().any(|node| {
+                        matches!(node, fluentai_core::ast::Node::Actor { .. })
+                            || matches!(node, fluentai_core::ast::Node::ActorReceive { .. })
+                    });
+                    assert!(
+                        has_actor_or_receive,
+                        "Expected Actor or ActorReceive node for {}",
+                        desc
+                    );
+                }
+                Err(e) => panic!("Failed to parse {}: {:?}", desc, e),
+            }
         }
     }
 }

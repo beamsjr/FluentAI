@@ -82,7 +82,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **Actor Model**: Basic actor primitives with message passing
   - ✅ Actor definition: `private actor Name { state; handle MessageType(...) { ... } }`
   - ✅ Send messages: `actor.send(message)`
-  - ❌ Receive patterns: Not yet implemented
+  - ✅ Receive patterns: `receive { pattern => handler, ... }` (Parser support complete, runtime partially implemented)
   - ❌ Become: Not yet implemented
 
 ### 📋 Planned/Aspirational Features

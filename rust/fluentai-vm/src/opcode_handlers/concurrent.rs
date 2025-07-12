@@ -65,11 +65,6 @@ impl OpcodeHandler for ConcurrentHandler {
                 }
             }
             
-            MakeChannel => {
-                let channel_id = vm.create_channel();
-                vm.push(Value::Channel(channel_id.0))?;
-            }
-            
             Send => {
                 let value = vm.pop()?;
                 let channel = vm.pop()?;
@@ -119,13 +114,6 @@ impl OpcodeHandler for ConcurrentHandler {
                 vm.push(Value::Actor(actor_id.0))?;
             }
             
-            MakeActor => {
-                let handler = vm.pop()?;
-                let initial_state = vm.pop()?;
-                let actor_id = vm.create_actor(initial_state, handler)?;
-                vm.push(Value::Actor(actor_id.0))?;
-            }
-            
             ActorSend => {
                 let message = vm.pop()?;
                 let actor = vm.pop()?;
@@ -138,27 +126,6 @@ impl OpcodeHandler for ConcurrentHandler {
                     _ => {
                         return Err(VMError::TypeError {
                             operation: "actor_send".to_string(),
-                            expected: "actor".to_string(),
-                            got: vm.value_type_name(&actor).to_string(),
-                            location: None,
-                            stack_trace: None,
-                        });
-                    }
-                }
-            }
-            
-            SendToActor => {
-                let message = vm.pop()?;
-                let actor = vm.pop()?;
-                
-                match actor {
-                    Value::Actor(actor_id_raw) => {
-                        vm.send_to_actor(crate::safety::ActorId(actor_id_raw), message)?;
-                        vm.push(Value::Nil)?;
-                    }
-                    _ => {
-                        return Err(VMError::TypeError {
-                            operation: "send_to_actor".to_string(),
                             expected: "actor".to_string(),
                             got: vm.value_type_name(&actor).to_string(),
                             location: None,
@@ -216,7 +183,40 @@ impl OpcodeHandler for ConcurrentHandler {
             }
             
             ActorReceive => {
-                // Simplified implementation
+                // Pop timeout info
+                let has_timeout = match vm.pop()? {
+                    Value::Boolean(b) => b,
+                    _ => false,
+                };
+                
+                let _timeout_handler = if has_timeout {
+                    Some((vm.pop()?, vm.pop()?))
+                } else {
+                    None
+                };
+                
+                // Pop patterns and handlers
+                let pattern_count = match vm.pop()? {
+                    Value::Integer(n) => n as usize,
+                    _ => return Err(VMError::TypeError {
+                        operation: "actor_receive".to_string(),
+                        expected: "integer".to_string(), 
+                        got: "non-integer".to_string(),
+                        location: None,
+                        stack_trace: None,
+                    }),
+                };
+                
+                // Collect patterns and handlers
+                let mut patterns = Vec::new();
+                for _ in 0..pattern_count {
+                    let handler = vm.pop()?;
+                    let pattern = vm.pop()?;
+                    patterns.push((pattern, handler));
+                }
+                
+                // For now, just return nil
+                // TODO: Implement actual message receiving and pattern matching
                 vm.push(Value::Nil)?;
             }
             
