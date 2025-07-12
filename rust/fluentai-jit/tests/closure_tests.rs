@@ -7,10 +7,6 @@ use fluentai_core::value::Value;
 
 #[test]
 fn test_simple_function() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test a simple function definition and call
@@ -29,10 +25,6 @@ fn test_simple_function() {
 
 #[test]
 fn test_closure_creation() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test closure that captures a variable
@@ -54,10 +46,6 @@ fn test_closure_creation() {
 
 #[test]
 fn test_higher_order_function() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test function that returns a function

@@ -31,8 +31,10 @@ mod tests {
         let bytecode = compiler.compile(&graph).unwrap();
         
         println!("Bytecode instructions:");
-        for (i, instr) in bytecode.instructions.iter().enumerate() {
-            println!("  {}: {:?}", i, instr);
+        if let Some(chunk) = bytecode.chunks.get(bytecode.main_chunk) {
+            for (i, instr) in chunk.instructions.iter().enumerate() {
+                println!("  {}: {:?}", i, instr);
+            }
         }
         
         let mut vm = VM::new(bytecode);

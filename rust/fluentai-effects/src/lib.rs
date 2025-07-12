@@ -4,6 +4,8 @@
 //! all effect types including IO, State, Error, Time, Network, Random, Dom,
 //! Async, and Concurrent effects.
 
+#![warn(missing_docs)]
+
 use async_trait::async_trait;
 use dashmap::DashMap;
 pub use fluentai_core::ast::EffectType;

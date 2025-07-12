@@ -5,8 +5,8 @@
 use anyhow::Result;
 use fluentai_core::ast::{ExportItem, Graph, ImportItem, Literal, Node, NodeId};
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_bytecode::Opcode;
 use fluentai_vm::{
-    bytecode::Opcode,
     compiler::{Compiler, CompilerOptions},
 };
 

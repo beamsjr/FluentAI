@@ -55,10 +55,14 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - `use module::{item1, item2}` import syntax
   - Module loading from filesystem
   - Proper namespacing and symbol resolution
+- **JIT Compilation**: Cranelift-based JIT with VM integration (x86_64 and ARM64/AArch64, requires `jit` feature flag)
+  - Automatic hot function detection (>1000 calls) 
+  - Seamless fallback to interpreter 
+  - ARM64 support via PIC workaround for Cranelift PLT limitations ✅
+  - Currently disabled by default (use `--features jit` to enable) 
 
 ### 🚧 Partially Implemented
-- **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
-- **Multiple expressions in `let` body**: Currently causes parse errors
+- **Multiple expressions in `let` body**: Requires explicit block syntax `{ }` (e.g., `let x = 5; { expr1; expr2 }`)
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
   - UI syntax (`ui:element`, `ui:text`, etc.) not recognized by parser
@@ -71,20 +75,23 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Non-blocking ops: `ch.try_send(val)`, `ch.try_receive()` return [success, value]
   - ✅ Spawn: `spawn { expr }` creates concurrent tasks
   - ✅ Select: `select { ... }` for multi-channel operations (AST/parser ready)
-  - ❌ Async/await: `async function` and `.await()` (Parser support complete, runtime not implemented)
+  - ✅ Async/await: `async function` and `.await()` fully implemented
 - **Error Handling**: Try-catch-throw error handling system
   - ✅ Try-catch blocks: `try { expr } catch (err) { handler }`
   - ✅ Throw statements: `throw error_value`
   - ✅ Error propagation with proper stack unwinding
   - ✅ Pattern matching in catch handlers
   - ✅ Error value type with metadata (kind, message, stack trace)
-  - ❌ Finally blocks: `finally { ... }` (Parser support complete, runtime not implemented)
+  - ✅ Finally blocks: `finally { ... }` - Execute cleanup code regardless of try/catch outcome
   - ❌ Promise operations: AST/compiler ready, runtime not implemented
-- **Actor Model**: Basic actor primitives with message passing
+- **Actor Model**: Actor primitives with message passing and pattern matching
   - ✅ Actor definition: `private actor Name { state; handle MessageType(...) { ... } }`
   - ✅ Send messages: `actor.send(message)`
-  - ✅ Receive patterns: `receive { pattern => handler, ... }` (Parser support complete, runtime partially implemented)
-  - ❌ Become: Not yet implemented
+  - ✅ Basic message processing: Actors can receive and process messages with handlers
+  - ✅ Become: Update actor state within handlers
+  - ✅ Receive patterns: Pattern matching on messages with `receive { case pattern => handler, ... }`
+  - ❌ Timeout handling in receive: Not yet implemented
+  - ❌ Selective receive: Not yet implemented
 
 ### ✅ Network Effects (Completed July 2025)
 - **HTTP Client**: Full-featured async HTTP client
@@ -139,22 +146,22 @@ FluentAI is an experimental programming language designed for AI systems rather 
 > **Implementation Status**: ✅ = Working/Complete | 🚧 = Partially implemented | 📋 = Planned/Not started
 
 ### 🚀 High-Performance Rust Implementation ✅
-- **Parser**: 0.8-5.2µs - optimized S-expression parsing ([see benchmark](rust/benchmarks/parser_benchmark.rs))
-- **VM**: ~0.1µs average execution time
-- **JIT Compiler**: Native code generation with Cranelift (x86_64) 🚧
+- **Parser**: 0.8-5.2µs ✅
+- **VM**: ~0.1µs average execution time ✅
+- **JIT Compiler**: Native code generation with Cranelift ✅
 - **Memory Efficient**: 5-10x less memory usage through zero-cost abstractions
-- **Throughput**: 19.2 million operations/second average, up to 35.8M ops/sec ([see benchmark](rust/benchmarks/throughput_benchmark.rs))
-- **Packet Processing Optimizations**: Tail calls, unboxed types, memory pools, lock-free queues
+- **Throughput**: 19.2 million operations/second average, up to 35.8M ops/sec ([see benchmark](rust/benchmarks/throughput_benchmark.rs)) ✅
+- **Packet Processing Optimizations**: Tail calls, unboxed types, memory pools, lock-free queues ✅
 
 ### 🧠 AI-First Design 🚧
-- **Graph-based AST**: Programs as directed graphs, not text
-- **Explicit semantics**: All effects and dependencies declared
+- **Graph-based AST**: Programs as directed graphs, not text ✅
+- **Explicit semantics**: All effects and dependencies declared ✅
 - **Machine-readable specs**: Formal specifications embedded in code 📋
 - **Semantic versioning**: Version numbers based on behavior, not syntax 📋
 
 ### 🌐 Modern Web Features 🚧
 - **UI Framework**: React-like components with virtual DOM (compiler implemented)
-- **Async/Await**: Full asynchronous programming support (language support complete)
+- **Async/Await**: Full asynchronous programming support (language support complete) ✅
 - **Concurrency**: Go-style channels and goroutines (syntax and VM support implemented)
 - **Network Effects**: Built-in HTTP client/server capabilities 📋
 - **JavaScript Compilation**: Compile to optimized JavaScript for browsers (UI compiler targets JS)
@@ -589,21 +596,103 @@ maturin develop  # Requires: pip install maturin
 
 ### Running Contract Verification Examples
 ```bash
-TODO: Add Running Contract Verification Examples
+# Build with Z3 support for static verification
+cd rust
+cargo build --release --features static
+
+# Run symbolic execution examples
+cargo run --example simple_symbolic --features static
+cargo run --example test_generation_demo --features static
+cargo run --example visualization_demo
+cargo run --example parallel_execution_demo
+
+# Run contract verification with counterexamples
+cargo run --example symbolic_verification --features static
+
+# Generate test cases from contracts
+cargo run --bin fluentai-verify -- \
+  --input program.flc \
+  --contracts contracts.spec \
+  --generate-tests output_tests.rs
 ```
 
 ## Testing
 
 ```bash
-TODO: Add testing example
+# Run all tests
+cargo test
+
+# Run tests with output displayed
+cargo test -- --nocapture
+
+# Run tests for a specific crate
+cargo test -p fluentai-vm
+
+# Run a specific test
+cargo test test_simd_operations
+
+# Run benchmarks
+cargo bench
+
+# Run with release optimizations
+cargo test --release
 ```
 
 ### Packet Processing Example
 
 FluentAI's optimizations make it ideal for high-performance network applications:
 
-```lisp
-TODO: Add Packet Processing Example
+```flc
+// Define a packet parser
+private function parse_ipv4_header(data, offset) {
+    let version = bit_shift_right(byte_at(data, offset), 4);
+    let ihl = bit_and(byte_at(data, offset), 0x0F);
+    let total_length = bytes_to_u16(data, offset + 2);
+    let src_ip = bytes_to_u32(data, offset + 12);
+    let dst_ip = bytes_to_u32(data, offset + 16);
+    
+    {
+        "version": version,
+        "header_length": ihl * 4,
+        "total_length": total_length,
+        "src_ip": src_ip,
+        "dst_ip": dst_ip
+    }
+}
+
+// Process packet stream with tail recursion
+private function process_stream(stream, processed) {
+    read_packet(stream)
+        .match()
+        .case(Some(packet), => {
+            // Tail call - optimized to loop
+            process_stream(stream, processed.cons(packet))
+        })
+        .case(None, => processed)
+        .get()
+}
+
+// Use channels for concurrent processing
+let packet_queue = channel(10000);
+
+// Spawn multiple workers to process packets
+for i in range(0, 4) {
+    spawn {
+        while (true) {
+            let packet = packet_queue.receive();
+            process_packet(packet);
+        }
+    }
+}
+
+// Read packets into queue
+with_memory_pool({"slab_size": 1500}, (pool) => {
+    while (true) {
+        let buffer = pool_allocate(pool);
+        read_packet_into(buffer);
+        packet_queue.send(buffer);
+    }
+})
 ```
 
 ## Language Features
@@ -707,7 +796,7 @@ Key features of the module system:
 
 ### FLC (Fluent Lambda Chain) Syntax
 
-FluentAI now supports FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling. You can gradually migrate from S-expressions to FLC using our migration tool.
+FluentAI uses FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling.
 
 ```flc
 // Function definitions
@@ -750,11 +839,33 @@ private function get_user(id: Uuid).with(Database) -> Result<User, DbError> {
 ```
 
 ### Modern Web Development
-```lisp
-TODO: Add Modern Web Development Example
+```flc
+// UI Components (Note: UI compiler not fully integrated yet)
+private component TodoItem(props: {text: string}) {
+    ui:li(className: "todo-item") {
+        ui:text(props.text)
+    }
+}
+
+// Async HTTP requests
+private async function load_todos() {
+    let response = perform Network.fetch("/api/todos").await();
+    let items = response.items;
+    items.map(item => TodoItem({text: item}))
+}
+
+// Reactive state management
+let state = reactive({count: 0});
+
+private component Counter() {
+    ui:button(onClick: () => state.update(s => {count: s.count + 1})) {
+        ui:text(f"Count: {state.count}")
+    }
+}
 ```
 
 ### Concurrent Programming
+<<<<<<< HEAD
 
 FluentAI provides Go-style channels and concurrency primitives:
 
@@ -893,11 +1004,44 @@ private function data_pipeline() {
 ```
 
 ### Logging
-```lisp
-TODO: Add logging example
+```flc
+// Import the logger module
+use logger::*;
+
+// Log at different levels with structured data
+log_info("User logged in", {"user_id": 123, "ip": "192.168.1.1"});
+log_warn("Rate limit approaching", {"requests": 95, "limit": 100});
+log_error("Database connection failed", {"host": "db.example.com", "retry_count": 3});
+log_debug("Processing item", {"id": "abc-123", "size": 1024});
+
+// Set log level (DEBUG, INFO, WARN, ERROR)
+set_log_level("WARN");  // Only WARN and ERROR will be shown
+
+// Simple messages without structured data
+log_info("Application started");
+log_error("Critical failure!");
+
+// Logging in error handlers
+try {
+    risky_operation()
+} catch (err) {
+    log_error("Operation failed", {
+        "error": err.message,
+        "type": err.type,
+        "timestamp": perform Time.now()
+    });
+}
+
+// Custom log formatting with effect handlers
+handle {
+    perform IO.println("This goes through custom handler");
+} with {
+    IO.println(msg) => send_to_log_server(msg)
+}
 ```
 
 ### Error Handling
+<<<<<<< HEAD
 
 FluentAI provides comprehensive error handling with try-catch blocks and proper stack unwinding:
 

@@ -183,46 +183,35 @@ impl OpcodeHandler for ConcurrentHandler {
             }
             
             ActorReceive => {
-                // Pop timeout info
-                let has_timeout = match vm.pop()? {
-                    Value::Boolean(b) => b,
-                    _ => false,
-                };
+                // ActorReceive is used within actor handlers to pattern match on messages
+                // When called, it should push the current message onto the stack
+                // The message should have been set in the VM's context by process_actor_messages
                 
-                let _timeout_handler = if has_timeout {
-                    Some((vm.pop()?, vm.pop()?))
+                if let Some(message) = vm.get_current_actor_message() {
+                    vm.push(message)?;
                 } else {
-                    None
-                };
-                
-                // Pop patterns and handlers
-                let pattern_count = match vm.pop()? {
-                    Value::Integer(n) => n as usize,
-                    _ => return Err(VMError::TypeError {
-                        operation: "actor_receive".to_string(),
-                        expected: "integer".to_string(), 
-                        got: "non-integer".to_string(),
-                        location: None,
+                    return Err(VMError::RuntimeError {
+                        message: "ActorReceive can only be used within actor message handlers".to_string(),
                         stack_trace: None,
-                    }),
-                };
-                
-                // Collect patterns and handlers
-                let mut patterns = Vec::new();
-                for _ in 0..pattern_count {
-                    let handler = vm.pop()?;
-                    let pattern = vm.pop()?;
-                    patterns.push((pattern, handler));
+                    });
                 }
-                
-                // For now, just return nil
-                // TODO: Implement actual message receiving and pattern matching
-                vm.push(Value::Nil)?;
             }
             
             Become => {
-                // Simplified implementation
-                let _new_behavior = vm.pop()?;
+                // Update actor's state with new value
+                let new_state = vm.pop()?;
+                
+                // We need to know which actor context we're in
+                // This should be set by the actor message processing
+                if let Some(actor_id) = vm.current_actor_context() {
+                    vm.update_actor_state(actor_id, new_state)?;
+                    vm.push(Value::Nil)?; // Become returns nil
+                } else {
+                    return Err(VMError::RuntimeError {
+                        message: "Become can only be used within actor handlers".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             PromiseNew => {

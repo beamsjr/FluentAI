@@ -96,7 +96,7 @@ mod tests {
         // Check specific operators
         assert!(operators.iter().any(|op| op.symbol == "+"));
         assert!(operators.iter().any(|op| op.symbol == "-"));
-        assert!(operators.iter().any(|op| op.symbol == "="));
+        assert!(operators.iter().any(|op| op.symbol == "=="));
         assert!(operators.iter().any(|op| op.symbol == "and"));
     }
 
@@ -146,8 +146,8 @@ mod tests {
         // Check for common built-in functions
         let names: Vec<_> = builtins.iter().map(|b| b.name.as_ref()).collect();
         assert!(names.contains(&"cons"));
-        assert!(names.contains(&"car"));
-        assert!(names.contains(&"cdr"));
+        assert!(names.contains(&"head"));
+        assert!(names.contains(&"tail"));
         assert!(names.contains(&"+"));
         assert!(names.contains(&"-"));
         assert!(names.contains(&"*"));

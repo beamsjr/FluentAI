@@ -7,12 +7,6 @@ use fluentai_core::value::Value;
 
 #[test]
 fn test_simple_arithmetic() {
-    // Skip on non-x86_64 platforms due to Cranelift PLT limitations
-    if cfg!(not(target_arch = "x86_64")) {
-        eprintln!("Skipping JIT test on non-x86_64 platform");
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
 
     let test_cases = vec![
@@ -38,12 +32,6 @@ fn test_simple_arithmetic() {
 
 #[test]
 fn test_local_variables() {
-    // Skip on non-x86_64 platforms due to Cranelift PLT limitations
-    if cfg!(not(target_arch = "x86_64")) {
-        eprintln!("Skipping JIT test on non-x86_64 platform");
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
 
     let source = "(let ((x 5) (y 3)) (+ x y))";
@@ -60,12 +48,6 @@ fn test_local_variables() {
 
 #[test]
 fn test_compilation_cache() {
-    // Skip on non-x86_64 platforms due to Cranelift PLT limitations
-    if cfg!(not(target_arch = "x86_64")) {
-        eprintln!("Skipping JIT test on non-x86_64 platform");
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
 
     let source = "(+ 1 2)";
@@ -94,12 +76,6 @@ fn test_compilation_cache() {
 
 #[test]
 fn test_jit_stats() {
-    // Skip on non-x86_64 platforms due to Cranelift PLT limitations
-    if cfg!(not(target_arch = "x86_64")) {
-        eprintln!("Skipping JIT test on non-x86_64 platform");
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
 
     let sources = vec!["(+ 1 2)", "(* 5 7)", "(- 10 3)"];

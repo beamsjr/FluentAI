@@ -1,72 +1,94 @@
-// Actor Model Examples in FLC
+// Actor Model Example with Receive Pattern Matching
+// This example demonstrates actors with message pattern matching using receive
 
-// Example 1: Simple Echo Actor
-private actor Echo {
+// Simple echo actor that responds to different message types
+private actor EchoActor {
     state: string = "ready";
     
-    private handle Message(msg: any) {
+    private handle message(msg: any) {
         receive {
-            "ping" => "pong",
-            {type: "echo", text} => text,
-            {type: "get_state"} => state,
-            _ => "unknown message"
+            case "ping" => "pong",
+            case ("echo", text) => text,
+            case ("set_state", new_state) => {
+                become(new_state);
+                f"State changed to: {new_state}"
+            },
+            case "get_state" => state,
+            case _ => "Unknown message"
         }
     }
 }
 
-// Example 2: Counter Actor with State
+// Counter actor that maintains internal state
 private actor Counter {
-    count: int = 0;
+    state: int = 0;
     
-    private handle Message(msg: any) {
+    private handle message(msg: any) {
         receive {
-            "increment" => {
-                count + 1  // Return new state
+            case "increment" => {
+                let new_count = state + 1;
+                become(new_count);
+                new_count
             },
-            "decrement" => {
-                count - 1  // Return new state  
+            case "decrement" => {
+                let new_count = state - 1;
+                become(new_count);
+                new_count
             },
-            "get" => count,
-            {type: "add", value} => count + value,
-            _ => count  // Return unchanged state
+            case "get" => state,
+            case ("add", n) => {
+                let new_count = state + n;
+                become(new_count);
+                new_count
+            },
+            case "reset" => {
+                become(0);
+                0
+            }
         }
     }
 }
 
-// Example 3: Calculator Actor
+// Calculator actor with pattern matching on operation types
 private actor Calculator {
-    result: float = 0.0;
+    state: float = 0.0;
     
-    private handle Operation(msg: any) {
+    private handle message(msg: any) {
         receive {
-            {op: "add", value} => result + value,
-            {op: "subtract", value} => result - value,
-            {op: "multiply", value} => result * value,
-            {op: "divide", value} => {
-                if (value != 0) {
-                    result / value
-                } else {
-                    result  // Don't divide by zero
-                }
+            case ("add", x, y) => x + y,
+            case ("subtract", x, y) => x - y,
+            case ("multiply", x, y) => x * y,
+            case ("divide", x, y) => {
+                if (y != 0) { x / y }
+                else { "Error: Division by zero" }
             },
-            {op: "reset"} => 0.0,
-            {op: "get"} => result,
-            _ => result
+            case ("store", value) => {
+                become(value);
+                f"Stored: {value}"
+            },
+            case "recall" => state,
+            case _ => "Unknown operation"
         }
     }
 }
 
-// Usage examples (would work if actor runtime was complete):
-// let echo = Echo.new();
-// echo.send("ping");  // Would return "pong"
-// echo.send({type: "echo", text: "hello"});  // Would return "hello"
+// Demo usage
+let echo = EchoActor;
+let counter = Counter;
+let calc = Calculator;
 
-// let counter = Counter.new();
-// counter.send("increment");
-// counter.send("increment");
-// counter.send("get");  // Would return 2
+// Send messages to actors
+echo.send("ping");
+echo.send(("echo", "Hello, Actor!"));
+echo.send(("set_state", "active"));
 
-// let calc = Calculator.new();
-// calc.send({op: "add", value: 10});
-// calc.send({op: "multiply", value: 2});
-// calc.send({op: "get"});  // Would return 20.0
+counter.send("increment");
+counter.send("increment");
+counter.send(("add", 5));
+
+calc.send(("add", 10, 20));
+calc.send(("multiply", 3, 7));
+calc.send(("store", 42.0));
+
+// Return a tuple of the actors for inspection
+(echo, counter, calc)

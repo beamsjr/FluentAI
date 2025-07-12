@@ -7,6 +7,7 @@
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{Linkage, Module};
+use cranelift_native;
 
 use anyhow::{anyhow, Result};
 use fluentai_bytecode::Bytecode;
@@ -57,7 +58,22 @@ pub struct JitCompiler {
 impl JitCompiler {
     /// Creates a new JIT compiler.
     pub fn new() -> Result<Self> {
-        let mut builder = JITBuilder::new(cranelift_module::default_libcall_names())?;
+        // Create builder with architecture-specific settings
+        let mut builder = if cfg!(target_arch = "aarch64") || cfg!(target_arch = "arm") {
+            // For ARM architectures, disable PIC to work around PLT limitations
+            let mut flag_builder = settings::builder();
+            flag_builder.set("is_pic", "false")
+                .map_err(|e| anyhow!("Failed to set is_pic flag: {}", e))?;
+            
+            let isa_builder = cranelift_native::builder()
+                .map_err(|e| anyhow!("Failed to create ISA builder: {}", e))?
+                .finish(settings::Flags::new(flag_builder))?;
+            
+            JITBuilder::with_isa(isa_builder, cranelift_module::default_libcall_names())
+        } else {
+            // For other architectures (x86_64), use default settings
+            JITBuilder::new(cranelift_module::default_libcall_names())?
+        };
         
         // Register runtime functions
         builder.symbol("jit_runtime_call", runtime::jit_runtime_call as *const u8);

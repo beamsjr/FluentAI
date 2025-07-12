@@ -27,11 +27,11 @@ fn test_compile_module_declaration() -> Result<()> {
     let has_begin_module = bytecode.chunks[0]
         .instructions
         .iter()
-        .any(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::BeginModule));
+        .any(|i| matches!(i.opcode, fluentai_bytecode::Opcode::BeginModule));
     let has_end_module = bytecode.chunks[0]
         .instructions
         .iter()
-        .any(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::EndModule));
+        .any(|i| matches!(i.opcode, fluentai_bytecode::Opcode::EndModule));
 
     assert!(has_begin_module, "Expected BeginModule opcode");
     assert!(has_end_module, "Expected EndModule opcode");
@@ -52,7 +52,7 @@ fn test_compile_import_statement() -> Result<()> {
     let has_load_module = bytecode.chunks[0]
         .instructions
         .iter()
-        .any(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::LoadModule));
+        .any(|i| matches!(i.opcode, fluentai_bytecode::Opcode::LoadModule));
 
     assert!(has_load_module, "Expected LoadModule opcode");
 
@@ -60,7 +60,7 @@ fn test_compile_import_statement() -> Result<()> {
     let import_count = bytecode.chunks[0]
         .instructions
         .iter()
-        .filter(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::ImportBinding))
+        .filter(|i| matches!(i.opcode, fluentai_bytecode::Opcode::ImportBinding))
         .count();
 
     assert_eq!(import_count, 2, "Expected 2 ImportBinding opcodes");
@@ -85,7 +85,7 @@ fn test_compile_export_statement() -> Result<()> {
     let export_count = bytecode.chunks[0]
         .instructions
         .iter()
-        .filter(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::ExportBinding))
+        .filter(|i| matches!(i.opcode, fluentai_bytecode::Opcode::ExportBinding))
         .count();
 
     assert_eq!(export_count, 2, "Expected 2 ExportBinding opcodes");
@@ -107,7 +107,7 @@ fn test_compile_qualified_variable() -> Result<()> {
     let has_load_qualified = bytecode.chunks[0]
         .instructions
         .iter()
-        .any(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::LoadQualified));
+        .any(|i| matches!(i.opcode, fluentai_bytecode::Opcode::LoadQualified));
 
     assert!(has_load_qualified, "Expected LoadQualified opcode");
 
@@ -117,7 +117,7 @@ fn test_compile_qualified_variable() -> Result<()> {
 #[test]
 fn test_vm_module_value_type() -> Result<()> {
     use fluentai_core::value::Value;
-    use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 
     // Create a simple bytecode that creates a module value
     let mut bytecode = Bytecode::new();
@@ -211,7 +211,7 @@ fn test_import_all_not_implemented() {
     let has_import_all = bytecode.chunks[0]
         .instructions
         .iter()
-        .any(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::ImportAll));
+        .any(|i| matches!(i.opcode, fluentai_bytecode::Opcode::ImportAll));
     assert!(has_import_all, "Expected ImportAll opcode in bytecode");
 }
 
@@ -233,7 +233,7 @@ fn test_multiple_exports() -> Result<()> {
     let export_count = bytecode.chunks[0]
         .instructions
         .iter()
-        .filter(|i| matches!(i.opcode, fluentai_vm::bytecode::Opcode::ExportBinding))
+        .filter(|i| matches!(i.opcode, fluentai_bytecode::Opcode::ExportBinding))
         .count();
 
     assert_eq!(export_count, 3, "Expected 3 exports");

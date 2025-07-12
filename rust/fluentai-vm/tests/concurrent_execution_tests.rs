@@ -2,8 +2,8 @@
 
 use crossbeam_utils::thread as cb_thread;
 use fluentai_core::value::Value;
+use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::{
-    bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode},
     concurrent::{BoundedQueue, LockFreeQueue, LockFreeStack, WorkStealingDeque},
     concurrent_gc::{ConcurrentGc, ConcurrentGcConfig},
 };

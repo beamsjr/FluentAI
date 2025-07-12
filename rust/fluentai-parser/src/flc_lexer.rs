@@ -22,6 +22,10 @@ pub enum Token<'a> {
     Type,
     #[token("actor", priority = 10)]
     Actor,
+    #[token("receive", priority = 10)]
+    Receive,
+    #[token("become", priority = 10)]
+    Become,
     #[token("effect", priority = 10)]
     Effect,
     #[token("macro", priority = 10)]
@@ -62,10 +66,6 @@ pub enum Token<'a> {
     Parallel,
     #[token("handle", priority = 10)]
     Handle,
-    #[token("receive", priority = 10)]
-    Receive,
-    #[token("become", priority = 10)]
-    Become,
 
     // Error handling keywords
     #[token("try", priority = 10)]
@@ -106,7 +106,8 @@ pub enum Token<'a> {
     Rec,
     #[token("as", priority = 10)]
     As,
-
+    #[token("from", priority = 10)]
+    From,
     // Delimiters
     #[token("(")]
     LParen,

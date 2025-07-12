@@ -2,10 +2,13 @@
 //!
 //! This parser is designed for maximum performance and clarity.
 
+#![warn(missing_docs)]
+
 pub mod error;
 pub mod flc_error;
 pub mod flc_lexer;
 pub mod flc_parser;
+
 
 pub use error::{ErrorKind, ParseError};
 

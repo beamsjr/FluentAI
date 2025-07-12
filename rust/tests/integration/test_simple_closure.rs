@@ -1,5 +1,6 @@
 use fluentai_parser::parse;
-use fluentai_vm::{compiler::Compiler, vm::VM, bytecode::Instruction};
+use fluentai_vm::{compiler::Compiler, VM};
+use fluentai_bytecode::Instruction;
 use fluentai_effects::{EffectContext, EffectRuntime};
 use std::sync::Arc;
 

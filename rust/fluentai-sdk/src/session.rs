@@ -303,8 +303,8 @@ mod tests {
     #[test]
     fn test_session_eval() {
         let mut session = Session::new(SessionOptions::default()).unwrap();
-        let result = session.eval("(+ 1 2)").unwrap();
-        assert_eq!(result, Value::Float(3.0));
+        let result = session.eval("1 + 2").unwrap();
+        assert_eq!(result, Value::Integer(3));
     }
 
     #[test]

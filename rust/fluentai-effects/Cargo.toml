@@ -22,7 +22,7 @@ parking_lot = "0.12"
 rustc-hash.workspace = true
 axum = { version = "0.7", features = ["ws"] }
 tower = "0.5"
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
 tracing.workspace = true
 url = "2.5"
 futures = "0.3"
@@ -30,6 +30,7 @@ async-stream = "0.3"
 tokio-tungstenite = "0.24"
 futures-util = "0.3"
 base64 = "0.22"
+hyper = "1.0"
 
 # Optional dependencies
 fluentai-di = { path = "../fluentai-di", optional = true }

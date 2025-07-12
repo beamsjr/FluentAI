@@ -3,10 +3,8 @@
 use anyhow::Result;
 use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_vm::{
-    bytecode::Opcode,
-    compiler::{Compiler, CompilerOptions},
-};
+use fluentai_vm::compiler::{Compiler, CompilerOptions};
+use fluentai_bytecode::Opcode;
 
 fn compile_and_check_opcodes(graph: &Graph, expected_opcodes: &[Opcode]) -> Result<()> {
     let options = CompilerOptions {

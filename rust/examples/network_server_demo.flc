@@ -1,0 +1,69 @@
+//! HTTP Server Demo using Network Effects
+//! 
+//! This demonstrates the new HTTP server capabilities in FluentAI
+
+// Simple HTTP server that echoes requests
+private function echo_handler(request) {
+    // Extract request details
+    let method = request.get("method");
+    let path = request.get("path");
+    let query = request.get("query");
+    let body = request.get("body");
+    
+    // Build response
+    {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/json",
+            "X-Powered-By": "FluentAI"
+        },
+        "body": {
+            "message": f"Echo server received {method} request",
+            "path": path,
+            "query": query,
+            "received_body": body,
+            "timestamp": perform Time.now()
+        }
+    }
+}
+
+// Main function to start the server
+private async function main() {
+    $(f"Starting HTTP server on port 8080...").print();
+    
+    // Start the server
+    let server_id = perform Network.serve(8080, echo_handler);
+    
+    $(f"Server started with ID: {server_id}").print();
+    $("Server is running at http://localhost:8080").print();
+    $("Try these commands in another terminal:").print();
+    $("  curl http://localhost:8080/hello").print();
+    $("  curl -X POST http://localhost:8080/api/echo -d '{\"message\": \"Hello FluentAI!\"}'").print();
+    $("");
+    $("Press Ctrl+C to stop the server...").print();
+    
+    // Keep the server running
+    // In a real application, you might wait for a signal or condition
+    perform Time.sleep(60000); // Run for 60 seconds
+    
+    // Stop the server
+    $(f"Stopping server {server_id}...").print();
+    perform Network.stop(server_id);
+    $("Server stopped.").print();
+}
+
+// More advanced example with routing (for future implementation)
+private async function advanced_server_example() {
+    // Start server with configuration
+    let server_id = perform Network.serve({
+        "host": "0.0.0.0",
+        "port": 3000
+    }, default_handler);
+    
+    // Add specific routes (Phase 2 feature - not yet implemented)
+    // perform Network.route(server_id, "GET", "/api/users", list_users_handler);
+    // perform Network.route(server_id, "POST", "/api/users", create_user_handler);
+    // perform Network.route(server_id, "GET", "/api/users/:id", get_user_handler);
+    
+    $(f"Advanced server started on port 3000").print();
+}

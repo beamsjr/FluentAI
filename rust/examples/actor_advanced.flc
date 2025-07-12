@@ -1,143 +1,128 @@
-// Advanced Actor Patterns in FLC
+// Advanced Actor Patterns with Receive and Channels
+// This example shows request-reply patterns and state machines
 
-// Example 1: Request-Reply Pattern
-private actor RequestHandler {
-    pending: list = [];
+// Request-Reply Actor that can respond via channels
+private actor QueryServer {
+    state: map = {"users": 100, "sessions": 25, "requests": 1500};
     
-    private handle Message(msg: any) {
+    private handle message(msg: any) {
         receive {
-            {type: "request", id, query, reply_to} => {
-                // Process the request
-                let response = process_query(query);
-                // Send reply back to sender
-                reply_to.send({type: "response", id: id, result: response});
-                state  // Return unchanged state
+            case ("query", key, reply_channel) => {
+                let value = state.get(key);
+                reply_channel.send(value);
+                state
             },
-            {type: "status"} => {
-                f"Pending requests: {pending.length()}"
+            case ("update", key, value) => {
+                let new_state = state.set(key, value);
+                become(new_state);
+                new_state
             },
-            _ => state
+            case ("stats", reply_channel) => {
+                reply_channel.send(state);
+                state
+            }
         }
     }
 }
 
-// Example 2: State Machine Actor
-private actor Connection {
-    state: string = "disconnected";
+// State Machine Actor with receive patterns
+private actor TrafficLight {
+    state: string = "red";
     
-    private handle Message(msg: any) {
+    private handle message(msg: any) {
         receive {
-            "connect" => {
-                match state {
-                    "disconnected" => "connected",
-                    "connected" => state,  // Already connected
-                    _ => state
-                }
+            case "next" => {
+                let next_state = match(state)
+                    .case("red", "green")
+                    .case("green", "yellow")
+                    .case("yellow", "red")
+                    .get();
+                become(next_state);
+                next_state
             },
-            "disconnect" => {
-                match state {
-                    "connected" => "disconnected",
-                    "disconnected" => state,  // Already disconnected
-                    _ => state
-                }
+            case "emergency" => {
+                become("red");
+                "Emergency: All lights red"
             },
-            {type: "send", data} => {
-                match state {
-                    "connected" => {
-                        // Process data
-                        $("Sending: {data}").print();
-                        state
-                    },
-                    "disconnected" => {
-                        $("Error: Not connected").print();
-                        state
-                    },
-                    _ => state
-                }
-            },
-            "status" => state,
-            _ => state
+            case "status" => f"Current light: {state}"
         }
     }
 }
 
-// Example 3: Actor with Timeout (conceptual - requires runtime support)
-private actor TimeoutActor {
-    last_message_time: int = 0;
-    
-    private handle Message(msg: any) {
-        receive {
-            {type: "ping"} => {
-                time.now()  // Update last message time
-            },
-            {type: "check_timeout", timeout_ms} => {
-                let current = time.now();
-                if (current - last_message_time > timeout_ms) {
-                    "timeout"
-                } else {
-                    "alive"
-                }
-            },
-            _ => last_message_time
-        }
-        // Could have timeout clause:
-        // timeout 5000 => {
-        //     $("No message received for 5 seconds").print();
-        //     last_message_time
-        // }
-    }
-}
-
-// Example 4: Worker Pool Pattern
+// Worker Pool Coordinator
 private actor WorkerPool {
-    workers: list = [];
-    queue: list = [];
+    state: list = [];  // List of worker actor IDs
     
-    private handle Message(msg: any) {
+    private handle message(msg: any) {
         receive {
-            {type: "add_worker", worker} => {
-                {
-                    workers: workers.append(worker),
-                    queue: queue
-                }
+            case ("add_worker", worker) => {
+                let new_workers = state.append(worker);
+                become(new_workers);
+                f"Worker added. Total workers: {new_workers.length()}"
             },
-            {type: "submit", task} => {
-                if (workers.is_empty()) {
-                    // Queue the task
-                    {
-                        workers: workers,
-                        queue: queue.append(task)
-                    }
+            case ("dispatch", task) => {
+                if (state.is_empty()) {
+                    "No workers available"
                 } else {
-                    // Assign to first available worker
-                    let worker = workers.head();
-                    let remaining = workers.tail();
-                    worker.send({type: "execute", task: task});
-                    {
-                        workers: remaining,
-                        queue: queue
-                    }
+                    // Round-robin dispatch
+                    let worker = state.head();
+                    let remaining = state.tail();
+                    let updated = remaining.append(worker);
+                    become(updated);
+                    worker.send(("process", task));
+                    f"Task dispatched to worker"
                 }
             },
-            {type: "worker_done", worker} => {
-                if (queue.is_empty()) {
-                    // Add worker back to pool
-                    {
-                        workers: workers.append(worker),
-                        queue: queue
-                    }
-                } else {
-                    // Assign next task
-                    let task = queue.head();
-                    let remaining_queue = queue.tail();
-                    worker.send({type: "execute", task: task});
-                    {
-                        workers: workers,
-                        queue: remaining_queue
-                    }
-                }
-            },
-            _ => { workers: workers, queue: queue }
+            case "worker_count" => state.length()
         }
     }
 }
+
+// Simple Worker Actor
+private actor Worker {
+    state: int = 0;  // Tasks processed
+    
+    private handle message(msg: any) {
+        receive {
+            case ("process", task) => {
+                let new_count = state + 1;
+                become(new_count);
+                f"Processed task: {task}. Total processed: {new_count}"
+            },
+            case "stats" => f"Tasks processed: {state}"
+        }
+    }
+}
+
+// Demo: Request-Reply Pattern
+let server = QueryServer;
+let reply_channel = channel();
+
+server.send(("query", "users", reply_channel));
+let user_count = reply_channel.receive();
+
+server.send(("update", "users", 101));
+server.send(("stats", reply_channel));
+let all_stats = reply_channel.receive();
+
+// Demo: State Machine
+let light = TrafficLight;
+light.send("next");  // red -> green
+light.send("next");  // green -> yellow
+light.send("next");  // yellow -> red
+light.send("status");
+
+// Demo: Worker Pool
+let pool = WorkerPool;
+let worker1 = Worker;
+let worker2 = Worker;
+
+pool.send(("add_worker", worker1));
+pool.send(("add_worker", worker2));
+
+pool.send(("dispatch", "Task A"));
+pool.send(("dispatch", "Task B"));
+pool.send(("dispatch", "Task C"));
+
+// Return all actors for inspection
+(server, light, pool, worker1, worker2)

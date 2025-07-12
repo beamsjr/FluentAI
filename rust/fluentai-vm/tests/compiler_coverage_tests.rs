@@ -4,8 +4,8 @@ use anyhow::Result;
 use fluentai_core::ast::{EffectType, ExportItem, Graph, ImportItem, Literal, Node};
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_bytecode::Opcode;
 use fluentai_vm::{
-    bytecode::Opcode,
     compiler::{Compiler, CompilerOptions},
     VM,
 };
