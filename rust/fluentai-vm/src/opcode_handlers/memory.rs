@@ -69,6 +69,10 @@ impl OpcodeHandler for MemoryHandler {
                 // Check user-defined globals first
                 let value = if let Some(global_value) = vm.get_global(&name) {
                     global_value.clone()
+                } else if name == "Printable" {
+                    // Special handling for Printable constructor
+                    // We'll treat it as a special builtin that creates Tagged values
+                    Value::String("__builtin__Printable".to_string())
                 } else if vm.is_stdlib_function(&name) {
                     // Standard library function
                     Value::String(format!("__stdlib__{}", name))

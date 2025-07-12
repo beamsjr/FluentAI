@@ -1,2 +1,14 @@
-;; Simple FluentAi program to test the CLI
-(+ (* 3 4) (* 5 6))
+// Simple FluentAI program to test the CLI
+// Demonstrates basic arithmetic operations
+
+// Method 1: Using operators
+let result1 = 3 * 4 + 5 * 6;
+
+// Method 2: Using parentheses for clarity
+let result2 = (3 * 4) + (5 * 6);
+
+// Print the result
+$(f"The answer is: {result2}").print();
+
+// Return the final result
+result2

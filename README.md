@@ -49,13 +49,14 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **Multiple Top-Level Expressions**: 
   - Multiple expressions can be defined at top level
   - Last expression is the return value
+- **Module System**: C#-style module system with automatic export collection
+  - `public`/`private` visibility modifiers at definition level
+  - Automatic export collection for public definitions
+  - `use module::{item1, item2}` import syntax
+  - Module loading from filesystem
+  - Proper namespacing and symbol resolution
 
 ### 🚧 Partially Implemented
-- **Module System**: Full parsing and loading infrastructure but cannot export/import values at runtime
-  - `mod name { ... }` module definitions
-  - `use module::{item1, item2}` import syntax
-  - Module loading from filesystem works
-  - Missing global binding mechanism for exports
 - **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
 - **Multiple expressions in `let` body**: Currently causes parse errors
 - **Web Features**: UI compiler exists but not integrated with parser
@@ -85,8 +86,35 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Receive patterns: `receive { pattern => handler, ... }` (Parser support complete, runtime partially implemented)
   - ❌ Become: Not yet implemented
 
+### ✅ Network Effects (Completed July 2025)
+- **HTTP Client**: Full-featured async HTTP client
+  - ✅ All HTTP methods (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
+  - ✅ Custom headers and request bodies
+  - ✅ Timeout configuration
+  - ✅ JSON serialization/deserialization
+- **HTTP Server**: Production-ready HTTP server with routing
+  - ✅ Dynamic routing with path parameters (`/api/users/:id`)
+  - ✅ Query string parsing
+  - ✅ Method-based routing
+  - ✅ Async request handling
+- **WebSocket Support**: Real-time bidirectional communication
+  - ✅ WebSocket server integration
+  - ✅ Connection management
+  - ✅ Message broadcasting
+  - ✅ Channel-based communication
+- **REST Client Module**: High-level REST API client
+  - ✅ Automatic retry with exponential backoff
+  - ✅ Type-safe CRUD operations
+  - ✅ Request/response interceptors
+  - ✅ Pagination support
+- **OAuth2 Module**: Complete OAuth2 client implementation
+  - ✅ Authorization Code flow
+  - ✅ Client Credentials flow
+  - ✅ Token refresh
+  - ✅ Pre-configured providers (GitHub, Google, Microsoft)
+  - ✅ Secure token storage
+
 ### 📋 Planned/Aspirational Features
-- **Network Effects**: Built-in HTTP client/server capabilities
 - **Property-based testing**: Automatic test generation with Hypothesis  
 - **Hot code reloading**: Update running systems without downtime
 - **Distributed computing**: Built-in support for distributed systems
@@ -132,7 +160,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **JavaScript Compilation**: Compile to optimized JavaScript for browsers (UI compiler targets JS)
 
 ### 🔧 Core Language Features ✅
-- **Pattern matching**: Literal pattern matching with match expressions ([comprehensive example](rust/examples/pattern_matching_comprehensive.ai))
+- **Pattern matching**: Literal pattern matching with match expressions ([comprehensive example](rust/examples/pattern_matching_comprehensive.fc))
   - ✅ Literal patterns with wildcards
   - ✅ Conditional list processing (head/tail operations)
   - 🚧 Cons/Nil pattern destructuring (parsing works, runtime has issues)
@@ -140,7 +168,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Variant types (tagged unions) with optional payloads
   - Product types (tuples and records)
   - Full pattern matching support including guards, as-patterns, or-patterns
-- **Effect system**: Working IO, State, Error, Time, Random effects ([comprehensive example](rust/examples/effects_comprehensive.ai))
+- **Effect system**: Working IO, State, Error, Time, Random effects ([comprehensive example](rust/examples/effects_comprehensive.fc))
   - ✅ Default effect handlers for all built-in effects
   - 🚧 Custom effect handlers (compile but have runtime issues)
   - ✅ Effect composition and sequencing
@@ -166,7 +194,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - Enhanced debugging with visual diagrams and interactive REPL 🚧
 - **Contract Predicates**: Type checking, comparisons, arithmetic in contract specifications ✅
 - **Purity Tracking**: Enforce and verify side-effect-free functions ✅
-- **Structured Logging**: Implemented using effect system ([example](rust/examples/logging_example.ai)) ✅
+- **Structured Logging**: Implemented using effect system ([example](rust/examples/logging_example.fc)) ✅
 - **Dependency Injection**: Full DI container with service lifetimes and modular architecture 🚧
 - **Database Effect System**: Functional database operations with connection pooling and transactions ✅
   - Query DSL with type-safe parameterized queries
@@ -270,10 +298,10 @@ add(square(3), square(4));   // => 25
 
 // Lists and list operations  
 let nums = [1, 2, 3, 4, 5];
-print(nums.head());          // prints: 1
-print(nums.tail());          // prints: [2, 3, 4, 5]
-print(nums.length());        // prints: 5
-print(nums.cons(0));         // prints: [0, 1, 2, 3, 4, 5]
+$(nums.head()).print();          // prints: 1
+$(nums.tail()).print();          // prints: [2, 3, 4, 5]
+$(nums.length()).print();        // prints: 5
+$(nums.cons(0)).print();         // prints: [0, 1, 2, 3, 4, 5]
 
 // Higher-order functions
 let nums = [1, 2, 3, 4, 5];
@@ -286,25 +314,25 @@ nums.filter(x => x % 2 == 0); // => [2, 4, 6, 8, 10]
 
 let nums = [1, 2, 3, 4, 5];
 // Fold - note: requires lambda
-nums.fold((acc, x) => acc + x, 0);   // => 15
+nums.fold(0, (acc, x) => acc + x);   // => 15
 
 // Pattern matching
 let value = 42;
 value.match()
-  .case(0, "zero")
-  .case(1, "one") 
-  .case(42, "the answer")
-  .case(_, "something else")
+  .case(0, => "zero")
+  .case(1, => "one") 
+  .case(42, => "the answer")
+  .case(_, => "something else")
   .get();                    // => "the answer"
 
 // Working effects
-print("Hello, FluentAI!");   // prints to stdout
-state.set("counter", 0);     // store state
-state.set("counter", 
-  state.get("counter") + 1); // increment
-print(state.get("counter")); // prints: 1
-print(time.now());           // prints timestamp
-print(random.int(1, 100));   // prints random number
+$("Hello, FluentAI!").print();   // prints to stdout
+perform State.set("counter", 0);     // store state
+perform State.set("counter", 
+  perform State.get("counter") + 1); // increment
+$(perform State.get("counter")).print(); // prints: 1
+$(perform Time.now()).print();           // prints timestamp
+$(perform Random.int(1, 100)).print();   // prints random number
 
 // Recursive functions (basic cases work)
 private function factorial(n) {
@@ -319,9 +347,73 @@ factorial(5);                // => 120
 // List manipulation example
 let evens = range(1, 20).filter(x => x % 2 == 0);
 let squared = evens.map(x => x * x);
-let sum = squared.fold((acc, x) => acc + x, 0);
+let sum = squared.fold(0, (acc, x) => acc + x);
 sum;                         // => 1140
 ```
+
+## Networking Example
+
+FluentAI provides comprehensive networking capabilities through its effect system:
+
+```flc
+// HTTP Client Example
+use http;
+use rest;
+
+// Simple HTTP GET request
+private async function fetch_users() {
+    let response = perform Http.get("https://api.example.com/users").await();
+    response.body.from_json()
+}
+
+// REST client with retry and authentication
+private async function fetch_github_repos(token: string) {
+    let client = rest.RestClient.new("https://api.github.com")
+        .with_header("Authorization", f"Bearer {token}")
+        .with_retry(rest.RetryConfig.default());
+    
+    client.get("/user/repos").await()
+        .map(response => response.json())
+}
+
+// HTTP Server with routing
+private async function start_server() {
+    let server = perform HttpServer.listen(8080, false).await();
+    
+    // Define routes
+    perform HttpServer.route("GET", "/", "handle_home");
+    perform HttpServer.route("GET", "/api/users/:id", "handle_user");
+    perform HttpServer.route("POST", "/api/users", "handle_create_user");
+    
+    $(f"Server running on port {server.port}").print();
+}
+
+// WebSocket support
+private async function start_websocket_server() {
+    let ws_server = perform HttpServer.listen(8081, true).await();
+    
+    // Broadcast to all WebSocket connections
+    perform HttpServer.ws_broadcast(ws_server.id, "Hello everyone!").await();
+}
+
+// OAuth2 authentication
+use oauth2;
+
+private async function authenticate_github(client_id: string, client_secret: string, redirect_uri: string) {
+    let config = oauth2.github(client_id, client_secret, redirect_uri);
+    let client = oauth2.OAuth2Client.new(config);
+    
+    // Get authorization URL
+    let auth_url = client.authorize_url(["repo", "user"]);
+    $(f"Visit: {auth_url}").print();
+    
+    // Exchange code for token (after user authorizes)
+    let token = client.exchange_code(auth_code).await();
+    token
+}
+```
+
+See the [Network Effects Guide](rust/docs/network_effects_guide.md) for comprehensive documentation.
 
 ## Installation
 
@@ -378,9 +470,9 @@ cargo run -p fluentai-repl
 ```bash
 # Run language feature examples
 cd rust
-cargo run -p fluentai-cli -- run examples/hello.ai
-cargo run -p fluentai-cli -- run examples/pattern_matching.ai
-cargo run -p fluentai-cli -- run examples/effects_demo.ai
+cargo run -p fluentai-cli -- run examples/hello.fc
+cargo run -p fluentai-cli -- run examples/pattern_matching.fc
+cargo run -p fluentai-cli -- run examples/effects_demo.fc
 
 # Run performance benchmarks
 cd benchmarks
@@ -438,8 +530,8 @@ fluentai publish -r osx-arm64                     # Cross-compile for macOS Appl
 A typical FluentAI project created with the SDK:
 ```
 MyApp/
-├── MyApp.aiproj          # Project file (similar to .csproj)
-├── Program.ai            # Entry point
+├── MyApp.flcproj         # Project file (similar to .csproj)
+├── Program.fc            # Entry point
 ├── src/                  # Source files
 ├── tests/                # Test files
 └── packages.lock         # Package lock file
@@ -452,11 +544,11 @@ For detailed SDK documentation, see the [SDK User Guide](rust/FLUENTAI_SDK_GUIDE
 #### From Command Line
 ```bash
 # Run with optimization
-fluentai run -O2 program.ai    # Standard optimization
-fluentai run -O3 program.ai    # Aggressive optimization
+fluentai run -O2 program.fc    # Standard optimization
+fluentai run -O3 program.fc    # Aggressive optimization
 
 # Compile with optimization
-fluentai compile -O3 program.ai -o program
+fluentai compile -O3 program.fc -o program
 ```
 
 #### From Rust Code
@@ -517,9 +609,101 @@ TODO: Add Packet Processing Example
 ## Language Features
 
 ### Module System
-```lisp
-TODO: Add module system example
+
+FluentAI features a C#-style module system with automatic export collection and file-based module structure:
+
+```flc
+// File: src/models/user.fc
+// User model module with automatic exports
+
+// Public struct is automatically exported
+public struct User {
+    pub id: int,
+    pub name: string,
+    pub email: string,
+    pub age: int
+}
+
+// Public functions are automatically exported
+public function create_user(name: string, email: string, age: int) -> User {
+    User { id: generate_id(), name: name, email: email, age: age }
+}
+
+public function is_adult(user: User) -> bool {
+    user.age >= 18
+}
+
+// Private helper function - not exported
+private function generate_id() -> int {
+    perform Random.int(1000, 9999)
+}
+
+// File: src/services/user_service.fc
+// Service module that imports from models
+
+use models::user::{User, create_user, is_adult};
+use db;
+
+public struct UserService {
+    pub db: db.Connection
+}
+
+// Implementation of UserService
+private UserService {
+    public function new(connection: db.Connection) -> Self {
+        Self { db: connection }
+    }
+    
+    public function register_user(self, name: string, email: string, age: int) -> Result<User, string> {
+        let user = create_user(name, email, age);
+        
+        if (!is_adult(user)) {
+            Err("User must be 18 or older")
+        } else {
+            self.db.save("users", user)
+                .map(=> user)
+                .map_err(=> "Failed to save user")
+        }
+    }
+    
+    public function get_user(self, id: int) -> Result<User, string> {
+        self.db.find("users", id)
+            .ok_or("User not found")
+    }
+}
+
+// File: src/main.fc
+// Main application entry point
+
+use models::user::User;
+use services::user_service::UserService;
+use db;
+
+private async function main() {
+    // Initialize database connection
+    let connection = db.connect("postgresql://localhost/myapp").await();
+    let service = UserService.new(connection);
+    
+    // Register a new user
+    service.register_user("Alice", "alice@example.com", 25)
+        .match()
+        .case(Ok(user), => {
+            $(f"Successfully registered user: {user.name}").print();
+        })
+        .case(Err(msg), => {
+            $(f"Error: {msg}").print();
+        })
+        .get();
+}
 ```
+
+Key features of the module system:
+- **Automatic Export Collection**: All `public` definitions are automatically exported
+- **C#-style Visibility**: `public`/`private` modifiers at definition level
+- **File-based Modules**: Each file is a module, directory structure creates namespaces
+- **Selective Imports**: Import specific items with `use module::{item1, item2}`
+- **Namespace Support**: Access items with fully qualified names like `models::user::User`
+- **Implementation Blocks**: Group related methods together
 
 ### FLC (Fluent Lambda Chain) Syntax
 
@@ -527,41 +711,41 @@ FluentAI now supports FLC syntax - a modern, readable syntax inspired by Rust an
 
 ```flc
 // Function definitions
-def fn add(x, y) {
+private function add(x: int, y: int) -> int {
     x + y
 }
 
 // Lambda expressions  
-let square = { |x| x * x };
+let square = x => x * x;
 
 // Method chaining
 users
-    .filter { |user| user.age > 18 }
-    .map { |{name, email}| f"{name} <{email}>" }
-    .sort_by { |user| user.name }
+    .filter(user => user.age > 18)
+    .map(({name, email}) => f"{name} <{email}>")
+    .sort_by(user => user.name);
 
 // Pattern matching
 response.match()
-    .case(Ok(data), { |data| process(data) })
-    .case(Err(ApiError.NotFound), { || "Not found" })
-    .run()
+    .case(Ok(data), => process(data))
+    .case(Err(ApiError.NotFound), => "Not found")
+    .get();
 
 // Async/await
-def async fn fetch_user_data(id: Uuid) -> User {
+private async function fetch_user_data(id: Uuid) -> User {
     http.get(f"/users/{id}").await()
 }
 
 // Actor model
-def actor Counter {
+private actor Counter {
     count: int = 0;
-    def handle Inc(|amount: int|) { self.count += amount; }
-    def handle Get(||) -> int { self.count }
+    private handle Inc(amount: int) { self.count += amount; }
+    private handle Get() -> int { self.count }
 }
 
 // Effects with type safety
-def fn get_user(id: Uuid).with(Database) -> Result<User, DbError> {
-    perform Database::query(f"SELECT * FROM users WHERE id = {id}")
-        .map { |row| User.from_row(row) }
+private function get_user(id: Uuid).with(Database) -> Result<User, DbError> {
+    perform Database.query(f"SELECT * FROM users WHERE id = {id}")
+        .map(row => User.from_row(row))
 }
 ```
 
@@ -571,8 +755,141 @@ TODO: Add Modern Web Development Example
 ```
 
 ### Concurrent Programming
-```lisp
-TODO: Add Concurrent Programming example
+
+FluentAI provides Go-style channels and concurrency primitives:
+
+```flc
+// Channels for communication
+private function channel_example() {
+    let ch = channel(10);  // Buffered channel with capacity 10
+    
+    // Spawn producer
+    spawn {
+        for i in range(1, 100) {
+            ch.send(i);
+            perform Time.sleep(100);
+        }
+        ch.close();
+    };
+    
+    // Spawn multiple consumers
+    for id in range(1, 3) {
+        spawn {
+            loop {
+                ch.receive()
+                    .match()
+                    .case(Some(value), => {
+                        $(f"Consumer {id} received: {value}").print();
+                    })
+                    .case(None, => {
+                        $(f"Consumer {id} channel closed").print();
+                        break
+                    })
+                    .get()
+            }
+        };
+    }
+}
+
+// Select statement for multiple channels
+private function select_example() {
+    let data_ch = channel();
+    let timeout_ch = channel();
+    
+    // Timeout after 5 seconds
+    spawn {
+        perform Time.sleep(5000);
+        timeout_ch.send("timeout");
+    };
+    
+    // Process data with timeout
+    loop {
+        select {
+            data_ch => msg => {
+                $(f"Received data: {msg}").print();
+            },
+            timeout_ch => _ => {
+                $("Operation timed out").print();
+                break
+            }
+        }
+    }
+}
+
+// Actor model for stateful concurrency
+private actor BankAccount {
+    balance: float = 0.0;
+    
+    private handle Deposit(amount: float) {
+        self.balance += amount;
+        $(f"Deposited {amount}, new balance: {self.balance}").print();
+    }
+    
+    private handle Withdraw(amount: float) -> Result<float, string> {
+        if (amount > self.balance) {
+            Err("Insufficient funds")
+        } else {
+            self.balance -= amount;
+            Ok(amount)
+        }
+    }
+    
+    private handle GetBalance() -> float {
+        self.balance
+    }
+}
+
+// Using actors
+private async function bank_example() {
+    let account = BankAccount.spawn();
+    
+    // Concurrent deposits
+    let tasks = range(1, 10).map(i => {
+        spawn {
+            account.send(Deposit(i * 100.0))
+        }
+    });
+    
+    // Wait for all deposits
+    tasks.for_each(task => task.await());
+    
+    // Check balance
+    let balance = account.ask(GetBalance()).await();
+    $(f"Final balance: {balance}").print();
+}
+
+// Pipeline pattern
+private function data_pipeline() {
+    let input = channel(100);
+    let processed = channel(100);
+    let output = channel(100);
+    
+    // Stage 1: Parse data
+    spawn {
+        loop {
+            input.receive()
+                .map(data => data.parse())
+                .map(parsed => processed.send(parsed))
+        }
+    };
+    
+    // Stage 2: Transform data
+    spawn {
+        loop {
+            processed.receive()
+                .map(data => transform(data))
+                .map(result => output.send(result))
+        }
+    };
+    
+    // Stage 3: Store results
+    spawn {
+        loop {
+            output.receive()
+                .map(result => db.store(result))
+        }
+    };
+}
 ```
 
 ### Logging
@@ -581,16 +898,195 @@ TODO: Add logging example
 ```
 
 ### Error Handling
-```lisp
-TODO: Add error handling example
+
+FluentAI provides comprehensive error handling with try-catch blocks and proper stack unwinding:
+
+```flc
+// Basic try-catch
+private function divide(a: int, b: int) -> Result<float, string> {
+    try {
+        if (b == 0) {
+            throw "Division by zero"
+        }
+        Ok(a / b)
+    } catch (err) {
+        Err(f"Error in division: {err}")
+    }
+}
+
+// Pattern matching in catch handlers
+private function process_data(data: string) -> Result<Value, Error> {
+    try {
+        let parsed = data.parse_json();
+        let result = validate_and_transform(parsed);
+        Ok(result)
+    } catch (err) {
+        err.match()
+            .case(ParseError(msg), => {
+                $(f"Parse error: {msg}").print();
+                Err(Error.Invalid(msg))
+            })
+            .case(ValidationError(field), => {
+                $(f"Validation failed for: {field}").print();
+                Err(Error.BadRequest(f"Invalid {field}"))
+            })
+            .case(_, => {
+                $(f"Unexpected error: {err}").print();
+                Err(Error.Internal("Unknown error"))
+            })
+            .get()
+    }
+}
+
+// Error propagation with ?
+private function read_config() -> Result<Config, string> {
+    let content = perform IO.read_file("config.json")?;
+    let parsed = content.parse_json()?;
+    Config.from_json(parsed)
+}
+
+// Custom error types
+public enum AppError {
+    NotFound(string),
+    Unauthorized,
+    ValidationFailed(List<string>),
+    DatabaseError(string)
+}
+
+// Rich error context
+private function get_user_profile(id: int) -> Result<UserProfile, AppError> {
+    try {
+        let user = db.find_user(id)
+            .ok_or(AppError.NotFound(f"User {id} not found"))?;
+        
+        if (!user.is_active) {
+            throw AppError.Unauthorized
+        }
+        
+        let profile = build_profile(user)?;
+        Ok(profile)
+    } catch (err) {
+        // Add context to errors
+        $(f"Failed to get profile for user {id}: {err}").print();
+        throw err
+    }
+}
 ```
 
 ### Effect Handlers
 
 Effect handlers provide a powerful mechanism for intercepting and customizing effects:
 
-```lisp
-TODO: Add Effect Handlers example
+```flc
+// Define custom effect handlers
+private function with_test_io(computation: () -> Value) -> Value {
+    let captured_output = [];
+    
+    handle {
+        computation()
+    } with {
+        IO.print(msg) => {
+            captured_output.push(msg);
+            resume(Unit)
+        },
+        IO.read_file(path) => {
+            // Return test data instead of reading actual files
+            path.match()
+                .case("config.json", => resume('{"test": true}'))
+                .case("data.txt", => resume("test data"))
+                .case(_, => resume_with_error("File not found"))
+                .get()
+        }
+    }
+}
+
+// Mock effects for testing
+private function test_user_service() {
+    let test_state = {};
+    
+    handle {
+        let service = UserService.new();
+        service.create_user("Alice", "alice@test.com");
+        service.get_user(1)
+    } with {
+        State.get(key) => {
+            resume(test_state.get(key))
+        },
+        State.set(key, value) => {
+            test_state[key] = value;
+            resume(Unit)
+        },
+        Database.query(sql) => {
+            // Return mock data
+            resume([{id: 1, name: "Alice", email: "alice@test.com"}])
+        }
+    }
+}
+
+// Custom logging handler
+private function with_structured_logging(computation: () -> Value) -> Value {
+    let log_context = {
+        request_id: generate_request_id(),
+        timestamp: perform Time.now()
+    };
+    
+    handle {
+        computation()
+    } with {
+        Log.info(msg) => {
+            let entry = {
+                level: "INFO",
+                message: msg,
+                ...log_context
+            };
+            perform IO.println(entry.to_json());
+            resume(Unit)
+        },
+        Log.error(msg) => {
+            let entry = {
+                level: "ERROR",
+                message: msg,
+                ...log_context,
+                stack_trace: get_stack_trace()
+            };
+            perform IO.println(entry.to_json());
+            resume(Unit)
+        }
+    }
+}
+
+// Composing multiple handlers
+private function production_handler(computation: () -> Value) -> Value {
+    with_structured_logging(() => {
+        with_error_recovery(() => {
+            with_metrics(() => {
+                computation()
+            })
+        })
+    })
+}
+
+// Effect transformers
+private function retry_on_failure(max_attempts: int, computation: () -> Value) -> Value {
+    let attempt = 0;
+    
+    loop {
+        handle {
+            return computation()
+        } with {
+            Error.throw(err) => {
+                attempt += 1;
+                if (attempt >= max_attempts) {
+                    resume_with_error(err)
+                } else {
+                    $(f"Retry attempt {attempt}/{max_attempts}").print();
+                    perform Time.sleep(1000 * attempt);
+                    continue
+                }
+            }
+        }
+    }
+}
 ```
 
 ### Formal Contracts and Verification
@@ -864,9 +1360,9 @@ FluentAI/
 │   └── MULTITHREADING_IMPROVEMENTS.md # Concurrent features
 ├── tests/              # Test suite
 ├── examples/           # Example programs
-│   ├── *.ai           # FluentAI examples
+│   ├── *.fc           # FluentAI examples
 │   ├── *.html         # UI framework demos
-│   └── *_demo.ai      # Feature demonstrations
+│   └── *_demo.fc      # Feature demonstrations
 ├── docs/               # Documentation
 └── tools/              # Development tools
 ```

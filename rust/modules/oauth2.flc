@@ -1,0 +1,312 @@
+// OAuth2 Authentication Module
+// Provides OAuth2 client implementation with support for various flows
+
+use http;
+use rest;
+
+// === OAuth2 Configuration ===
+
+public struct OAuth2Config {
+    pub client_id: string,
+    pub client_secret: string,
+    pub auth_url: string,
+    pub token_url: string,
+    pub redirect_uri: string,
+    pub scopes: List<string>,
+}
+
+// === OAuth2 Token ===
+
+public struct OAuth2Token {
+    pub access_token: string,
+    pub token_type: string,
+    pub expires_in: int?,
+    pub refresh_token: string?,
+    pub scope: string?,
+    pub created_at: int,
+}
+
+private OAuth2Token {
+    // Check if token is expired
+    public function is_expired(self) -> bool {
+        if self.expires_in == null {
+            false  // No expiry info, assume valid
+        } else {
+            let now = perform Time.now();
+            let expiry_time = self.created_at + (self.expires_in * 1000);
+            now >= expiry_time
+        }
+    }
+    
+    // Get authorization header value
+    public function auth_header(self) -> string {
+        f"{self.token_type} {self.access_token}"
+    }
+}
+
+// === OAuth2 Client ===
+
+public struct OAuth2Client {
+    pub config: OAuth2Config,
+    pub http_client: rest.RestClient,
+    pub token: OAuth2Token?,
+}
+
+// Create a new OAuth2 client
+public function oauth2_client(config: OAuth2Config) -> OAuth2Client {
+    OAuth2Client {
+        config: config,
+        http_client: rest.client(config.token_url),
+        token: null
+    }
+}
+
+// OAuth2 Client methods
+private OAuth2Client {
+    // Generate authorization URL for authorization code flow
+    public function auth_url(self, state: string? = null) -> string {
+        let params = {
+            "client_id": self.config.client_id,
+            "redirect_uri": self.config.redirect_uri,
+            "response_type": "code",
+            "scope": self.config.scopes.join(" ")
+        };
+        
+        if state != null {
+            params["state"] = state;
+        }
+        
+        http.build_url(self.config.auth_url, params)
+    }
+    
+    // Exchange authorization code for token
+    public async function exchange_code(self, code: string) -> OAuth2Token {
+        let params = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": self.config.redirect_uri,
+            "client_id": self.config.client_id,
+            "client_secret": self.config.client_secret
+        };
+        
+        let response = self.http_client
+            .with_header("Content-Type", "application/x-www-form-urlencoded")
+            .post("", self.url_encode_params(params))
+            .await();
+        
+        if !response.success {
+            error(f"OAuth2 token exchange failed: {response.body}");
+        }
+        
+        self.parse_token_response(response.json())
+    }
+    
+    // Get token using client credentials flow
+    public async function client_credentials(self) -> OAuth2Token {
+        let params = {
+            "grant_type": "client_credentials",
+            "client_id": self.config.client_id,
+            "client_secret": self.config.client_secret,
+            "scope": self.config.scopes.join(" ")
+        };
+        
+        let response = self.http_client
+            .with_header("Content-Type", "application/x-www-form-urlencoded")
+            .post("", self.url_encode_params(params))
+            .await();
+        
+        if !response.success {
+            error(f"OAuth2 client credentials failed: {response.body}");
+        }
+        
+        self.parse_token_response(response.json())
+    }
+    
+    // Refresh access token
+    public async function refresh_token(self, refresh_token: string) -> OAuth2Token {
+        let params = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": self.config.client_id,
+            "client_secret": self.config.client_secret
+        };
+        
+        let response = self.http_client
+            .with_header("Content-Type", "application/x-www-form-urlencoded")
+            .post("", self.url_encode_params(params))
+            .await();
+        
+        if !response.success {
+            error(f"OAuth2 token refresh failed: {response.body}");
+        }
+        
+        self.parse_token_response(response.json())
+    }
+    
+    // Get current token, refreshing if needed
+    public async function get_token(self) -> OAuth2Token {
+        if self.token == null {
+            error("No OAuth2 token available. Please authenticate first.");
+        }
+        
+        // Check if token needs refresh
+        if self.token.is_expired() && self.token.refresh_token != null {
+            self.token = self.refresh_token(self.token.refresh_token).await();
+        }
+        
+        self.token
+    }
+    
+    // Create authenticated REST client
+    public async function rest_client(self, base_url: string) -> rest.RestClient {
+        let token = self.get_token().await();
+        rest.client(base_url).with_header("Authorization", token.auth_header())
+    }
+    
+    // Parse token response
+    private function parse_token_response(self, data: Map) -> OAuth2Token {
+        let token = OAuth2Token {
+            access_token: data["access_token"],
+            token_type: data["token_type"] ?? "Bearer",
+            expires_in: data["expires_in"],
+            refresh_token: data["refresh_token"],
+            scope: data["scope"],
+            created_at: perform Time.now()
+        };
+        
+        // Update stored token
+        self.token = token;
+        token
+    }
+    
+    // URL encode parameters
+    private function url_encode_params(self, params: Map) -> string {
+        params.entries()
+            .map(([k, v]) => f"{k}={self.url_encode(v)}")
+            .join("&")
+    }
+    
+    // Simple URL encoding (basic implementation)
+    private function url_encode(self, value: string) -> string {
+        value
+            .replace(" ", "%20")
+            .replace("!", "%21")
+            .replace("#", "%23")
+            .replace("$", "%24")
+            .replace("&", "%26")
+            .replace("'", "%27")
+            .replace("(", "%28")
+            .replace(")", "%29")
+            .replace("*", "%2A")
+            .replace("+", "%2B")
+            .replace(",", "%2C")
+            .replace("/", "%2F")
+            .replace(":", "%3A")
+            .replace(";", "%3B")
+            .replace("=", "%3D")
+            .replace("?", "%3F")
+            .replace("@", "%40")
+            .replace("[", "%5B")
+            .replace("]", "%5D")
+    }
+}
+
+// === Common OAuth2 Providers ===
+
+// GitHub OAuth2 configuration
+public function github_oauth2(client_id: string, client_secret: string, redirect_uri: string) -> OAuth2Config {
+    OAuth2Config {
+        client_id: client_id,
+        client_secret: client_secret,
+        auth_url: "https://github.com/login/oauth/authorize",
+        token_url: "https://github.com/login/oauth/access_token",
+        redirect_uri: redirect_uri,
+        scopes: ["user", "repo"]
+    }
+}
+
+// Google OAuth2 configuration
+public function google_oauth2(client_id: string, client_secret: string, redirect_uri: string) -> OAuth2Config {
+    OAuth2Config {
+        client_id: client_id,
+        client_secret: client_secret,
+        auth_url: "https://accounts.google.com/o/oauth2/v2/auth",
+        token_url: "https://oauth2.googleapis.com/token",
+        redirect_uri: redirect_uri,
+        scopes: ["openid", "email", "profile"]
+    }
+}
+
+// Microsoft OAuth2 configuration
+public function microsoft_oauth2(client_id: string, client_secret: string, redirect_uri: string) -> OAuth2Config {
+    OAuth2Config {
+        client_id: client_id,
+        client_secret: client_secret,
+        auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        redirect_uri: redirect_uri,
+        scopes: ["openid", "profile", "email"]
+    }
+}
+
+// === OAuth2 Token Storage ===
+
+public trait TokenStorage {
+    private async function save_token(self, provider: string, token: OAuth2Token);
+    private async function load_token(self, provider: string) -> OAuth2Token?;
+    private async function delete_token(self, provider: string);
+}
+
+// In-memory token storage
+public struct MemoryTokenStorage {
+    tokens: Map<string, OAuth2Token>
+}
+
+private MemoryTokenStorage as TokenStorage {
+    private async function save_token(self, provider: string, token: OAuth2Token) {
+        self.tokens[provider] = token;
+    }
+    
+    private async function load_token(self, provider: string) -> OAuth2Token? {
+        self.tokens.get(provider)
+    }
+    
+    private async function delete_token(self, provider: string) {
+        self.tokens.remove(provider);
+    }
+}
+
+// File-based token storage
+public struct FileTokenStorage {
+    directory: string
+}
+
+private FileTokenStorage as TokenStorage {
+    private async function save_token(self, provider: string, token: OAuth2Token) {
+        let path = f"{self.directory}/{provider}_token.json";
+        perform IO.write_file(path, token.to_json());
+    }
+    
+    private async function load_token(self, provider: string) -> OAuth2Token? {
+        let path = f"{self.directory}/{provider}_token.json";
+        try {
+            let content = perform IO.read_file(path);
+            let data = content.from_json();
+            OAuth2Token {
+                access_token: data["access_token"],
+                token_type: data["token_type"],
+                expires_in: data["expires_in"],
+                refresh_token: data["refresh_token"],
+                scope: data["scope"],
+                created_at: data["created_at"]
+            }
+        } catch {
+            null
+        }
+    }
+    
+    private async function delete_token(self, provider: string) {
+        let path = f"{self.directory}/{provider}_token.json";
+        perform IO.delete_file(path);
+    }
+}

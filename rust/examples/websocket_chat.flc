@@ -1,0 +1,214 @@
+// WebSocket Chat Server Example
+// This demonstrates real-time bidirectional communication using WebSockets
+
+use http;
+
+// Store connected users
+private let users = {};
+
+// Handle new WebSocket connections
+private function handle_websocket_connect(connection_id: string) {
+    $(f"New WebSocket connection: {connection_id}").print();
+    
+    // Add user to the list
+    users[connection_id] = {
+        "id": connection_id,
+        "name": f"User_{connection_id.substring(0, 8)}",
+        "joined_at": perform Time.now()
+    };
+    
+    // Notify all users about the new connection
+    let message = {
+        "type": "user_joined",
+        "user": users[connection_id],
+        "total_users": users.keys().length()
+    };
+    
+    perform HttpServer.ws_broadcast("server_8080", message.to_json()).await();
+}
+
+// Handle WebSocket messages
+private function handle_websocket_message(connection_id: string, message: string) {
+    try {
+        let data = message.from_json();
+        
+        match data.type {
+            "chat" => {
+                // Broadcast chat message to all users
+                let chat_message = {
+                    "type": "chat",
+                    "from": users[connection_id].name,
+                    "message": data.message,
+                    "timestamp": perform Time.now()
+                };
+                
+                perform HttpServer.ws_broadcast("server_8080", chat_message.to_json()).await();
+            }
+            "set_name" => {
+                // Update user's name
+                let old_name = users[connection_id].name;
+                users[connection_id].name = data.name;
+                
+                // Notify all users about the name change
+                let notification = {
+                    "type": "name_changed",
+                    "old_name": old_name,
+                    "new_name": data.name
+                };
+                
+                perform HttpServer.ws_broadcast("server_8080", notification.to_json()).await();
+            }
+            "ping" => {
+                // Respond with pong
+                let pong = { "type": "pong", "timestamp": perform Time.now() };
+                perform HttpServer.ws_send("server_8080", connection_id, pong.to_json());
+            }
+            _ => {
+                $(f"Unknown message type: {data.type}").print();
+            }
+        }
+    } catch (e) {
+        $(f"Error parsing message: {e}").print();
+    }
+}
+
+// Handle WebSocket disconnections
+private function handle_websocket_disconnect(connection_id: string) {
+    $(f"WebSocket disconnected: {connection_id}").print();
+    
+    if users.has_key(connection_id) {
+        let user = users[connection_id];
+        users.remove(connection_id);
+        
+        // Notify remaining users
+        let message = {
+            "type": "user_left",
+            "user": user,
+            "total_users": users.keys().length()
+        };
+        
+        perform HttpServer.ws_broadcast("server_8080", message.to_json()).await();
+    }
+}
+
+// Serve the chat client HTML
+private function handle_home(context: Map) -> Map {
+    let html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FluentAI WebSocket Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #messages { border: 1px solid #ccc; height: 400px; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+        #input { width: 70%; padding: 5px; }
+        #send { width: 25%; padding: 5px; }
+        .message { margin: 5px 0; }
+        .system { color: #666; font-style: italic; }
+        .chat { color: #000; }
+        .timestamp { color: #999; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <h1>FluentAI WebSocket Chat</h1>
+    <div id="messages"></div>
+    <input type="text" id="input" placeholder="Type a message..." />
+    <button id="send">Send</button>
+    
+    <script>
+        const ws = new WebSocket('ws://localhost:8080/ws');
+        const messages = document.getElementById('messages');
+        const input = document.getElementById('input');
+        const sendBtn = document.getElementById('send');
+        
+        function addMessage(text, className = 'chat') {
+            const div = document.createElement('div');
+            div.className = 'message ' + className;
+            div.textContent = text;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        ws.onopen = () => {
+            addMessage('Connected to chat server', 'system');
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                switch(data.type) {
+                    case 'chat':
+                        addMessage(`${data.from}: ${data.message}`);
+                        break;
+                    case 'user_joined':
+                        addMessage(`${data.user.name} joined the chat (${data.total_users} users online)`, 'system');
+                        break;
+                    case 'user_left':
+                        addMessage(`${data.user.name} left the chat (${data.total_users} users online)`, 'system');
+                        break;
+                    case 'name_changed':
+                        addMessage(`${data.old_name} is now ${data.new_name}`, 'system');
+                        break;
+                }
+            } catch(e) {
+                console.error('Error parsing message:', e);
+            }
+        };
+        
+        ws.onclose = () => {
+            addMessage('Disconnected from chat server', 'system');
+        };
+        
+        function sendMessage() {
+            const text = input.value.trim();
+            if (text) {
+                if (text.startsWith('/name ')) {
+                    ws.send(JSON.stringify({ type: 'set_name', name: text.substring(6) }));
+                } else {
+                    ws.send(JSON.stringify({ type: 'chat', message: text }));
+                }
+                input.value = '';
+            }
+        }
+        
+        sendBtn.onclick = sendMessage;
+        input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+    </script>
+</body>
+</html>
+    """;
+    
+    {
+        "status": 200,
+        "headers": {"Content-Type": "text/html"},
+        "body": html
+    }
+}
+
+// Main server function
+private async function main() {
+    $("Starting WebSocket chat server...").print();
+    
+    // Register routes
+    perform HttpServer.route("GET", "/", "handle_home");
+    perform HttpServer.route("GET", "/ws", "handle_websocket_upgrade");
+    
+    // Start server with WebSocket support enabled (second parameter = true)
+    let server = perform HttpServer.listen(8080, true).await();
+    
+    $(f"Chat server running at http://localhost:{server.port}").print();
+    $("WebSocket endpoint: ws://localhost:8080/ws").print();
+    $("").print();
+    $("Commands:").print();
+    $("  /name <new_name> - Change your display name").print();
+    $("  Type anything else to send a chat message").print();
+    $("").print();
+    
+    // Get WebSocket connection count periodically
+    loop {
+        perform Time.sleep(30000).await(); // 30 seconds
+        
+        let connections = perform HttpServer.ws_connections("server_8080");
+        $(f"Active WebSocket connections: {connections.length()}").print();
+    }
+}

@@ -11,6 +11,7 @@ mod random;
 mod reactive;
 mod state;
 mod time;
+mod websocket;
 
 pub use async_handler::AsyncHandler;
 pub use concurrent::ConcurrentHandler;
@@ -23,3 +24,4 @@ pub use random::RandomHandler;
 pub use reactive::ReactiveHandler;
 pub use state::StateHandler;
 pub use time::TimeHandler;
+pub use websocket::{WebSocketHandler, WebSocketMessage};

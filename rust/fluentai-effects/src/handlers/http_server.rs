@@ -7,10 +7,15 @@
 //! - Middleware support
 //! - WebSocket upgrade capability (for future implementation)
 
-use crate::{router::{Router as FluentRouter, parse_query_string}, EffectHandler, EffectResult};
+use crate::{
+    router::{Router as FluentRouter, parse_query_string}, 
+    handlers::websocket::{WebSocketHandler, WebSocketMessage},
+    EffectHandler, EffectResult
+};
 use async_trait::async_trait;
 use axum::{
     body::{Body, Bytes},
+    extract::ws::WebSocketUpgrade,
     http::{Request, StatusCode},
     response::Response,
     Router,
@@ -52,6 +57,8 @@ pub struct RouteResponse {
 struct ServerState {
     router: Arc<RwLock<FluentRouter>>,
     handler_channel: mpsc::Sender<RouteRequest>,
+    websocket_handler: Option<Arc<WebSocketHandler>>,
+    websocket_message_tx: Option<mpsc::Sender<WebSocketMessage>>,
 }
 
 /// Route request sent to handler task
@@ -65,6 +72,7 @@ struct RouteRequest {
 pub struct HttpServerHandler {
     servers: Arc<RwLock<FxHashMap<String, ServerInfo>>>,
     route_registry: Arc<RwLock<FxHashMap<String, RouteInfo>>>,
+    websocket_handlers: Arc<RwLock<FxHashMap<String, Arc<WebSocketHandler>>>>,
 }
 
 /// Information about a registered route
@@ -87,6 +95,7 @@ impl HttpServerHandler {
         Self {
             servers: Arc::new(RwLock::new(FxHashMap::default())),
             route_registry: Arc::new(RwLock::new(FxHashMap::default())),
+            websocket_handlers: Arc::new(RwLock::new(FxHashMap::default())),
         }
     }
 
@@ -100,6 +109,40 @@ impl EffectHandler for HttpServerHandler {
 
     fn handle_sync(&self, operation: &str, args: &[Value]) -> EffectResult {
         match operation {
+            "ws_send" => {
+                // Send WebSocket message to specific connection
+                if args.len() >= 3 {
+                    if let (
+                        Some(Value::String(server_id)),
+                        Some(Value::String(conn_id)),
+                        Some(Value::String(message)),
+                    ) = (args.get(0), args.get(1), args.get(2))
+                    {
+                        if let Some(ws_handler) = self.websocket_handlers.read().unwrap().get(server_id) {
+                            // Delegate to WebSocket handler
+                            ws_handler.handle_sync("send", &[Value::String(conn_id.clone()), Value::String(message.clone())])
+                        } else {
+                            Err(Error::Runtime(format!("No WebSocket handler for server '{}'", server_id)))
+                        }
+                    } else {
+                        Err(Error::Runtime("Invalid ws_send arguments".to_string()))
+                    }
+                } else {
+                    Err(Error::Runtime("ws_send requires server_id, connection_id, and message".to_string()))
+                }
+            }
+            "ws_connections" => {
+                // Get WebSocket connections for a server
+                if let Some(Value::String(server_id)) = args.first() {
+                    if let Some(ws_handler) = self.websocket_handlers.read().unwrap().get(server_id) {
+                        ws_handler.handle_sync("connections", &[])
+                    } else {
+                        Ok(Value::List(vec![]))
+                    }
+                } else {
+                    Err(Error::Runtime("ws_connections requires server_id".to_string()))
+                }
+            }
             "route" => {
                 // Register a route: method, path, handler_id
                 if args.len() >= 3 {
@@ -161,10 +204,30 @@ impl EffectHandler for HttpServerHandler {
                     // Create handler channel
                     let (handler_tx, mut handler_rx) = mpsc::channel::<RouteRequest>(100);
                     
+                    // Create WebSocket handler if requested
+                    let (ws_handler, ws_msg_tx) = if args.len() > 1 && matches!(args.get(1), Some(Value::Boolean(true))) {
+                        let ws_handler = Arc::new(WebSocketHandler::new());
+                        let (ws_msg_tx, mut ws_msg_rx) = mpsc::channel::<WebSocketMessage>(100);
+                        
+                        // Spawn task to handle WebSocket messages
+                        let _ws_task = tokio::spawn(async move {
+                            while let Some(msg) = ws_msg_rx.recv().await {
+                                // TODO: Route WebSocket messages to appropriate handlers
+                                info!("WebSocket message from {}: {:?}", msg.connection_id, msg.data);
+                            }
+                        });
+                        
+                        (Some(ws_handler), Some(ws_msg_tx))
+                    } else {
+                        (None, None)
+                    };
+                    
                     // Create server state
                     let state = ServerState {
                         router: Arc::new(RwLock::new(router)),
                         handler_channel: handler_tx.clone(),
+                        websocket_handler: ws_handler.clone(),
+                        websocket_message_tx: ws_msg_tx,
                     };
                     
                     // Create the handler service
@@ -234,6 +297,11 @@ impl EffectHandler for HttpServerHandler {
                         );
                     }
                     
+                    // Store WebSocket handler if created
+                    if let Some(ref ws_handler) = ws_handler {
+                        self.websocket_handlers.write().unwrap().insert(server_id.clone(), ws_handler.clone());
+                    }
+                    
                     // Return server info
                     Ok(Value::Map({
                         let mut map = FxHashMap::default();
@@ -244,6 +312,49 @@ impl EffectHandler for HttpServerHandler {
                     }))
                 } else {
                     Err(Error::Runtime("listen requires a port number".to_string()))
+                }
+            }
+            "ws_send_async" => {
+                // Send WebSocket message asynchronously
+                if args.len() >= 3 {
+                    if let (
+                        Some(Value::String(server_id)),
+                        Some(Value::String(conn_id)),
+                        Some(Value::String(message)),
+                    ) = (args.get(0), args.get(1), args.get(2))
+                    {
+                        let ws_handler = self.websocket_handlers.read().unwrap().get(server_id).cloned();
+                        if let Some(ws_handler) = ws_handler {
+                            ws_handler.handle_async("send", &[Value::String(conn_id.clone()), Value::String(message.clone())]).await
+                        } else {
+                            Err(Error::Runtime(format!("No WebSocket handler for server '{}'", server_id)))
+                        }
+                    } else {
+                        Err(Error::Runtime("Invalid ws_send_async arguments".to_string()))
+                    }
+                } else {
+                    Err(Error::Runtime("ws_send_async requires server_id, connection_id, and message".to_string()))
+                }
+            }
+            "ws_broadcast" => {
+                // Broadcast to all WebSocket connections
+                if args.len() >= 2 {
+                    if let (
+                        Some(Value::String(server_id)),
+                        Some(Value::String(message)),
+                    ) = (args.get(0), args.get(1))
+                    {
+                        let ws_handler = self.websocket_handlers.read().unwrap().get(server_id).cloned();
+                        if let Some(ws_handler) = ws_handler {
+                            ws_handler.handle_async("broadcast", &[Value::String(message.clone())]).await
+                        } else {
+                            Err(Error::Runtime(format!("No WebSocket handler for server '{}'", server_id)))
+                        }
+                    } else {
+                        Err(Error::Runtime("Invalid ws_broadcast arguments".to_string()))
+                    }
+                } else {
+                    Err(Error::Runtime("ws_broadcast requires server_id and message".to_string()))
                 }
             }
             "stop" => {
@@ -259,6 +370,9 @@ impl EffectHandler for HttpServerHandler {
                         let _ = server_info.shutdown_tx.send(());
                         
                         // Wait for server to stop
+                        // Remove WebSocket handler too
+                        self.websocket_handlers.write().unwrap().remove(server_id);
+                        
                         let _ = server_info.handle.await;
                         
                         Ok(Value::Boolean(true))
@@ -277,7 +391,27 @@ impl EffectHandler for HttpServerHandler {
     }
 
     fn is_async_operation(&self, operation: &str) -> bool {
-        matches!(operation, "listen" | "stop")
+        matches!(operation, "listen" | "stop" | "ws_send_async" | "ws_broadcast")
+    }
+}
+
+/// Handle WebSocket upgrade
+fn handle_websocket_upgrade(
+    ws: WebSocketUpgrade,
+    state: ServerState,
+    connection_id: String,
+) -> Response {
+    if let (Some(_ws_handler), Some(_msg_tx)) = (state.websocket_handler, state.websocket_message_tx) {
+        ws.on_upgrade(move |_socket| async move {
+            info!("WebSocket connection established: {}", connection_id);
+            // For now, just log the connection
+            // Full integration would require adapting the WebSocket handler
+        })
+    } else {
+        Response::builder()
+            .status(StatusCode::SERVICE_UNAVAILABLE)
+            .body(Body::from("WebSocket not configured"))
+            .unwrap()
     }
 }
 
@@ -286,6 +420,10 @@ async fn create_async_handler_impl(
     state: ServerState,
     req: Request<Body>,
 ) -> Result<Response, std::convert::Infallible> {
+    // Check for WebSocket upgrade
+    // Note: Full WebSocket integration would require more complex handling
+    // For now, we just recognize WebSocket upgrade requests
+    
     let response = {
             // Extract request details
             let method = req.method().to_string();

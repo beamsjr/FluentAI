@@ -24,6 +24,14 @@ pub struct Parser<'a> {
     position: usize,
     module_name: Option<String>,
     exports: Vec<ExportItem>,
+    // Actor context tracking
+    actor_context: Option<ActorContext>,
+}
+
+#[derive(Debug, Clone)]
+struct ActorContext {
+    state_fields: Vec<(String, String)>, // (field_name, field_type)
+    in_handler: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -37,6 +45,7 @@ impl<'a> Parser<'a> {
             position: 0,
             module_name: None,
             exports: Vec::new(),
+            actor_context: None,
         }
     }
 
@@ -913,7 +922,33 @@ impl<'a> Parser<'a> {
                     self.consume(Token::RParen)?;
                     self.add_node(Node::Channel { capacity })
                 } else {
-                    self.add_node(Node::Variable { name })
+                    // Check if we're in an actor handler and this is a state field reference
+                    if let Some(ref ctx) = self.actor_context {
+                        if ctx.in_handler {
+                            // Check if this variable name matches any state field
+                            if ctx.state_fields.iter().any(|(field_name, _)| field_name == &name) {
+                                // Transform to state parameter access
+                                // Instead of 'count', generate an application that accesses the field
+                                let state_var = self.add_node(Node::Variable {
+                                    name: "state".to_string(),
+                                })?;
+                                // Create a getter function for the field
+                                let getter_fn = self.add_node(Node::Variable {
+                                    name: format!("get_{}", name),
+                                })?;
+                                self.add_node(Node::Application {
+                                    function: getter_fn,
+                                    args: vec![state_var],
+                                })
+                            } else {
+                                self.add_node(Node::Variable { name })
+                            }
+                        } else {
+                            self.add_node(Node::Variable { name })
+                        }
+                    } else {
+                        self.add_node(Node::Variable { name })
+                    }
                 }
             }
             Some(Token::Self_) => {
@@ -2171,16 +2206,31 @@ impl<'a> Parser<'a> {
 
         self.consume(Token::LBrace)?;
 
+        // Set up actor context to track state fields
+        let mut state_fields = Vec::new();
         let mut definitions = vec![];
+        
+        // Save previous actor context (for nested actors)
+        let prev_context = self.actor_context.clone();
+        self.actor_context = Some(ActorContext {
+            state_fields: Vec::new(),
+            in_handler: false,
+        });
 
         while !matches!(self.current, Some(Token::RBrace)) {
             match self.current {
                 Some(Token::LowerIdent(field_name)) => {
                     // State field
-                    let _field_name = field_name.to_string();
+                    let field_name = field_name.to_string();
                     self.advance();
                     self.consume(Token::Colon)?;
-                    self.parse_type()?;
+                    let field_type = self.parse_type()?;
+                    
+                    // Track this state field
+                    state_fields.push((field_name.clone(), field_type.clone()));
+                    if let Some(ref mut ctx) = self.actor_context {
+                        ctx.state_fields.push((field_name, field_type));
+                    }
 
                     // Skip initializer if present
                     if matches!(self.current, Some(Token::Eq)) {
@@ -2192,14 +2242,27 @@ impl<'a> Parser<'a> {
                 }
                 Some(Token::Private) | Some(Token::Public) => {
                     // Handler method or other definition
+                    // Mark that we're in a handler
+                    if let Some(ref mut ctx) = self.actor_context {
+                        ctx.in_handler = true;
+                    }
+                    
                     let def = self.parse_definition()?;
                     definitions.push(def);
+                    
+                    // Clear handler flag
+                    if let Some(ref mut ctx) = self.actor_context {
+                        ctx.in_handler = false;
+                    }
                 }
                 _ => return Err(anyhow!("Expected field or handler in actor")),
             }
         }
 
         self.consume(Token::RBrace)?;
+        
+        // Restore previous actor context
+        self.actor_context = prev_context;
 
         // Create a define node for the actor
         let actor_value = self.add_node(Node::Begin { exprs: definitions })?;

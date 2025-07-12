@@ -23,7 +23,11 @@ impl EffectHandler for IOHandler {
         match operation {
             "print" => {
                 if let Some(arg) = args.first() {
-                    print!("{}", arg);
+                    // Special handling for string values - print without quotes
+                    match arg {
+                        Value::String(s) => print!("{}", s),
+                        _ => print!("{}", arg),
+                    }
                     io::stdout()
                         .flush()
                         .map_err(|e| Error::Runtime(e.to_string()))?;
@@ -32,7 +36,11 @@ impl EffectHandler for IOHandler {
             }
             "println" => {
                 if let Some(arg) = args.first() {
-                    println!("{}", arg);
+                    // Special handling for string values - print without quotes
+                    match arg {
+                        Value::String(s) => println!("{}", s),
+                        _ => println!("{}", arg),
+                    }
                 }
                 Ok(Value::Nil)
             }

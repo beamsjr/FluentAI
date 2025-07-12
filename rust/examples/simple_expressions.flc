@@ -1,4 +1,17 @@
-;; Very simple multiple expressions
-1
-2
-3
+// Very simple multiple expressions in FluentAI
+// Each expression is evaluated in sequence
+
+// First expression
+let a = 1;
+$(f"First value: {a}").print();
+
+// Second expression  
+let b = 2;
+$(f"Second value: {b}").print();
+
+// Third expression
+let c = 3;
+$(f"Third value: {c}").print();
+
+// The last expression is the return value
+c

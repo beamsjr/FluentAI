@@ -3,8 +3,8 @@
 use anyhow::Result;
 use fluentai_core::ast::{EffectType, Graph, Literal, Node};
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_bytecode::Opcode;
 use fluentai_vm::{
-    bytecode::Opcode,
     compiler::{Compiler, CompilerOptions},
     VM,
 };

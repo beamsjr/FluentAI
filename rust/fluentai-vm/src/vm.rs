@@ -2106,10 +2106,38 @@ impl VM {
             }
         } else if let Some(func_name) = native_func.strip_prefix("__builtin__") {
             // Handle builtin function calls
-            return Err(VMError::RuntimeError {
-                message: format!("Builtin function '{}' should be compiled to opcode", func_name),
-                stack_trace: Some(self.build_stack_trace()),
-            });
+            if func_name == "Printable" {
+                // Special handling for Printable constructor
+                // It takes one argument (the content) and creates a Tagged value
+                if args.len() != 1 {
+                    return Err(VMError::RuntimeError {
+                        message: format!("Printable expects 1 argument, got {}", args.len()),
+                        stack_trace: Some(self.build_stack_trace()),
+                    });
+                }
+                
+                // Extract the string content
+                let content = match &args[0] {
+                    Value::String(s) => s.clone(),
+                    other => {
+                        // Convert other values to string representation
+                        format!("{}", other)
+                    }
+                };
+                
+                // Create a Tagged value with the content as tag and "Printable" as value
+                let tagged = Value::Tagged {
+                    tag: content,
+                    values: vec![Value::String("Printable".to_string())],
+                };
+                
+                self.push(tagged)?;
+            } else {
+                return Err(VMError::RuntimeError {
+                    message: format!("Builtin function '{}' should be compiled to opcode", func_name),
+                    stack_trace: Some(self.build_stack_trace()),
+                });
+            }
         } else {
             // Regular native function - not implemented yet
             return Err(VMError::RuntimeError {

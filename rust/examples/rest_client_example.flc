@@ -1,0 +1,188 @@
+// REST Client Example
+// Demonstrates the REST client module with retry logic and error handling
+
+use rest;
+
+// Example API client for a blog service
+private struct BlogClient {
+    client: rest.RestClient
+}
+
+private function create_blog_client() -> BlogClient {
+    BlogClient {
+        client: rest.client("https://jsonplaceholder.typicode.com")
+            .with_header("User-Agent", "FluentAI-REST-Example/1.0")
+            .with_timeout(10000)  // 10 seconds
+            .with_retry(rest.RetryConfig {
+                max_retries: 3,
+                initial_delay: 500,
+                max_delay: 5000,
+                exponential_base: 2.0
+            })
+    }
+}
+
+private BlogClient {
+    // Get all posts with optional filtering
+    async function get_posts(self, user_id: int? = null) -> List<Map> {
+        let params = if user_id != null {
+            {"userId": user_id.to_string()}
+        } else {
+            {}
+        };
+        
+        let response = self.client.get("/posts", params).await();
+        
+        if response.success {
+            response.json()
+        } else {
+            $(f"Failed to fetch posts: {response.error ?? response.body}").print();
+            []
+        }
+    }
+    
+    // Get a specific post
+    async function get_post(self, id: int) -> Map? {
+        let response = self.client.get(f"/posts/{id}").await();
+        
+        if response.success {
+            response.json()
+        } else {
+            $(f"Failed to fetch post {id}: Status {response.status}").print();
+            null
+        }
+    }
+    
+    // Create a new post
+    async function create_post(self, title: string, body: string, user_id: int) -> Map? {
+        let post_data = {
+            "title": title,
+            "body": body,
+            "userId": user_id
+        };
+        
+        let response = self.client.post("/posts", post_data).await();
+        
+        if response.success {
+            let created = response.json();
+            $(f"Created post with ID: {created.id}").print();
+            created
+        } else {
+            $(f"Failed to create post: {response.error}").print();
+            null
+        }
+    }
+    
+    // Update a post
+    async function update_post(self, id: int, updates: Map) -> Map? {
+        let response = self.client.patch(f"/posts/{id}", updates).await();
+        
+        if response.success {
+            response.json()
+        } else {
+            $(f"Failed to update post {id}").print();
+            null
+        }
+    }
+    
+    // Delete a post
+    async function delete_post(self, id: int) -> bool {
+        let response = self.client.delete(f"/posts/{id}").await();
+        response.success
+    }
+    
+    // Get comments for a post
+    async function get_comments(self, post_id: int) -> List<Map> {
+        let response = self.client.get(f"/posts/{post_id}/comments").await();
+        
+        if response.success {
+            response.json()
+        } else {
+            []
+        }
+    }
+}
+
+// Demonstrate REST client features
+private async function main() {
+    $("=== FluentAI REST Client Example ===\n").print();
+    
+    let blog = create_blog_client();
+    
+    // 1. Fetch posts
+    $("1. Fetching recent posts...").print();
+    let posts = blog.get_posts().await();
+    $(f"   Total posts: {posts.length()}").print();
+    
+    // Show first 3 posts
+    posts.take(3).for_each(post => {
+        $(f"   - [{post.id}] {post.title}").print();
+    });
+    
+    // 2. Get specific post with comments
+    $("\n2. Getting post details with comments...").print();
+    let post_id = 1;
+    let post = blog.get_post(post_id).await();
+    
+    if post != null {
+        $(f"   Post: {post.title}").print();
+        $(f"   Body: {post.body.take(100)}...").print();
+        
+        let comments = blog.get_comments(post_id).await();
+        $(f"   Comments: {comments.length()}").print();
+        
+        comments.take(2).for_each(comment => {
+            $(f"     - {comment.name}: {comment.body.take(50)}...").print();
+        });
+    }
+    
+    // 3. Create a new post
+    $("\n3. Creating a new post...").print();
+    let new_post = blog.create_post(
+        "Test Post from FluentAI",
+        "This post was created using the FluentAI REST client with automatic retry logic!",
+        1
+    ).await();
+    
+    // 4. Update the post
+    if new_post != null {
+        $("\n4. Updating the post...").print();
+        let updates = {
+            "title": "Updated: Test Post from FluentAI"
+        };
+        
+        let updated = blog.update_post(new_post.id, updates).await();
+        if updated != null {
+            $(f"   Updated title: {updated.title}").print();
+        }
+        
+        // 5. Delete the post
+        $("\n5. Deleting the post...").print();
+        let deleted = blog.delete_post(new_post.id).await();
+        $(f"   Deleted: {deleted}").print();
+    }
+    
+    // 6. Demonstrate error handling with invalid request
+    $("\n6. Testing error handling...").print();
+    let invalid_post = blog.get_post(999999).await();
+    if invalid_post == null {
+        $("   Error handled gracefully!").print();
+    }
+    
+    // 7. Demonstrate filtering
+    $("\n7. Fetching posts by specific user...").print();
+    let user_posts = blog.get_posts(2).await();
+    $(f"   User 2 has {user_posts.length()} posts").print();
+    
+    // 8. Using CRUD client for users
+    $("\n8. Using CRUD client pattern...").print();
+    let users = rest.crud_client<Map>("https://jsonplaceholder.typicode.com", "users");
+    
+    let all_users = users.list().await();
+    $(f"   Total users: {all_users.length()}").print();
+    
+    let user = users.get("1").await();
+    $(f"   User 1: {user.name} from {user.company.name}").print();
+    
+    $("\n=== Example completed successfully! ===").print();
+}

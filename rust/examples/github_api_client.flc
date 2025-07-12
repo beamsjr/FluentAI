@@ -1,0 +1,192 @@
+// GitHub API Client Example
+// Demonstrates REST client with OAuth2 authentication
+
+use rest;
+use oauth2;
+
+// GitHub API client with OAuth2 authentication
+public struct GitHubClient {
+    oauth_client: oauth2.OAuth2Client,
+    api_client: rest.RestClient?
+}
+
+// Create a new GitHub client
+public function github_client(client_id: string, client_secret: string) -> GitHubClient {
+    let config = oauth2.github_oauth2(
+        client_id,
+        client_secret,
+        "http://localhost:8080/callback"
+    );
+    
+    GitHubClient {
+        oauth_client: oauth2.oauth2_client(config),
+        api_client: null
+    }
+}
+
+// GitHub Client methods
+private GitHubClient {
+    // Initialize API client with token
+    public async function init(self) {
+        self.api_client = self.oauth_client
+            .rest_client("https://api.github.com")
+            .await()
+            .with_header("Accept", "application/vnd.github.v3+json");
+    }
+    
+    // Get current user info
+    public async function get_user(self) -> Map {
+        let response = self.api_client.get("/user").await();
+        response.json()
+    }
+    
+    // List user repositories
+    public async function list_repos(self, params: Map = {}) -> List<Map> {
+        let response = self.api_client.get("/user/repos", params).await();
+        response.json()
+    }
+    
+    // Create a new repository
+    public async function create_repo(self, name: string, description: string, private: bool = false) -> Map {
+        let data = {
+            "name": name,
+            "description": description,
+            "private": private,
+            "auto_init": true
+        };
+        
+        let response = self.api_client.post("/user/repos", data).await();
+        response.json()
+    }
+    
+    // Get repository info
+    public async function get_repo(self, owner: string, repo: string) -> Map {
+        let response = self.api_client.get(f"/repos/{owner}/{repo}").await();
+        response.json()
+    }
+    
+    // List repository issues
+    public async function list_issues(self, owner: string, repo: string, params: Map = {}) -> List<Map> {
+        let response = self.api_client.get(f"/repos/{owner}/{repo}/issues", params).await();
+        response.json()
+    }
+    
+    // Create an issue
+    public async function create_issue(self, owner: string, repo: string, title: string, body: string) -> Map {
+        let data = {
+            "title": title,
+            "body": body
+        };
+        
+        let response = self.api_client.post(f"/repos/{owner}/{repo}/issues", data).await();
+        response.json()
+    }
+}
+
+// Example: REST API client with retry and pagination
+private async function demo_rest_client() {
+    $("=== REST Client Demo ===").print();
+    
+    // Create a REST client with custom configuration
+    let client = rest.client("https://jsonplaceholder.typicode.com")
+        .with_timeout(5000)
+        .with_retry(rest.RetryConfig {
+            max_retries: 5,
+            initial_delay: 200,
+            max_delay: 10000,
+            exponential_base: 2.0
+        });
+    
+    // Get all posts
+    $("Fetching posts...").print();
+    let posts_response = client.get("/posts").await();
+    
+    if posts_response.success {
+        let posts = posts_response.json();
+        $(f"Found {posts.length()} posts").print();
+        
+        // Show first 3 posts
+        posts.take(3).for_each(post => {
+            $(f"Post {post.id}: {post.title}").print();
+        });
+    } else {
+        $(f"Error fetching posts: {posts_response.error}").print();
+    }
+    
+    // Create a new post
+    $("\nCreating a new post...").print();
+    let new_post = {
+        "title": "Test Post from FluentAI",
+        "body": "This is a test post created using the REST client",
+        "userId": 1
+    };
+    
+    let create_response = client.post("/posts", new_post).await();
+    
+    if create_response.success {
+        let created = create_response.json();
+        $(f"Created post with ID: {created.id}").print();
+    }
+    
+    // Demonstrate CRUD client
+    $("\n=== CRUD Client Demo ===").print();
+    let users_crud = rest.crud_client<Map>("https://jsonplaceholder.typicode.com", "users");
+    
+    // List users
+    let users = users_crud.list().await();
+    $(f"Found {users.length()} users").print();
+    
+    // Get specific user
+    let user = users_crud.get("1").await();
+    $(f"User 1: {user.name} ({user.email})").print();
+}
+
+// Example: OAuth2 authentication flow
+private async function demo_oauth2() {
+    $("\n=== OAuth2 Demo ===").print();
+    
+    // Note: This is a demo. In real usage, you'd need valid client credentials
+    let github = github_client("your_client_id", "your_client_secret");
+    
+    // Generate authorization URL
+    let auth_url = github.oauth_client.auth_url("random_state_string");
+    $(f"Visit this URL to authorize: {auth_url}").print();
+    
+    // In a real app, you'd wait for the callback with the authorization code
+    // For demo purposes, we'll simulate having received a code
+    let auth_code = "simulated_auth_code";
+    
+    try {
+        // Exchange code for token
+        let token = github.oauth_client.exchange_code(auth_code).await();
+        $(f"Got access token: {token.access_token.substring(0, 10)}...").print();
+        
+        // Initialize the API client
+        github.init().await();
+        
+        // Make authenticated requests
+        let user = github.get_user().await();
+        $(f"Authenticated as: {user.login}").print();
+        
+        let repos = github.list_repos({"sort": "updated", "per_page": 5}).await();
+        $(f"Recent repositories:").print();
+        repos.for_each(repo => {
+            $(f"  - {repo.name}: {repo.description ?? 'No description'}").print();
+        });
+        
+    } catch (e) {
+        $(f"OAuth2 error: {e}").print();
+    }
+}
+
+// Main function
+private async function main() {
+    // Run REST client demo
+    demo_rest_client().await();
+    
+    // Note: OAuth2 demo requires valid credentials
+    // Uncomment to run with real credentials
+    // demo_oauth2().await();
+    
+    $("\nAll demos completed!").print();
+}

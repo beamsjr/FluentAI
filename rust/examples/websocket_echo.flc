@@ -1,0 +1,179 @@
+// WebSocket Echo Server Example
+// A simple server that echoes back any message it receives
+
+use http;
+
+// Track message statistics
+private let stats = {
+    "connections": 0,
+    "messages": 0,
+    "bytes": 0
+};
+
+// Handle incoming WebSocket messages
+private async function handle_message(server_id: string, conn_id: string, message: string) {
+    stats.messages += 1;
+    stats.bytes += message.length();
+    
+    // Echo the message back with a timestamp
+    let response = {
+        "echo": message,
+        "timestamp": perform Time.now(),
+        "message_number": stats.messages
+    };
+    
+    perform HttpServer.ws_send_async(server_id, conn_id, response.to_json()).await();
+    
+    $(f"Echoed message #{stats.messages} to {conn_id}: {message}").print();
+}
+
+// Serve a simple test client
+private function handle_home(context: Map) -> Map {
+    let html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Echo Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        button { margin: 5px; padding: 5px 10px; }
+        #log { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
+        .sent { color: blue; }
+        .received { color: green; }
+        .system { color: #666; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Echo Test</h1>
+    <div>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="sendMessage()">Send Test Message</button>
+        <button onclick="sendPing()">Send Ping</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    <div id="log"></div>
+    
+    <script>
+        let ws = null;
+        let messageCount = 0;
+        
+        function log(message, className = 'system') {
+            const log = document.getElementById('log');
+            const div = document.createElement('div');
+            div.className = className;
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function connect() {
+            if (ws) {
+                log('Already connected');
+                return;
+            }
+            
+            ws = new WebSocket('ws://localhost:8081/echo');
+            
+            ws.onopen = () => {
+                log('Connected to echo server');
+            };
+            
+            ws.onmessage = (event) => {
+                log('Received: ' + event.data, 'received');
+            };
+            
+            ws.onerror = (error) => {
+                log('Error: ' + error, 'error');
+            };
+            
+            ws.onclose = () => {
+                log('Disconnected from server');
+                ws = null;
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            } else {
+                log('Not connected');
+            }
+        }
+        
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected');
+                return;
+            }
+            
+            messageCount++;
+            const message = `Test message #${messageCount} at ${new Date().toISOString()}`;
+            ws.send(message);
+            log('Sent: ' + message, 'sent');
+        }
+        
+        function sendPing() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected');
+                return;
+            }
+            
+            const ping = JSON.stringify({ type: 'ping', timestamp: Date.now() });
+            ws.send(ping);
+            log('Sent: ' + ping, 'sent');
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        // Auto-connect on load
+        window.onload = () => connect();
+    </script>
+</body>
+</html>
+    """;
+    
+    {
+        "status": 200,
+        "headers": {"Content-Type": "text/html"},
+        "body": html
+    }
+}
+
+// Show statistics
+private function handle_stats(context: Map) -> Map {
+    http.json_response({
+        "stats": stats,
+        "uptime": perform Time.now(),
+        "connections": perform HttpServer.ws_connections("server_8081").length()
+    })
+}
+
+private async function main() {
+    $("Starting WebSocket echo server...").print();
+    
+    // Register HTTP routes
+    perform HttpServer.route("GET", "/", "handle_home");
+    perform HttpServer.route("GET", "/stats", "handle_stats");
+    perform HttpServer.route("GET", "/echo", "handle_websocket_upgrade");
+    
+    // Start server with WebSocket support
+    let server = perform HttpServer.listen(8081, true).await();
+    
+    $(f"Echo server running at http://localhost:{server.port}").print();
+    $("WebSocket endpoint: ws://localhost:8081/echo").print();
+    $("Stats endpoint: http://localhost:8081/stats").print();
+    $("").print();
+    
+    // Monitor connections
+    loop {
+        perform Time.sleep(10000).await(); // 10 seconds
+        
+        let connections = perform HttpServer.ws_connections("server_8081");
+        if connections.length() > 0 {
+            $(f"Active connections: {connections.length()}, Total messages: {stats.messages}").print();
+        }
+    }
+}

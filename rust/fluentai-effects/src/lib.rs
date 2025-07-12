@@ -131,6 +131,7 @@ impl Default for EffectContext {
         context.register_handler(Arc::new(handlers::ConcurrentHandler::new()));
         context.register_handler(Arc::new(handlers::DomHandler::new()));
         context.register_handler(Arc::new(handlers::HttpServerHandler::new()));
+        context.register_handler(Arc::new(handlers::WebSocketHandler::new()));
 
         context
     }

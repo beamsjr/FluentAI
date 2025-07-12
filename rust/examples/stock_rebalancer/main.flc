@@ -1,246 +1,75 @@
-// Stock Portfolio Rebalancer - Main Application
+// Stock Portfolio Rebalancer
+// Main application entry point
 
-// Since object literals aren't supported yet, we'll use lists to represent data structures
+use Types;
+use Portfolio;
+use UI;
 
-// Create a stock as a list: [symbol, shares, current_price]
-let create_stock = (symbol, shares, current_price) => [symbol, shares, current_price];
-
-// Create an allocation as a list: [symbol, target_percentage]
-let create_allocation = (symbol, target_percentage) => [symbol, target_percentage];
-
-// Create a portfolio as a list: [stocks, allocations, total_value]
-let create_portfolio = () => [[], [], 0.0];
-
-// Create action types as lists: [type, symbol, shares, value]
-let create_buy_action = (symbol, shares, value) => ["buy", symbol, shares, value];
-let create_sell_action = (symbol, shares, value) => ["sell", symbol, shares, value];
-let create_hold_action = (symbol) => ["hold", symbol, 0, 0];
-
-// Accessor functions
-let stock_symbol = (stock) => list_ref(stock, 0);
-let stock_shares = (stock) => list_ref(stock, 1);
-let stock_price = (stock) => list_ref(stock, 2);
-
-let alloc_symbol = (alloc) => list_ref(alloc, 0);
-let alloc_percentage = (alloc) => list_ref(alloc, 1);
-
-let portfolio_stocks = (portfolio) => list_ref(portfolio, 0);
-let portfolio_allocations = (portfolio) => list_ref(portfolio, 1);
-let portfolio_value = (portfolio) => list_ref(portfolio, 2);
-
-let action_type = (action) => list_ref(action, 0);
-let action_symbol = (action) => list_ref(action, 1);
-let action_shares = (action) => list_ref(action, 2);
-let action_value = (action) => list_ref(action, 3);
-
-// Portfolio management functions
-let add_stock = (portfolio, symbol, shares) => {
-    let stocks = portfolio_stocks(portfolio);
-    let allocations = portfolio_allocations(portfolio);
-    let value = portfolio_value(portfolio);
+// Initialize the application
+private function initialize() -> map {
+    $("").print();
+    $("=== Stock Portfolio Rebalancer ===").print();
+    $("Type 'help' for available commands").print();
+    $("").print();
     
-    // Filter out existing stock with same symbol
-    let updated_stocks = filter((s) => stock_symbol(s) != symbol, stocks);
-    let new_stocks = append(updated_stocks, list(create_stock(symbol, shares, 0.0)));
-    
-    list(new_stocks, allocations, value)
-};
+    Types.create_portfolio()
+}
 
-let set_allocation = (portfolio, symbol, percentage) => {
-    if (percentage < 0.0 || percentage > 100.0) {
-        print("Error: Percentage must be between 0 and 100");
-        portfolio
-    } else {
-        let stocks = portfolio_stocks(portfolio);
-        let allocations = portfolio_allocations(portfolio);
-        let value = portfolio_value(portfolio);
+// Main application loop
+private function run_app(portfolio: map) -> void {
+    let current_portfolio = portfolio;
+    let running = true;
+    
+    while (running) {
+        // Show prompt
+        $("rebalancer> ").print_no_newline();
         
-        // Filter out existing allocation with same symbol
-        let updated_allocations = filter((a) => alloc_symbol(a) != symbol, allocations);
-        let new_allocations = append(updated_allocations, list(create_allocation(symbol, percentage)));
+        // Read user input
+        let input = perform IO.read_line();
         
-        list(stocks, new_allocations, value)
-    }
-};
-
-let validate_allocations = (portfolio) => {
-    let allocations = portfolio_allocations(portfolio);
-    let total = fold_left((sum, alloc) => sum + alloc_percentage(alloc), 0.0, allocations);
-    
-    let diff = if (total > 100.0) { total - 100.0 } else { 100.0 - total };
-    if (diff > 0.01) {
-        print(string_append("Error: Allocations sum to ", number_to_string(total), "%, must equal 100%"));
-        false
-    } else {
-        true
-    }
-};
-
-// Mock price lookup function
-let get_mock_price = (symbol) => {
-    if (symbol == "AAPL") { 178.25 }
-    else if (symbol == "GOOGL") { 142.30 }
-    else if (symbol == "MSFT") { 195.96 }
-    else if (symbol == "AMZN") { 127.85 }
-    else if (symbol == "TSLA") { 245.50 }
-    else { 100.0 }
-};
-
-let update_prices = (portfolio) => {
-    let stocks = portfolio_stocks(portfolio);
-    let allocations = portfolio_allocations(portfolio);
-    
-    let updated_stocks = map((stock) => {
-        let symbol = stock_symbol(stock);
-        let shares = stock_shares(stock);
-        let price = get_mock_price(symbol);
-        create_stock(symbol, shares, price)
-    }, stocks);
-    
-    let total_value = fold_left((sum, stock) => {
-        sum + (stock_shares(stock) * stock_price(stock))
-    }, 0.0, updated_stocks);
-    
-    list(updated_stocks, allocations, total_value)
-};
-
-let display_summary = (portfolio) => {
-    let value = portfolio_value(portfolio);
-    print(string_append("Portfolio Value: $", number_to_string(value)));
-    print("");
-    
-    print("Current Holdings:");
-    let stocks = portfolio_stocks(portfolio);
-    map((stock) => {
-        let symbol = stock_symbol(stock);
-        let shares = stock_shares(stock);
-        let price = stock_price(stock);
-        let stock_value = shares * price;
-        let percentage = if (value > 0.0) { (stock_value / value) * 100.0 } else { 0.0 };
-        print(string_append("  ", symbol, ": ", number_to_string(shares), " shares @ $", 
-            number_to_string(price), " = $", number_to_string(stock_value), 
-            " (", number_to_string(percentage), "%)"))
-    }, stocks);
-    
-    print("");
-    print("Target Allocations:");
-    let allocations = portfolio_allocations(portfolio);
-    map((alloc) => {
-        print(string_append("  ", alloc_symbol(alloc), ": ", 
-            number_to_string(alloc_percentage(alloc)), "%"))
-    }, allocations)
-};
-
-let calculate_rebalance = (portfolio) => {
-    if (!validate_allocations(portfolio)) {
-        []
-    } else if (portfolio_value(portfolio) <= 0.0) {
-        print("Error: Portfolio has no value");
-        []
-    } else {
-        let allocations = portfolio_allocations(portfolio);
-        let stocks = portfolio_stocks(portfolio);
-        let total_value = portfolio_value(portfolio);
+        // Process command
+        let updated_portfolio = UI.process_command(current_portfolio, input);
         
-        map((allocation) => {
-            let symbol = alloc_symbol(allocation);
-            let target_percentage = alloc_percentage(allocation);
-            let target_value = total_value * target_percentage / 100.0;
-            
-            // Find corresponding stock
-            let stock_list = filter((s) => stock_symbol(s) == symbol, stocks);
-            
-            if (length(stock_list) > 0) {
-                let stock = car(stock_list);
-                let current_value = stock_shares(stock) * stock_price(stock);
-                let value_difference = target_value - current_value;
-                let shares_difference = value_difference / stock_price(stock);
-                
-                if (shares_difference > -0.01 && shares_difference < 0.01) {
-                    create_hold_action(symbol)
-                } else if (shares_difference > 0.0) {
-                    create_buy_action(symbol, shares_difference, value_difference)
-                } else {
-                    create_sell_action(symbol, -shares_difference, -value_difference)
-                }
-            } else {
-                print(string_append("Error: Stock ", symbol, " not found in portfolio"));
-                create_hold_action(symbol)
-            }
-        }, allocations)
-    }
-};
-
-let display_rebalance = (portfolio) => {
-    print("Fetching current prices...");
-    let updated_portfolio = update_prices(portfolio);
-    
-    print("");
-    print("=== Current Portfolio ===");
-    display_summary(updated_portfolio);
-    
-    print("");
-    print("=== Rebalancing Actions ===");
-    let actions = calculate_rebalance(updated_portfolio);
-    
-    let buy_value = fold_left((sum, action) => {
-        if (action_type(action) == "buy") { sum + action_value(action) } else { sum }
-    }, 0.0, actions);
-    
-    let sell_value = fold_left((sum, action) => {
-        if (action_type(action) == "sell") { sum + action_value(action) } else { sum }
-    }, 0.0, actions);
-    
-    map((action) => {
-        let type = action_type(action);
-        let symbol = action_symbol(action);
-        let shares = action_shares(action);
-        let value = action_value(action);
-        
-        if (type == "buy") {
-            print(string_append("BUY  ", symbol, ": ", number_to_string(shares), 
-                " shares ($", number_to_string(value), ")"))
-        } else if (type == "sell") {
-            print(string_append("SELL ", symbol, ": ", number_to_string(shares), 
-                " shares ($", number_to_string(value), ")"))
+        // Check if user wants to quit
+        if (updated_portfolio.get("_quit", false)) {
+            running = false;
         } else {
-            print(string_append("HOLD ", symbol, ": No action needed"))
+            current_portfolio = updated_portfolio;
         }
-    }, actions);
-    
-    print("");
-    print("=== Summary ===");
-    print(string_append("Total to buy:  $", number_to_string(buy_value)));
-    print(string_append("Total to sell: $", number_to_string(sell_value)));
-    print(string_append("Net cash flow: $", number_to_string(sell_value - buy_value)));
-    
-    updated_portfolio
-};
+    }
+}
 
-let demo = () => {
-    print("=== Stock Portfolio Rebalancer Demo ===");
-    print("");
+// Example: Pre-populate portfolio for demo
+private function create_demo_portfolio() -> map {
+    let portfolio = Types.create_portfolio();
     
-    // Create portfolio and add stocks
-    let portfolio = create_portfolio();
-    let portfolio = add_stock(portfolio, "AAPL", 50.0);
-    let portfolio = add_stock(portfolio, "GOOGL", 10.0);
-    let portfolio = add_stock(portfolio, "MSFT", 25.0);
-    let portfolio = add_stock(portfolio, "AMZN", 15.0);
+    // Add some stocks
+    portfolio = Portfolio.add_stock(portfolio, "AAPL", 50.0);
+    portfolio = Portfolio.add_stock(portfolio, "GOOGL", 10.0);
+    portfolio = Portfolio.add_stock(portfolio, "MSFT", 25.0);
     
     // Set target allocations
-    let portfolio = set_allocation(portfolio, "AAPL", 40.0);
-    let portfolio = set_allocation(portfolio, "GOOGL", 20.0);
-    let portfolio = set_allocation(portfolio, "MSFT", 25.0);
-    let portfolio = set_allocation(portfolio, "AMZN", 15.0);
+    portfolio = Portfolio.set_allocation(portfolio, "AAPL", 40.0);
+    portfolio = Portfolio.set_allocation(portfolio, "GOOGL", 30.0);
+    portfolio = Portfolio.set_allocation(portfolio, "MSFT", 30.0);
     
-    // Calculate and display rebalancing
-    display_rebalance(portfolio)
-};
+    portfolio
+}
 
-// Main entry point
-print("Stock Portfolio Rebalancer");
-print("This demo uses mock prices since real API calls aren't available yet");
-print("");
-
-demo()
+// Entry point
+public function main() -> void {
+    // Check for demo mode
+    let args = perform System.args();
+    let use_demo = args.contains("--demo");
+    
+    // Initialize portfolio
+    let portfolio = if (use_demo) {
+        $("Loading demo portfolio...").print();
+        create_demo_portfolio()
+    } else {
+        initialize()
+    };
+    
+    // Run the application
+    run_app(portfolio);
+}

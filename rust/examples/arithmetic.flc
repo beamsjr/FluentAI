@@ -1,7 +1,32 @@
-; Basic arithmetic operations in FluentAI
+// Basic arithmetic operations in FluentAI
 
-; Addition
-(+ 10 20)
+// Addition
+let sum = 10 + 20;
+$(f"10 + 20 = {sum}").print();
 
-; Nested arithmetic
-; (* (+ 2 3) (- 10 5))
+// Subtraction
+let difference = 100 - 45;
+$(f"100 - 45 = {difference}").print();
+
+// Multiplication
+let product = 6 * 7;
+$(f"6 * 7 = {product}").print();
+
+// Division
+let quotient = 100 / 4;
+$(f"100 / 4 = {quotient}").print();
+
+// Modulo
+let remainder = 17 % 5;
+$(f"17 % 5 = {remainder}").print();
+
+// Nested arithmetic
+let nested = (2 + 3) * (10 - 5);
+$(f"(2 + 3) * (10 - 5) = {nested}").print();
+
+// Complex expression
+let complex = ((10 + 5) * 3) / (20 - 5);
+$(f"((10 + 5) * 3) / (20 - 5) = {complex}").print();
+
+// Return the final result
+complex
