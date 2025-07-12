@@ -5,7 +5,7 @@ use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
 use fluentai_parser::parse;
-use fluentai_vm::{Compiler, CompilerOptions, VM};
+use fluentai_vm::{Compiler, CompilerOptions, VM, VMBuilder};
 
 fn main() -> Result<()> {
     println!("Testing FluentAI async/await functionality...\n");
@@ -63,13 +63,11 @@ fn run_code(code: &str) -> Result<Value> {
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph)?;
     
-    // Create VM and run
-    let mut vm = VM::new(bytecode);
-    
-    // Load stdlib
-    let stdlib = fluentai_stdlib::create_registry();
-    vm.load_stdlib(&stdlib)?;
+    // Create VM using builder pattern
+    let mut vm = VMBuilder::new()
+        .with_bytecode(bytecode)
+        .build()?;
     
     // Run the code
-    vm.run()
+    Ok(vm.run()?)
 }

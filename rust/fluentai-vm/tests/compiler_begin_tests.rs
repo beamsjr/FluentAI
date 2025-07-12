@@ -2,10 +2,8 @@
 
 use fluentai_core::ast::Graph;
 use fluentai_parser::parse;
-use fluentai_vm::{
-    bytecode::Opcode,
-    compiler::Compiler,
-};
+use fluentai_bytecode::Opcode;
+use fluentai_vm::compiler::Compiler;
 
 #[test]
 fn test_compile_begin_empty() {

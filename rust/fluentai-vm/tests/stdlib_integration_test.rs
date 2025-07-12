@@ -1,7 +1,7 @@
 use anyhow::Result;
 use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_core::value::Value;
-use fluentai_vm::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::compiler::Compiler;
 use fluentai_vm::{VMBuilder, VM};
 

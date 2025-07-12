@@ -49,41 +49,124 @@ let name = "World";
 $(f"Hello, {name}!").print(); // Works with formatted strings
 4. Modules and Visibility
 
-Modules provide encapsulation and organization. Visibility is controlled with public and private.
+Modules provide encapsulation and organization. Each .flc file is implicitly a module.
 
-Defining Modules: 
-// In-file module definition
-mod my_module {
-    export { foo, bar };
-    
-    private function foo() { ... }
-    public function bar() { ... }
-}
+Module Declaration:
+// Optional module declaration at the top of a file
+module ModuleName;
 
-// A file implicitly defines a module. Directories can also define modules.
+// If no module declaration is provided, the module name defaults to the filename
+// File: Stock.flc → module Stock
+// File: price_service.flc → module price_service
 
-Importing: The use keyword brings items into scope.
-// Import the entire module
-use my_app::user_service;
+Automatic Exports:
+- All `public` definitions are automatically exported from a module
+- All `private` definitions remain module-internal
+- No explicit `export` statements needed
 
-// Import specific items  
-use my_app::models::{User, ApiError};
+Importing:
+// Import a constructor or primary export
+use Stock;
+use Portfolio;
+
+// Import specific public items
+use Stock::{from_json, to_json};
+use Portfolio::{calculate_value, rebalance};
+
+// Import all public items from a module
+use PriceService::*;
 
 // Import with aliasing
-use my_app::database as db;
+use VeryLongModuleName as VLMN;
+use SomeLongFunctionName as short_name from Utils;
 
-// Import all public items (use sparingly)
-use my_app::utils::*;
+// Relative imports
+use ./utils/Helper;  // From relative path
+use ../shared/Common;  // From parent directory
 
 Module Path Resolution:
-// The :: operator navigates module hierarchies
-use std::collections::HashMap;
-use crate::models::User;  // From current crate
-use super::helper;        // From parent module
+// Standard library modules use std:: prefix
+use std::collections::List;
+use std::io::File;
+
+// Local modules use relative paths or module names
+use ./models/User;  // Relative to current file
+use Portfolio;      // Searches module path
 
 Visibility:
 private ...: Default visibility. The definition is private to the current module.
-public ...: Public visibility. The definition can be imported and used by other modules.5. Definitions & Declarations
+public ...: Public visibility. The definition is automatically exported and can be imported by other modules.
+
+4.1 Object-Oriented Patterns
+
+FluentAI supports object-oriented programming through closure patterns. This provides encapsulation and method chaining without requiring special class syntax.
+
+Pattern Example:
+// Stock.flc
+module Stock;
+
+public function Stock(symbol: string, shares: float, price: float) {
+    // Private state - not accessible from outside
+    let state = {
+        "symbol": symbol,
+        "shares": shares,
+        "current_price": price
+    };
+    
+    // Private helper functions
+    let validate_shares = (shares) => shares >= 0.0;
+    
+    // Create the public interface
+    let self = {
+        "get_symbol": () => state.symbol,
+        "get_shares": () => state.shares,
+        "get_value": () => state.shares * state.current_price,
+        
+        "update_shares": (new_shares) => {
+            if (validate_shares(new_shares)) {
+                state.shares = new_shares;
+            }
+            self  // Return self for method chaining
+        },
+        
+        "update_price": (new_price) => {
+            if (new_price > 0.0) {
+                state.current_price = new_price;
+            }
+            self
+        },
+        
+        "to_json": () => {
+            {"symbol": state.symbol, "shares": state.shares, "price": state.current_price}
+        }
+    };
+    
+    return self;
+}
+
+// Additional module-level functions
+public function from_json(data) {
+    Stock(data.symbol, data.shares, data.price)
+}
+
+Usage from Another Module:
+// main.flc
+use Stock;
+use Stock::{from_json};
+
+let my_stock = Stock("AAPL", 100, 150.0);
+my_stock
+    .update_price(155.0)
+    .update_shares(110);
+
+let value = my_stock.get_value();  // 17,050.0
+$(f"Stock value: ${value}").print();
+
+// Using the additional function
+let stock_data = {"symbol": "GOOGL", "shares": 50, "price": 2800.0};
+let google = from_json(stock_data);
+
+5. Definitions & Declarations
 
 All top-level definitions start with a visibility keyword (public or private).
 
@@ -105,19 +188,30 @@ public struct User {
     id: Uuid, // Private field
     pub name: string, // Public field
 }
-Enums:public enum RequestState { ... }
-Traits (Interfaces):public trait Serializable { ... }
-Trait Implementations: The as keyword is used to implement a trait for a type.private User as Serializable {
+Enums:
+public enum RequestState { ... }
+Traits (Interfaces):
+public trait Serializable { ... }
+Trait Implementations: The as keyword is used to implement a trait for a type.
+private User as Serializable {
     private function to_json(self) -> string {
         // implementation...
     }
 }
-6. Chaining, Lambdas, and Control FlowThe core of FLC is the fluent chain.Implicit Iteration: Collection processing methods like .map, .filter, and .for_each_async can be called directly on collections. There is no need for an explicit .iter() call.// Correct:
+6. Chaining, Lambdas, and Control Flow
+
+The core of FLC is the fluent chain.
+
+Implicit Iteration: Collection processing methods like .map, .filter, and .for_each_async can be called directly on collections. There is no need for an explicit .iter() call.
+
+// Correct:
 [1, 2, 3].map(x => x * 2)
 
 // Incorrect (unnecessary):
 [1, 2, 3].iter().map(x => x * 2)
-Lambda Expressions: Lambdas are passed as arguments to methods. The => operator separates parameters from the body.// Single parameter
+Lambda Expressions: Lambdas are passed as arguments to methods. The => operator separates parameters from the body.
+
+// Single parameter
 users.filter(user => user.age > 18)
 
 // Multiple parameters
@@ -125,8 +219,10 @@ numbers.reduce(0, (acc, item) => acc + item)
 
 // No parameters
 on_done(() => $("Task complete!").print())
-Destructuring in Lambdas:users.map(({name, email}) => f"{name} <{email}>")
-Control Flow as Chainable Expressions:let message = if (user.is_active) { "Active" } else { "Inactive" };
+Destructuring in Lambdas:
+users.map(({name, email}) => f"{name} <{email}>")
+Control Flow as Chainable Expressions:
+let message = if (user.is_active) { "Active" } else { "Inactive" };
 
 // The `match` expression is a powerful tool in chains.
 let status_text = response
@@ -141,10 +237,16 @@ let status_text = response
             "An unexpected error occurred"
         })
         .get();
-7. Traits & PolymorphismPolymorphism is the ability to write code that operates on values of different types, achieved through traits.Static Polymorphism via Generics: Zero-cost, compile-time polymorphism.private function log_as_json<T: Serializable>(item: T) {
+7. Traits & Polymorphism
+
+Polymorphism is the ability to write code that operates on values of different types, achieved through traits.
+
+Static Polymorphism via Generics: Zero-cost, compile-time polymorphism.
+private function log_as_json<T: Serializable>(item: T) {
     item.to_json() |> print()
 }
-Dynamic Polymorphism via Trait Objects: Runtime flexibility using dyn<Trait>.let ui_elements: List<Box<dyn<Drawable>>> = [ ... ];
+Dynamic Polymorphism via Trait Objects: Runtime flexibility using dyn<Trait>.
+let ui_elements: List<Box<dyn<Drawable>>> = [ ... ];
 for element in ui_elements {
     element.draw(); // Call is dispatched at runtime
 }
@@ -182,7 +284,11 @@ spawn {
 };
 
 let result = recv!(ch);
-9. Effects and Side Effect ManagementEffects provide a structured way to handle side effects. The perform keyword executes effectful operations:// Perform I/O operations
+9. Effects and Side Effect Management
+
+Effects provide a structured way to handle side effects. The perform keyword executes effectful operations:
+
+// Perform I/O operations
 perform IO.print("Hello, World");
 perform IO.println("With newline");
 let input = perform IO.read_line();
@@ -328,7 +434,316 @@ private async function main() {
         })
 }
 
-13. Current Limitations and Future Features
+13. Multi-Module Example: Stock Portfolio Rebalancer
+
+This example demonstrates how to structure a real application using FluentAI's module system.
+
+// === File: Action.flc ===
+module Action;
+
+// Action types for portfolio rebalancing
+public function Buy(symbol: string, shares: float, value: float) {
+    {"type": "buy", "symbol": symbol, "shares": shares, "value": value}
+}
+
+public function Sell(symbol: string, shares: float, value: float) {
+    {"type": "sell", "symbol": symbol, "shares": shares, "value": value}
+}
+
+public function Hold(symbol: string) {
+    {"type": "hold", "symbol": symbol, "shares": 0.0, "value": 0.0}
+}
+
+// Helper functions
+public function is_buy(action) -> bool {
+    action.type == "buy"
+}
+
+public function is_sell(action) -> bool {
+    action.type == "sell"
+}
+
+public function get_total_value(actions, type: string) -> float {
+    actions
+        .filter(a => a.type == type)
+        .map(a => a.value)
+        .reduce(0.0, (sum, val) => sum + val)
+}
+
+// === File: Stock.flc ===
+module Stock;
+
+public function Stock(symbol: string, shares: float, price: float) {
+    // Private state
+    let state = {
+        "symbol": symbol,
+        "shares": shares,
+        "current_price": price
+    };
+    
+    // Private validation
+    let validate_shares = (shares) => shares >= 0.0;
+    let validate_price = (price) => price > 0.0;
+    
+    // Public interface
+    let self = {
+        "get_symbol": () => state.symbol,
+        "get_shares": () => state.shares,
+        "get_price": () => state.current_price,
+        "get_value": () => state.shares * state.current_price,
+        
+        "update_shares": (new_shares) => {
+            if (validate_shares(new_shares)) {
+                state.shares = new_shares;
+            } else {
+                $(f"Error: Invalid shares {new_shares}").print();
+            }
+            self
+        },
+        
+        "update_price": (new_price) => {
+            if (validate_price(new_price)) {
+                state.current_price = new_price;
+            }
+            self
+        },
+        
+        "to_data": () => {
+            {"symbol": state.symbol, "shares": state.shares, "price": state.current_price}
+        }
+    };
+    
+    return self;
+}
+
+// === File: PriceService.flc ===
+module PriceService;
+
+public function PriceService() {
+    // In a real app, this would fetch from an API
+    let mock_prices = {
+        "AAPL": 178.25,
+        "GOOGL": 142.30,
+        "MSFT": 195.96,
+        "AMZN": 127.85,
+        "TSLA": 245.50
+    };
+    
+    let self = {
+        "get_price": (symbol) => {
+            mock_prices.get(symbol).unwrap_or(100.0)
+        },
+        
+        "get_prices": (symbols) => {
+            symbols.map(symbol => {
+                {"symbol": symbol, "price": self.get_price(symbol)}
+            })
+        }
+    };
+    
+    return self;
+}
+
+// === File: Portfolio.flc ===
+module Portfolio;
+
+use Stock;
+use Action::*;  // Import all Action functions
+use PriceService;
+
+public function Portfolio() {
+    // Private state
+    let state = {
+        "stocks": [],
+        "allocations": [],
+        "total_value": 0.0
+    };
+    
+    let price_service = PriceService();
+    
+    // Private helpers
+    let find_stock = (symbol) => {
+        state.stocks.find(s => s.get_symbol() == symbol)
+    };
+    
+    let find_allocation = (symbol) => {
+        state.allocations.find(a => a.symbol == symbol)
+    };
+    
+    let calculate_total_value = () => {
+        state.stocks
+            .map(s => s.get_value())
+            .reduce(0.0, (sum, val) => sum + val)
+    };
+    
+    // Public interface
+    let self = {
+        "add_stock": (symbol, shares) => {
+            // Remove existing stock with same symbol
+            state.stocks = state.stocks.filter(s => s.get_symbol() != symbol);
+            
+            // Add new stock
+            let price = price_service.get_price(symbol);
+            state.stocks.push(Stock(symbol, shares, price));
+            
+            self
+        },
+        
+        "set_allocation": (symbol, percentage) => {
+            if (percentage < 0.0 || percentage > 100.0) {
+                $(f"Error: Invalid percentage {percentage}%").print();
+                self
+            } else {
+                // Remove existing allocation
+                state.allocations = state.allocations.filter(a => a.symbol != symbol);
+                
+                // Add new allocation
+                state.allocations.push({"symbol": symbol, "target": percentage});
+                
+                self
+            }
+        },
+        
+        "update_prices": () => {
+            state.stocks.for_each(stock => {
+                let symbol = stock.get_symbol();
+                let new_price = price_service.get_price(symbol);
+                stock.update_price(new_price);
+            });
+            
+            state.total_value = calculate_total_value();
+            self
+        },
+        
+        "validate": () => {
+            let total = state.allocations
+                .map(a => a.target)
+                .reduce(0.0, (sum, pct) => sum + pct);
+            
+            let diff = (total - 100.0).abs();
+            if (diff > 0.01) {
+                $(f"Error: Allocations sum to {total}%, must equal 100%").print();
+                false
+            } else {
+                true
+            }
+        },
+        
+        "calculate_rebalance": () => {
+            if (!self.validate() || state.total_value == 0.0) {
+                []
+            } else {
+                state.allocations.map(alloc => {
+                    let symbol = alloc.symbol;
+                    let target_pct = alloc.target;
+                    let target_value = state.total_value * target_pct / 100.0;
+                    
+                    let stock = find_stock(symbol);
+                    if (stock.is_some()) {
+                        let s = stock.unwrap();
+                        let current_value = s.get_value();
+                        let diff = target_value - current_value;
+                        
+                        if (diff > 10.0) {
+                            let shares = (diff / s.get_price()).floor();
+                            Buy(symbol, shares, shares * s.get_price())
+                        } else if (diff < -10.0) {
+                            let shares = ((-diff) / s.get_price()).floor();
+                            Sell(symbol, shares, shares * s.get_price())
+                        } else {
+                            Hold(symbol)
+                        }
+                    } else {
+                        Hold(symbol)
+                    }
+                })
+            }
+        },
+        
+        "display": () => {
+            $(f"Portfolio Value: ${state.total_value}").print();
+            $("Current Holdings:").print();
+            
+            state.stocks.for_each(stock => {
+                let symbol = stock.get_symbol();
+                let shares = stock.get_shares();
+                let price = stock.get_price();
+                let value = stock.get_value();
+                let pct = if (state.total_value > 0.0) {
+                    (value / state.total_value * 100.0)
+                } else { 0.0 };
+                
+                $(f"  {symbol}: {shares} @ ${price} = ${value} ({pct}%)").print();
+            });
+            
+            self
+        },
+        
+        "rebalance": () => {
+            $("Fetching current prices...").print();
+            self.update_prices();
+            
+            $("").print();
+            $("=== Current Portfolio ===").print();
+            self.display();
+            
+            $("").print();
+            $("=== Rebalancing Actions ===").print();
+            let actions = self.calculate_rebalance();
+            
+            actions.for_each(action => {
+                if (is_buy(action)) {
+                    $(f"BUY  {action.symbol}: {action.shares} shares (${action.value})").print();
+                } else if (is_sell(action)) {
+                    $(f"SELL {action.symbol}: {action.shares} shares (${action.value})").print();
+                } else {
+                    $(f"HOLD {action.symbol}: No action needed").print();
+                }
+            });
+            
+            let buy_total = get_total_value(actions, "buy");
+            let sell_total = get_total_value(actions, "sell");
+            
+            $("").print();
+            $("=== Summary ===").print();
+            $(f"Total to buy:  ${buy_total}").print();
+            $(f"Total to sell: ${sell_total}").print();
+            $(f"Net cash flow: ${sell_total - buy_total}").print();
+            
+            self
+        }
+    };
+    
+    return self;
+}
+
+// === File: main.flc ===
+use Portfolio;
+
+private function main() {
+    $("=== Stock Portfolio Rebalancer Demo ===").print();
+    $("").print();
+    
+    // Create and configure portfolio using method chaining
+    Portfolio()
+        .add_stock("AAPL", 50.0)
+        .add_stock("GOOGL", 10.0)
+        .add_stock("MSFT", 25.0)
+        .add_stock("AMZN", 15.0)
+        .set_allocation("AAPL", 40.0)
+        .set_allocation("GOOGL", 20.0)
+        .set_allocation("MSFT", 25.0)
+        .set_allocation("AMZN", 15.0)
+        .rebalance();
+    
+    $("").print();
+    $("Demo complete!").print();
+}
+
+// Run the application
+main()
+
+14. Current Limitations and Future Features
 
 The following features are planned but not yet fully implemented:
 

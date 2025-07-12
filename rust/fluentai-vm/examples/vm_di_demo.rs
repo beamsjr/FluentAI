@@ -6,10 +6,8 @@ use fluentai_di::prelude::*;
 use fluentai_effects::provider::EffectHandlerProvider;
 use fluentai_effects::{EffectHandler, EffectResult, EffectType};
 use fluentai_vm::di::*;
-use fluentai_vm::{
-    bytecode::{BytecodeChunk, Instruction, Opcode},
-    Bytecode,
-};
+use fluentai_vm;
+use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use std::sync::Arc;
 
 fn main() -> Result<()> {

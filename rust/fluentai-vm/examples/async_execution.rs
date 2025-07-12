@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_example_bytecode() -> Bytecode {
-    use fluentai_vm::bytecode::{BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{BytecodeChunk, Instruction, Opcode};
     use fluentai_core::value::Value;
     
     let mut bytecode = Bytecode::new();

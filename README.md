@@ -83,11 +83,14 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Error value type with metadata (kind, message, stack trace)
   - ✅ Finally blocks: `finally { ... }` - Execute cleanup code regardless of try/catch outcome
   - ❌ Promise operations: AST/compiler ready, runtime not implemented
-- **Actor Model**: Basic actor primitives with message passing
+- **Actor Model**: Actor primitives with message passing and pattern matching
   - ✅ Actor definition: `private actor Name { state; handle MessageType(...) { ... } }`
   - ✅ Send messages: `actor.send(message)`
-  - ❌ Receive patterns: Not yet implemented
-  - ❌ Become: Not yet implemented
+  - ✅ Basic message processing: Actors can receive and process messages with handlers
+  - ✅ Become: Update actor state within handlers
+  - ✅ Receive patterns: Pattern matching on messages with `receive { case pattern => handler, ... }`
+  - ❌ Timeout handling in receive: Not yet implemented
+  - ❌ Selective receive: Not yet implemented
 
 ### 📋 Planned/Aspirational Features
 - **Network Effects**: Built-in HTTP client/server capabilities

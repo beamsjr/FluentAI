@@ -6,6 +6,8 @@
 //! - Module environments and isolation
 //! - Circular dependency detection
 
+#![warn(missing_docs)]
+
 pub mod cache;
 pub mod environment;
 pub mod error;

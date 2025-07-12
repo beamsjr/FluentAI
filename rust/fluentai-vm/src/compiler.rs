@@ -1366,19 +1366,71 @@ impl Compiler {
         patterns: &[(Pattern, NodeId)],
         timeout: Option<&(NodeId, NodeId)>,
     ) -> Result<()> {
-        // Actor receive is complex and needs runtime support
-        // For now, we'll emit a placeholder that returns nil
+        // The ActorReceive opcode will put the current message on the stack
         self.emit(Instruction::new(Opcode::ActorReceive));
         
-        // In the future, this will need to:
-        // 1. Check actor's mailbox
-        // 2. Pattern match messages
-        // 3. Execute appropriate handler
-        // 4. Handle timeout if provided
+        // Now we have the message on the stack, compile it like a match expression
+        // We'll compile pattern matching as a series of if-else chains
+        let mut jump_to_ends = Vec::new();
         
-        // Push nil for now
-        self.emit(Instruction::new(Opcode::PushNil));
-        // Stack depth is now managed by emit()
+        for (i, (pattern, handler)) in patterns.iter().enumerate() {
+            let is_last = i == patterns.len() - 1;
+            
+            // Compile pattern test
+            let (bindings, always_matches) = self.compile_pattern_test(graph, pattern)?;
+            
+            // Handle the test result
+            let jump_to_next = if always_matches {
+                // Pattern always matches - no jump needed
+                None
+            } else {
+                // We have a boolean on the stack from the pattern test
+                // Jump to next branch if false
+                Some(self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)))
+            };
+            
+            // Pattern matched - the matched value is still on the stack
+            
+            // Apply bindings in reverse order
+            for (name, _) in bindings.iter().rev() {
+                let idx = self.add_local(name.to_string())?;
+                self.emit(Instruction::with_arg(Opcode::Store, idx as u32));
+            }
+            
+            // Pop the matched value (we've extracted what we need)
+            self.emit(Instruction::new(Opcode::Pop));
+            
+            // Compile the handler body
+            self.compile_node(graph, *handler)?;
+            
+            // Jump to end
+            let jump_to_end = self.emit(Instruction::with_arg(Opcode::Jump, 0));
+            jump_to_ends.push(jump_to_end);
+            
+            // Patch the jump to next branch (if any)
+            if let Some(jump_idx) = jump_to_next {
+                let next_branch_start = self.bytecode.chunks[self.current_chunk].instructions.len();
+                self.bytecode.chunks[self.current_chunk].patch_jump(jump_idx, next_branch_start);
+            }
+            
+            // If this is the last branch and it doesn't always match, we need a default case
+            if is_last && !always_matches {
+                // No pattern matched - pop the message and return nil
+                self.emit(Instruction::new(Opcode::Pop));
+                self.emit(Instruction::new(Opcode::PushNil));
+            }
+        }
+        
+        // Patch all jumps to end
+        let end_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
+        for jump_idx in jump_to_ends {
+            self.bytecode.chunks[self.current_chunk].patch_jump(jump_idx, end_pos);
+        }
+        
+        // TODO: Handle timeout if provided
+        if timeout.is_some() {
+            // For now, ignore timeout
+        }
         
         Ok(())
     }

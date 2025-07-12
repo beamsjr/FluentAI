@@ -147,26 +147,6 @@ impl OpcodeHandler for ConcurrentHandler {
                 }
             }
             
-            SendToActor => {
-                let message = vm.pop()?;
-                let actor = vm.pop()?;
-                
-                match actor {
-                    Value::Actor(actor_id_raw) => {
-                        vm.send_to_actor(crate::safety::ActorId(actor_id_raw), message)?;
-                        vm.push(Value::Nil)?;
-                    }
-                    _ => {
-                        return Err(VMError::TypeError {
-                            operation: "send_to_actor".to_string(),
-                            expected: "actor".to_string(),
-                            got: vm.value_type_name(&actor).to_string(),
-                            location: None,
-                            stack_trace: None,
-                        });
-                    }
-                }
-            }
             
             // Additional async operations
             TrySend => {
@@ -217,17 +197,34 @@ impl OpcodeHandler for ConcurrentHandler {
             
             ActorReceive => {
                 // ActorReceive is used within actor handlers to pattern match on messages
-                // The current implementation will be in the actor message processing logic
-                // For now, this opcode should not be called directly
-                return Err(VMError::RuntimeError {
-                    message: "ActorReceive opcode should only be used within actor handlers".to_string(),
-                    stack_trace: None,
-                });
+                // When called, it should push the current message onto the stack
+                // The message should have been set in the VM's context by process_actor_messages
+                
+                if let Some(message) = vm.get_current_actor_message() {
+                    vm.push(message)?;
+                } else {
+                    return Err(VMError::RuntimeError {
+                        message: "ActorReceive can only be used within actor message handlers".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             Become => {
-                // Simplified implementation
-                let _new_behavior = vm.pop()?;
+                // Update actor's state with new value
+                let new_state = vm.pop()?;
+                
+                // We need to know which actor context we're in
+                // This should be set by the actor message processing
+                if let Some(actor_id) = vm.current_actor_context() {
+                    vm.update_actor_state(actor_id, new_state)?;
+                    vm.push(Value::Nil)?; // Become returns nil
+                } else {
+                    return Err(VMError::RuntimeError {
+                        message: "Become can only be used within actor handlers".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             PromiseNew => {

@@ -3,3 +3,45 @@ PYO3_PYTHON = "/opt/homebrew/bin/python3"
 Z3_SYS_Z3_HEADER = "/opt/homebrew/include/z3.h"
 CPATH = "/opt/homebrew/include"
 LIBRARY_PATH = "/opt/homebrew/lib"
+
+[build]
+# Enable documentation warnings
+rustdocflags = ["-W", "rustdoc::missing-crate-level-docs"]
+
+[target.'cfg(all())']
+rustflags = [
+    # Warn about missing documentation
+    "-W", "missing-docs",
+]
+
+# Lints for the workspace
+[workspace.lints.rust]
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+# Documentation lints
+missing_errors_doc = "warn"
+missing_safety_doc = "deny"
+missing_panics_doc = "warn"
+
+# Code quality lints
+cognitive_complexity = "warn"
+too_many_arguments = "warn"
+type_complexity = "warn"
+
+# Correctness lints
+correctness = "deny"
+suspicious = "deny"
+perf = "warn"
+style = "warn"
+
+[alias]
+# Useful aliases for documentation tasks
+doc-check = "doc --no-deps --document-private-items"
+doc-all = "doc --no-deps --all-features --document-private-items"

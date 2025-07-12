@@ -1,0 +1,213 @@
+// Network Effects Demo - Shows enhanced HTTP client capabilities
+
+// Simple GET request
+private function simple_get_example() {
+    perform Network.get("https://api.github.com/users/github")
+        .match()
+            .case({ok: true, body: body}, => {
+                $(f"User data: {body}").print();
+                true
+            })
+            .case({ok: false, status: status}, => {
+                $(f"Request failed with status: {status}").print();
+                false
+            })
+            .get()
+}
+
+// GET with custom headers and auth
+private function authenticated_get_example() {
+    let options = {
+        "headers": {
+            "User-Agent": "FluentAI/1.0",
+            "Accept": "application/json"
+        },
+        "auth": {
+            "type": "bearer",
+            "token": "your-api-token-here"
+        }
+    };
+    
+    perform Network.get("https://api.example.com/protected", options)
+        |> (response => {
+            if (response.ok) {
+                $(f"Protected data: {response.body}").print()
+            } else {
+                $(f"Auth failed: {response.status}").print()
+            }
+        })
+}
+
+// POST with JSON body
+private function create_user_example() {
+    let new_user = {
+        "name": "Alice Smith",
+        "email": "alice@example.com",
+        "age": 28
+    };
+    
+    perform Network.post("https://api.example.com/users", new_user)
+        .match()
+            .case({status: 201, body: body}, => {
+                $(f"User created: {body}").print();
+                true
+            })
+            .case({status: status, body: error}, => {
+                $(f"Failed to create user ({status}): {error}").print();
+                false
+            })
+            .get()
+}
+
+// PUT request to update resource
+private function update_user_example(user_id: int) {
+    let updates = {
+        "name": "Alice Johnson",
+        "email": "alice.johnson@example.com"
+    };
+    
+    let options = {
+        "headers": {
+            "Content-Type": "application/json",
+            "X-API-Version": "2.0"
+        }
+    };
+    
+    perform Network.put(f"https://api.example.com/users/{user_id}", updates, options)
+        |> (response => {
+            if (response.ok) {
+                $("User updated successfully").print()
+            } else {
+                $(f"Update failed: {response.status}").print()
+            }
+        })
+}
+
+// DELETE request
+private function delete_user_example(user_id: int) {
+    perform Network.delete(f"https://api.example.com/users/{user_id}")
+        .match()
+            .case({status: 204}, => $("User deleted").print())
+            .case({status: 404}, => $("User not found").print())
+            .case({status: status}, => $(f"Delete failed: {status}").print())
+            .get()
+}
+
+// Complex example with retry logic
+private async function fetch_with_retry(url: string, max_retries: int = 3) -> Result<Value, string> {
+    let mut attempt = 0;
+    
+    while (attempt < max_retries) {
+        let response = perform Network.get(url).await();
+        
+        if (response.ok) {
+            return Ok(response.body)
+        } else if (response.status >= 500) {
+            // Server error, retry
+            attempt += 1;
+            if (attempt < max_retries) {
+                $(f"Server error {response.status}, retrying ({attempt}/{max_retries})...").print();
+                // Wait before retry (exponential backoff)
+                perform Time.sleep(1000 * (2 ** (attempt - 1))).await()
+            }
+        } else {
+            // Client error, don't retry
+            return Err(f"Request failed with status {response.status}")
+        }
+    }
+    
+    Err("Max retries exceeded")
+}
+
+// Basic auth example
+private function basic_auth_example() {
+    let options = {
+        "auth": {
+            "type": "basic",
+            "token": {
+                "username": "admin",
+                "password": "secret123"
+            }
+        }
+    };
+    
+    perform Network.get("https://api.example.com/admin/stats", options)
+        |> (response => {
+            if (response.ok) {
+                $(f"Admin stats: {response.body}").print()
+            } else {
+                $("Authentication failed").print()
+            }
+        })
+}
+
+// Custom HTTP method using generic request
+private function custom_method_example() {
+    let options = {
+        "headers": {
+            "X-Custom-Header": "custom-value"
+        }
+    };
+    
+    perform Network.request("PATCH", "https://api.example.com/resource", options)
+        |> (response => $(f"PATCH response: {response.status}").print())
+}
+
+// HEAD request to check resource existence
+private function check_resource_exists(url: string) -> bool {
+    perform Network.head(url)
+        |> (response => response.status == 200)
+}
+
+// Parallel requests example
+private async function fetch_multiple_users(user_ids: List<int>) -> List<Value> {
+    user_ids
+        .map_async(id => {
+            perform Network.get(f"https://api.example.com/users/{id}")
+                .await()
+                .match()
+                    .case({ok: true, body: body}, => body)
+                    .case(_, => null)
+                    .get()
+        })
+        .await()
+        .filter(user => user != null)
+}
+
+// Main function demonstrating various features
+private async function main() {
+    $("=== Network Effects Demo ===").print();
+    
+    // Simple GET
+    $("\n1. Simple GET request:").print();
+    simple_get_example();
+    
+    // Create a user
+    $("\n2. Creating a user:").print();
+    create_user_example();
+    
+    // Update user
+    $("\n3. Updating user:").print();
+    update_user_example(123);
+    
+    // Delete user
+    $("\n4. Deleting user:").print();
+    delete_user_example(123);
+    
+    // Check if resource exists
+    $("\n5. Checking resource:").print();
+    let exists = check_resource_exists("https://api.example.com/users/1");
+    $(f"Resource exists: {exists}").print();
+    
+    // Fetch with retry
+    $("\n6. Fetch with retry:").print();
+    match fetch_with_retry("https://api.example.com/data").await() {
+        Ok(data) => $(f"Data fetched: {data}").print(),
+        Err(error) => $(f"Error: {error}").print()
+    }
+    
+    // Parallel requests
+    $("\n7. Fetching multiple users in parallel:").print();
+    let users = fetch_multiple_users([1, 2, 3, 4, 5]).await();
+    $(f"Fetched {users.length()} users").print()
+}

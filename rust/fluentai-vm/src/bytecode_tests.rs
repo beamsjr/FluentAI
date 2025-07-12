@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::bytecode::*;
+    use fluentai_bytecode::*;
     use rustc_hash::FxHashMap;
 
     mod instruction_tests {
