@@ -6,9 +6,24 @@ use fluentai_core::{ast::EffectType, error::Error, value::Value};
 use reqwest::{self, Method};
 use rustc_hash::FxHashMap;
 use std::time::Duration;
+use std::sync::Arc;
+use tokio::sync::{mpsc, oneshot, Mutex};
+use axum::http::Method as AxumMethod;
+use uuid::Uuid;
+
+mod server_simple;
+use server_simple::{ServerConfig, RouteDefinition, HttpRequest, HttpResponse};
 
 pub struct NetworkHandler {
     client: reqwest::Client,
+    servers: Arc<Mutex<FxHashMap<String, ServerInfo>>>,
+}
+
+struct ServerInfo {
+    config: ServerConfig,
+    sender: mpsc::Sender<(HttpRequest, oneshot::Sender<HttpResponse>)>,
+    handle: Option<tokio::task::JoinHandle<()>>,
+    request_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl NetworkHandler {
@@ -18,6 +33,7 @@ impl NetworkHandler {
                 .timeout(Duration::from_secs(30))
                 .build()
                 .unwrap_or_else(|_| reqwest::Client::new()),
+            servers: Arc::new(Mutex::new(FxHashMap::default())),
         }
     }
     
@@ -283,6 +299,196 @@ impl NetworkHandler {
             }
         })
     }
+    
+    /// Convert HttpRequest to Value
+    fn http_request_to_value(request: &HttpRequest) -> Value {
+        let mut map = FxHashMap::default();
+        
+        map.insert("method".to_string(), Value::String(request.method.clone()));
+        map.insert("path".to_string(), Value::String(request.path.clone()));
+        
+        // Convert headers
+        let headers: FxHashMap<String, Value> = request.headers
+            .iter()
+            .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+            .collect();
+        map.insert("headers".to_string(), Value::Map(headers));
+        
+        // Convert query parameters
+        let query: FxHashMap<String, Value> = request.query
+            .iter()
+            .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+            .collect();
+        map.insert("query".to_string(), Value::Map(query));
+        
+        // Convert path parameters
+        let params: FxHashMap<String, Value> = request.params
+            .iter()
+            .map(|(k, v)| (k.clone(), Value::String(v.clone())))
+            .collect();
+        map.insert("params".to_string(), Value::Map(params));
+        
+        // Add body if present
+        if let Some(body) = &request.body {
+            map.insert("body".to_string(), body.clone());
+        } else {
+            map.insert("body".to_string(), Value::Nil);
+        }
+        
+        Value::Map(map)
+    }
+    
+    /// Convert Value to HttpResponse
+    fn value_to_http_response(value: Value) -> HttpResponse {
+        match value {
+            Value::Map(mut map) => {
+                let status = map.get("status")
+                    .and_then(|v| if let Value::Integer(i) = v { Some(*i as u16) } else { None })
+                    .unwrap_or(200);
+                
+                let headers = map.get("headers")
+                    .and_then(|v| if let Value::Map(h) = v {
+                        Some(h.iter()
+                            .filter_map(|(k, v)| {
+                                if let Value::String(s) = v {
+                                    Some((k.clone(), s.clone()))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect())
+                    } else { None })
+                    .unwrap_or_default();
+                
+                let body = map.remove("body").unwrap_or(Value::Nil);
+                
+                HttpResponse {
+                    status,
+                    headers,
+                    body,
+                }
+            }
+            // If response is just a string, treat it as the body
+            Value::String(s) => HttpResponse {
+                status: 200,
+                headers: FxHashMap::default(),
+                body: Value::String(s),
+            },
+            // For other types, convert to string representation
+            other => HttpResponse {
+                status: 200,
+                headers: FxHashMap::default(),
+                body: other,
+            },
+        }
+    }
+    
+    /// Create an error response value
+    fn error_response_value(status: u16, message: &str) -> Value {
+        let mut map = FxHashMap::default();
+        map.insert("status".to_string(), Value::Integer(status as i64));
+        map.insert("body".to_string(), Value::Map({
+            let mut error_map = FxHashMap::default();
+            error_map.insert("error".to_string(), Value::String(message.to_string()));
+            error_map
+        }));
+        Value::Map(map)
+    }
+    
+    /// Start an HTTP server
+    async fn start_server(&self, server_id: String, config: ServerConfig, handler: Value) -> Result<(), Error> {
+        let (tx, mut rx) = mpsc::channel::<(HttpRequest, oneshot::Sender<HttpResponse>)>(100);
+        
+        // Clone for the spawned task
+        let config_clone = config.clone();
+        let tx_clone = tx.clone();
+        
+        // Spawn the server task
+        let server_handle = tokio::spawn(async move {
+            if let Err(e) = server_simple::start_server(config_clone, tx_clone).await {
+                eprintln!("Server error: {}", e);
+            }
+        });
+        
+        // Spawn the request handler task
+        let handler_clone = handler.clone();
+        let request_handle = tokio::spawn(async move {
+            while let Some((request, response_tx)) = rx.recv().await {
+                // Convert request to FluentAI Value
+                let request_value = Self::http_request_to_value(&request);
+                
+                // Call the handler function
+                let response_value = match &handler_clone {
+                    Value::NativeFunction { function, .. } => match function(&[request_value]) {
+                        Ok(val) => val,
+                        Err(e) => {
+                            eprintln!("Handler error: {}", e);
+                            Self::error_response_value(500, "Internal server error")
+                        }
+                    },
+                    Value::Function { .. } => {
+                        // VM functions need to be executed through the VM
+                        eprintln!("VM function handlers not yet supported");
+                        Self::error_response_value(500, "VM function handlers not yet supported")
+                    },
+                    _ => Self::error_response_value(500, "Handler is not a function"),
+                };
+                
+                // Convert response value to HttpResponse
+                let response = Self::value_to_http_response(response_value);
+                
+                // Send response back
+                let _ = response_tx.send(response);
+            }
+        });
+        
+        // Store server info
+        let mut servers = self.servers.lock().await;
+        servers.insert(server_id, ServerInfo {
+            config,
+            sender: tx,
+            handle: Some(server_handle),
+            request_handle: Some(request_handle),
+        });
+        
+        Ok(())
+    }
+    
+    /// Add a route to a server
+    async fn add_route(&self, server_id: &str, route: RouteDefinition, handler: Value) -> Result<(), Error> {
+        let mut servers = self.servers.lock().await;
+        
+        if let Some(server_info) = servers.get_mut(server_id) {
+            let mut routes = server_info.config.routes.lock().await;
+            routes.push(route.clone());
+            
+            // Store the handler for this route
+            // In a real implementation, we'd store handlers by route ID
+            // For now, we'll use the main handler
+            Ok(())
+        } else {
+            Err(Error::Runtime(format!("Server '{}' not found", server_id)))
+        }
+    }
+    
+    /// Stop a server
+    async fn stop_server(&self, server_id: &str) -> Result<(), Error> {
+        let mut servers = self.servers.lock().await;
+        
+        if let Some(mut server_info) = servers.remove(server_id) {
+            // Cancel the server task
+            if let Some(handle) = server_info.handle.take() {
+                handle.abort();
+            }
+            // Cancel the request handler task
+            if let Some(handle) = server_info.request_handle.take() {
+                handle.abort();
+            }
+            Ok(())
+        } else {
+            Err(Error::Runtime(format!("Server '{}' not found", server_id)))
+        }
+    }
 }
 
 #[derive(Default)]
@@ -442,6 +648,83 @@ impl EffectHandler for NetworkHandler {
                         self.execute_request(method, url, options).await
                     }
                     _ => Err(Error::Runtime("network:request requires method, URL, and optional options".to_string()))
+                }
+            }
+            
+            // Server operations
+            "serve" => {
+                // Start an HTTP server
+                // Args: [port, handler_function] or [config_map, handler_function]
+                match args {
+                    [Value::Integer(port), handler] if matches!(handler, Value::NativeFunction { .. } | Value::Function { .. }) => {
+                        // Simple server on port
+                        let config = ServerConfig {
+                            host: "0.0.0.0".to_string(),
+                            port: *port as u16,
+                            routes: Arc::new(Mutex::new(Vec::new())),
+                            middleware: Vec::new(),
+                        };
+                        
+                        let server_id = format!("server_{}", Uuid::new_v4());
+                        self.start_server(server_id.clone(), config, handler.clone()).await?;
+                        
+                        Ok(Value::String(server_id))
+                    }
+                    [Value::Map(config_map), handler] if matches!(handler, Value::NativeFunction { .. } | Value::Function { .. }) => {
+                        // Server with configuration
+                        let host = config_map.get("host")
+                            .and_then(|v| if let Value::String(s) = v { Some(s.clone()) } else { None })
+                            .unwrap_or_else(|| "0.0.0.0".to_string());
+                        
+                        let port = config_map.get("port")
+                            .and_then(|v| if let Value::Integer(p) = v { Some(*p as u16) } else { None })
+                            .ok_or_else(|| Error::Runtime("Server config requires 'port'".to_string()))?;
+                        
+                        let config = ServerConfig {
+                            host,
+                            port,
+                            routes: Arc::new(Mutex::new(Vec::new())),
+                            middleware: Vec::new(),
+                        };
+                        
+                        let server_id = format!("server_{}", Uuid::new_v4());
+                        self.start_server(server_id.clone(), config, handler.clone()).await?;
+                        
+                        Ok(Value::String(server_id))
+                    }
+                    _ => Err(Error::Runtime("network:serve requires port/config and handler function".to_string()))
+                }
+            }
+            
+            "route" => {
+                // Add a route to a server
+                // Args: [server_id, method, path, handler]
+                match args {
+                    [Value::String(server_id), Value::String(method), Value::String(path), handler] => {
+                        let method = AxumMethod::from_bytes(method.as_bytes())
+                            .map_err(|_| Error::Runtime("Invalid HTTP method".to_string()))?;
+                        
+                        let route = RouteDefinition {
+                            method,
+                            path: path.clone(),
+                            handler_id: format!("handler_{}", Uuid::new_v4()),
+                        };
+                        
+                        self.add_route(server_id, route, handler.clone()).await?;
+                        Ok(Value::Nil)
+                    }
+                    _ => Err(Error::Runtime("network:route requires server_id, method, path, and handler".to_string()))
+                }
+            }
+            
+            "stop" => {
+                // Stop a server
+                match args {
+                    [Value::String(server_id)] => {
+                        self.stop_server(server_id).await?;
+                        Ok(Value::Nil)
+                    }
+                    _ => Err(Error::Runtime("network:stop requires server_id".to_string()))
                 }
             }
             

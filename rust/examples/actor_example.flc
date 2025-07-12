@@ -1,0 +1,91 @@
+// Actor Model Example with Receive Pattern Matching
+// This example demonstrates actors with message pattern matching using receive
+
+// Simple echo actor that responds to different message types
+private actor EchoActor {
+    state: string = "ready";
+    private handle message(msg: any) {
+        receive {
+            case "ping" => "pong",
+            case ("echo", text) => text,
+            case ("set_state", new_state) => {
+                become(new_state);
+                f"State changed to: {new_state}"
+            },
+            case "get_state" => state,
+            case _ => "Unknown message"
+        }
+    }
+}
+
+// Counter actor that maintains internal state
+private actor Counter {
+    state: int = 0;
+    private handle message(msg: any) {
+        receive {
+            case "increment" => {
+                let new_count = state + 1;
+                become(new_count);
+                new_count
+            },
+            case "decrement" => {
+                let new_count = state - 1;
+                become(new_count);
+                new_count
+            },
+            case "get" => state,
+            case ("add", n) => {
+                let new_count = state + n;
+                become(new_count);
+                new_count
+            },
+            case "reset" => {
+                become(0);
+                0
+            }
+        }
+    }
+}
+
+// Calculator actor with pattern matching on operation types
+private actor Calculator {
+    state: float = 0.0;
+    private handle message(msg: any) {
+        receive {
+            case ("add", x, y) => x + y,
+            case ("subtract", x, y) => x - y,
+            case ("multiply", x, y) => x * y,
+            case ("divide", x, y) => {
+                if (y != 0) { x / y }
+                else { "Error: Division by zero" }
+            },
+            case ("store", value) => {
+                become(value);
+                f"Stored: {value}"
+            },
+            case "recall" => state,
+            case _ => "Unknown operation"
+        }
+    }
+}
+
+// Demo usage
+let echo = EchoActor;
+let counter = Counter;
+let calc = Calculator;
+
+// Send messages to actors
+echo.send("ping");
+echo.send(("echo", "Hello, Actor!"));
+echo.send(("set_state", "active"));
+
+counter.send("increment");
+counter.send("increment");
+counter.send(("add", 5));
+
+calc.send(("add", 10, 20));
+calc.send(("multiply", 3, 7));
+calc.send(("store", 42.0));
+
+// Return a tuple of the actors for inspection
+(echo, counter, calc)

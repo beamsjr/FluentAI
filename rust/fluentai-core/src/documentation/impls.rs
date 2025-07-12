@@ -410,7 +410,7 @@ impl DocumentedNode for MatchDoc {
     }
 
     fn syntax() -> &'static str {
-        "(match <expr> (<pattern> <body>) ...)"
+        "<expr>.match().case(<pattern>, <body>)....get()"
     }
 
     fn description() -> &'static str {
@@ -419,9 +419,9 @@ impl DocumentedNode for MatchDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(match x (0 \"zero\") (1 \"one\") (_ \"other\"))",
-            "(match lst ([] \"empty\") ([x] \"single\") ([x y ...] \"multiple\"))",
-            "(match val (true \"yes\") (false \"no\"))",
+            "x.match().case(0, \"zero\").case(1, \"one\").case(_, \"other\").get()",
+            "lst.match().case([], \"empty\").case(Cons(x, Nil), \"single\").case(Cons(x, xs), \"multiple\").get()",
+            "val.match().case(true, \"yes\").case(false, \"no\").get()",
         ]
     }
 
@@ -440,7 +440,7 @@ impl DocumentedNode for ModuleDoc {
     }
 
     fn syntax() -> &'static str {
-        "(module <name> (export <names>...) <body>)"
+        "mod <name> { export { <names>... }; <body> }"
     }
 
     fn description() -> &'static str {
@@ -449,9 +449,9 @@ impl DocumentedNode for ModuleDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(module math (export add multiply pi) (let ((pi 3.14159) (add +) (multiply *)) nil))",
-            "(module utils (export helper) (let ((helper (lambda (x) (* x 2))) (internal (lambda () \"private\"))) nil))",
-            "(module counter (export make-counter) (let ((make-counter (lambda () (let ((count 0)) (lambda () (set! count (+ count 1))))))) nil))",
+            "mod math { export { add, multiply, pi }; const pi = 3.14159; private function add(x, y) { x + y } }",
+            "mod utils { export { helper }; private function helper(x) { x * 2 } private function internal() { \"private\" } }",
+            "mod counter { export { make_counter }; private function make_counter() { let count = 0; () => { count = count + 1 } } }",
         ]
     }
 
@@ -470,7 +470,7 @@ impl DocumentedNode for ImportDoc {
     }
 
     fn syntax() -> &'static str {
-        "(import \"<module-path>\" (<items>...) | *)"
+        "use <module-path>::{<items>...} | use <module-path>::*"
     }
 
     fn description() -> &'static str {
@@ -479,11 +479,11 @@ impl DocumentedNode for ImportDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(import \"math\" (sin cos))",
-            "(import \"utils\" *)",
-            "(import \"./local-module\" (helper))",
-            "(import \"math\" (sin as sine cos as cosine))",
-            "(import \"collections\" (map filter reduce))",
+            "use math::{sin, cos};",
+            "use utils::*;",
+            "use ./local_module::helper;",
+            "use math::{sin as sine, cos as cosine};",
+            "use collections::{map, filter, reduce};",
         ]
     }
 
@@ -502,7 +502,7 @@ impl DocumentedNode for ExportDoc {
     }
 
     fn syntax() -> &'static str {
-        "(export <name1> <name2> ... | <name> as <alias> ...)"
+        "export { <name1>, <name2>, ... } | export { <name> as <alias>, ... }"
     }
 
     fn description() -> &'static str {
@@ -511,9 +511,9 @@ impl DocumentedNode for ExportDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(export add subtract multiply)",
-            "(export internal-helper as helper)",
-            "(export x y z)",
+            "export { add, subtract, multiply };",
+            "export { internal_helper as helper };",
+            "export { x, y, z };",
         ]
     }
 
@@ -532,7 +532,7 @@ impl DocumentedNode for QualifiedVariableDoc {
     }
 
     fn syntax() -> &'static str {
-        "<module>.<variable>"
+        "<module>::<variable>"
     }
 
     fn description() -> &'static str {
@@ -540,7 +540,7 @@ impl DocumentedNode for QualifiedVariableDoc {
     }
 
     fn examples() -> &'static [&'static str] {
-        &["math.pi", "std.print", "utils.helper"]
+        &["math::pi", "std::print", "utils::helper"]
     }
 
     fn category() -> DocumentationCategory {
@@ -558,7 +558,7 @@ impl DocumentedNode for AsyncDoc {
     }
 
     fn syntax() -> &'static str {
-        "(async <body>)"
+        "async { <body> } | async function <name>(<params>) { <body> }"
     }
 
     fn description() -> &'static str {
@@ -567,8 +567,8 @@ impl DocumentedNode for AsyncDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(async (http-get \"https://api.example.com\"))",
-            "(async (do (sleep 1000) \"done\"))",
+            "async { http.get(\"https://api.example.com\") }",
+            "async { perform Time.sleep(1000); \"done\" }",
         ]
     }
 
@@ -587,7 +587,7 @@ impl DocumentedNode for AwaitDoc {
     }
 
     fn syntax() -> &'static str {
-        "(await <async-expr>)"
+        "<async-expr>.await()"
     }
 
     fn description() -> &'static str {
@@ -596,8 +596,8 @@ impl DocumentedNode for AwaitDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(await (async (+ 1 2)))",
-            "(let ((future (async (compute)))) (await future))",
+            "async { 1 + 2 }.await()",
+            "let future = async { compute() }; future.await()",
         ]
     }
 
@@ -616,7 +616,7 @@ impl DocumentedNode for SpawnDoc {
     }
 
     fn syntax() -> &'static str {
-        "(spawn <expr>)"
+        "spawn { <expr> }"
     }
 
     fn description() -> &'static str {
@@ -625,8 +625,8 @@ impl DocumentedNode for SpawnDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(spawn (process-data data))",
-            "(spawn (do (print \"Task started\") (long-computation)))",
+            "spawn { process_data(data) }",
+            "spawn { print(\"Task started\"); long_computation() }",
         ]
     }
 
@@ -645,7 +645,7 @@ impl DocumentedNode for ChannelDoc {
     }
 
     fn syntax() -> &'static str {
-        "(chan)"
+        "channel() | channel(<capacity>)"
     }
 
     fn description() -> &'static str {
@@ -654,8 +654,8 @@ impl DocumentedNode for ChannelDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(let ((ch (chan))) ...)",
-            "(let ((ch (chan))) (spawn (send! ch 42)) (recv! ch))",
+            "let ch = channel();",
+            "let ch = channel(); spawn { ch.send(42) }; ch.receive()",
         ]
     }
 
@@ -674,7 +674,7 @@ impl DocumentedNode for SendDoc {
     }
 
     fn syntax() -> &'static str {
-        "(send! <channel> <value>)"
+        "<channel>.send(<value>)"
     }
 
     fn description() -> &'static str {
@@ -683,9 +683,9 @@ impl DocumentedNode for SendDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(send! ch 42)",
-            "(send! ch \"message\")",
-            "(send! ch [1 2 3])",
+            "ch.send(42)",
+            "ch.send(\"message\")",
+            "ch.send([1, 2, 3])",
         ]
     }
 
@@ -704,7 +704,7 @@ impl DocumentedNode for ReceiveDoc {
     }
 
     fn syntax() -> &'static str {
-        "(recv! <channel>)"
+        "<channel>.receive()"
     }
 
     fn description() -> &'static str {
@@ -712,7 +712,7 @@ impl DocumentedNode for ReceiveDoc {
     }
 
     fn examples() -> &'static [&'static str] {
-        &["(recv! ch)", "(let ((msg (recv! ch))) (print msg))"]
+        &["ch.receive()", "let msg = ch.receive(); print(msg)"]
     }
 
     fn category() -> DocumentationCategory {
@@ -730,7 +730,7 @@ impl DocumentedNode for DoDoc {
     }
 
     fn syntax() -> &'static str {
-        "(do <expr1> <expr2> ...)"
+        "{ <expr1>; <expr2>; ... }"
     }
 
     fn description() -> &'static str {
@@ -739,9 +739,9 @@ impl DocumentedNode for DoDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(do (print \"Starting\") (+ 1 2))",
-            "(do (print \"Step 1\") (print \"Step 2\") (print \"Step 3\") \"Done\")",
-            "(let ((x 0)) (do (set! x 5) (print x) x))",
+            "{ print(\"Starting\"); 1 + 2 }",
+            "{ print(\"Step 1\"); print(\"Step 2\"); print(\"Step 3\"); \"Done\" }",
+            "let x = 0; { x := 5; print(x); x }",
         ]
     }
 
@@ -760,7 +760,7 @@ impl DocumentedNode for MapDoc {
     }
 
     fn syntax() -> &'static str {
-        "{<key> <value> ...}"
+        "{<key>: <value>, ...}"
     }
 
     fn description() -> &'static str {
@@ -769,9 +769,9 @@ impl DocumentedNode for MapDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "{\"name\" \"Alice\" \"age\" 30}",
-            "{:x 10 :y 20}",
-            "(let ((m {\"a\" 1 \"b\" 2})) (map-get m \"a\"))",
+            "{\"name\": \"Alice\", \"age\": 30}",
+            "{\"x\": 10, \"y\": 20}",
+            "let m = {\"a\": 1, \"b\": 2}; m.get(\"a\")",
             "{}",
         ]
     }
@@ -791,7 +791,7 @@ impl DocumentedNode for TaggedDoc {
     }
 
     fn syntax() -> &'static str {
-        "(make-tagged <tag> <value1> <value2> ...)"
+        "<Tag>(<value1>, <value2>, ...)"
     }
 
     fn description() -> &'static str {
@@ -800,10 +800,10 @@ impl DocumentedNode for TaggedDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "(make-tagged \"Point\" 3 4)",
-            "(make-tagged \"Some\" 42)",
-            "(make-tagged \"None\")",
-            "(match value (\"Some\" x) x (\"None\") 0)",
+            "Point(3, 4)",
+            "Some(42)",
+            "None",
+            "value.match().case(Some(x), x).case(None, 0).get()",
         ]
     }
 
@@ -822,7 +822,7 @@ impl DocumentedNode for ListLiteralDoc {
     }
 
     fn syntax() -> &'static str {
-        "[<expr1> <expr2> ...]"
+        "[<expr1>, <expr2>, ...]"
     }
 
     fn description() -> &'static str {
@@ -831,11 +831,11 @@ impl DocumentedNode for ListLiteralDoc {
 
     fn examples() -> &'static [&'static str] {
         &[
-            "[1 2 3]",
-            "[\"a\" \"b\" \"c\"]",
+            "[1, 2, 3]",
+            "[\"a\", \"b\", \"c\"]",
             "[]",
-            "[x (+ y 1) (* z 2)]",
-            "[[1 2] [3 4] [5 6]]",
+            "[x, y + 1, z * 2]",
+            "[[1, 2], [3, 4], [5, 6]]",
         ]
     }
 

@@ -161,7 +161,7 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         
         // Other
         Halt => StackEffect::new(0, 0),
-        Become => StackEffect::new(1, 0), // Consumes new state
+        Become => StackEffect::new(1, 1), // Consumes new state, produces nil
         
         // Effect operations
         Effect => {
@@ -211,8 +211,8 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         WithTimeout => StackEffect::new(2, 1), // Consumes promise and timeout, produces promise
         
         // Actor model operations
-        CreateActor => StackEffect::new(0, 1), // Creates actor
-        ActorReceive => StackEffect::new(1, 1), // Consumes actor, produces message
+        CreateActor => StackEffect::new(2, 1), // Consumes state and handler, produces actor
+        ActorReceive => StackEffect::new(0, 1), // Produces current message from context
         
         // Effect operations
         EffectAsync => StackEffect::new(2, 1), // Like Effect but async

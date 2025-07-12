@@ -1,0 +1,132 @@
+// Advanced Actor Patterns with Receive and Channels
+// This example shows request-reply patterns and state machines
+
+// Request-Reply Actor that can respond via channels
+private actor QueryServer {
+    state: map = {"users": 100, "sessions": 25, "requests": 1500};
+    
+    private handle message(msg: any) {
+        receive {
+            case ("query", key, reply_channel) => {
+                let value = state.get(key);
+                reply_channel.send(value);
+                state
+            },
+            case ("update", key, value) => {
+                let new_state = state.set(key, value);
+                become(new_state);
+                new_state
+            },
+            case ("stats", reply_channel) => {
+                reply_channel.send(state);
+                state
+            }
+        }
+    }
+}
+
+// State Machine Actor with receive patterns
+private actor TrafficLight {
+    state: string = "red";
+    
+    private handle message(msg: any) {
+        receive {
+            case "next" => {
+                let next_state = match(state)
+                    .case("red", "green")
+                    .case("green", "yellow")
+                    .case("yellow", "red")
+                    .get();
+                become(next_state);
+                next_state
+            },
+            case "emergency" => {
+                become("red");
+                "Emergency: All lights red"
+            },
+            case "status" => f"Current light: {state}"
+        }
+    }
+}
+
+// Worker Pool Coordinator
+private actor WorkerPool {
+    state: list = [];  // List of worker actor IDs
+    
+    private handle message(msg: any) {
+        receive {
+            case ("add_worker", worker) => {
+                let new_workers = state.append(worker);
+                become(new_workers);
+                f"Worker added. Total workers: {new_workers.length()}"
+            },
+            case ("dispatch", task) => {
+                if (state.is_empty()) {
+                    "No workers available"
+                } else {
+                    // Round-robin dispatch
+                    let worker = state.head();
+                    let remaining = state.tail();
+                    let updated = remaining.append(worker);
+                    become(updated);
+                    worker.send(("process", task));
+                    f"Task dispatched to worker"
+                }
+            },
+            case "worker_count" => state.length()
+        }
+    }
+}
+
+// Simple Worker Actor
+private actor Worker {
+    state: int = 0;  // Tasks processed
+    
+    private handle message(msg: any) {
+        receive {
+            case ("process", task) => {
+                let new_count = state + 1;
+                become(new_count);
+                f"Processed task: {task}. Total processed: {new_count}"
+            },
+            case "stats" => f"Tasks processed: {state}"
+        }
+    }
+}
+
+// Demo: Request-Reply Pattern
+let server = QueryServer;
+let reply_channel = channel();
+
+server.send(("query", "users", reply_channel));
+let user_count = reply_channel.receive();
+
+server.send(("update", "users", 101));
+server.send(("stats", reply_channel));
+let all_stats = reply_channel.receive();
+
+// Demo: State Machine
+let light = TrafficLight;
+light.send("next");  // red -> green
+light.send("next");  // green -> yellow
+light.send("next");  // yellow -> red
+
+// Demo: Worker Pool
+let pool = WorkerPool;
+let worker1 = Worker;
+let worker2 = Worker;
+
+pool.send(("add_worker", worker1));
+pool.send(("add_worker", worker2));
+
+pool.send(("dispatch", "Task A"));
+pool.send(("dispatch", "Task B"));
+pool.send(("dispatch", "Task C"));
+
+// Return demonstration results
+{
+    "user_count": user_count,
+    "server_stats": all_stats,
+    "traffic_light": light,
+    "worker_pool": pool
+}

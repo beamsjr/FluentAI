@@ -3,6 +3,8 @@
 //! This crate provides the standard library functions for FluentAi,
 //! implementing all the built-in functions available to FluentAi programs.
 
+#![deny(missing_docs)]
+
 pub mod chars;
 pub mod collections;
 pub mod core;

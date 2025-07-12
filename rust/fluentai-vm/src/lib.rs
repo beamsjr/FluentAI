@@ -2,6 +2,8 @@
 //!
 //! High-performance register-based VM for executing FluentAi bytecode
 
+#![deny(missing_docs)]
+
 pub mod builder;
 pub mod compiler;
 pub mod compiler_builtins;

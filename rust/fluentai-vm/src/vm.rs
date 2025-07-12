@@ -165,6 +165,10 @@ pub struct VM {
     error_handler_stack: Vec<ErrorHandler>,
     // Finally block state storage
     finally_states: Vec<FinallyState>,
+    // Current actor context (when executing actor handlers)
+    current_actor: Option<ActorId>,
+    // Current message being processed by actor (for ActorReceive opcode)
+    current_actor_message: Option<Value>,
     // JIT compilation manager
     #[cfg(feature = "jit")]
     jit_manager: JitManager,
@@ -241,6 +245,8 @@ impl VM {
             handler_stack: Vec::new(),
             error_handler_stack: Vec::new(),
             finally_states: Vec::new(),
+            current_actor: None,
+            current_actor_message: None,
             #[cfg(feature = "jit")]
             jit_manager: JitManager::new(JitConfig::default()),
         }
@@ -4817,6 +4823,82 @@ impl VM {
                 stack_trace: None,
             })
         }
+    }
+    
+    /// Process messages for a specific actor
+    pub fn process_actor_messages(&mut self, actor_id: ActorId) -> VMResult<()> {
+        // Get the actor (we need to temporarily remove it to avoid borrow issues)
+        let mut actor = self.actors.remove(&actor_id).ok_or_else(|| VMError::UnknownIdentifier {
+            name: format!("actor:{}", actor_id.0),
+            location: None,
+            stack_trace: None,
+        })?;
+        
+        // Set current actor context
+        self.current_actor = Some(actor_id);
+        
+        // Try to receive a message from the mailbox
+        while let Ok(message) = actor.mailbox.try_recv() {
+            // Set the current message for ActorReceive opcode
+            self.current_actor_message = Some(message.clone());
+            
+            // Call the handler function with (state, message)
+            let handler = actor.handler.clone();
+            
+            // Push handler, state, and message onto stack
+            self.push(handler)?;
+            self.push(actor.state.clone())?;
+            self.push(message)?;
+            
+            // Call the handler with 2 arguments
+            self.call_value(2)?;
+            
+            // The result is the new state
+            actor.state = self.pop()?;
+            
+            // Clear the current message
+            self.current_actor_message = None;
+        }
+        
+        // Clear actor context
+        self.current_actor = None;
+        
+        // Put the actor back
+        self.actors.insert(actor_id, actor);
+        Ok(())
+    }
+    
+    /// Process messages for all actors (typically called periodically)
+    pub fn process_all_actor_messages(&mut self) -> VMResult<()> {
+        let actor_ids: Vec<ActorId> = self.actors.keys().cloned().collect();
+        for actor_id in actor_ids {
+            self.process_actor_messages(actor_id)?;
+        }
+        Ok(())
+    }
+    
+    /// Get current actor context (if any)
+    pub fn current_actor_context(&self) -> Option<ActorId> {
+        self.current_actor
+    }
+    
+    /// Update the state of an actor (used by Become)
+    pub fn update_actor_state(&mut self, actor_id: ActorId, new_state: Value) -> VMResult<()> {
+        if let Some(actor) = self.actors.get_mut(&actor_id) {
+            actor.state = new_state;
+            Ok(())
+        } else {
+            Err(VMError::UnknownIdentifier {
+                name: format!("actor:{}", actor_id.0),
+                location: None,
+                stack_trace: None,
+            })
+        }
+    }
+    
+    /// Get the current actor message (for ActorReceive opcode)
+    pub fn get_current_actor_message(&self) -> Option<Value> {
+        self.current_actor_message.clone()
     }
     
     pub fn take_promise(&mut self, promise_id: &PromiseId) -> Option<oneshot::Receiver<VMResult<Value>>> {

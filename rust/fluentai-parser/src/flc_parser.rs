@@ -1057,6 +1057,8 @@ impl<'a> Parser<'a> {
             Some(Token::Spawn) => self.parse_spawn_expression(),
             Some(Token::Perform) => self.parse_perform_expression(),
             Some(Token::Handle) => self.parse_handle_expression(),
+            Some(Token::Receive) => self.parse_receive_expression(),
+            Some(Token::Become) => self.parse_become_expression(),
             Some(Token::Dollar) => self.parse_printable(),
             _ => Err(anyhow!("Unexpected token in expression: {:?}", self.current)),
         }
@@ -3008,6 +3010,52 @@ impl<'a> Parser<'a> {
         } else {
             Err(anyhow!("Invalid node in subgraph"))
         }
+    }
+    
+    fn parse_receive_expression(&mut self) -> Result<NodeId> {
+        // receive { case pattern => handler, ... }
+        self.consume(Token::Receive)?;
+        self.consume(Token::LBrace)?;
+        
+        let mut patterns = vec![];
+        
+        while !matches!(self.current, Some(Token::RBrace)) {
+            // Expect 'case' keyword
+            self.consume(Token::Case)?;
+            
+            // Parse pattern
+            let pattern = self.parse_pattern()?;
+            self.consume(Token::FatArrow)?;
+            
+            // Parse handler expression
+            let handler = self.parse_expression()?;
+            patterns.push((pattern, handler));
+            
+            // Optional comma
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        // TODO: Add timeout support with syntax like:
+        // receive { ... } timeout(duration) => handler
+        
+        self.add_node(Node::ActorReceive { 
+            patterns,
+            timeout: None 
+        })
+    }
+    
+    fn parse_become_expression(&mut self) -> Result<NodeId> {
+        // become(new_state)
+        self.consume(Token::Become)?;
+        self.consume(Token::LParen)?;
+        let new_state = self.parse_expression()?;
+        self.consume(Token::RParen)?;
+        
+        self.add_node(Node::Become { new_state })
     }
 }
 

@@ -22,6 +22,10 @@ pub enum Token<'a> {
     Type,
     #[token("actor", priority = 10)]
     Actor,
+    #[token("receive", priority = 10)]
+    Receive,
+    #[token("become", priority = 10)]
+    Become,
     #[token("effect", priority = 10)]
     Effect,
     #[token("macro", priority = 10)]

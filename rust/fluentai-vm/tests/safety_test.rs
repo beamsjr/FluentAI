@@ -2,10 +2,10 @@
 
 use fluentai_core::value::Value;
 use fluentai_parser::parse;
-use fluentai_vm::bytecode::{BytecodeChunk, Instruction};
+use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::compiler::Compiler;
 use fluentai_vm::safety::{checked_ops, ResourceLimits};
-use fluentai_vm::{Bytecode, Opcode, VM};
+use fluentai_vm::VM;
 
 #[test]
 fn test_integer_overflow_protection() {

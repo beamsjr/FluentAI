@@ -100,7 +100,7 @@ impl DocumentationRegistry {
                 60,
                 Associativity::Left,
                 "Adds two or more numbers together.",
-                &["(+ 1 2)", "(+ 1 2 3 4)", "(+ 5.5 2.5)"],
+                &["1 + 2", "1 + 2 + 3 + 4", "5.5 + 2.5"],
             ),
             OperatorDoc::new(
                 "-",
@@ -108,7 +108,7 @@ impl DocumentationRegistry {
                 60,
                 Associativity::Left,
                 "Subtracts numbers. With one argument, negates it.",
-                &["(- 5 3)", "(- 10 3 2)", "(- 5)"],
+                &["5 - 3", "10 - 3 - 2", "-5"],
             ),
             OperatorDoc::new(
                 "*",
@@ -116,7 +116,7 @@ impl DocumentationRegistry {
                 70,
                 Associativity::Left,
                 "Multiplies two or more numbers together.",
-                &["(* 2 3)", "(* 2 3 4)", "(* 5.5 2)"],
+                &["2 * 3", "2 * 3 * 4", "5.5 * 2"],
             ),
             OperatorDoc::new(
                 "/",
@@ -124,16 +124,16 @@ impl DocumentationRegistry {
                 70,
                 Associativity::Left,
                 "Divides numbers. Integer division returns a float.",
-                &["(/ 10 2)", "(/ 20 4 2)", "(/ 5 2)"],
+                &["10 / 2", "20 / 4 / 2", "5 / 2"],
             ),
             // Comparison operators
             OperatorDoc::new(
-                "=",
+                "==",
                 "Equality",
                 40,
                 Associativity::None,
                 "Tests if two values are equal.",
-                &["(= 5 5)", "(= \"hello\" \"hello\")", "(= x y)"],
+                &["5 == 5", "\"hello\" == \"hello\"", "x == y"],
             ),
             OperatorDoc::new(
                 "!=",
@@ -141,7 +141,7 @@ impl DocumentationRegistry {
                 40,
                 Associativity::None,
                 "Tests if two values are not equal.",
-                &["(!= 5 3)", "(!= \"hello\" \"world\")", "(!= x y)"],
+                &["5 != 3", "\"hello\" != \"world\"", "x != y"],
             ),
             OperatorDoc::new(
                 "<",
@@ -149,7 +149,7 @@ impl DocumentationRegistry {
                 50,
                 Associativity::None,
                 "Tests if the first value is less than the second.",
-                &["(< 3 5)", "(< x 10)", "(< \"a\" \"b\")"],
+                &["3 < 5", "x < 10", "\"a\" < \"b\""],
             ),
             OperatorDoc::new(
                 ">",
@@ -157,7 +157,7 @@ impl DocumentationRegistry {
                 50,
                 Associativity::None,
                 "Tests if the first value is greater than the second.",
-                &["(> 5 3)", "(> x 0)", "(> \"z\" \"a\")"],
+                &["5 > 3", "x > 0", "\"z\" > \"a\""],
             ),
             OperatorDoc::new(
                 "<=",
@@ -165,7 +165,7 @@ impl DocumentationRegistry {
                 50,
                 Associativity::None,
                 "Tests if the first value is less than or equal to the second.",
-                &["(<= 3 5)", "(<= 5 5)", "(<= x limit)"],
+                &["3 <= 5", "5 <= 5", "x <= limit"],
             ),
             OperatorDoc::new(
                 ">=",
@@ -173,7 +173,7 @@ impl DocumentationRegistry {
                 50,
                 Associativity::None,
                 "Tests if the first value is greater than or equal to the second.",
-                &["(>= 5 3)", "(>= 5 5)", "(>= score threshold)"],
+                &["5 >= 3", "5 >= 5", "score >= threshold"],
             ),
             // Logical operators
             OperatorDoc::new(
@@ -182,7 +182,7 @@ impl DocumentationRegistry {
                 30,
                 Associativity::Left,
                 "Returns true if all arguments are true, false otherwise.",
-                &["(and true true)", "(and (> x 0) (< x 10))", "(and a b c)"],
+                &["true && true", "(x > 0) && (x < 10)", "a && b && c"],
             ),
             OperatorDoc::new(
                 "or",
@@ -190,7 +190,7 @@ impl DocumentationRegistry {
                 20,
                 Associativity::Left,
                 "Returns true if any argument is true, false otherwise.",
-                &["(or true false)", "(or (< x 0) (> x 10))", "(or a b c)"],
+                &["true || false", "(x < 0) || (x > 10)", "a || b || c"],
             ),
             OperatorDoc::new(
                 "not",
@@ -198,7 +198,7 @@ impl DocumentationRegistry {
                 80,
                 Associativity::Right,
                 "Returns the logical negation of its argument.",
-                &["(not true)", "(not false)", "(not (= x 0))"],
+                &["!true", "!false", "!(x == 0)"],
             ),
         ]);
     }
@@ -208,83 +208,83 @@ impl DocumentationRegistry {
         self.keywords.extend(vec![
             KeywordDoc::new("lambda", 
                 "Creates an anonymous function.",
-                "(lambda (<params>) <body>)",
-                &["(lambda (x) (+ x 1))", "(lambda (x y) (* x y))"]),
+                "(<params>) => <body> | <param> => <body>",
+                &["x => x + 1", "(x, y) => x * y"]),
 
             KeywordDoc::new("let",
                 "Creates local variable bindings.",
-                "(let ((<var> <expr>) ...) <body>)",
-                &["(let ((x 5)) (+ x 1))", "(let ((x 1) (y 2)) (+ x y))"]),
+                "let <var> = <expr>; <body>",
+                &["let x = 5; x + 1", "let x = 1; let y = 2; x + y"]),
 
             KeywordDoc::new("letrec",
                 "Creates recursive local bindings.",
-                "(letrec ((<var> <expr>) ...) <body>)",
-                &["(letrec ((fact (lambda (n) (if (= n 0) 1 (* n (fact (- n 1))))))) (fact 5))"]),
+                "let <var> = <expr>; <body> (recursive)",
+                &["let fact = (n) => { if (n == 0) { 1 } else { n * fact(n - 1) } }; fact(5)"]),
 
             KeywordDoc::new("if",
                 "Conditional expression.",
-                "(if <condition> <then> <else>)",
-                &["(if (> x 0) \"positive\" \"non-positive\")"]),
+                "if (<condition>) { <then> } else { <else> }",
+                &["if (x > 0) { \"positive\" } else { \"non-positive\" }"]),
 
             KeywordDoc::new("match",
                 "Pattern matching expression.",
-                "(match <expr> (<pattern> <body>) ...)",
-                &["(match x (0 \"zero\") (1 \"one\") (_ \"other\"))"]),
+                "<expr>.match().case(<pattern>, <body>)....get()",
+                &["x.match().case(0, \"zero\").case(1, \"one\").case(_, \"other\").get()"]),
 
             KeywordDoc::new("do",
                 "Evaluates expressions in sequence, returns the last value.",
-                "(do <expr1> <expr2> ...)",
-                &["(do (print \"Starting\") (compute) (print \"Done\"))"]),
+                "{ <expr1>; <expr2>; ... }",
+                &["{ print(\"Starting\"); compute(); print(\"Done\") }"]),
 
             KeywordDoc::new("effect",
                 "Performs an effectful operation. Can also use shorthand <type>:<operation> syntax.",
-                "(effect <type> <operation> <args>...) | (<type>:<operation> <args>...)",
-                &["(effect IO print \"Hello\")", "(io:print \"Hello\")"]),
+                "perform <type>.<operation>(<args>...)",
+                &["perform IO.print(\"Hello\")", "io.print(\"Hello\")"]),
 
             KeywordDoc::new("module",
                 "Defines a module.",
-                "(module <name> <exports> <body>)",
-                &["(module math [add subtract] ...)"]),
+                "mod <name> { export { <items>... }; <body> }",
+                &["mod math { export { add, subtract }; ... }"]),
 
             KeywordDoc::new("import",
                 "Imports from a module.",
-                "(import <module-path> [<items>...] | *)",
-                &["(import \"std/math\" [sin cos])"]),
+                "use <module-path>::{<items>...} | use <module-path>::*",
+                &["use std::math::{sin, cos};"]),
 
             KeywordDoc::new("export",
                 "Exports from a module.",
-                "(export [<name> ...])",
-                &["(export [helper utility])"]),
+                "export { <name>, ... };",
+                &["export { helper, utility };"]),
 
             KeywordDoc::new("async",
                 "Creates an asynchronous computation.",
-                "(async <body>)",
-                &["(async (http-get url))"]),
+                "async { <body> }",
+                &["async { http.get(url) }"]),
 
             KeywordDoc::new("await",
                 "Waits for an async computation.",
-                "(await <async-expr>)",
-                &["(await future)"]),
+                "<async-expr>.await()",
+                &["future.await()"]),
 
             KeywordDoc::new("spawn",
                 "Spawns a concurrent task.",
-                "(spawn <expr>)",
-                &["(spawn (process-data))"]),
+                "spawn { <expr> }",
+                &["spawn { process_data() }"]),
 
             KeywordDoc::new("chan",
                 "Creates a channel.",
-                "(chan)",
-                &["(let ((ch (chan))) ...)"]),
+                "channel() | channel(<capacity>)",
+                &["let ch = channel();"]),
 
             KeywordDoc::new("send!",
                 "Sends to a channel.",
-                "(send! <channel> <value>)",
-                &["(send! ch 42)"]),
+                "<channel>.send(<value>)",
+                &["ch.send(42)"]),
 
             KeywordDoc::new("recv!",
                 "Receives from a channel.",
-                "(recv! <channel>)",
-                &["(recv! ch)"]),
+                "<channel>.receive()",
+                &["ch.receive()"]),
         ]);
     }
 

@@ -1,4 +1,4 @@
-use fluentai_parser::FlcParser;
+use fluentai_parser::flc_parser::Parser as FlcParser;
 use fluentai_core::ast::{Graph, Node};
 
 fn main() {
