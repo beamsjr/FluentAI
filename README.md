@@ -497,46 +497,13 @@ maturin develop  # Requires: pip install maturin
 
 ### Running Contract Verification Examples
 ```bash
-# Build with Z3 support for static verification
-cd rust
-cargo build --release --features static
-
-# Run symbolic execution examples
-cargo run --example simple_symbolic --features static
-cargo run --example test_generation_demo --features static
-cargo run --example visualization_demo
-cargo run --example parallel_execution_demo
-
-# Run contract verification with counterexamples
-cargo run --example symbolic_verification --features static
-
-# Generate test cases from contracts
-cargo run --bin fluentai-verify -- \
-  --input program.ai \
-  --contracts contracts.spec \
-  --generate-tests output_tests.rs
+TODO: Add Running Contract Verification Examples
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
-cargo test
-
-# Run tests with output displayed
-cargo test -- --nocapture
-
-# Run tests for a specific crate
-cargo test -p fluentai-vm
-
-# Run a specific test
-cargo test test_simd_operations
-
-# Run benchmarks
-cargo bench
-
-# Run with release optimizations
-cargo test --release
+TODO: Add testing example
 ```
 
 ### Packet Processing Example
@@ -544,128 +511,14 @@ cargo test --release
 FluentAI's optimizations make it ideal for high-performance network applications:
 
 ```lisp
-;; Define a tail-recursive packet parser
-(letrec ((parse-ipv4-header
-          (lambda (data offset)
-            (let ((version (bit-shift-right (byte-at data offset) 4))
-                  (ihl (bit-and (byte-at data offset) 0x0F))
-                  (total-length (bytes->u16 data (+ offset 2)))
-                  (src-ip (bytes->u32 data (+ offset 12)))
-                  (dst-ip (bytes->u32 data (+ offset 16))))
-              {:version version
-               :header-length (* ihl 4)
-               :total-length total-length
-               :src-ip src-ip
-               :dst-ip dst-ip})))
-         
-         ;; Process packet stream with tail recursion
-         (process-stream
-          (lambda (stream processed)
-            (match (read-packet stream)
-              ((Some packet) 
-               ; Tail call - optimized to loop
-               (process-stream stream (cons packet processed)))
-              (None processed)))))
-  
-  ;; Use lock-free queue for concurrent processing
-  (let ((packet-queue (bounded-queue 10000)))
-    ;; Multiple workers process packets
-    (dotimes (i 4)
-      (spawn (lambda ()
-               (loop
-                 (let ((packet (dequeue! packet-queue)))
-                   (process-packet packet))))))
-    
-    ;; Read packets into queue
-    (with-memory-pool {:slab-size 1500}
-      (lambda (pool)
-        (loop
-          (let ((buffer (pool-allocate pool)))
-            (read-packet-into buffer)
-            (enqueue! packet-queue buffer)))))))
+TODO: Add Packet Processing Example
 ```
 
 ## Language Features
 
 ### Module System
 ```lisp
-;; Define a module with exports and top-level definitions
-(module math-utils [square cube factorial pi e]
-  ;; Top-level definitions using 'define'
-  (define pi 3.14159265359)
-  (define e 2.71828182846)
-  
-  ;; Function definitions (simple syntax)
-  (define square (lambda (x) (* x x)))
-  (define cube (lambda (x) (* x x x)))
-  
-  ;; Function definitions (nested syntax)
-  (define (factorial n)
-    (if (<= n 1) 
-        1 
-        (* n (factorial (- n 1))))))
-
-;; Import specific functions
-(import "math-utils" (square cube))
-(import "collections" (map filter reduce))
-
-;; Import all exports
-(import "string-utils" *)
-
-;; Import for qualified access only
-(import "math" ())
-(define area (lambda (r) (* math.pi r r)))
-
-;; Relative imports
-(import "./local-module" (helper))
-(import "../shared/utils" (process))
-
-;; Import with aliases (planned)
-(import "math" (sin as sine cos as cosine))
-
-;; Export from current module
-(export helper-function process-data)
-
-;; Module with multiple expressions
-(module config-manager [get-config set-config]
-  (import "io" *)
-  (import "json" (parse stringify))
-  
-  (define config-file "./config.json")
-  (define current-config (parse (read-file config-file)))
-  
-  (define (get-config key)
-    (get current-config key))
-  
-  (define (set-config key value)
-    (set! current-config (assoc current-config key value))
-    (write-file config-file (stringify current-config))))
-```
-
-### Core S-Expression Syntax
-```lisp
-;; Basic expressions
-(+ 1 2)                          ; => 3
-(lambda (x) (* x x))             ; Square function
-(let ((x 5)) (+ x 1))           ; Let binding
-
-;; Lists and pattern matching
-[1 2 3 4]                        ; List literal
-{:name "Alice" :age 30}          ; Map literal
-(match lst
-  ([] 0)                         ; Empty list
-  ([x, ... xs] (+ x (sum xs))))  ; Head and tail
-
-;; Enhanced value system
-(define native-fn               ; Native functions for performance
-  (native "fast_sqrt" 1))       ; Name and arity
-
-(define person                  ; Tagged values (ADTs)
-  (tag 'Person name age))       ; Constructor
-
-(is-integer? x)                 ; Type predicates
-(is-callable? f)                ; Check if procedure or native fn
-(as-number x)                   ; Safe type conversions with Result
+TODO: Add module system example
 ```
 
 ### FLC (Fluent Lambda Chain) Syntax
@@ -712,143 +565,24 @@ def fn get_user(id: Uuid).with(Database) -> Result<User, DbError> {
 }
 ```
 
-**Migration Tool**: Convert your existing S-expression code to FLC:
-```bash
-# Convert a single file
-cargo run --bin flc-migrate -- input.fl
-
-# Convert with backup
-cargo run --bin flc-migrate -- --no-backup input.fl  
-
-# Dry run to preview changes
-cargo run --bin flc-migrate -- --dry-run input.fl
-
-# Convert entire directory recursively
-cargo run --bin flc-migrate -- --recursive src/
-```
-
 ### Modern Web Development
 ```lisp
-;; UI Components
-(define-component "TodoItem" {:text {:type :string :required true}}
-  (lambda (props)
-    (h "li" {:className "todo-item"}
-      (get props :text))))
-
-;; Async HTTP requests
-(async (lambda ()
-  (let ((response (await (effect network fetch "/api/todos"))))
-    (effect dom update 
-      (map (lambda (item) (TodoItem {:text item}))
-           (get response :items)))))
-
-;; Reactive state
-(let ((state (reactive {:count 0})))
-  (define-component "Counter" {}
-    (lambda (_)
-      (h "button" {:onClick (lambda () (swap! state update :count inc))}
-        (str "Count: " (get (deref state) :count))))))
+TODO: Add Modern Web Development Example
 ```
 
 ### Concurrent Programming
 ```lisp
-;; Channels and goroutines
-(let ((ch (chan 10))
-      (done (chan)))
-  ;; Producer
-  (go (dotimes (i 10)
-        (send! ch i)
-        (effect time sleep 100)))
-  
-  ;; Consumer
-  (go (dotimes (i 10)
-        (let ((val (receive! ch)))
-          (effect io print (str "Received: " val))))
-      (send! done true))
-  
-  ;; Wait for completion
-  (receive! done))
-
-;; Select statement
-(select
-  ((receive! ch1) (lambda (v) (str "From ch1: " v)))
-  ((receive! ch2) (lambda (v) (str "From ch2: " v)))
-  ((send! ch3 42) (lambda () "Sent to ch3")))
+TODO: Add Concurrent Programming example
 ```
 
 ### Logging
 ```lisp
-;; Import the logger module
-(import "logger" *)
-
-;; Log at different levels with structured data
-(log-info "User logged in" {:user-id 123 :ip "192.168.1.1"})
-(log-warn "Rate limit approaching" {:requests 95 :limit 100})
-(log-error "Database connection failed" {:host "db.example.com" :retry-count 3})
-(log-debug "Processing item" {:id "abc-123" :size 1024})
-
-;; Set log level (DEBUG, INFO, WARN, ERROR)
-(set-log-level 'WARN)  ; Only WARN and ERROR will be shown
-
-;; Simple messages without structured data
-(log-info "Application started")
-(log-error "Critical failure!")
-
-;; Logging in error handlers
-(handler
-  ((error (lambda (err)
-            (log-error "Operation failed" 
-              {:error (get err :message)
-               :type (get err :type)
-               :timestamp (effect time now)})
-            nil)))
-  (risky-operation))
-
-;; Custom log formatting with handler
-(handler
-  ((io (lambda (op . args)
-         (if (= op "print-line")
-             ;; Custom formatting or routing
-             (send-to-log-server (first args))
-             (apply effect io op args)))))
-  (log-info "This goes through custom handler"))
+TODO: Add logging example
 ```
 
 ### Error Handling
 ```lisp
-;; Error handling uses the handler construct instead of try/catch
-(handler
-  ((error (lambda (err)
-            (print "Error occurred:" (get err :message))
-            "default-value")))
-  (risky-operation))
-
-;; Raise errors using the error effect
-(when (= denominator 0)
-  (effect error raise "divide-by-zero" 
-    {:message "Cannot divide by zero"
-     :numerator numerator
-     :denominator denominator}))
-
-;; Network requests with error handling
-(handler
-  ((error (lambda (err)
-            (case (get err :type)
-              "timeout" (retry-request)
-              "network" (use-cached-data)
-              _ (show-error-message)))))
-  (await (effect network fetch api-url)))
-
-;; Composable error handling in UI components
-(define-component "DataDisplay" {:url {:type :string :required true}}
-  (lambda (props)
-    (handler
-      ((error (lambda (err) 
-                (h "div" {:className "error"} 
-                  (str "Failed to load: " (get err :message))))))
-      (let ((data (await (effect network fetch (get props :url)))))
-        (h "div" {:className "data"} 
-          (render-data data))))))
+TODO: Add error handling example
 ```
 
 ### Effect Handlers
@@ -856,218 +590,22 @@ cargo run --bin flc-migrate -- --recursive src/
 Effect handlers provide a powerful mechanism for intercepting and customizing effects:
 
 ```lisp
-;; Basic handler syntax
-(handler
-  ((effect-type handler-function) ...)
-  body-expression)
-
-;; Handler for error effects
-(handler
-  ((error (lambda (err)
-            (log-error "Handled error:" err)
-            "fallback-value")))
-  (effect error:raise "Something went wrong"))
-
-;; Multiple effect handlers
-(handler
-  ((io (lambda (op . args)
-         (case op
-           "print" (send-to-logger (first args))
-           "read" (read-from-cache)
-           _ (apply effect io op args))))
-   (error (lambda (err) nil)))
-  (complex-io-operation))
-
-;; Nested handlers - inner handlers shadow outer ones
-(handler
-  ((error (lambda (e) "outer")))
-  (handler
-    ((error (lambda (e) "inner")))  ; This handler wins
-    (effect error:raise "test")))
-
-;; Handlers with lexical scope
-(let ((recovery-value 42))
-  (handler
-    ((error (lambda (err)
-              (log-error "Error with recovery:" err)
-              recovery-value)))
-    (risky-computation)))
-
-;; State effect handler implementation
-(let ((state {:count 0}))
-  (handler
-    ((state (lambda (op . args)
-              (case op
-                "get" (get state (first args))
-                "set" (set! state (assoc state (first args) (second args)))
-                "update" (set! state (update state (first args) (second args)))))))
-    (do
-      (effect state:set :count 1)
-      (effect state:update :count inc)
-      (effect state:get :count))))  ; => 2
-
-;; IO virtualization for testing
-(handler
-  ((io (lambda (op . args)
-         (case op
-           "print" (vector-append! test-output (first args))
-           "read" "test input"
-           _ (error "Unsupported IO operation")))))
-  (function-that-does-io))
-
-;; Custom async handler
-(handler
-  ((async (lambda (op . args)
-            (case op
-              "await" (get-cached-result (first args))
-              "delay" (immediate-value (first args))
-              _ (apply effect async op args)))))
-  (async-workflow))
+TODO: Add Effect Handlers example
 ```
 
 ### Formal Contracts and Verification
 ```lisp
-;; Define contracts with preconditions and postconditions
-(define-contract factorial
-  :requires [(>= n 0)]              ; Precondition: n must be non-negative
-  :ensures [(>= result 1)]          ; Postcondition: result is at least 1
-  :complexity "O(n)"                ; Complexity specification
-  :pure true)                       ; Function has no side effects
-
-(define factorial (lambda (n)
-  (if (= n 0)
-      1
-      (* n (factorial (- n 1))))))
-
-;; Contracts are verified at runtime (and optionally statically)
-(define-contract safe-divide
-  :requires [(and (number? x) (number? y) (not= y 0))]
-  :ensures [(number? result)])
-
-;; Contracts support complex conditions
-(define-contract binary-search
-  :requires [(sorted? arr)]
-  :ensures [(or (= result -1) 
-               (= (nth arr result) target))]
-  :invariant [(>= high low)]        ; Loop invariants
-  :complexity "O(log n)")
-
-;; Static verification with Z3 (when enabled)
-;; Automatically proves contracts are satisfied for all inputs
-(verify-contract factorial)             ; Proves factorial contract holds
-
-;; Contract inheritance and refinement
-(define-contract sort
-  :ensures [(sorted? result) (same-elements? input result)])
-
-(define-contract stable-sort
-  :inherits sort                    ; Inherits all conditions from sort
-  :ensures [(stable? result)]       ; Adds stability guarantee
-  :refines sort)                    ; Verified to be a valid refinement
-
-;; Symbolic execution for exhaustive testing
-(symbolic-test factorial
-  :paths all                        ; Explore all execution paths
-  :bound 5)                         ; Up to depth 5
-
-;; Proof generation for critical properties
-(prove factorial-positive
-  :property (forall n (>= n 0) (>= (factorial n) 1))
-  :strategy induction               ; Use mathematical induction
-  :var n)                          ; Induct on n
-
-;; Type predicates available in contracts
-;; number?, int?, float?, string?, list?, nil?
-;; Comparison: =, !=, <, >, <=, >=
-;; List operations: length, nth, empty?, sorted?
-;; Logical: and, or, not
+TODO: Add Formal Contracts and Verification example
 ```
 
 ### Advanced Symbolic Execution
 ```lisp
-;; Automatic test generation from symbolic execution
-(generate-tests safe-divide
-  :coverage path                    ; Generate tests for all paths
-  :format rust)                     ; Output as Rust unit tests
-
-;; Returns:
-;; #[test]
-;; fn test_safe_divide_1() {
-;;     let x = 10i64;
-;;     let y = 2i64;
-;;     let result = safe_divide(x, y);
-;;     assert_eq!(result, 5);
-;; }
-;; #[test]
-;; fn test_safe_divide_2() {
-;;     let x = -5i64;
-;;     let y = 0i64;
-;;     // Should handle division by zero
-;; }
-
-;; Parallel symbolic execution for performance
-(symbolic-verify complex-function
-  :parallel true                    ; Use all CPU cores
-  :timeout 60)                      ; 60 second timeout
-
-;; Visualize execution paths
-(visualize-paths binary-search
-  :format dot                       ; Graphviz format
-  :output "paths.png")             ; Renders execution tree
-
-;; Advanced counterexample generation
-(define-contract sqrt
-  :requires [(>= x 0)]
-  :ensures [(>= result 0) (<= (- (* result result) x) 0.0001)])
-
-(verify-contract sqrt)
-;; If verification fails, generates:
-;; Counterexample found:
-;;   Input: x = -1
-;;   Path: x < 0 (violates precondition)
-;;   Execution trace:
-;;     Step 1: Check x >= 0 → false
-;;   Suggestion: Add input validation for negative numbers
-
-;; Incremental verification during development
-(watch-contracts my-module
-  :on-change verify               ; Re-verify on code changes
-  :show-coverage true)            ; Display path coverage %
+TODO: Add Advanced Symbolic Execution
 ```
 
 ### Database Operations
 ```lisp
-;; Connect to database using effects
-(effect db connect "postgresql://localhost/myapp")
-
-;; Execute queries with parameters
-(effect db query "SELECT * FROM users WHERE age > ?" [18])
-
-;; Build queries functionally
-(db-from 'users
-  (db-where (db-and 
-    (db-gt 'age 18)
-    (db-eq 'active true)))
-  (db-select '(id name email))
-  (db-order-by 'created_at :desc))
-
-;; Transactions with automatic rollback on error
-(handler
-  ((error (lambda (err)
-            (effect db rollback-transaction)
-            (logger:error "Transaction failed" {:error err}))))
-  (effect db begin-transaction)
-  (effect db execute "INSERT INTO accounts (id, balance) VALUES (?, ?)" [1 1000])
-  (effect db execute "UPDATE accounts SET balance = balance - 100 WHERE id = 1")
-  (effect db execute "UPDATE accounts SET balance = balance + 100 WHERE id = 2")
-  (effect db commit-transaction))
-
-;; Define type-safe schemas
-(define-schema user
-  {:id {:type :int :primary-key true}
-   :email {:type :string :unique true :not-null true}
-   :age {:type :int :check "age >= 0"}
-   :created_at {:type :timestamp :default :current-timestamp}})
+TODO: add Database Operations example
 ```
 
 ### Dependency Injection
@@ -1110,100 +648,22 @@ impl Module for CoreModule {
 
 ### Reactive State System
 ```lisp
-;; Create reactive state
-(let ((counter (reactive-state 0))
-      (doubled (reactive-computed 
-                 (lambda () (* 2 (reactive-get counter))))))
-  
-  ;; Automatic dependency tracking
-  (reactive-effect 
-    (lambda () 
-      (println (str "Counter: " (reactive-get counter) 
-                    ", Doubled: " (reactive-get doubled)))))
-  
-  ;; Updates trigger recomputation
-  (reactive-set! counter 5)  ; Prints: "Counter: 5, Doubled: 10"
-  (reactive-set! counter 10) ; Prints: "Counter: 10, Doubled: 20"
-  
-  ;; Fine-grained updates
-  (let ((users (reactive-state [])))
-    (reactive-update! users 
-      (lambda (list) (cons {:id 1 :name "Alice"} list)))))
-
-;; Integration with UI components
-(define-component "Counter" {}
-  (lambda (_)
-    (let ((count (reactive-state 0)))
-      (h "div" {}
-        (h "p" {} (str "Count: " (reactive-get count)))
-        (h "button" 
-          {:onClick (lambda () (reactive-update! count inc))}
-          "Increment")))))
+TODO: Reactive State System example
 ```
 
 ### UI Compilation Examples
 ```lisp
-;; Define a UI component
-(define-component "TodoList" {:items {:type :list :required true}}
-  (lambda (props)
-    (h "ul" {:className "todo-list"}
-      (map (lambda (item)
-             (h "li" {:key (get item :id)}
-               (h "span" {} (get item :text))
-               (h "button" {:onClick (lambda () (delete-todo (get item :id)))}
-                 "Delete")))
-           (get props :items)))))
-
-;; Compile to different targets
-(compile-to-vanilla-js TodoList)    ; → Pure JavaScript
-(compile-to-react TodoList)          ; → React component
-(compile-to-vue TodoList)            ; → Vue 3 component  
-(compile-to-web-component TodoList)  ; → Web Component
-
-;; The compiler handles framework-specific details:
-;; - React: Uses hooks, state management
-;; - Vue: Uses Composition API, reactive refs
-;; - Web Components: Shadow DOM, custom elements
-;; - Vanilla JS: Direct DOM manipulation
+TODO: Add UI Compilation Examples
 ```
 
 ### Security and Sandboxing
 ```lisp
-;; Create a sandboxed environment
-(with-sandbox {:capabilities [:file-read :network]
-               :resource-limits {:max-memory (* 10 1024 1024)  ; 10MB
-                                 :max-cpu-time 5000            ; 5 seconds
-                                 :max-channels 10}}
-  ;; Code here runs with restricted permissions
-  (let ((data (file:read "config.json")))    ; ✓ Allowed
-    (file:write "output.txt" data)))          ; ✗ Denied: no file-write capability
-
-;; Taint tracking
-(let ((user-input (taint (read-input) :user-input)))
-  ;; Taint propagates through operations
-  (let ((query (str "SELECT * FROM users WHERE name = '" user-input "'")))
-    (db:execute query)))  ; ✗ Error: Tainted data in SQL query
-
-;; Resource quotas
-(with-resource-limits {:max-allocations 1000
-                       :max-stack-depth 100}
-  (factorial 1000))  ; ✗ Error: Stack depth exceeded
+TODO: Add Security and Sandboxing example
 ```
 
 ### Linting and Static Analysis
 ```lisp
 ;; Run linter on code
-(lint-check my-module)
-;; => [{:rule "unused-variable"
-;;      :severity :warning
-;;      :location {:line 10 :column 5}
-;;      :message "Variable 'x' is defined but never used"
-;;      :fix {:remove-lines [10]}}
-;;     {:rule "infinite-recursion"
-;;      :severity :error
-;;      :location {:line 25 :column 1}
-;;      :message "Function 'loop' has infinite recursion"}]
-
 ;; Define custom lint rules
 (define-lint-rule "no-magic-numbers"
   :severity :warning
@@ -1224,83 +684,12 @@ impl Module for CoreModule {
 
 ### Metaprogramming and Code Generation
 ```lisp
-;; Pattern matching on AST
-(meta-match expr
-  ;; Optimize (+ x 0) → x
-  (('+ $x 0) x)
-  ;; Optimize (* x 1) → x
-  (('* $x 1) x)
-  ;; Optimize (if true x y) → x
-  (('if true $x _) x)
-  ;; Default case
-  (_ expr))
-
-;; Graph queries on code
-(meta-query my-module
-  (pattern (function-call :name "deprecated-api"))
-  (select :all))
-;; => Returns all calls to deprecated APIs
-
-;; Code transformation
-(meta-transform my-module
-  (rule "upgrade-api-calls"
-    (pattern (call 'old-api $args))
-    (replace (call 'new-api (migrate-args $args)))))
-
-;; Template-based generation
-(meta-template "crud-operations" [:entity]
-  `(module ~(symbol (str entity "-crud"))
-     (define ~(symbol (str "create-" entity))
-       (lambda (data)
-         (db:insert '~entity data)))
-     (define ~(symbol (str "read-" entity))
-       (lambda (id)
-         (db:find-by-id '~entity id)))
-     (define ~(symbol (str "update-" entity))
-       (lambda (id data)
-         (db:update '~entity id data)))
-     (define ~(symbol (str "delete-" entity))
-       (lambda (id)
-         (db:delete '~entity id)))))
-
-;; Use the template
-(meta-instantiate "crud-operations" {:entity "user"})
-;; Generates create-user, read-user, update-user, delete-user functions
+TODO: Add Metaprogramming and Code Generation example
 ```
 
 ### Opt-in Garbage Collection
 ```lisp
-;; Regular let uses Rust ownership (no GC)
-(let ((data (large-computation)))
-  (process data))  ; data is dropped after scope
-
-;; gc-let uses garbage collection
-(gc-let ((node1 (create-node "A"))
-         (node2 (create-node "B")))
-  ;; Create circular references (would leak without GC)
-  (set-next! node1 node2)
-  (set-next! node2 node1)
-  ;; GC will collect the cycle when scope ends
-  (process-graph node1))
-
-;; Manual GC operations
-(let ((handle (gc-alloc (compute-value))))
-  (println (gc-deref handle))      ; Access GC-managed value
-  (gc-set handle (new-value))      ; Update GC-managed value
-  (gc-collect))                    ; Manual collection
-
-;; Configure GC behavior
-(with-gc-config {:collection-threshold 1000
-                 :incremental true
-                 :max-heap-size (* 50 1024 1024)}  ; 50MB
-  ;; Code here uses custom GC settings
-  (memory-intensive-computation))
-
-;; GC statistics
-(let ((stats (gc-stats)))
-  (println (str "Allocations: " (:allocations stats)))
-  (println (str "Collections: " (:collections stats)))
-  (println (str "Live objects: " (:live-objects stats))))
+TODO: add Opt-in Garbage Collection example
 ```
 
 ## AI-First Features
@@ -1314,21 +703,13 @@ Programs are represented as directed graphs, enabling:
 ### Behavioral Versioning
 Version numbers are computed from actual behavior:
 ```lisp
-;; Version 1.0.0
-(define add (lambda (x y) (+ x y)))
-
-;; Still version 1.0.0 (same behavior)
-(define add (lambda (a b) (+ a b)))
-
-;; Version 2.0.0 (different behavior)
-(define add (lambda (x y) (+ x y 1)))
+TODO: Add example of Behavioral Versioning example
 ```
 
 ### Proof Generation
 Every optimization generates a machine-checkable proof:
 ```lisp
-;; Optimizer proves: (map f (map g xs)) = (map (compose f g) xs)
-;; Generates Coq/Lean proof of equivalence
+TODO: Add proof Generation example
 ```
 
 ## Performance
@@ -1423,21 +804,7 @@ The optimizer (`fluentai-optimizer`) provides comprehensive program optimization
 
 Example optimization results:
 ```lisp
-;; Constant folding: 70% reduction
-(+ (* 2 3) (- 10 5)) → 11
-
-;; Dead code: 40% reduction  
-(let ((x 5) (y 10) (unused 15))
-  (if (> x 0) (+ x y) (error "unreachable"))) → 15
-
-;; Arithmetic identities: 60% reduction
-(+ (* x 1) (* 0 y) (+ z 0)) → x
-
-;; Effect-aware: Pure computations hoisted
-(let ((pure1 (+ 1 2))
-      (effect (io-read))
-      (pure2 (* 3 4)))
-  body) → optimized with pure values pre-computed
+TODO: Add example optimization results...
 ```
 
 ## Documentation
@@ -1506,7 +873,7 @@ FluentAI/
 
 ## Recent Updates
 
-### 🚀 High-Performance Packet Processing (New!)
+### 🚀 High-Performance Packet Processing
 - **Tail Call Optimization**: Transforms recursive packet parsers into efficient loops
   - 10-15x improvement for recursive parsing operations
   - Automatic frame reuse prevents stack overflow
@@ -1734,7 +1101,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 FluentAI explores ideas from:
-- **Scheme/Lisp**: S-expressions, functional programming
 - **ML/Haskell**: Type system, pattern matching, ADTs
 - **Koka/Frank**: Effect system design
 - **React/Vue**: Component-based UI framework
