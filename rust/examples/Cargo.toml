@@ -11,6 +11,3 @@ fluentai-optimizer = { path = "../fluentai-optimizer" }
 fluentai-stdlib = { path = "../fluentai-stdlib" }
 anyhow = "1.0"
 
-[[bin]]
-name = "test_cons_nil_patterns"
-path = "test_cons_nil_patterns.rs"
