@@ -70,7 +70,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Non-blocking ops: `ch.try_send(val)`, `ch.try_receive()` return [success, value]
   - ✅ Spawn: `spawn { expr }` creates concurrent tasks
   - ✅ Select: `select { ... }` for multi-channel operations (AST/parser ready)
-  - ❌ Async/await: `async function` and `.await()` (Parser support complete, runtime not implemented)
+  - ✅ Async/await: `async function` and `.await()` fully implemented
 - **Error Handling**: Try-catch-throw error handling system
   - ✅ Try-catch blocks: `try { expr } catch (err) { handler }`
   - ✅ Throw statements: `throw error_value`
@@ -660,45 +660,45 @@ mod config_manager {
 
 ### FLC (Fluent Lambda Chain) Syntax
 
-FluentAI now supports FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling. You can gradually migrate from S-expressions to FLC using our migration tool.
+FluentAI uses FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling.
 
 ```flc
 // Function definitions
-def fn add(x, y) {
+private function add(x, y) {
     x + y
 }
 
 // Lambda expressions  
-let square = { |x| x * x };
+let square = (x) => x * x;
 
 // Method chaining
 users
-    .filter { |user| user.age > 18 }
-    .map { |{name, email}| f"{name} <{email}>" }
-    .sort_by { |user| user.name }
+    .filter(user => user.age > 18)
+    .map(({name, email}) => f"{name} <{email}>")
+    .sort_by(user => user.name)
 
 // Pattern matching
 response.match()
-    .case(Ok(data), { |data| process(data) })
-    .case(Err(ApiError.NotFound), { || "Not found" })
-    .run()
+    .case(Ok(data), => process(data))
+    .case(Err(ApiError.NotFound), => "Not found")
+    .get()
 
 // Async/await
-def async fn fetch_user_data(id: Uuid) -> User {
+private async function fetch_user_data(id: Uuid) -> User {
     http.get(f"/users/{id}").await()
 }
 
 // Actor model
-def actor Counter {
+private actor Counter {
     count: int = 0;
-    def handle Inc(|amount: int|) { self.count += amount; }
-    def handle Get(||) -> int { self.count }
+    private handle Inc(amount: int) { self.count += amount; }
+    private handle Get() -> int { self.count }
 }
 
 // Effects with type safety
-def fn get_user(id: Uuid).with(Database) -> Result<User, DbError> {
-    perform Database::query(f"SELECT * FROM users WHERE id = {id}")
-        .map { |row| User.from_row(row) }
+private function get_user(id: Uuid).with(Database) -> Result<User, DbError> {
+    perform Database.query(f"SELECT * FROM users WHERE id = {id}")
+        .map(row => User.from_row(row))
 }
 ```
 
