@@ -54,11 +54,9 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **Module System**: Full parsing and loading infrastructure but cannot export/import values at runtime
   - `mod name { ... }` module definitions
   - `use module::{item1, item2}` import syntax
-  - ✅ `use module::path as alias` import aliases now work
   - Module loading from filesystem works
   - Missing global binding mechanism for exports
 - **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
-  - ✅ Now an optional feature to avoid circular dependencies
 - **Multiple expressions in `let` body**: Currently causes parse errors
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
@@ -266,16 +264,16 @@ FluentAI is an experimental programming language designed for AI systems rather 
 10 == 10;                    // => true
 
 // Lambda functions
-let square = (x) => x * x;
+let square = x => x * x;
 let add = (x, y) => x + y;
 add(square(3), square(4));   // => 25
 
 // Lists and list operations  
 let nums = [1, 2, 3, 4, 5];
-$("Head: " + nums.head()).print();          // prints: Head: 1
-$("Tail: " + nums.tail()).print();          // prints: Tail: [2, 3, 4, 5]
-$("Length: " + nums.length()).print();      // prints: Length: 5
-$("Cons result: " + nums.cons(0)).print();  // prints: Cons result: [0, 1, 2, 3, 4, 5]
+print(nums.head());          // prints: 1
+print(nums.tail());          // prints: [2, 3, 4, 5]
+print(nums.length());        // prints: 5
+print(nums.cons(0));         // prints: [0, 1, 2, 3, 4, 5]
 
 // Higher-order functions
 let nums = [1, 2, 3, 4, 5];
@@ -287,8 +285,8 @@ let nums = range(1, 10);
 nums.filter(x => x % 2 == 0); // => [2, 4, 6, 8, 10]
 
 let nums = [1, 2, 3, 4, 5];
-// Fold - note: accumulator and value params
-nums.fold(0, (acc, x) => acc + x);   // => 15
+// Fold - note: requires lambda
+nums.fold((acc, x) => acc + x, 0);   // => 15
 
 // Pattern matching
 let value = 42;
@@ -299,14 +297,14 @@ value.match()
   .case(_, "something else")
   .get();                    // => "the answer"
 
-// Working effects using perform
-perform IO.print("Hello, FluentAI!");   // prints to stdout
-perform State.set("counter", 0);        // store state
-perform State.set("counter", 
-  perform State.get("counter") + 1);    // increment
-$(perform State.get("counter")).print(); // prints: 1
-$(perform Time.now()).print();          // prints timestamp
-$(perform Random.int(1, 100)).print();  // prints random number
+// Working effects
+print("Hello, FluentAI!");   // prints to stdout
+state.set("counter", 0);     // store state
+state.set("counter", 
+  state.get("counter") + 1); // increment
+print(state.get("counter")); // prints: 1
+print(time.now());           // prints timestamp
+print(random.int(1, 100));   // prints random number
 
 // Recursive functions (basic cases work)
 private function factorial(n) {
@@ -321,7 +319,7 @@ factorial(5);                // => 120
 // List manipulation example
 let evens = range(1, 20).filter(x => x % 2 == 0);
 let squared = evens.map(x => x * x);
-let sum = squared.fold(0, (acc, x) => acc + x);
+let sum = squared.fold((acc, x) => acc + x, 0);
 sum;                         // => 1140
 ```
 
@@ -380,9 +378,9 @@ cargo run -p fluentai-repl
 ```bash
 # Run language feature examples
 cd rust
-cargo run -p fluentai-cli -- run examples/hello.flc
-cargo run -p fluentai-cli -- run examples/pattern_matching.flc
-cargo run -p fluentai-cli -- run examples/effects_comprehensive.flc
+cargo run -p fluentai-cli -- run examples/hello.ai
+cargo run -p fluentai-cli -- run examples/pattern_matching.ai
+cargo run -p fluentai-cli -- run examples/effects_demo.ai
 
 # Run performance benchmarks
 cd benchmarks
@@ -441,7 +439,7 @@ A typical FluentAI project created with the SDK:
 ```
 MyApp/
 ├── MyApp.aiproj          # Project file (similar to .csproj)
-├── Program.flc           # Entry point
+├── Program.ai            # Entry point
 ├── src/                  # Source files
 ├── tests/                # Test files
 └── packages.lock         # Package lock file
@@ -454,11 +452,11 @@ For detailed SDK documentation, see the [SDK User Guide](rust/FLUENTAI_SDK_GUIDE
 #### From Command Line
 ```bash
 # Run with optimization
-fluentai run -O2 program.flc    # Standard optimization
-fluentai run -O3 program.flc    # Aggressive optimization
+fluentai run -O2 program.ai    # Standard optimization
+fluentai run -O3 program.ai    # Aggressive optimization
 
 # Compile with optimization
-fluentai compile -O3 program.flc -o program
+fluentai compile -O3 program.ai -o program
 ```
 
 #### From Rust Code
@@ -499,584 +497,115 @@ maturin develop  # Requires: pip install maturin
 
 ### Running Contract Verification Examples
 ```bash
-# Build with Z3 support for static verification
-cd rust
-cargo build --release --features static
-
-# Run symbolic execution examples
-cargo run --example simple_symbolic --features static
-cargo run --example test_generation_demo --features static
-cargo run --example visualization_demo
-cargo run --example parallel_execution_demo
-
-# Run contract verification with counterexamples
-cargo run --example symbolic_verification --features static
-
-# Generate test cases from contracts
-cargo run --bin fluentai-verify -- \
-  --input program.ai \
-  --contracts contracts.spec \
-  --generate-tests output_tests.rs
+TODO: Add Running Contract Verification Examples
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
-cargo test
-
-# Run tests with output displayed
-cargo test -- --nocapture
-
-# Run tests for a specific crate
-cargo test -p fluentai-vm
-
-# Run a specific test
-cargo test test_simd_operations
-
-# Run benchmarks
-cargo bench
-
-# Run with release optimizations
-cargo test --release
+TODO: Add testing example
 ```
 
 ### Packet Processing Example
 
 FluentAI's optimizations make it ideal for high-performance network applications:
 
-```flc
-// Define a packet parser
-private function parse_ipv4_header(data, offset) {
-    let version = bit_shift_right(byte_at(data, offset), 4);
-    let ihl = bit_and(byte_at(data, offset), 0x0F);
-    let total_length = bytes_to_u16(data, offset + 2);
-    let src_ip = bytes_to_u32(data, offset + 12);
-    let dst_ip = bytes_to_u32(data, offset + 16);
-    
-    {
-        "version": version,
-        "header_length": ihl * 4,
-        "total_length": total_length,
-        "src_ip": src_ip,
-        "dst_ip": dst_ip
-    }
-}
-
-// Process packet stream with tail recursion
-private function process_stream(stream, processed) {
-    read_packet(stream)
-        .match()
-        .case(Some(packet), => {
-            // Tail call - optimized to loop
-            process_stream(stream, processed.cons(packet))
-        })
-        .case(None, => processed)
-        .get()
-}
-
-// Use channels for concurrent processing
-let packet_queue = channel(10000);
-
-// Spawn multiple workers to process packets
-for i in range(0, 4) {
-    spawn {
-        while (true) {
-            let packet = packet_queue.receive();
-            process_packet(packet);
-        }
-    }
-}
-
-// Read packets into queue
-with_memory_pool({"slab_size": 1500}, (pool) => {
-    while (true) {
-        let buffer = pool_allocate(pool);
-        read_packet_into(buffer);
-        packet_queue.send(buffer);
-    }
-})
+```lisp
+TODO: Add Packet Processing Example
 ```
 
 ## Language Features
 
-**Note**: FluentAI uses FLC (Fluent Lambda Chain) syntax exclusively. Some examples below show S-expression syntax from earlier designs or planned features that have not been implemented yet. Please refer to the [Implementation Status](#implementation-status) section to see what features are currently working.
-
 ### Module System
-```flc
-// Define a module with exports
-mod math_utils {
-    export { square, cube, factorial, pi, e };
-    
-    // Constants
-    const pi = 3.14159265359;
-    const e = 2.71828182846;
-    
-    // Function definitions
-    private function square(x) { x * x }
-    private function cube(x) { x * x * x }
-    
-    // Recursive function
-    private function factorial(n) {
-        if (n <= 1) { 1 }
-        else { n * factorial(n - 1) }
-    }
-}
-
-// Import specific functions
-use math_utils::{square, cube};
-use collections::{map, filter, reduce};
-
-// Import all exports
-use string_utils::*;
-
-// Import with qualified access
-use math;
-private function area(r) { math::pi * r * r }
-
-// Relative imports
-use ./local_module::helper;
-use ../shared/utils::process;
-
-// Import with aliases
-use math::{sin as sine, cos as cosine};
-
-// Module with state management
-mod config_manager {
-    export { get_config, set_config };
-    
-    use io::*;
-    use json::{parse, stringify};
-    
-    const config_file = "./config.json";
-    let current_config = parse(read_file(config_file));
-    
-    private function get_config(key) {
-        current_config.get(key)
-    }
-    
-    private function set_config(key, value) {
-        current_config = current_config.assoc(key, value);
-        write_file(config_file, stringify(current_config));
-    }
-}
+```lisp
+TODO: Add module system example
 ```
 
 ### FLC (Fluent Lambda Chain) Syntax
 
-FluentAI uses FLC (Fluent Lambda Chain) syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling.
+FluentAI now supports FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling. You can gradually migrate from S-expressions to FLC using our migration tool.
 
 ```flc
 // Function definitions
-private function add(x, y) {
+def fn add(x, y) {
     x + y
 }
 
 // Lambda expressions  
-let square = (x) => x * x;
+let square = { |x| x * x };
 
 // Method chaining
 users
-    .filter(user => user.age > 18)
-    .map(({name, email}) => f"{name} <{email}>")
-    .sort_by(user => user.name)
+    .filter { |user| user.age > 18 }
+    .map { |{name, email}| f"{name} <{email}>" }
+    .sort_by { |user| user.name }
 
 // Pattern matching
 response.match()
-    .case(Ok(data), => process(data))
-    .case(Err(ApiError.NotFound), => "Not found")
-    .get()
+    .case(Ok(data), { |data| process(data) })
+    .case(Err(ApiError.NotFound), { || "Not found" })
+    .run()
 
 // Async/await
-private async function fetch_user_data(id: Uuid) -> User {
+def async fn fetch_user_data(id: Uuid) -> User {
     http.get(f"/users/{id}").await()
 }
 
 // Actor model
-private actor Counter {
+def actor Counter {
     count: int = 0;
-    private handle Inc(amount: int) { self.count += amount; }
-    private handle Get() -> int { self.count }
+    def handle Inc(|amount: int|) { self.count += amount; }
+    def handle Get(||) -> int { self.count }
 }
 
 // Effects with type safety
-private function get_user(id: Uuid).with(Database) -> Result<User, DbError> {
-    perform Database.query(f"SELECT * FROM users WHERE id = {id}")
-        .map(row => User.from_row(row))
+def fn get_user(id: Uuid).with(Database) -> Result<User, DbError> {
+    perform Database::query(f"SELECT * FROM users WHERE id = {id}")
+        .map { |row| User.from_row(row) }
 }
 ```
 
-
 ### Modern Web Development
-```flc
-// UI Components (Note: UI compiler not fully integrated yet)
-private component TodoItem(props: {text: string}) {
-    ui:li(className: "todo-item") {
-        ui:text(props.text)
-    }
-}
-
-// Async HTTP requests
-private async function load_todos() {
-    let response = perform Network.fetch("/api/todos").await();
-    let items = response.items;
-    items.map(item => TodoItem({text: item}))
-}
-
-// Reactive state management
-let state = reactive({count: 0});
-
-private component Counter() {
-    ui:button(onClick: () => state.update(s => {count: s.count + 1})) {
-        ui:text(f"Count: {state.count}")
-    }
-}
+```lisp
+TODO: Add Modern Web Development Example
 ```
 
 ### Concurrent Programming
-```flc
-// Channels and spawn
-let ch = channel(10);
-let done = channel();
-
-// Producer
-spawn {
-    for i in range(0, 10) {
-        ch.send(i);
-        perform Time.sleep(100);
-    }
-}
-
-// Consumer
-spawn {
-    for i in range(0, 10) {
-        let val = ch.receive();
-        $(f"Received: {val}").print();
-    }
-    done.send(true);
-}
-
-// Wait for completion
-done.receive();
-
-// Select statement (syntax ready, runtime support pending)
-select {
-    ch1.receive() => (v) => f"From ch1: {v}",
-    ch2.receive() => (v) => f"From ch2: {v}",
-    ch3.send(42) => () => "Sent to ch3"
-}
+```lisp
+TODO: Add Concurrent Programming example
 ```
 
 ### Logging
-```flc
-// Import the logger module
-use logger::*;
-
-// Log at different levels with structured data
-log_info("User logged in", {"user_id": 123, "ip": "192.168.1.1"});
-log_warn("Rate limit approaching", {"requests": 95, "limit": 100});
-log_error("Database connection failed", {"host": "db.example.com", "retry_count": 3});
-log_debug("Processing item", {"id": "abc-123", "size": 1024});
-
-// Set log level (DEBUG, INFO, WARN, ERROR)
-set_log_level("WARN");  // Only WARN and ERROR will be shown
-
-// Simple messages without structured data
-log_info("Application started");
-log_error("Critical failure!");
-
-// Logging in error handlers
-try {
-    risky_operation()
-} catch (err) {
-    log_error("Operation failed", {
-        "error": err.message,
-        "type": err.type,
-        "timestamp": perform Time.now()
-    });
-}
-
-// Custom log formatting with effect handlers
-handle {
-    perform IO.println("This goes through custom handler");
-} with {
-    IO.println(msg) => send_to_log_server(msg)
-}
+```lisp
+TODO: Add logging example
 ```
 
 ### Error Handling
-```flc
-// Error handling with try/catch
-try {
-    risky_operation()
-} catch (err) {
-    $(f"Error occurred: {err.message}").print();
-    "default-value"
-}
-
-// Throwing errors
-if (denominator == 0) {
-    throw {
-        "type": "divide-by-zero",
-        "message": "Cannot divide by zero",
-        "numerator": numerator,
-        "denominator": denominator
-    }
-}
-
-// Network requests with error handling
-try {
-    perform Network.fetch(api_url).await()
-} catch (err) {
-    err.type
-        .match()
-        .case("timeout", => retry_request())
-        .case("network", => use_cached_data())
-        .case(_, => show_error_message())
-        .get()
-}
-
-// Composable error handling in UI components
-private component DataDisplay(props: {url: string}) {
-    try {
-        let data = perform Network.fetch(props.url).await();
-        ui:div(className: "data") {
-            render_data(data)
-        }
-    } catch (err) {
-        ui:div(className: "error") {
-            ui:text(f"Failed to load: {err.message}")
-        }
-    }
-}
+```lisp
+TODO: Add error handling example
 ```
 
 ### Effect Handlers
 
 Effect handlers provide a powerful mechanism for intercepting and customizing effects:
 
-```flc
-// Basic handler syntax
-handle {
-    body_expression
-} with {
-    EffectType.operation(args) => handler_code
-}
-
-// Handler for IO effects
-handle {
-    perform IO.print("Something went wrong")
-} with {
-    IO.print(msg) => {
-        log_error(f"Handled error: {msg}");
-        "fallback-value"
-    }
-}
-
-// Multiple effect handlers
-handle {
-    complex_io_operation()
-} with {
-    IO.print(msg) => send_to_logger(msg),
-    IO.read() => read_from_cache(),
-    Error.raise(err) => null
-}
-
-// Nested handlers - inner handlers shadow outer ones
-handle {
-    handle {
-        throw "test"
-    } with {
-        Error.raise(e) => "inner"  // This handler wins
-    }
-} with {
-    Error.raise(e) => "outer"
-}
-
-// Handlers with lexical scope
-let recovery_value = 42;
-handle {
-    risky_computation()
-} with {
-    Error.raise(err) => {
-        log_error(f"Error with recovery: {err}");
-        recovery_value
-    }
-}
-
-// State effect handler implementation
-let state = {"count": 0};
-handle {
-    perform State.set("count", 1);
-    perform State.update("count", x => x + 1);
-    perform State.get("count")  // => 2
-} with {
-    State.get(key) => state.get(key),
-    State.set(key, value) => { state = state.assoc(key, value) },
-    State.update(key, fn) => { state = state.update(key, fn) }
-}
-
-// IO virtualization for testing
-handle {
-         (case op
-           "print" (vector-append! test-output (first args))
-           "read" "test input"
-           _ (error "Unsupported IO operation")))))
-  (function-that-does-io))
-
-;; Custom async handler
-(handler
-  ((async (lambda (op . args)
-            (case op
-              "await" (get-cached-result (first args))
-              "delay" (immediate-value (first args))
-              _ (apply effect async op args)))))
-  (async-workflow))
+```lisp
+TODO: Add Effect Handlers example
 ```
 
 ### Formal Contracts and Verification
 ```lisp
-;; Define contracts with preconditions and postconditions
-(define-contract factorial
-  :requires [(>= n 0)]              ; Precondition: n must be non-negative
-  :ensures [(>= result 1)]          ; Postcondition: result is at least 1
-  :complexity "O(n)"                ; Complexity specification
-  :pure true)                       ; Function has no side effects
-
-(define factorial (lambda (n)
-  (if (= n 0)
-      1
-      (* n (factorial (- n 1))))))
-
-;; Contracts are verified at runtime (and optionally statically)
-(define-contract safe-divide
-  :requires [(and (number? x) (number? y) (not= y 0))]
-  :ensures [(number? result)])
-
-;; Contracts support complex conditions
-(define-contract binary-search
-  :requires [(sorted? arr)]
-  :ensures [(or (= result -1) 
-               (= (nth arr result) target))]
-  :invariant [(>= high low)]        ; Loop invariants
-  :complexity "O(log n)")
-
-;; Static verification with Z3 (when enabled)
-;; Automatically proves contracts are satisfied for all inputs
-(verify-contract factorial)             ; Proves factorial contract holds
-
-;; Contract inheritance and refinement
-(define-contract sort
-  :ensures [(sorted? result) (same-elements? input result)])
-
-(define-contract stable-sort
-  :inherits sort                    ; Inherits all conditions from sort
-  :ensures [(stable? result)]       ; Adds stability guarantee
-  :refines sort)                    ; Verified to be a valid refinement
-
-;; Symbolic execution for exhaustive testing
-(symbolic-test factorial
-  :paths all                        ; Explore all execution paths
-  :bound 5)                         ; Up to depth 5
-
-;; Proof generation for critical properties
-(prove factorial-positive
-  :property (forall n (>= n 0) (>= (factorial n) 1))
-  :strategy induction               ; Use mathematical induction
-  :var n)                          ; Induct on n
-
-;; Type predicates available in contracts
-;; number?, int?, float?, string?, list?, nil?
-;; Comparison: =, !=, <, >, <=, >=
-;; List operations: length, nth, empty?, sorted?
-;; Logical: and, or, not
+TODO: Add Formal Contracts and Verification example
 ```
 
 ### Advanced Symbolic Execution
 ```lisp
-;; Automatic test generation from symbolic execution
-(generate-tests safe-divide
-  :coverage path                    ; Generate tests for all paths
-  :format rust)                     ; Output as Rust unit tests
-
-;; Returns:
-;; #[test]
-;; fn test_safe_divide_1() {
-;;     let x = 10i64;
-;;     let y = 2i64;
-;;     let result = safe_divide(x, y);
-;;     assert_eq!(result, 5);
-;; }
-;; #[test]
-;; fn test_safe_divide_2() {
-;;     let x = -5i64;
-;;     let y = 0i64;
-;;     // Should handle division by zero
-;; }
-
-;; Parallel symbolic execution for performance
-(symbolic-verify complex-function
-  :parallel true                    ; Use all CPU cores
-  :timeout 60)                      ; 60 second timeout
-
-;; Visualize execution paths
-(visualize-paths binary-search
-  :format dot                       ; Graphviz format
-  :output "paths.png")             ; Renders execution tree
-
-;; Advanced counterexample generation
-(define-contract sqrt
-  :requires [(>= x 0)]
-  :ensures [(>= result 0) (<= (- (* result result) x) 0.0001)])
-
-(verify-contract sqrt)
-;; If verification fails, generates:
-;; Counterexample found:
-;;   Input: x = -1
-;;   Path: x < 0 (violates precondition)
-;;   Execution trace:
-;;     Step 1: Check x >= 0 → false
-;;   Suggestion: Add input validation for negative numbers
-
-;; Incremental verification during development
-(watch-contracts my-module
-  :on-change verify               ; Re-verify on code changes
-  :show-coverage true)            ; Display path coverage %
+TODO: Add Advanced Symbolic Execution
 ```
 
 ### Database Operations
 ```lisp
-;; Connect to database using effects
-(effect db connect "postgresql://localhost/myapp")
-
-;; Execute queries with parameters
-(effect db query "SELECT * FROM users WHERE age > ?" [18])
-
-;; Build queries functionally
-(db-from 'users
-  (db-where (db-and 
-    (db-gt 'age 18)
-    (db-eq 'active true)))
-  (db-select '(id name email))
-  (db-order-by 'created_at :desc))
-
-;; Transactions with automatic rollback on error
-(handler
-  ((error (lambda (err)
-            (effect db rollback-transaction)
-            (logger:error "Transaction failed" {:error err}))))
-  (effect db begin-transaction)
-  (effect db execute "INSERT INTO accounts (id, balance) VALUES (?, ?)" [1 1000])
-  (effect db execute "UPDATE accounts SET balance = balance - 100 WHERE id = 1")
-  (effect db execute "UPDATE accounts SET balance = balance + 100 WHERE id = 2")
-  (effect db commit-transaction))
-
-;; Define type-safe schemas
-(define-schema user
-  {:id {:type :int :primary-key true}
-   :email {:type :string :unique true :not-null true}
-   :age {:type :int :check "age >= 0"}
-   :created_at {:type :timestamp :default :current-timestamp}})
+TODO: add Database Operations example
 ```
 
 ### Dependency Injection
@@ -1119,100 +648,22 @@ impl Module for CoreModule {
 
 ### Reactive State System
 ```lisp
-;; Create reactive state
-(let ((counter (reactive-state 0))
-      (doubled (reactive-computed 
-                 (lambda () (* 2 (reactive-get counter))))))
-  
-  ;; Automatic dependency tracking
-  (reactive-effect 
-    (lambda () 
-      (println (str "Counter: " (reactive-get counter) 
-                    ", Doubled: " (reactive-get doubled)))))
-  
-  ;; Updates trigger recomputation
-  (reactive-set! counter 5)  ; Prints: "Counter: 5, Doubled: 10"
-  (reactive-set! counter 10) ; Prints: "Counter: 10, Doubled: 20"
-  
-  ;; Fine-grained updates
-  (let ((users (reactive-state [])))
-    (reactive-update! users 
-      (lambda (list) (cons {:id 1 :name "Alice"} list)))))
-
-;; Integration with UI components
-(define-component "Counter" {}
-  (lambda (_)
-    (let ((count (reactive-state 0)))
-      (h "div" {}
-        (h "p" {} (str "Count: " (reactive-get count)))
-        (h "button" 
-          {:onClick (lambda () (reactive-update! count inc))}
-          "Increment")))))
+TODO: Reactive State System example
 ```
 
 ### UI Compilation Examples
 ```lisp
-;; Define a UI component
-(define-component "TodoList" {:items {:type :list :required true}}
-  (lambda (props)
-    (h "ul" {:className "todo-list"}
-      (map (lambda (item)
-             (h "li" {:key (get item :id)}
-               (h "span" {} (get item :text))
-               (h "button" {:onClick (lambda () (delete-todo (get item :id)))}
-                 "Delete")))
-           (get props :items)))))
-
-;; Compile to different targets
-(compile-to-vanilla-js TodoList)    ; → Pure JavaScript
-(compile-to-react TodoList)          ; → React component
-(compile-to-vue TodoList)            ; → Vue 3 component  
-(compile-to-web-component TodoList)  ; → Web Component
-
-;; The compiler handles framework-specific details:
-;; - React: Uses hooks, state management
-;; - Vue: Uses Composition API, reactive refs
-;; - Web Components: Shadow DOM, custom elements
-;; - Vanilla JS: Direct DOM manipulation
+TODO: Add UI Compilation Examples
 ```
 
 ### Security and Sandboxing
 ```lisp
-;; Create a sandboxed environment
-(with-sandbox {:capabilities [:file-read :network]
-               :resource-limits {:max-memory (* 10 1024 1024)  ; 10MB
-                                 :max-cpu-time 5000            ; 5 seconds
-                                 :max-channels 10}}
-  ;; Code here runs with restricted permissions
-  (let ((data (file:read "config.json")))    ; ✓ Allowed
-    (file:write "output.txt" data)))          ; ✗ Denied: no file-write capability
-
-;; Taint tracking
-(let ((user-input (taint (read-input) :user-input)))
-  ;; Taint propagates through operations
-  (let ((query (str "SELECT * FROM users WHERE name = '" user-input "'")))
-    (db:execute query)))  ; ✗ Error: Tainted data in SQL query
-
-;; Resource quotas
-(with-resource-limits {:max-allocations 1000
-                       :max-stack-depth 100}
-  (factorial 1000))  ; ✗ Error: Stack depth exceeded
+TODO: Add Security and Sandboxing example
 ```
 
 ### Linting and Static Analysis
 ```lisp
 ;; Run linter on code
-(lint-check my-module)
-;; => [{:rule "unused-variable"
-;;      :severity :warning
-;;      :location {:line 10 :column 5}
-;;      :message "Variable 'x' is defined but never used"
-;;      :fix {:remove-lines [10]}}
-;;     {:rule "infinite-recursion"
-;;      :severity :error
-;;      :location {:line 25 :column 1}
-;;      :message "Function 'loop' has infinite recursion"}]
-
 ;; Define custom lint rules
 (define-lint-rule "no-magic-numbers"
   :severity :warning
@@ -1233,83 +684,12 @@ impl Module for CoreModule {
 
 ### Metaprogramming and Code Generation
 ```lisp
-;; Pattern matching on AST
-(meta-match expr
-  ;; Optimize (+ x 0) → x
-  (('+ $x 0) x)
-  ;; Optimize (* x 1) → x
-  (('* $x 1) x)
-  ;; Optimize (if true x y) → x
-  (('if true $x _) x)
-  ;; Default case
-  (_ expr))
-
-;; Graph queries on code
-(meta-query my-module
-  (pattern (function-call :name "deprecated-api"))
-  (select :all))
-;; => Returns all calls to deprecated APIs
-
-;; Code transformation
-(meta-transform my-module
-  (rule "upgrade-api-calls"
-    (pattern (call 'old-api $args))
-    (replace (call 'new-api (migrate-args $args)))))
-
-;; Template-based generation
-(meta-template "crud-operations" [:entity]
-  `(module ~(symbol (str entity "-crud"))
-     (define ~(symbol (str "create-" entity))
-       (lambda (data)
-         (db:insert '~entity data)))
-     (define ~(symbol (str "read-" entity))
-       (lambda (id)
-         (db:find-by-id '~entity id)))
-     (define ~(symbol (str "update-" entity))
-       (lambda (id data)
-         (db:update '~entity id data)))
-     (define ~(symbol (str "delete-" entity))
-       (lambda (id)
-         (db:delete '~entity id)))))
-
-;; Use the template
-(meta-instantiate "crud-operations" {:entity "user"})
-;; Generates create-user, read-user, update-user, delete-user functions
+TODO: Add Metaprogramming and Code Generation example
 ```
 
 ### Opt-in Garbage Collection
 ```lisp
-;; Regular let uses Rust ownership (no GC)
-(let ((data (large-computation)))
-  (process data))  ; data is dropped after scope
-
-;; gc-let uses garbage collection
-(gc-let ((node1 (create-node "A"))
-         (node2 (create-node "B")))
-  ;; Create circular references (would leak without GC)
-  (set-next! node1 node2)
-  (set-next! node2 node1)
-  ;; GC will collect the cycle when scope ends
-  (process-graph node1))
-
-;; Manual GC operations
-(let ((handle (gc-alloc (compute-value))))
-  (println (gc-deref handle))      ; Access GC-managed value
-  (gc-set handle (new-value))      ; Update GC-managed value
-  (gc-collect))                    ; Manual collection
-
-;; Configure GC behavior
-(with-gc-config {:collection-threshold 1000
-                 :incremental true
-                 :max-heap-size (* 50 1024 1024)}  ; 50MB
-  ;; Code here uses custom GC settings
-  (memory-intensive-computation))
-
-;; GC statistics
-(let ((stats (gc-stats)))
-  (println (str "Allocations: " (:allocations stats)))
-  (println (str "Collections: " (:collections stats)))
-  (println (str "Live objects: " (:live-objects stats))))
+TODO: add Opt-in Garbage Collection example
 ```
 
 ## AI-First Features
@@ -1323,21 +703,13 @@ Programs are represented as directed graphs, enabling:
 ### Behavioral Versioning
 Version numbers are computed from actual behavior:
 ```lisp
-;; Version 1.0.0
-(define add (lambda (x y) (+ x y)))
-
-;; Still version 1.0.0 (same behavior)
-(define add (lambda (a b) (+ a b)))
-
-;; Version 2.0.0 (different behavior)
-(define add (lambda (x y) (+ x y 1)))
+TODO: Add example of Behavioral Versioning example
 ```
 
 ### Proof Generation
 Every optimization generates a machine-checkable proof:
 ```lisp
-;; Optimizer proves: (map f (map g xs)) = (map (compose f g) xs)
-;; Generates Coq/Lean proof of equivalence
+TODO: Add proof Generation example
 ```
 
 ## Performance
@@ -1432,21 +804,7 @@ The optimizer (`fluentai-optimizer`) provides comprehensive program optimization
 
 Example optimization results:
 ```lisp
-;; Constant folding: 70% reduction
-(+ (* 2 3) (- 10 5)) → 11
-
-;; Dead code: 40% reduction  
-(let ((x 5) (y 10) (unused 15))
-  (if (> x 0) (+ x y) (error "unreachable"))) → 15
-
-;; Arithmetic identities: 60% reduction
-(+ (* x 1) (* 0 y) (+ z 0)) → x
-
-;; Effect-aware: Pure computations hoisted
-(let ((pure1 (+ 1 2))
-      (effect (io-read))
-      (pure2 (* 3 4)))
-  body) → optimized with pure values pre-computed
+TODO: Add example optimization results...
 ```
 
 ## Documentation
@@ -1515,7 +873,7 @@ FluentAI/
 
 ## Recent Updates
 
-### 🚀 High-Performance Packet Processing (New!)
+### 🚀 High-Performance Packet Processing
 - **Tail Call Optimization**: Transforms recursive packet parsers into efficient loops
   - 10-15x improvement for recursive parsing operations
   - Automatic frame reuse prevents stack overflow
@@ -1743,7 +1101,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 FluentAI explores ideas from:
-- **Scheme/Lisp**: S-expressions, functional programming
 - **ML/Haskell**: Type system, pattern matching, ADTs
 - **Koka/Frank**: Effect system design
 - **React/Vue**: Component-based UI framework
