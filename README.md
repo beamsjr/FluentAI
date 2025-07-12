@@ -56,7 +56,11 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - `use module::{item1, item2}` import syntax
   - Module loading from filesystem works
   - Missing global binding mechanism for exports
-- **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
+- **JIT Compilation**: Cranelift-based JIT with VM integration (x86_64 and ARM64/AArch64, requires `jit` feature flag)
+  - Automatic hot function detection (>1000 calls)
+  - Seamless fallback to interpreter
+  - ARM64 support via PIC workaround for Cranelift PLT limitations
+  - Currently disabled by default (use `--features jit` to enable)
 - **Multiple expressions in `let` body**: Currently causes parse errors
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
@@ -70,14 +74,14 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Non-blocking ops: `ch.try_send(val)`, `ch.try_receive()` return [success, value]
   - ✅ Spawn: `spawn { expr }` creates concurrent tasks
   - ✅ Select: `select { ... }` for multi-channel operations (AST/parser ready)
-  - ❌ Async/await: `async function` and `.await()` (Parser support complete, runtime not implemented)
+  - ✅ Async/await: `async function` and `.await()` fully implemented
 - **Error Handling**: Try-catch-throw error handling system
   - ✅ Try-catch blocks: `try { expr } catch (err) { handler }`
   - ✅ Throw statements: `throw error_value`
   - ✅ Error propagation with proper stack unwinding
   - ✅ Pattern matching in catch handlers
   - ✅ Error value type with metadata (kind, message, stack trace)
-  - ❌ Finally blocks: `finally { ... }` (Parser support complete, runtime not implemented)
+  - ✅ Finally blocks: `finally { ... }` - Execute cleanup code regardless of try/catch outcome
   - ❌ Promise operations: AST/compiler ready, runtime not implemented
 - **Actor Model**: Basic actor primitives with message passing
   - ✅ Actor definition: `private actor Name { state; handle MessageType(...) { ... } }`
@@ -497,100 +501,420 @@ maturin develop  # Requires: pip install maturin
 
 ### Running Contract Verification Examples
 ```bash
-TODO: Add Running Contract Verification Examples
+# Build with Z3 support for static verification
+cd rust
+cargo build --release --features static
+
+# Run symbolic execution examples
+cargo run --example simple_symbolic --features static
+cargo run --example test_generation_demo --features static
+cargo run --example visualization_demo
+cargo run --example parallel_execution_demo
+
+# Run contract verification with counterexamples
+cargo run --example symbolic_verification --features static
+
+# Generate test cases from contracts
+cargo run --bin fluentai-verify -- \
+  --input program.flc \
+  --contracts contracts.spec \
+  --generate-tests output_tests.rs
 ```
 
 ## Testing
 
 ```bash
-TODO: Add testing example
+# Run all tests
+cargo test
+
+# Run tests with output displayed
+cargo test -- --nocapture
+
+# Run tests for a specific crate
+cargo test -p fluentai-vm
+
+# Run a specific test
+cargo test test_simd_operations
+
+# Run benchmarks
+cargo bench
+
+# Run with release optimizations
+cargo test --release
 ```
 
 ### Packet Processing Example
 
 FluentAI's optimizations make it ideal for high-performance network applications:
 
-```lisp
-TODO: Add Packet Processing Example
+```flc
+// Define a packet parser
+private function parse_ipv4_header(data, offset) {
+    let version = bit_shift_right(byte_at(data, offset), 4);
+    let ihl = bit_and(byte_at(data, offset), 0x0F);
+    let total_length = bytes_to_u16(data, offset + 2);
+    let src_ip = bytes_to_u32(data, offset + 12);
+    let dst_ip = bytes_to_u32(data, offset + 16);
+    
+    {
+        "version": version,
+        "header_length": ihl * 4,
+        "total_length": total_length,
+        "src_ip": src_ip,
+        "dst_ip": dst_ip
+    }
+}
+
+// Process packet stream with tail recursion
+private function process_stream(stream, processed) {
+    read_packet(stream)
+        .match()
+        .case(Some(packet), => {
+            // Tail call - optimized to loop
+            process_stream(stream, processed.cons(packet))
+        })
+        .case(None, => processed)
+        .get()
+}
+
+// Use channels for concurrent processing
+let packet_queue = channel(10000);
+
+// Spawn multiple workers to process packets
+for i in range(0, 4) {
+    spawn {
+        while (true) {
+            let packet = packet_queue.receive();
+            process_packet(packet);
+        }
+    }
+}
+
+// Read packets into queue
+with_memory_pool({"slab_size": 1500}, (pool) => {
+    while (true) {
+        let buffer = pool_allocate(pool);
+        read_packet_into(buffer);
+        packet_queue.send(buffer);
+    }
+})
 ```
 
 ## Language Features
 
 ### Module System
-```lisp
-TODO: Add module system example
+```flc
+// Define a module with exports
+mod math_utils {
+    export { square, cube, factorial, pi, e };
+    
+    // Constants
+    const pi = 3.14159265359;
+    const e = 2.71828182846;
+    
+    // Function definitions
+    private function square(x) { x * x }
+    private function cube(x) { x * x * x }
+    
+    // Recursive function
+    private function factorial(n) {
+        if (n <= 1) { 1 }
+        else { n * factorial(n - 1) }
+    }
+}
+
+// Import specific functions
+use math_utils::{square, cube};
+use collections::{map, filter, reduce};
+
+// Import all exports
+use string_utils::*;
+
+// Import with qualified access
+use math;
+private function area(r) { math::pi * r * r }
+
+// Relative imports
+use ./local_module::helper;
+use ../shared/utils::process;
+
+// Import with aliases
+use math::{sin as sine, cos as cosine};
+
+// Module with state management
+mod config_manager {
+    export { get_config, set_config };
+    
+    use io::*;
+    use json::{parse, stringify};
+    
+    const config_file = "./config.json";
+    let current_config = parse(read_file(config_file));
+    
+    private function get_config(key) {
+        current_config.get(key)
+    }
+    
+    private function set_config(key, value) {
+        current_config = current_config.assoc(key, value);
+        write_file(config_file, stringify(current_config));
+    }
+}
 ```
 
 ### FLC (Fluent Lambda Chain) Syntax
 
-FluentAI now supports FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling. You can gradually migrate from S-expressions to FLC using our migration tool.
+FluentAI uses FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling.
 
 ```flc
 // Function definitions
-def fn add(x, y) {
+private function add(x, y) {
     x + y
 }
 
 // Lambda expressions  
-let square = { |x| x * x };
+let square = (x) => x * x;
 
 // Method chaining
 users
-    .filter { |user| user.age > 18 }
-    .map { |{name, email}| f"{name} <{email}>" }
-    .sort_by { |user| user.name }
+    .filter(user => user.age > 18)
+    .map(({name, email}) => f"{name} <{email}>")
+    .sort_by(user => user.name)
 
 // Pattern matching
 response.match()
-    .case(Ok(data), { |data| process(data) })
-    .case(Err(ApiError.NotFound), { || "Not found" })
-    .run()
+    .case(Ok(data), => process(data))
+    .case(Err(ApiError.NotFound), => "Not found")
+    .get()
 
 // Async/await
-def async fn fetch_user_data(id: Uuid) -> User {
+private async function fetch_user_data(id: Uuid) -> User {
     http.get(f"/users/{id}").await()
 }
 
 // Actor model
-def actor Counter {
+private actor Counter {
     count: int = 0;
-    def handle Inc(|amount: int|) { self.count += amount; }
-    def handle Get(||) -> int { self.count }
+    private handle Inc(amount: int) { self.count += amount; }
+    private handle Get() -> int { self.count }
 }
 
 // Effects with type safety
-def fn get_user(id: Uuid).with(Database) -> Result<User, DbError> {
-    perform Database::query(f"SELECT * FROM users WHERE id = {id}")
-        .map { |row| User.from_row(row) }
+private function get_user(id: Uuid).with(Database) -> Result<User, DbError> {
+    perform Database.query(f"SELECT * FROM users WHERE id = {id}")
+        .map(row => User.from_row(row))
 }
 ```
 
 ### Modern Web Development
-```lisp
-TODO: Add Modern Web Development Example
+```flc
+// UI Components (Note: UI compiler not fully integrated yet)
+private component TodoItem(props: {text: string}) {
+    ui:li(className: "todo-item") {
+        ui:text(props.text)
+    }
+}
+
+// Async HTTP requests
+private async function load_todos() {
+    let response = perform Network.fetch("/api/todos").await();
+    let items = response.items;
+    items.map(item => TodoItem({text: item}))
+}
+
+// Reactive state management
+let state = reactive({count: 0});
+
+private component Counter() {
+    ui:button(onClick: () => state.update(s => {count: s.count + 1})) {
+        ui:text(f"Count: {state.count}")
+    }
+}
 ```
 
 ### Concurrent Programming
-```lisp
-TODO: Add Concurrent Programming example
+```flc
+// Channels and spawn
+let ch = channel(10);
+let done = channel();
+
+// Producer
+spawn {
+    for i in range(0, 10) {
+        ch.send(i);
+        perform Time.sleep(100);
+    }
+}
+
+// Consumer
+spawn {
+    for i in range(0, 10) {
+        let val = ch.receive();
+        $(f"Received: {val}").print();
+    }
+    done.send(true);
+}
+
+// Wait for completion
+done.receive();
+
+// Select statement (syntax ready, runtime support pending)
+select {
+    ch1.receive() => (v) => f"From ch1: {v}",
+    ch2.receive() => (v) => f"From ch2: {v}",
+    ch3.send(42) => () => "Sent to ch3"
+}
 ```
 
 ### Logging
-```lisp
-TODO: Add logging example
+```flc
+// Import the logger module
+use logger::*;
+
+// Log at different levels with structured data
+log_info("User logged in", {"user_id": 123, "ip": "192.168.1.1"});
+log_warn("Rate limit approaching", {"requests": 95, "limit": 100});
+log_error("Database connection failed", {"host": "db.example.com", "retry_count": 3});
+log_debug("Processing item", {"id": "abc-123", "size": 1024});
+
+// Set log level (DEBUG, INFO, WARN, ERROR)
+set_log_level("WARN");  // Only WARN and ERROR will be shown
+
+// Simple messages without structured data
+log_info("Application started");
+log_error("Critical failure!");
+
+// Logging in error handlers
+try {
+    risky_operation()
+} catch (err) {
+    log_error("Operation failed", {
+        "error": err.message,
+        "type": err.type,
+        "timestamp": perform Time.now()
+    });
+}
+
+// Custom log formatting with effect handlers
+handle {
+    perform IO.println("This goes through custom handler");
+} with {
+    IO.println(msg) => send_to_log_server(msg)
+}
 ```
 
 ### Error Handling
-```lisp
-TODO: Add error handling example
+```flc
+// Error handling with try/catch
+try {
+    risky_operation()
+} catch (err) {
+    $(f"Error occurred: {err.message}").print();
+    "default-value"
+}
+
+// Try/catch/finally for cleanup
+let file = open_file("data.txt");
+try {
+    process_file(file)
+} catch (err) {
+    log_error("File processing failed", err);
+    null
+} finally {
+    // Always close the file, even if an error occurred
+    close_file(file)
+}
+
+// Throwing errors
+if (denominator == 0) {
+    throw {
+        "type": "divide-by-zero",
+        "message": "Cannot divide by zero",
+        "numerator": numerator,
+        "denominator": denominator
+    }
+}
+
+// Network requests with error handling
+try {
+    perform Network.fetch(api_url).await()
+} catch (err) {
+    err.type
+        .match()
+        .case("timeout", => retry_request())
+        .case("network", => use_cached_data())
+        .case(_, => show_error_message())
+        .get()
+}
+
+// Composable error handling in UI components
+private component DataDisplay(props: {url: string}) {
+    try {
+        let data = perform Network.fetch(props.url).await();
+        ui:div(className: "data") {
+            render_data(data)
+        }
+    } catch (err) {
+        ui:div(className: "error") {
+            ui:text(f"Failed to load: {err.message}")
+        }
+    }
+}
 ```
 
 ### Effect Handlers
 
 Effect handlers provide a powerful mechanism for intercepting and customizing effects:
 
-```lisp
-TODO: Add Effect Handlers example
+```flc
+// Basic handler syntax
+handle {
+    body_expression
+} with {
+    EffectType.operation(args) => handler_code
+}
+
+// Handler for IO effects
+handle {
+    perform IO.print("Something went wrong")
+} with {
+    IO.print(msg) => {
+        log_error(f"Handled error: {msg}");
+        "fallback-value"
+    }
+}
+
+// Multiple effect handlers
+handle {
+    complex_io_operation()
+} with {
+    IO.print(msg) => send_to_logger(msg),
+    IO.read() => read_from_cache(),
+    Error.raise(err) => null
+}
+
+// Nested handlers - inner handlers shadow outer ones
+handle {
+    handle {
+        throw "test"
+    } with {
+        Error.raise(e) => "inner"  // This handler wins
+    }
+} with {
+    Error.raise(e) => "outer"
+}
+
+// State effect handler implementation
+let state = {"count": 0};
+handle {
+    perform State.set("count", 1);
+    perform State.update("count", x => x + 1);
+    perform State.get("count")  // => 2
+} with {
+    State.get(key) => state.get(key),
+    State.set(key, value) => { state = state.assoc(key, value) },
+    State.update(key, fn) => { state = state.update(key, fn) }
+}
 ```
 
 ### Formal Contracts and Verification

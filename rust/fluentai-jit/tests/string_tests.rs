@@ -8,10 +8,6 @@ use fluentai_core::value::Value;
 #[test]
 #[ignore = "String operations are not yet supported in FLC parser"]
 fn test_string_length() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test string length using FLC syntax
@@ -29,10 +25,6 @@ fn test_string_length() {
 
 #[test]
 fn test_string_concat() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test string concatenation
@@ -50,10 +42,6 @@ fn test_string_concat() {
 
 #[test]
 fn test_string_upper() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test string to uppercase
@@ -71,10 +59,6 @@ fn test_string_upper() {
 
 #[test]
 fn test_string_lower() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test string to lowercase
@@ -92,10 +76,6 @@ fn test_string_lower() {
 
 #[test]
 fn test_string_operations_combined() {
-    if cfg!(not(target_arch = "x86_64")) {
-        return;
-    }
-
     let mut jit = JitCompiler::new().unwrap();
     
     // Test combined string operations
