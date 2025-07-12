@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_basic_type_inference() {
-        let code = "(+ 1 2)";
+        let code = "1 + 2";
         let graph = parse(code).unwrap();
         let types = infer_types(&graph).unwrap();
 
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_function_type_inference() {
-        let code = "(lambda (x y) (+ x y))";
+        let code = "(x, y) => x + y";
         let graph = parse(code).unwrap();
         let types = infer_types(&graph).unwrap();
 
@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_type_checking() {
-        let code = "(if #t 1 2)";
+        let code = "if (true) { 1 } else { 2 }";
         let graph = parse(code).unwrap();
         let result = type_check(&graph);
 
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_type_error_detection() {
-        let code = "(+ 1 \"hello\")";
+        let code = "1 + \"hello\"";
         let graph = parse(code).unwrap();
         let result = type_check(&graph);
 

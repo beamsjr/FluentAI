@@ -10,6 +10,7 @@ license = "MIT"
 crate-type = ["rlib", "staticlib"]
 
 [dependencies]
+fluentai-bytecode = { path = "../fluentai-bytecode" }
 fluentai-core = { path = "../fluentai-core" }
 fluentai-vm = { path = "../fluentai-vm" }
 fluentai-parser = { path = "../fluentai-parser" }

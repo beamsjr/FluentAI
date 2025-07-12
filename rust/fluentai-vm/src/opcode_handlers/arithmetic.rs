@@ -1,6 +1,6 @@
 //! Arithmetic operations handler
 
-use crate::bytecode::{Instruction, Opcode};
+use fluentai_bytecode::{Instruction, Opcode};
 use crate::error::{value_type_name, VMError, VMResult};
 use crate::safety::checked_ops;
 use crate::vm::{VM, VMState};

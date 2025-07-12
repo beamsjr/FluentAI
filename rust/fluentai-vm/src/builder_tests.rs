@@ -6,7 +6,7 @@ mod tests {
     use crate::builder::{
         DevelopmentConfig, ProductionConfig, SandboxConfig, TestingConfig, VMBuilder, VMConfig,
     };
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
     use crate::gc::GcConfig;
     use crate::security::{SecurityManager, SecurityPolicy};
     use fluentai_core::value::Value;

@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::debug::*;
-    use crate::bytecode::{Instruction, Opcode};
+    use fluentai_bytecode::{Instruction, Opcode};
     use fluentai_core::value::Value;
     use tokio::sync::mpsc;
 

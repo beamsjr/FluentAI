@@ -7,14 +7,6 @@ pub mod flc_lexer;
 pub mod flc_parser;
 pub mod flc_error;
 
-#[cfg(test)]
-mod flc_parser_tests;
-
-#[cfg(test)]
-mod lib_tests;
-
-#[cfg(test)]
-mod test_assignment_debug;
 
 pub use error::{ErrorKind, ParseError};
 

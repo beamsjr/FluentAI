@@ -3,7 +3,7 @@
 //! This module provides a declarative way to describe how each opcode affects the stack,
 //! making stack depth tracking more maintainable and less error-prone.
 
-use crate::bytecode::{Instruction, Opcode};
+use fluentai_bytecode::{Instruction, Opcode};
 
 /// Bit masks for MakeClosure instruction unpacking (must match compiler and VM)
 const MAKECLOSURE_CAPTURE_COUNT_MASK: u32 = 0xFFFF;

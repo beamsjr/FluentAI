@@ -2,8 +2,8 @@
 
 use fluentai_jit::JitCompiler;
 use fluentai_parser::parse;
-use fluentai_vm::compiler::Compiler;
-use fluentai_vm::Value;
+use fluentai_vm::Compiler;
+use fluentai_core::value::Value;
 
 #[test]
 fn test_simple_arithmetic() {
@@ -74,13 +74,19 @@ fn test_compilation_cache() {
     let bytecode = compiler.compile(&ast).unwrap();
 
     // First compilation
-    let func1 = jit.compile(&bytecode, 0).unwrap();
+    let ptr1 = {
+        let func = jit.compile(&bytecode, 0).unwrap();
+        func.code_ptr
+    };
 
     // Second compilation should return cached function
-    let func2 = jit.compile(&bytecode, 0).unwrap();
+    let ptr2 = {
+        let func = jit.compile(&bytecode, 0).unwrap();
+        func.code_ptr
+    };
 
     // Function pointers should be identical
-    assert_eq!(func1 as usize, func2 as usize);
+    assert_eq!(ptr1, ptr2);
 
     // Stats should show only one compilation
     assert_eq!(jit.stats().functions_compiled, 1);

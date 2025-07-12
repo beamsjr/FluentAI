@@ -150,7 +150,7 @@ impl RuntimeContext {
     }
 
     /// Create a VM instance for this context
-    pub fn create_vm(&self, bytecode: fluentai_vm::bytecode::Bytecode) -> Result<VM> {
+    pub fn create_vm(&self, bytecode: fluentai_bytecode::Bytecode) -> Result<VM> {
         // Create VM with bytecode
         let vm = VM::new(bytecode);
 

@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
     use crate::debug::{DebugConfig, StepMode};
     use crate::gc::GcConfig;
     use crate::security::{SecurityManager, SecurityPolicy};

@@ -1,6 +1,6 @@
 //! Built-in function compilation handlers
 
-use crate::bytecode::{Instruction, Opcode};
+use fluentai_bytecode::{Instruction, Opcode};
 use crate::compiler::Compiler;
 use anyhow::{anyhow, Result};
 use fluentai_core::ast::{Graph as ASTGraph, NodeId};

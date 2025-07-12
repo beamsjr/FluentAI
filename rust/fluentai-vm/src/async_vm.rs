@@ -4,7 +4,7 @@
 //! allowing it to properly integrate with async runtimes and avoid
 //! blocking operations.
 
-use crate::bytecode::Instruction;
+use fluentai_bytecode::Instruction;
 use crate::error::{VMError, VMResult};
 use crate::vm::{VM, VMState};
 use fluentai_core::value::Value;
@@ -142,13 +142,13 @@ impl AsyncVM {
     
     /// Check if an instruction is an async operation
     fn is_async_operation(&self, instruction: &Instruction) -> bool {
-        use crate::bytecode::Opcode::*;
+        use fluentai_bytecode::Opcode::*;
         matches!(instruction.opcode, Await | Receive)
     }
     
     /// Prepare an async operation from an instruction
     fn prepare_async_operation(&mut self, instruction: &Instruction) -> VMResult<AsyncOperation> {
-        use crate::bytecode::Opcode::*;
+        use fluentai_bytecode::Opcode::*;
         
         match instruction.opcode {
             Await => {

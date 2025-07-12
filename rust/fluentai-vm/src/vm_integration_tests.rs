@@ -7,7 +7,7 @@
 mod tests {
     use super::super::*;
     use crate::builder::VMBuilder;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
     use crate::compiler::{Compiler, CompilerOptions};
     use crate::debug::{DebugConfig, StepMode, VMDebugEvent};
     use crate::gc::{GarbageCollector, GcConfig};

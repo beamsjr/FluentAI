@@ -42,7 +42,7 @@ mod tests {
     #[test]
     fn test_optimize_preserves_semantics() {
         let mut optimizer = GraphOptimizer::new();
-        let code = "(let ((x 5)) (+ x 3))";
+        let code = "{ let x = 5; x + 3 }";
         let graph = parse(code).unwrap();
 
         let result = optimizer.optimize(&graph);
@@ -72,7 +72,7 @@ mod tests {
         };
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("(+ 1 2)").unwrap();
+        let graph = parse("1 + 2").unwrap();
 
         let result = pipeline.optimize(&graph);
         assert!(result.is_ok());
@@ -83,7 +83,7 @@ mod tests {
         let config = OptimizationConfig::for_level(OptimizationLevel::None);
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("(+ 1 2)").unwrap();
+        let graph = parse("1 + 2").unwrap();
         let original = graph.clone();
 
         let result = pipeline.optimize(&graph);
@@ -101,7 +101,7 @@ mod tests {
         config.constant_folding = false; // Disable constant folding
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("(+ 1 2)").unwrap();
+        let graph = parse("1 + 2").unwrap();
 
         let result = pipeline.optimize(&graph);
         assert!(result.is_ok());
@@ -125,7 +125,7 @@ mod tests {
         };
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("(+ (+ 1 2) (+ 3 4))").unwrap();
+        let graph = parse("(1 + 2) + (3 + 4)").unwrap();
 
         let result = pipeline.optimize(&graph);
         assert!(result.is_ok());
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn test_constant_folding() {
         let mut optimizer = GraphOptimizer::new();
-        let graph = parse("(* (+ 1 2) (- 5 2))").unwrap();
+        let graph = parse("(1 + 2) * (5 - 2)").unwrap();
 
         let result = optimizer.optimize(&graph);
         assert!(result.is_ok());
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn test_dead_code_elimination() {
         let mut optimizer = GraphOptimizer::new();
-        let code = "(let ((x 1) (y 2) (z 3)) x)";
+        let code = "{ let x = 1; let y = 2; let z = 3; x }";
         let graph = parse(code).unwrap();
         let original_size = graph.nodes.len();
 
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn test_preserve_effects() {
         let mut optimizer = GraphOptimizer::new();
-        let code = "(do (effect IO:print \"hello\") 42)";
+        let code = "{ print(\"hello\"); 42 }";
         let graph = parse(code).unwrap();
 
         let result = optimizer.optimize(&graph);
@@ -194,11 +194,11 @@ mod tests {
 
         // Should preserve the effect
         let optimized = result.unwrap();
-        let has_effect = optimized
+        let has_print = optimized
             .nodes
             .values()
-            .any(|node| matches!(node, Node::Effect { .. }));
-        assert!(has_effect);
+            .any(|node| matches!(node, Node::Variable { name } if name == "print"));
+        assert!(has_print, "Print function should be preserved");
     }
 
     #[test]
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn test_cyclic_references() {
         let mut optimizer = GraphOptimizer::new();
-        let code = "{ private function x() { y() }; private function y() { x() }; x() }";
+        let code = "{ let x = () => y(); let y = () => x(); x() }";
         let graph = parse(code).unwrap();
 
         let result = optimizer.optimize(&graph);

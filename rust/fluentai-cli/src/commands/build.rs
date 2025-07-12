@@ -242,7 +242,7 @@ fn compile_file(source_file: &Path, config: &BuildConfig) -> Result<CompiledModu
 }
 
 /// Serialize bytecode for storage
-fn serialize_bytecode(bytecode: &fluentai_vm::bytecode::Bytecode) -> Vec<u8> {
+fn serialize_bytecode(bytecode: &fluentai_bytecode::Bytecode) -> Vec<u8> {
     // TODO: Implement proper serialization
     vec![]
 }

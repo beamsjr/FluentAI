@@ -269,7 +269,7 @@ impl ModuleLoader {
     /// Extract module name, exports, and dependencies from AST
     fn extract_module_info(&self, graph: &Graph) -> Result<(String, Vec<String>, Vec<String>)> {
         let mut name = String::new();
-        let mut exports = Vec::new();
+        let mut exports = FxHashSet::default();
         let mut dependencies = Vec::new();
 
         // Walk through all nodes to find module declarations, exports, and imports
@@ -281,12 +281,16 @@ impl ModuleLoader {
                     body: _,
                 } => {
                     name = module_name.clone();
-                    exports.extend(module_exports.clone());
+                    // Module node already has exports, don't collect from Export nodes
+                    exports.extend(module_exports.iter().cloned());
                 }
 
                 Node::Export { export_list } => {
-                    for item in export_list {
-                        exports.push(item.name.clone());
+                    // Only collect exports if we haven't found a Module node
+                    if name.is_empty() {
+                        for item in export_list {
+                            exports.insert(item.name.clone());
+                        }
                     }
                 }
 
@@ -303,7 +307,7 @@ impl ModuleLoader {
             name = "anonymous".to_string();
         }
 
-        Ok((name, exports, dependencies))
+        Ok((name, exports.into_iter().collect(), dependencies))
     }
 
     /// Load all dependencies of a module
@@ -345,8 +349,10 @@ mod tests {
     fn test_load_simple_module() {
         let temp_dir = TempDir::new().unwrap();
         let module_content = r#"
-            (module test-module (export foo)
-                (define foo 42))
+            mod test_module {
+                export { foo };
+                private function foo() { 42 }
+            }
         "#;
 
         create_test_module_file(temp_dir.path(), "test", module_content);
@@ -359,7 +365,7 @@ mod tests {
         let mut loader = ModuleLoader::new(config);
         let module = loader.load_module("test").unwrap();
 
-        assert_eq!(module.name, "test-module");
+        assert_eq!(module.name, "test_module");
         assert_eq!(module.exports, vec!["foo"]);
     }
 
@@ -375,7 +381,7 @@ mod tests {
     #[test]
     fn test_cache_behavior() {
         let temp_dir = TempDir::new().unwrap();
-        let module_content = r#"(module cached-test (export x) x)"#;
+        let module_content = r#"mod cached_test { export { x }; private function x() { 1 } }"#;
 
         create_test_module_file(temp_dir.path(), "cached", module_content);
 

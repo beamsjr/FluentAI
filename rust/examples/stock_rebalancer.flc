@@ -1,0 +1,247 @@
+// Stock Portfolio Rebalancer - FLC Version
+
+// Use map literals for data structures now that they're supported
+private function create_stock(symbol, shares, current_price) {
+    {"symbol": symbol, "shares": shares, "price": current_price}
+}
+
+private function create_allocation(symbol, target_percentage) {
+    {"symbol": symbol, "target": target_percentage}
+}
+
+private function create_portfolio() {
+    {"stocks": [], "allocations": [], "total_value": 0.0}
+}
+
+// Action types
+private function create_buy_action(symbol, shares, value) {
+    {"type": "buy", "symbol": symbol, "shares": shares, "value": value}
+}
+
+private function create_sell_action(symbol, shares, value) {
+    {"type": "sell", "symbol": symbol, "shares": shares, "value": value}
+}
+
+private function create_hold_action(symbol) {
+    {"type": "hold", "symbol": symbol, "shares": 0, "value": 0}
+}
+
+// Portfolio management functions
+private function add_stock(portfolio, symbol, shares) {
+    let stocks = portfolio.stocks;
+    let allocations = portfolio.allocations;
+    let value = portfolio.total_value;
+    
+    // Filter out existing stock with same symbol
+    let updated_stocks = stocks.filter(s => s.symbol != symbol);
+    let new_stock = create_stock(symbol, shares, 0.0);
+    updated_stocks.push(new_stock);
+    
+    {"stocks": updated_stocks, "allocations": allocations, "total_value": value}
+}
+
+private function set_allocation(portfolio, symbol, percentage) {
+    if (percentage < 0.0 || percentage > 100.0) {
+        $(f"Error: Invalid percentage {percentage}").print();
+        portfolio
+    } else {
+        let stocks = portfolio.stocks;
+        let allocations = portfolio.allocations;
+        let value = portfolio.total_value;
+        
+        // Filter out existing allocation with same symbol
+        let updated_allocations = allocations.filter(a => a.symbol != symbol);
+        let new_allocation = create_allocation(symbol, percentage);
+        updated_allocations.push(new_allocation);
+        
+        {"stocks": stocks, "allocations": updated_allocations, "total_value": value}
+    }
+}
+
+// Validation
+private function validate_allocations(portfolio) {
+    let allocations = portfolio.allocations;
+    let total = allocations.reduce(0.0, (sum, alloc) => sum + alloc.target);
+    
+    if (total != 100.0) {
+        $(f"Error: Allocations sum to {total}%, must equal 100%").print();
+        false
+    } else {
+        true
+    }
+}
+
+// Mock price fetching (in real app, would call API)
+private function get_price(symbol) {
+    let prices = {
+        "AAPL": 150.0,
+        "GOOGL": 2800.0,
+        "MSFT": 300.0,
+        "AMZN": 3200.0,
+        "TSLA": 800.0
+    };
+    
+    prices.get(symbol).unwrap_or(100.0)
+}
+
+// Update portfolio with current prices
+private function update_prices(portfolio) {
+    let stocks = portfolio.stocks;
+    let allocations = portfolio.allocations;
+    
+    let updated_stocks = stocks.map(stock => {
+        let price = get_price(stock.symbol);
+        {"symbol": stock.symbol, "shares": stock.shares, "price": price}
+    });
+    
+    let total_value = updated_stocks.reduce(0.0, (sum, stock) => {
+        sum + (stock.shares * stock.price)
+    });
+    
+    {"stocks": updated_stocks, "allocations": allocations, "total_value": total_value}
+}
+
+// Display portfolio
+private function display_portfolio(portfolio) {
+    let value = portfolio.total_value;
+    $("").print();
+    $(f"Portfolio Value: ${value}").print();
+    $("").print();
+    
+    $("Current Holdings:").print();
+    portfolio.stocks.for_each(stock => {
+        let symbol = stock.symbol;
+        let shares = stock.shares;
+        let price = stock.price;
+        let stock_value = shares * price;
+        let percentage = if (value > 0.0) { (stock_value / value) * 100.0 } else { 0.0 };
+        
+        $(f"  {symbol}: {shares} shares @ ${price} = ${stock_value} ({percentage}%)").print();
+    });
+    
+    $("").print();
+    $("Target Allocations:").print();
+    portfolio.allocations.for_each(alloc => {
+        $(f"  {alloc.symbol}: {alloc.target}%").print();
+    });
+}
+
+// Calculate rebalancing actions
+private function calculate_rebalance_actions(portfolio) {
+    let stocks = portfolio.stocks;
+    let allocations = portfolio.allocations;
+    let total_value = portfolio.total_value;
+    
+    if (total_value == 0.0) {
+        $(f"Error: Portfolio has zero value").print();
+        []
+    } else {
+        allocations.map(alloc => {
+            let symbol = alloc.symbol;
+            let target_percentage = alloc.target;
+            let target_value = (target_percentage / 100.0) * total_value;
+            
+            // Find current stock
+            let current_stock = stocks.find(s => s.symbol == symbol);
+            
+            if (current_stock.is_some()) {
+                let stock = current_stock.unwrap();
+                let current_value = stock.shares * stock.price;
+                let difference = target_value - current_value;
+                
+                if (difference > 10.0) {
+                    // Buy more shares
+                    let shares_to_buy = (difference / stock.price).floor();
+                    create_buy_action(symbol, shares_to_buy, shares_to_buy * stock.price)
+                } else if (difference < -10.0) {
+                    // Sell shares
+                    let shares_to_sell = ((-difference) / stock.price).floor();
+                    create_sell_action(symbol, shares_to_sell, shares_to_sell * stock.price)
+                } else {
+                    // Hold
+                    create_hold_action(symbol)
+                }
+            } else {
+                $(f"Error: Stock {symbol} not found in portfolio").print();
+                create_hold_action(symbol)
+            }
+        })
+    }
+}
+
+// Execute rebalance
+private function execute_rebalance(portfolio, actions) {
+    $("").print();
+    $("Rebalancing Actions:").print();
+    $("").print();
+    
+    let buy_value = 0.0;
+    let sell_value = 0.0;
+    
+    // Process actions and calculate totals
+    let updated_portfolio = actions.reduce(portfolio, (port, action) => {
+        let type = action.type;
+        let symbol = action.symbol;
+        let shares = action.shares;
+        let value = action.value;
+        
+        if (type == "buy") {
+            $(f"BUY  {symbol}: {shares} shares (${value})").print();
+            buy_value = buy_value + value;
+            port
+        } else if (type == "sell") {
+            $(f"SELL {symbol}: {shares} shares (${value})").print();
+            sell_value = sell_value + value;
+            port
+        } else {
+            $(f"HOLD {symbol}: No action needed").print();
+            port
+        }
+    });
+    
+    $("").print();
+    $(f"Total to buy:  ${buy_value}").print();
+    $(f"Total to sell: ${sell_value}").print();
+    $(f"Net cash flow: ${sell_value - buy_value}").print();
+    
+    updated_portfolio
+}
+
+// Main demo
+private function main() {
+    $("Stock Portfolio Rebalancer Demo").print();
+    $("==============================").print();
+    
+    // Create portfolio
+    let portfolio = create_portfolio();
+    
+    // Add some stocks
+    portfolio = add_stock(portfolio, "AAPL", 100);
+    portfolio = add_stock(portfolio, "GOOGL", 10);
+    portfolio = add_stock(portfolio, "MSFT", 50);
+    portfolio = add_stock(portfolio, "AMZN", 5);
+    
+    // Set target allocations
+    portfolio = set_allocation(portfolio, "AAPL", 40.0);
+    portfolio = set_allocation(portfolio, "GOOGL", 20.0);
+    portfolio = set_allocation(portfolio, "MSFT", 25.0);
+    portfolio = set_allocation(portfolio, "AMZN", 15.0);
+    
+    // Validate allocations
+    if (validate_allocations(portfolio)) {
+        // Update prices
+        portfolio = update_prices(portfolio);
+        
+        // Display current state
+        display_portfolio(portfolio);
+        
+        // Calculate rebalancing actions
+        let actions = calculate_rebalance_actions(portfolio);
+        
+        // Execute rebalance
+        portfolio = execute_rebalance(portfolio, actions);
+    }
+}
+
+// Run the demo
+main()

@@ -2,6 +2,7 @@
 members = [
     "fluentai-core",
     "fluentai-parser",
+    "fluentai-bytecode",
     "fluentai-vm",
     "fluentai-stdlib",
     "fluentai-lsp",

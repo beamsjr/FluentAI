@@ -4,7 +4,7 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
-use crate::bytecode::Bytecode;
+use fluentai_bytecode::Bytecode;
 use crate::gc::GcConfig;
 use crate::security::{SecurityManager, SecurityPolicy};
 use crate::vm::VM;

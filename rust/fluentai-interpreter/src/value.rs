@@ -38,6 +38,8 @@ pub enum ValueData {
     Float(f64),
     /// String value
     String(String),
+    /// Symbol value
+    Symbol(String),
     /// List of values
     List(Vec<Value>),
     /// Map/dictionary
@@ -145,6 +147,7 @@ impl Value {
             ValueData::Integer(i) => *i != 0,
             ValueData::Float(f) => *f != 0.0,
             ValueData::String(s) => !s.is_empty(),
+            ValueData::Symbol(_) => true, // Symbols are always truthy
             ValueData::List(l) => !l.is_empty(),
             ValueData::Map(m) => !m.is_empty(),
             _ => true,
@@ -188,6 +191,7 @@ impl Value {
             ValueData::Integer(i) => i.to_string(),
             ValueData::Float(f) => f.to_string(),
             ValueData::String(s) => s.clone(),
+            ValueData::Symbol(s) => format!(":{}", s),
             ValueData::List(items) => {
                 let strs: Vec<String> = items.iter().map(|v| v.to_string()).collect();
                 format!("[{}]", strs.join(", "))
@@ -239,6 +243,7 @@ impl PartialEq for Value {
             (ValueData::Integer(a), ValueData::Integer(b)) => a == b,
             (ValueData::Float(a), ValueData::Float(b)) => (a - b).abs() < f64::EPSILON,
             (ValueData::String(a), ValueData::String(b)) => a == b,
+            (ValueData::Symbol(a), ValueData::Symbol(b)) => a == b,
             (ValueData::List(a), ValueData::List(b)) => a == b,
             (ValueData::Map(a), ValueData::Map(b)) => a == b,
             _ => false,

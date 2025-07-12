@@ -5,13 +5,19 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = []
+jit = ["fluentai-jit"]
+
 [dependencies]
 fluentai-core = { path = "../fluentai-core" }
+fluentai-bytecode = { path = "../fluentai-bytecode" }
 fluentai-effects = { path = "../fluentai-effects" }
 fluentai-stdlib = { path = "../fluentai-stdlib" }
 fluentai-modules = { path = "../fluentai-modules" }
 fluentai-di = { path = "../fluentai-di" }
 fluentai-optimizer = { path = "../fluentai-optimizer" }
+fluentai-jit = { path = "../fluentai-jit", optional = true }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true

@@ -47,16 +47,61 @@ Console Output: The $(...) construct wraps a string in a "Printable" object. Thi
 
 let name = "World";
 $(f"Hello, {name}!").print(); // Works with formatted strings
-4. Modules and VisibilityModules provide encapsulation and organization. Visibility is controlled with public and private.Defining Modules: A file implicitly defines a module. Directories can also define modules.Importing: The use keyword brings items into scope.// Import the entire module
+4. Modules and Visibility
+
+Modules provide encapsulation and organization. Visibility is controlled with public and private.
+
+Defining Modules: 
+// In-file module definition
+mod my_module {
+    export { foo, bar };
+    
+    private function foo() { ... }
+    public function bar() { ... }
+}
+
+// A file implicitly defines a module. Directories can also define modules.
+
+Importing: The use keyword brings items into scope.
+// Import the entire module
 use my_app::user_service;
 
-// Import specific items
+// Import specific items  
 use my_app::models::{User, ApiError};
 
 // Import with aliasing
 use my_app::database as db;
-Visibility:private ...: Default visibility. The definition is private to the current module.public ...: Public visibility. The definition can be imported and used by other modules.5. Definitions & DeclarationsAll top-level definitions start with a visibility keyword (public or private).Functions:public function create_user(name: string) -> User { ... }
-Structs (Value Types):public struct User {
+
+// Import all public items (use sparingly)
+use my_app::utils::*;
+
+Module Path Resolution:
+// The :: operator navigates module hierarchies
+use std::collections::HashMap;
+use crate::models::User;  // From current crate
+use super::helper;        // From parent module
+
+Visibility:
+private ...: Default visibility. The definition is private to the current module.
+public ...: Public visibility. The definition can be imported and used by other modules.5. Definitions & Declarations
+
+All top-level definitions start with a visibility keyword (public or private).
+
+Functions:
+// Top-level function
+public function create_user(name: string) -> User { ... }
+
+// Private functions can be defined at top-level
+private function helper() { ... }
+
+// Note: Inside blocks/expressions, use let bindings for functions:
+{
+    let local_func = (x) => x * 2;
+    local_func(5)
+}
+
+Structs (Value Types):
+public struct User {
     id: Uuid, // Private field
     pub name: string, // Public field
 }
@@ -103,13 +148,40 @@ Dynamic Polymorphism via Trait Objects: Runtime flexibility using dyn<Trait>.let
 for element in ui_elements {
     element.draw(); // Call is dispatched at runtime
 }
-8. ConcurrencyAsync/Await:private async function fetch_user_data(id: Uuid) -> User {
+8. Concurrency
+
+Async/Await:
+private async function fetch_user_data(id: Uuid) -> User {
     http.get(f"/users/{id}").await()
 }
-Actor Model:private actor Counter {
+
+// Async blocks
+let result = async { 
+    let data = fetch_data().await();
+    process(data)
+}.await();
+
+Actor Model:
+private actor Counter {
     count: int = 0;
     private handle Inc(amount: int) { self.count += amount; }
 }
+
+Channels and Message Passing:
+// Create a channel
+let ch = channel();
+
+// Send and receive (using macro syntax)
+send!(ch, "message");
+let msg = recv!(ch);
+
+// Spawn concurrent tasks
+spawn {
+    let result = expensive_computation();
+    send!(ch, result);
+};
+
+let result = recv!(ch);
 9. Effects and Side Effect ManagementEffects provide a structured way to handle side effects. The perform keyword executes effectful operations:// Perform I/O operations
 perform IO.print("Hello, World");
 perform IO.println("With newline");
@@ -132,13 +204,63 @@ handle {
     IO.print(msg) => captured_messages.push(msg),
     State.set(value) => { current_state = value }
 }
-10. Metaprogramming & Advanced FeaturesDerive Attributes:private struct User { ... }.derive(Debug, Clone)
-FFI (Foreign Function Interface):extern "C" {
+10. Recursive Functions
+
+Recursive functions can be defined using regular let bindings:
+// Simple recursion
+let factorial = (n) => {
+    if (n <= 1) { 1 }
+    else { n * factorial(n - 1) }
+};
+
+// Mutual recursion
+let even = (n) => {
+    if (n == 0) { true }
+    else { odd(n - 1) }
+};
+let odd = (n) => {
+    if (n == 0) { false }
+    else { even(n - 1) }
+};
+
+Note: The current implementation may have limitations with recursive let bindings. 
+For guaranteed support, use top-level function definitions.
+
+11. Metaprogramming & Advanced Features
+
+Derive Attributes:
+private struct User { ... }.derive(Debug, Clone)
+
+Contract Specifications (Future Feature):
+@contract {
+    requires: n >= 0,
+    ensures: result >= 1
+}
+private function factorial(n: int) -> int { ... }
+
+Macros:
+// Macro invocation uses ! syntax
+assert!(x > 0, "x must be positive");
+println!("Value: {}", x);
+
+// Custom macros (future feature)
+macro rules! {
+    // macro definition
+}
+
+FFI (Foreign Function Interface):
+extern "C" {
     private function c_lib_function(input: i32) -> i32;
 }
-Effect Systems:private effect Database { ... }
+
+Effect Systems:
+private effect Database { ... }
 private function get_user(id: Uuid).with(Database) { ... }
-10. Complete Example: Console ApplicationThis example demonstrates a simple console application that fetches user data from a mock API, showcasing many of the language's features working together.// main.flc
+12. Complete Example: Console Application
+
+This example demonstrates a simple console application that fetches user data from a mock API, showcasing many of the language's features working together.
+
+// main.flc
 
 // === Definitions ===
 public struct User { pub id: int, pub name: string }
@@ -205,4 +327,24 @@ private async function main() {
                 |> print_results()
         })
 }
- 
+
+13. Current Limitations and Future Features
+
+The following features are planned but not yet fully implemented:
+
+Parser Limitations:
+- Recursive let bindings may not work in all contexts
+- Macro syntax (!) is recognized but custom macros cannot be defined
+- Contract specifications (@contract) are not yet parsed
+- Some async block constructs may not be fully supported
+
+Future Features:
+- Full macro system with macro rules!
+- Contract-based programming with @contract
+- More sophisticated pattern matching
+- Algebraic effects beyond the current perform/handle system
+- Compile-time reflection and code generation
+
+Notes for Test Writers:
+When writing tests, prefer using features that are fully documented and implemented.
+Use #[ignore] attribute for tests that rely on future features.

@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
     use crate::stdlib_bridge::{VMStdlibBridge, VMStdlibExt};
     use crate::vm::VM;
     use fluentai_core::value::Value as VMValue;
