@@ -20,6 +20,7 @@ uuid = { version = "1.11", features = ["v4"] }
 serde_json = "1.0"
 parking_lot = "0.12"
 rustc-hash.workspace = true
+futures = "0.3"
 
 # Optional dependencies
 fluentai-di = { path = "../fluentai-di", optional = true }
@@ -27,6 +28,7 @@ fluentai-di = { path = "../fluentai-di", optional = true }
 [dev-dependencies]
 fluentai-parser = { path = "../fluentai-parser" }
 fluentai-optimizer = { path = "../fluentai-optimizer" }
+mockito = "1.6"
 
 [features]
 default = []
