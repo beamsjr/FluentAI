@@ -7,6 +7,9 @@ pub mod flc_lexer;
 pub mod flc_parser;
 pub mod flc_error;
 
+// #[cfg(test)]
+// pub mod sexp;
+
 
 pub use error::{ErrorKind, ParseError};
 

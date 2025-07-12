@@ -1,0 +1,6 @@
+// Test finally blocks in FLC syntax
+try {
+    42
+} finally {
+    $("Finally block executed").print()
+}

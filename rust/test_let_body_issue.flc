@@ -1,0 +1,1 @@
+let x = 5; print("first"); print("second"); x + 10

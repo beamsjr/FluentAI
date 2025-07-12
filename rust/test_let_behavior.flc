@@ -1,0 +1,11 @@
+// Test 1: let with explicit block - WORKS
+let x = 5; {
+    perform IO.print("Inside block 1");
+    perform IO.print("Inside block 2");
+    x + 10
+}
+
+// Test 2: let without block - each line is separate
+let y = 10;
+perform IO.print("After let");
+y + 20

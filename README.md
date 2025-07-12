@@ -61,7 +61,7 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - `use module::{item1, item2}` import syntax
   - Module loading from filesystem works
   - Missing global binding mechanism for exports
-- **Multiple expressions in `let` body**: Currently causes parse errors
+- **Multiple expressions in `let` body**: Requires explicit block syntax `{ }` (e.g., `let x = 5; { expr1; expr2 }`)
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
   - UI syntax (`ui:element`, `ui:text`, etc.) not recognized by parser

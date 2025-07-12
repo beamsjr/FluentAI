@@ -8,8 +8,8 @@ use fluentai_effects::EffectRuntime;
 use fluentai_optimizer::OptimizationLevel;
 
 fn compile_and_run(source: &str) -> Result<Value> {
-    // Parse the source code
-    let graph = fluentai_parser::parse(source)
+    // Parse the source code using S-expression parser for tests
+    let graph = fluentai_parser::sexp::parse_sexp(source)
         .map_err(|e| anyhow::anyhow!("Parse error: {:?}", e))?;
 
     // Compile to bytecode without optimization due to optimizer bug
