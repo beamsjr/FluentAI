@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
     use crate::error::VMError;
     use fluentai_core::value::Value;
     use fluentai_effects::runtime::EffectRuntime;

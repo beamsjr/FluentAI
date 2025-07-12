@@ -14,3 +14,7 @@ criterion/
 # Coverage reports
 coverage_*.txt
 tarpaulin-report.html
+coverage_reports/
+
+# Build artifacts
+build_artifacts/

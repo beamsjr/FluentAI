@@ -54,9 +54,11 @@ FluentAI is an experimental programming language designed for AI systems rather 
 - **Module System**: Full parsing and loading infrastructure but cannot export/import values at runtime
   - `mod name { ... }` module definitions
   - `use module::{item1, item2}` import syntax
+  - ✅ `use module::path as alias` import aliases now work
   - Module loading from filesystem works
   - Missing global binding mechanism for exports
 - **JIT Compilation**: Infrastructure exists (Cranelift backend) but not fully integrated
+  - ✅ Now an optional feature to avoid circular dependencies
 - **Multiple expressions in `let` body**: Currently causes parse errors
 - **Web Features**: UI compiler exists but not integrated with parser
   - Code generators for React, Vue, Web Components, Vanilla JS work
@@ -264,16 +266,16 @@ FluentAI is an experimental programming language designed for AI systems rather 
 10 == 10;                    // => true
 
 // Lambda functions
-let square = x => x * x;
+let square = (x) => x * x;
 let add = (x, y) => x + y;
 add(square(3), square(4));   // => 25
 
 // Lists and list operations  
 let nums = [1, 2, 3, 4, 5];
-print(nums.head());          // prints: 1
-print(nums.tail());          // prints: [2, 3, 4, 5]
-print(nums.length());        // prints: 5
-print(nums.cons(0));         // prints: [0, 1, 2, 3, 4, 5]
+$("Head: " + nums.head()).print();          // prints: Head: 1
+$("Tail: " + nums.tail()).print();          // prints: Tail: [2, 3, 4, 5]
+$("Length: " + nums.length()).print();      // prints: Length: 5
+$("Cons result: " + nums.cons(0)).print();  // prints: Cons result: [0, 1, 2, 3, 4, 5]
 
 // Higher-order functions
 let nums = [1, 2, 3, 4, 5];
@@ -285,8 +287,8 @@ let nums = range(1, 10);
 nums.filter(x => x % 2 == 0); // => [2, 4, 6, 8, 10]
 
 let nums = [1, 2, 3, 4, 5];
-// Fold - note: requires lambda
-nums.fold((acc, x) => acc + x, 0);   // => 15
+// Fold - note: accumulator and value params
+nums.fold(0, (acc, x) => acc + x);   // => 15
 
 // Pattern matching
 let value = 42;
@@ -297,14 +299,14 @@ value.match()
   .case(_, "something else")
   .get();                    // => "the answer"
 
-// Working effects
-print("Hello, FluentAI!");   // prints to stdout
-state.set("counter", 0);     // store state
-state.set("counter", 
-  state.get("counter") + 1); // increment
-print(state.get("counter")); // prints: 1
-print(time.now());           // prints timestamp
-print(random.int(1, 100));   // prints random number
+// Working effects using perform
+perform IO.print("Hello, FluentAI!");   // prints to stdout
+perform State.set("counter", 0);        // store state
+perform State.set("counter", 
+  perform State.get("counter") + 1);    // increment
+$(perform State.get("counter")).print(); // prints: 1
+$(perform Time.now()).print();          // prints timestamp
+$(perform Random.int(1, 100)).print();  // prints random number
 
 // Recursive functions (basic cases work)
 private function factorial(n) {
@@ -319,7 +321,7 @@ factorial(5);                // => 120
 // List manipulation example
 let evens = range(1, 20).filter(x => x % 2 == 0);
 let squared = evens.map(x => x * x);
-let sum = squared.fold((acc, x) => acc + x, 0);
+let sum = squared.fold(0, (acc, x) => acc + x);
 sum;                         // => 1140
 ```
 
@@ -378,9 +380,9 @@ cargo run -p fluentai-repl
 ```bash
 # Run language feature examples
 cd rust
-cargo run -p fluentai-cli -- run examples/hello.ai
-cargo run -p fluentai-cli -- run examples/pattern_matching.ai
-cargo run -p fluentai-cli -- run examples/effects_demo.ai
+cargo run -p fluentai-cli -- run examples/hello.flc
+cargo run -p fluentai-cli -- run examples/pattern_matching.flc
+cargo run -p fluentai-cli -- run examples/effects_comprehensive.flc
 
 # Run performance benchmarks
 cd benchmarks
@@ -439,7 +441,7 @@ A typical FluentAI project created with the SDK:
 ```
 MyApp/
 ├── MyApp.aiproj          # Project file (similar to .csproj)
-├── Program.ai            # Entry point
+├── Program.flc           # Entry point
 ├── src/                  # Source files
 ├── tests/                # Test files
 └── packages.lock         # Package lock file
@@ -452,11 +454,11 @@ For detailed SDK documentation, see the [SDK User Guide](rust/FLUENTAI_SDK_GUIDE
 #### From Command Line
 ```bash
 # Run with optimization
-fluentai run -O2 program.ai    # Standard optimization
-fluentai run -O3 program.ai    # Aggressive optimization
+fluentai run -O2 program.flc    # Standard optimization
+fluentai run -O3 program.flc    # Aggressive optimization
 
 # Compile with optimization
-fluentai compile -O3 program.ai -o program
+fluentai compile -O3 program.flc -o program
 ```
 
 #### From Rust Code
@@ -543,372 +545,379 @@ cargo test --release
 
 FluentAI's optimizations make it ideal for high-performance network applications:
 
-```lisp
-;; Define a tail-recursive packet parser
-(letrec ((parse-ipv4-header
-          (lambda (data offset)
-            (let ((version (bit-shift-right (byte-at data offset) 4))
-                  (ihl (bit-and (byte-at data offset) 0x0F))
-                  (total-length (bytes->u16 data (+ offset 2)))
-                  (src-ip (bytes->u32 data (+ offset 12)))
-                  (dst-ip (bytes->u32 data (+ offset 16))))
-              {:version version
-               :header-length (* ihl 4)
-               :total-length total-length
-               :src-ip src-ip
-               :dst-ip dst-ip})))
-         
-         ;; Process packet stream with tail recursion
-         (process-stream
-          (lambda (stream processed)
-            (match (read-packet stream)
-              ((Some packet) 
-               ; Tail call - optimized to loop
-               (process-stream stream (cons packet processed)))
-              (None processed)))))
-  
-  ;; Use lock-free queue for concurrent processing
-  (let ((packet-queue (bounded-queue 10000)))
-    ;; Multiple workers process packets
-    (dotimes (i 4)
-      (spawn (lambda ()
-               (loop
-                 (let ((packet (dequeue! packet-queue)))
-                   (process-packet packet))))))
+```flc
+// Define a packet parser
+private function parse_ipv4_header(data, offset) {
+    let version = bit_shift_right(byte_at(data, offset), 4);
+    let ihl = bit_and(byte_at(data, offset), 0x0F);
+    let total_length = bytes_to_u16(data, offset + 2);
+    let src_ip = bytes_to_u32(data, offset + 12);
+    let dst_ip = bytes_to_u32(data, offset + 16);
     
-    ;; Read packets into queue
-    (with-memory-pool {:slab-size 1500}
-      (lambda (pool)
-        (loop
-          (let ((buffer (pool-allocate pool)))
-            (read-packet-into buffer)
-            (enqueue! packet-queue buffer)))))))
+    {
+        "version": version,
+        "header_length": ihl * 4,
+        "total_length": total_length,
+        "src_ip": src_ip,
+        "dst_ip": dst_ip
+    }
+}
+
+// Process packet stream with tail recursion
+private function process_stream(stream, processed) {
+    read_packet(stream)
+        .match()
+        .case(Some(packet), => {
+            // Tail call - optimized to loop
+            process_stream(stream, processed.cons(packet))
+        })
+        .case(None, => processed)
+        .get()
+}
+
+// Use channels for concurrent processing
+let packet_queue = channel(10000);
+
+// Spawn multiple workers to process packets
+for i in range(0, 4) {
+    spawn {
+        while (true) {
+            let packet = packet_queue.receive();
+            process_packet(packet);
+        }
+    }
+}
+
+// Read packets into queue
+with_memory_pool({"slab_size": 1500}, (pool) => {
+    while (true) {
+        let buffer = pool_allocate(pool);
+        read_packet_into(buffer);
+        packet_queue.send(buffer);
+    }
+})
 ```
 
 ## Language Features
 
+**Note**: FluentAI uses FLC (Fluent Lambda Chain) syntax exclusively. Some examples below show S-expression syntax from earlier designs or planned features that have not been implemented yet. Please refer to the [Implementation Status](#implementation-status) section to see what features are currently working.
+
 ### Module System
-```lisp
-;; Define a module with exports and top-level definitions
-(module math-utils [square cube factorial pi e]
-  ;; Top-level definitions using 'define'
-  (define pi 3.14159265359)
-  (define e 2.71828182846)
-  
-  ;; Function definitions (simple syntax)
-  (define square (lambda (x) (* x x)))
-  (define cube (lambda (x) (* x x x)))
-  
-  ;; Function definitions (nested syntax)
-  (define (factorial n)
-    (if (<= n 1) 
-        1 
-        (* n (factorial (- n 1))))))
+```flc
+// Define a module with exports
+mod math_utils {
+    export { square, cube, factorial, pi, e };
+    
+    // Constants
+    const pi = 3.14159265359;
+    const e = 2.71828182846;
+    
+    // Function definitions
+    private function square(x) { x * x }
+    private function cube(x) { x * x * x }
+    
+    // Recursive function
+    private function factorial(n) {
+        if (n <= 1) { 1 }
+        else { n * factorial(n - 1) }
+    }
+}
 
-;; Import specific functions
-(import "math-utils" (square cube))
-(import "collections" (map filter reduce))
+// Import specific functions
+use math_utils::{square, cube};
+use collections::{map, filter, reduce};
 
-;; Import all exports
-(import "string-utils" *)
+// Import all exports
+use string_utils::*;
 
-;; Import for qualified access only
-(import "math" ())
-(define area (lambda (r) (* math.pi r r)))
+// Import with qualified access
+use math;
+private function area(r) { math::pi * r * r }
 
-;; Relative imports
-(import "./local-module" (helper))
-(import "../shared/utils" (process))
+// Relative imports
+use ./local_module::helper;
+use ../shared/utils::process;
 
-;; Import with aliases (planned)
-(import "math" (sin as sine cos as cosine))
+// Import with aliases
+use math::{sin as sine, cos as cosine};
 
-;; Export from current module
-(export helper-function process-data)
-
-;; Module with multiple expressions
-(module config-manager [get-config set-config]
-  (import "io" *)
-  (import "json" (parse stringify))
-  
-  (define config-file "./config.json")
-  (define current-config (parse (read-file config-file)))
-  
-  (define (get-config key)
-    (get current-config key))
-  
-  (define (set-config key value)
-    (set! current-config (assoc current-config key value))
-    (write-file config-file (stringify current-config))))
-```
-
-### Core S-Expression Syntax
-```lisp
-;; Basic expressions
-(+ 1 2)                          ; => 3
-(lambda (x) (* x x))             ; Square function
-(let ((x 5)) (+ x 1))           ; Let binding
-
-;; Lists and pattern matching
-[1 2 3 4]                        ; List literal
-{:name "Alice" :age 30}          ; Map literal
-(match lst
-  ([] 0)                         ; Empty list
-  ([x, ... xs] (+ x (sum xs))))  ; Head and tail
-
-;; Enhanced value system
-(define native-fn               ; Native functions for performance
-  (native "fast_sqrt" 1))       ; Name and arity
-
-(define person                  ; Tagged values (ADTs)
-  (tag 'Person name age))       ; Constructor
-
-(is-integer? x)                 ; Type predicates
-(is-callable? f)                ; Check if procedure or native fn
-(as-number x)                   ; Safe type conversions with Result
+// Module with state management
+mod config_manager {
+    export { get_config, set_config };
+    
+    use io::*;
+    use json::{parse, stringify};
+    
+    const config_file = "./config.json";
+    let current_config = parse(read_file(config_file));
+    
+    private function get_config(key) {
+        current_config.get(key)
+    }
+    
+    private function set_config(key, value) {
+        current_config = current_config.assoc(key, value);
+        write_file(config_file, stringify(current_config));
+    }
+}
 ```
 
 ### FLC (Fluent Lambda Chain) Syntax
 
-FluentAI now supports FLC syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling. You can gradually migrate from S-expressions to FLC using our migration tool.
+FluentAI uses FLC (Fluent Lambda Chain) syntax - a modern, readable syntax inspired by Rust and functional languages, designed for clarity and AI tooling.
 
 ```flc
 // Function definitions
-def fn add(x, y) {
+private function add(x, y) {
     x + y
 }
 
 // Lambda expressions  
-let square = { |x| x * x };
+let square = (x) => x * x;
 
 // Method chaining
 users
-    .filter { |user| user.age > 18 }
-    .map { |{name, email}| f"{name} <{email}>" }
-    .sort_by { |user| user.name }
+    .filter(user => user.age > 18)
+    .map(({name, email}) => f"{name} <{email}>")
+    .sort_by(user => user.name)
 
 // Pattern matching
 response.match()
-    .case(Ok(data), { |data| process(data) })
-    .case(Err(ApiError.NotFound), { || "Not found" })
-    .run()
+    .case(Ok(data), => process(data))
+    .case(Err(ApiError.NotFound), => "Not found")
+    .get()
 
 // Async/await
-def async fn fetch_user_data(id: Uuid) -> User {
+private async function fetch_user_data(id: Uuid) -> User {
     http.get(f"/users/{id}").await()
 }
 
 // Actor model
-def actor Counter {
+private actor Counter {
     count: int = 0;
-    def handle Inc(|amount: int|) { self.count += amount; }
-    def handle Get(||) -> int { self.count }
+    private handle Inc(amount: int) { self.count += amount; }
+    private handle Get() -> int { self.count }
 }
 
 // Effects with type safety
-def fn get_user(id: Uuid).with(Database) -> Result<User, DbError> {
-    perform Database::query(f"SELECT * FROM users WHERE id = {id}")
-        .map { |row| User.from_row(row) }
+private function get_user(id: Uuid).with(Database) -> Result<User, DbError> {
+    perform Database.query(f"SELECT * FROM users WHERE id = {id}")
+        .map(row => User.from_row(row))
 }
 ```
 
-**Migration Tool**: Convert your existing S-expression code to FLC:
-```bash
-# Convert a single file
-cargo run --bin flc-migrate -- input.fl
-
-# Convert with backup
-cargo run --bin flc-migrate -- --no-backup input.fl  
-
-# Dry run to preview changes
-cargo run --bin flc-migrate -- --dry-run input.fl
-
-# Convert entire directory recursively
-cargo run --bin flc-migrate -- --recursive src/
-```
 
 ### Modern Web Development
-```lisp
-;; UI Components
-(define-component "TodoItem" {:text {:type :string :required true}}
-  (lambda (props)
-    (h "li" {:className "todo-item"}
-      (get props :text))))
+```flc
+// UI Components (Note: UI compiler not fully integrated yet)
+private component TodoItem(props: {text: string}) {
+    ui:li(className: "todo-item") {
+        ui:text(props.text)
+    }
+}
 
-;; Async HTTP requests
-(async (lambda ()
-  (let ((response (await (effect network fetch "/api/todos"))))
-    (effect dom update 
-      (map (lambda (item) (TodoItem {:text item}))
-           (get response :items)))))
+// Async HTTP requests
+private async function load_todos() {
+    let response = perform Network.fetch("/api/todos").await();
+    let items = response.items;
+    items.map(item => TodoItem({text: item}))
+}
 
-;; Reactive state
-(let ((state (reactive {:count 0})))
-  (define-component "Counter" {}
-    (lambda (_)
-      (h "button" {:onClick (lambda () (swap! state update :count inc))}
-        (str "Count: " (get (deref state) :count))))))
+// Reactive state management
+let state = reactive({count: 0});
+
+private component Counter() {
+    ui:button(onClick: () => state.update(s => {count: s.count + 1})) {
+        ui:text(f"Count: {state.count}")
+    }
+}
 ```
 
 ### Concurrent Programming
-```lisp
-;; Channels and goroutines
-(let ((ch (chan 10))
-      (done (chan)))
-  ;; Producer
-  (go (dotimes (i 10)
-        (send! ch i)
-        (effect time sleep 100)))
-  
-  ;; Consumer
-  (go (dotimes (i 10)
-        (let ((val (receive! ch)))
-          (effect io print (str "Received: " val))))
-      (send! done true))
-  
-  ;; Wait for completion
-  (receive! done))
+```flc
+// Channels and spawn
+let ch = channel(10);
+let done = channel();
 
-;; Select statement
-(select
-  ((receive! ch1) (lambda (v) (str "From ch1: " v)))
-  ((receive! ch2) (lambda (v) (str "From ch2: " v)))
-  ((send! ch3 42) (lambda () "Sent to ch3")))
+// Producer
+spawn {
+    for i in range(0, 10) {
+        ch.send(i);
+        perform Time.sleep(100);
+    }
+}
+
+// Consumer
+spawn {
+    for i in range(0, 10) {
+        let val = ch.receive();
+        $(f"Received: {val}").print();
+    }
+    done.send(true);
+}
+
+// Wait for completion
+done.receive();
+
+// Select statement (syntax ready, runtime support pending)
+select {
+    ch1.receive() => (v) => f"From ch1: {v}",
+    ch2.receive() => (v) => f"From ch2: {v}",
+    ch3.send(42) => () => "Sent to ch3"
+}
 ```
 
 ### Logging
-```lisp
-;; Import the logger module
-(import "logger" *)
+```flc
+// Import the logger module
+use logger::*;
 
-;; Log at different levels with structured data
-(log-info "User logged in" {:user-id 123 :ip "192.168.1.1"})
-(log-warn "Rate limit approaching" {:requests 95 :limit 100})
-(log-error "Database connection failed" {:host "db.example.com" :retry-count 3})
-(log-debug "Processing item" {:id "abc-123" :size 1024})
+// Log at different levels with structured data
+log_info("User logged in", {"user_id": 123, "ip": "192.168.1.1"});
+log_warn("Rate limit approaching", {"requests": 95, "limit": 100});
+log_error("Database connection failed", {"host": "db.example.com", "retry_count": 3});
+log_debug("Processing item", {"id": "abc-123", "size": 1024});
 
-;; Set log level (DEBUG, INFO, WARN, ERROR)
-(set-log-level 'WARN)  ; Only WARN and ERROR will be shown
+// Set log level (DEBUG, INFO, WARN, ERROR)
+set_log_level("WARN");  // Only WARN and ERROR will be shown
 
-;; Simple messages without structured data
-(log-info "Application started")
-(log-error "Critical failure!")
+// Simple messages without structured data
+log_info("Application started");
+log_error("Critical failure!");
 
-;; Logging in error handlers
-(handler
-  ((error (lambda (err)
-            (log-error "Operation failed" 
-              {:error (get err :message)
-               :type (get err :type)
-               :timestamp (effect time now)})
-            nil)))
-  (risky-operation))
+// Logging in error handlers
+try {
+    risky_operation()
+} catch (err) {
+    log_error("Operation failed", {
+        "error": err.message,
+        "type": err.type,
+        "timestamp": perform Time.now()
+    });
+}
 
-;; Custom log formatting with handler
-(handler
-  ((io (lambda (op . args)
-         (if (= op "print-line")
-             ;; Custom formatting or routing
-             (send-to-log-server (first args))
-             (apply effect io op args)))))
-  (log-info "This goes through custom handler"))
+// Custom log formatting with effect handlers
+handle {
+    perform IO.println("This goes through custom handler");
+} with {
+    IO.println(msg) => send_to_log_server(msg)
+}
 ```
 
 ### Error Handling
-```lisp
-;; Error handling uses the handler construct instead of try/catch
-(handler
-  ((error (lambda (err)
-            (print "Error occurred:" (get err :message))
-            "default-value")))
-  (risky-operation))
+```flc
+// Error handling with try/catch
+try {
+    risky_operation()
+} catch (err) {
+    $(f"Error occurred: {err.message}").print();
+    "default-value"
+}
 
-;; Raise errors using the error effect
-(when (= denominator 0)
-  (effect error raise "divide-by-zero" 
-    {:message "Cannot divide by zero"
-     :numerator numerator
-     :denominator denominator}))
+// Throwing errors
+if (denominator == 0) {
+    throw {
+        "type": "divide-by-zero",
+        "message": "Cannot divide by zero",
+        "numerator": numerator,
+        "denominator": denominator
+    }
+}
 
-;; Network requests with error handling
-(handler
-  ((error (lambda (err)
-            (case (get err :type)
-              "timeout" (retry-request)
-              "network" (use-cached-data)
-              _ (show-error-message)))))
-  (await (effect network fetch api-url)))
+// Network requests with error handling
+try {
+    perform Network.fetch(api_url).await()
+} catch (err) {
+    err.type
+        .match()
+        .case("timeout", => retry_request())
+        .case("network", => use_cached_data())
+        .case(_, => show_error_message())
+        .get()
+}
 
-;; Composable error handling in UI components
-(define-component "DataDisplay" {:url {:type :string :required true}}
-  (lambda (props)
-    (handler
-      ((error (lambda (err) 
-                (h "div" {:className "error"} 
-                  (str "Failed to load: " (get err :message))))))
-      (let ((data (await (effect network fetch (get props :url)))))
-        (h "div" {:className "data"} 
-          (render-data data))))))
+// Composable error handling in UI components
+private component DataDisplay(props: {url: string}) {
+    try {
+        let data = perform Network.fetch(props.url).await();
+        ui:div(className: "data") {
+            render_data(data)
+        }
+    } catch (err) {
+        ui:div(className: "error") {
+            ui:text(f"Failed to load: {err.message}")
+        }
+    }
+}
 ```
 
 ### Effect Handlers
 
 Effect handlers provide a powerful mechanism for intercepting and customizing effects:
 
-```lisp
-;; Basic handler syntax
-(handler
-  ((effect-type handler-function) ...)
-  body-expression)
+```flc
+// Basic handler syntax
+handle {
+    body_expression
+} with {
+    EffectType.operation(args) => handler_code
+}
 
-;; Handler for error effects
-(handler
-  ((error (lambda (err)
-            (log-error "Handled error:" err)
-            "fallback-value")))
-  (effect error:raise "Something went wrong"))
+// Handler for IO effects
+handle {
+    perform IO.print("Something went wrong")
+} with {
+    IO.print(msg) => {
+        log_error(f"Handled error: {msg}");
+        "fallback-value"
+    }
+}
 
-;; Multiple effect handlers
-(handler
-  ((io (lambda (op . args)
-         (case op
-           "print" (send-to-logger (first args))
-           "read" (read-from-cache)
-           _ (apply effect io op args))))
-   (error (lambda (err) nil)))
-  (complex-io-operation))
+// Multiple effect handlers
+handle {
+    complex_io_operation()
+} with {
+    IO.print(msg) => send_to_logger(msg),
+    IO.read() => read_from_cache(),
+    Error.raise(err) => null
+}
 
-;; Nested handlers - inner handlers shadow outer ones
-(handler
-  ((error (lambda (e) "outer")))
-  (handler
-    ((error (lambda (e) "inner")))  ; This handler wins
-    (effect error:raise "test")))
+// Nested handlers - inner handlers shadow outer ones
+handle {
+    handle {
+        throw "test"
+    } with {
+        Error.raise(e) => "inner"  // This handler wins
+    }
+} with {
+    Error.raise(e) => "outer"
+}
 
-;; Handlers with lexical scope
-(let ((recovery-value 42))
-  (handler
-    ((error (lambda (err)
-              (log-error "Error with recovery:" err)
-              recovery-value)))
-    (risky-computation)))
+// Handlers with lexical scope
+let recovery_value = 42;
+handle {
+    risky_computation()
+} with {
+    Error.raise(err) => {
+        log_error(f"Error with recovery: {err}");
+        recovery_value
+    }
+}
 
-;; State effect handler implementation
-(let ((state {:count 0}))
-  (handler
-    ((state (lambda (op . args)
-              (case op
-                "get" (get state (first args))
-                "set" (set! state (assoc state (first args) (second args)))
-                "update" (set! state (update state (first args) (second args)))))))
-    (do
-      (effect state:set :count 1)
-      (effect state:update :count inc)
-      (effect state:get :count))))  ; => 2
+// State effect handler implementation
+let state = {"count": 0};
+handle {
+    perform State.set("count", 1);
+    perform State.update("count", x => x + 1);
+    perform State.get("count")  // => 2
+} with {
+    State.get(key) => state.get(key),
+    State.set(key, value) => { state = state.assoc(key, value) },
+    State.update(key, fn) => { state = state.update(key, fn) }
+}
 
-;; IO virtualization for testing
-(handler
-  ((io (lambda (op . args)
+// IO virtualization for testing
+handle {
          (case op
            "print" (vector-append! test-output (first args))
            "read" "test input"

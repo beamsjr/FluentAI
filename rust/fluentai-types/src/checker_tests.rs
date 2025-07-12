@@ -235,7 +235,7 @@ mod checker_edge_case_tests {
     // Test warning generation
     #[test]
     fn test_generate_warnings_unconstrained_type_var() {
-        let graph = create_test_graph("(lambda (x) x)");
+        let graph = create_test_graph("(x) => x");
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
 
@@ -303,7 +303,7 @@ mod checker_edge_case_tests {
             .build();
 
         // Test that it works with the custom env
-        let graph = create_test_graph("(my_func 42)");
+        let graph = create_test_graph("my_func(42)");
         let result = checker.check(&graph);
         assert!(result.success || !result.types.is_empty());
     }
@@ -335,7 +335,7 @@ mod checker_edge_case_tests {
     // Test complex error scenario with multiple issues
     #[test]
     fn test_multiple_errors() {
-        let graph = create_test_graph("(let ((x 1)) (+ x \"hello\"))");
+        let graph = create_test_graph("{ let x = 1; x + \"hello\" }");
         let mut checker = TypeChecker::new();
 
         // Add an annotation that will also cause a mismatch

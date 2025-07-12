@@ -10,6 +10,7 @@ name = "fluentai_rust"
 crate-type = ["cdylib"]
 
 [dependencies]
+fluentai-bytecode = { path = "../fluentai-bytecode" }
 fluentai-core = { path = "../fluentai-core" }
 fluentai-parser = { path = "../fluentai-parser" }
 fluentai-vm = { path = "../fluentai-vm" }

@@ -1,6 +1,6 @@
 //! Debug event system for VM visualization
 
-use fluentai_vm::bytecode::Instruction;
+use fluentai_bytecode::Instruction;
 use fluentai_vm::Value;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;

@@ -2,7 +2,7 @@
 
 use fluentai_core::ast::Graph as AstGraph;
 use fluentai_core::value::Value;
-use fluentai_vm::bytecode::Bytecode;
+use fluentai_bytecode::Bytecode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

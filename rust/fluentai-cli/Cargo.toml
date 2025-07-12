@@ -10,6 +10,7 @@ name = "fluentai"
 path = "src/main.rs"
 
 [dependencies]
+fluentai-bytecode = { path = "../fluentai-bytecode" }
 # Core dependencies
 fluentai-core = { path = "../fluentai-core" }
 fluentai-parser = { path = "../fluentai-parser" }

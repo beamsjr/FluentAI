@@ -569,6 +569,7 @@ impl Interpreter {
             ValueData::Integer(i) => CoreValue::Integer(*i),
             ValueData::Float(f) => CoreValue::Float(*f),
             ValueData::String(s) => CoreValue::String(s.clone()),
+            ValueData::Symbol(s) => CoreValue::Symbol(s.clone()),
             ValueData::List(items) => {
                 let core_items: Vec<CoreValue> =
                     items.iter().map(|v| self.value_to_core(v)).collect();
@@ -587,6 +588,7 @@ impl Interpreter {
             CoreValue::Integer(i) => ValueData::Integer(*i),
             CoreValue::Float(f) => ValueData::Float(*f),
             CoreValue::String(s) => ValueData::String(s.clone()),
+            CoreValue::Symbol(s) => ValueData::Symbol(s.clone()),
             CoreValue::List(items) => {
                 let values: Vec<Value> = items.iter().map(|v| self.core_to_value(v)).collect();
                 ValueData::List(values)

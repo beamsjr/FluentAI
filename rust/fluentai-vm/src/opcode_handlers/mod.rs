@@ -3,7 +3,7 @@
 //! This module organizes opcode execution into logical groups,
 //! making the VM easier to maintain and test.
 
-use crate::bytecode::Instruction;
+use fluentai_bytecode::Instruction;
 use crate::error::VMResult;
 use crate::vm::{VM, VMState};
 

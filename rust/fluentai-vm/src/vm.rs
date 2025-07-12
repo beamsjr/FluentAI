@@ -1,10 +1,12 @@
 //! High-performance stack-based virtual machine
 
-use crate::bytecode::{Bytecode, Instruction, Opcode};
+use fluentai_bytecode::{Bytecode, Instruction, Opcode};
 use crate::cow_globals::CowGlobals;
 use crate::debug::{DebugConfig, StepMode, VMDebugEvent};
 use crate::error::{value_type_name, StackFrame, StackTrace, VMError, VMResult};
 use crate::gc::{GarbageCollector, GcConfig, GcScope};
+#[cfg(feature = "jit")]
+use crate::jit_integration::{JitConfig, JitManager};
 use crate::safety::{checked_ops, ActorId, ChannelId, IdGenerator, PromiseId, ResourceLimits};
 use crate::security::{SecurityManager, SecurityPolicy};
 use fluentai_core::ast::{NodeId, UsageStatistics};
@@ -113,6 +115,12 @@ impl UsageTracker {
     pub fn get_all_stats(&self) -> &FxHashMap<NodeId, UsageStatistics> {
         &self.stats
     }
+    
+    /// Get usage statistics for a specific chunk
+    pub fn get_stats_for_chunk(&self, chunk_id: usize) -> Option<UsageStatistics> {
+        let node_id = self.chunk_to_node.get(&chunk_id)?;
+        self.stats.get(node_id).cloned()
+    }
 }
 
 pub struct VM {
@@ -157,6 +165,9 @@ pub struct VM {
     error_handler_stack: Vec<ErrorHandler>,
     // Finally block state storage
     finally_states: Vec<FinallyState>,
+    // JIT compilation manager
+    #[cfg(feature = "jit")]
+    jit_manager: JitManager,
 }
 
 /// Handler frame for tracking active effect handlers
@@ -230,6 +241,8 @@ impl VM {
             handler_stack: Vec::new(),
             error_handler_stack: Vec::new(),
             finally_states: Vec::new(),
+            #[cfg(feature = "jit")]
+            jit_manager: JitManager::new(JitConfig::default()),
         }
     }
 
@@ -4383,15 +4396,89 @@ impl VM {
                 .and_then(|chunk| chunk.name.clone())
                 .unwrap_or_else(|| format!("<anonymous:{}>", frame.chunk_id));
 
+            // Get source location from source map if available
+            let location = self
+                .bytecode
+                .chunks
+                .get(frame.chunk_id)
+                .and_then(|chunk| chunk.source_map.as_ref())
+                .and_then(|source_map| source_map.get_location(frame.ip))
+                .map(|src_loc| crate::error::SourceLocation {
+                    file: self.bytecode.chunks.get(frame.chunk_id)
+                        .and_then(|chunk| chunk.source_map.as_ref())
+                        .and_then(|sm| sm.filename.clone()),
+                    line: src_loc.line.unwrap_or(0) as usize,
+                    column: src_loc.column.unwrap_or(0) as usize,
+                    function: Some(function_name.clone()),
+                });
+
             trace.push_frame(StackFrame {
                 function_name,
                 chunk_id: frame.chunk_id,
                 ip: frame.ip,
-                location: None, // TODO: Add source mapping
+                location,
             });
         }
 
         trace
+    }
+    
+    /// Create an error with source location from current instruction
+    pub fn create_error_with_location(&self, mut error: VMError) -> VMError {
+        // Add stack trace if not already present
+        match &mut error {
+            VMError::StackOverflow { stack_trace, .. } |
+            VMError::StackUnderflow { stack_trace, .. } |
+            VMError::CallStackOverflow { stack_trace, .. } |
+            VMError::TypeError { stack_trace, .. } |
+            VMError::DivisionByZero { stack_trace, .. } |
+            VMError::IntegerOverflow { stack_trace, .. } |
+            VMError::InvalidConstantIndex { stack_trace, .. } |
+            VMError::InvalidLocalIndex { stack_trace, .. } |
+            VMError::InvalidJumpTarget { stack_trace, .. } |
+            VMError::ResourceLimitExceeded { stack_trace, .. } |
+            VMError::ModuleError { stack_trace, .. } |
+            VMError::AsyncError { stack_trace, .. } |
+            VMError::CellError { stack_trace, .. } |
+            VMError::UnknownIdentifier { stack_trace, .. } |
+            VMError::RuntimeError { stack_trace, .. } => {
+                if stack_trace.is_none() {
+                    *stack_trace = Some(self.build_stack_trace());
+                }
+            }
+            _ => {}
+        }
+        
+        // Add source location if not already present and applicable
+        if let Some(frame) = self.call_stack.last() {
+            match &mut error {
+                VMError::TypeError { location, .. } |
+                VMError::DivisionByZero { location, .. } |
+                VMError::InvalidOpcode { location, .. } |
+                VMError::UnknownIdentifier { location, .. } => {
+                    if location.is_none() {
+                        *location = self
+                            .bytecode
+                            .chunks
+                            .get(frame.chunk_id)
+                            .and_then(|chunk| chunk.source_map.as_ref())
+                            .and_then(|source_map| source_map.get_location(frame.ip))
+                            .map(|src_loc| crate::error::SourceLocation {
+                                file: self.bytecode.chunks.get(frame.chunk_id)
+                                    .and_then(|chunk| chunk.source_map.as_ref())
+                                    .and_then(|sm| sm.filename.clone()),
+                                line: src_loc.line.unwrap_or(0) as usize,
+                                column: src_loc.column.unwrap_or(0) as usize,
+                                function: self.bytecode.chunks.get(frame.chunk_id)
+                                    .and_then(|chunk| chunk.name.clone()),
+                            });
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        error
     }
 
     /// Set resource limits
@@ -4478,6 +4565,58 @@ impl VM {
     
     pub fn has_usage_tracker(&self) -> bool {
         self.usage_tracker.is_some()
+    }
+    
+    /// Check if a chunk should be JIT compiled
+    #[cfg(feature = "jit")]
+    pub fn should_jit_compile(&self, chunk_id: usize) -> bool {
+        if let Some(tracker) = &self.usage_tracker {
+            if let Ok(tracker_guard) = tracker.read() {
+                if let Some(stats) = tracker_guard.get_stats_for_chunk(chunk_id) {
+                    return self.jit_manager.should_compile(&stats);
+                }
+            }
+        }
+        false
+    }
+    
+    #[cfg(not(feature = "jit"))]
+    pub fn should_jit_compile(&self, _chunk_id: usize) -> bool {
+        false
+    }
+    
+    /// Try to execute a function using JIT compilation
+    #[cfg(feature = "jit")]
+    pub fn try_jit_execute(&mut self, chunk_id: usize) -> VMResult<Option<Value>> {
+        // First attempt compilation if needed
+        if let Some(tracker) = &self.usage_tracker {
+            if let Ok(tracker_guard) = tracker.read() {
+                if let Some(stats) = tracker_guard.get_stats_for_chunk(chunk_id) {
+                    if self.jit_manager.should_compile(&stats) {
+                        drop(tracker_guard);
+                        self.jit_manager.compile_chunk(chunk_id, &self.bytecode)?;
+                    }
+                }
+            }
+        }
+        
+        // Try to execute the JIT-compiled version
+        match self.jit_manager.execute_if_compiled(chunk_id, &self.bytecode) {
+            Some(Ok(value)) => Ok(Some(value)),
+            Some(Err(_)) => Ok(None), // Fall back to interpreter
+            None => Ok(None),
+        }
+    }
+    
+    #[cfg(not(feature = "jit"))]
+    pub fn try_jit_execute(&mut self, _chunk_id: usize) -> VMResult<Option<Value>> {
+        Ok(None)
+    }
+    
+    /// Get JIT compilation statistics
+    #[cfg(feature = "jit")]
+    pub fn jit_stats(&self) -> &crate::jit_integration::JitStats {
+        self.jit_manager.stats()
     }
     
     pub fn emit_function_call_debug_event(&self, func: &Value, arg_count: usize) {
@@ -4913,7 +5052,7 @@ pub enum VMState {
 #[cfg(test)]
 mod inline_tests {
     use super::*;
-    use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+    use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 
     #[test]
     fn test_vm_creation_inline() {

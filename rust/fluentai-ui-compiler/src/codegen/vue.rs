@@ -85,6 +85,7 @@ impl<'a> VueCompiler<'a> {
             Literal::Integer(i) => i.to_string(),
             Literal::Float(f) => f.to_string(),
             Literal::String(s) => format!("\"{}\"", s.replace("\"", "\\\"")),
+            Literal::Symbol(s) => format!("Symbol.for(\"{}\")", s),
         })
     }
 

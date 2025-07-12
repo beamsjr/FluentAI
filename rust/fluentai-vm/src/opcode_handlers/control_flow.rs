@@ -1,6 +1,6 @@
 //! Control flow operations handler
 
-use crate::bytecode::{Instruction, Opcode};
+use fluentai_bytecode::{Instruction, Opcode};
 use crate::error::{VMError, VMResult};
 use crate::vm::{VM, VMState, CallFrame};
 use fluentai_core::value::Value;
@@ -49,6 +49,15 @@ impl OpcodeHandler for ControlFlowHandler {
                 
                 match &func {
                     Value::Function { chunk_id, env } => {
+                        // Try JIT compilation if conditions are met
+                        if vm.should_jit_compile(*chunk_id) && env.is_empty() {
+                            // Attempt JIT execution for functions without captures
+                            if let Some(result) = vm.try_jit_execute(*chunk_id)? {
+                                vm.push(result)?;
+                                return Ok(VMState::Continue);
+                            }
+                        }
+                        
                         // Track function call timing if usage tracking is enabled
                         let start_time = if vm.has_usage_tracker() {
                             Some(Instant::now())

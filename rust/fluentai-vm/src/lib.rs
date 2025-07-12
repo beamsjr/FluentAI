@@ -3,7 +3,6 @@
 //! High-performance register-based VM for executing FluentAi bytecode
 
 pub mod builder;
-pub mod bytecode;
 pub mod compiler;
 pub mod compiler_builtins;
 pub mod concurrent;
@@ -14,6 +13,8 @@ pub mod error;
 pub mod fast_channel;
 pub mod free_var_analysis;
 pub mod gc;
+#[cfg(feature = "jit")]
+pub mod jit_integration;
 pub mod memory_pool;
 pub mod opcode_handlers;
 pub mod optimization;
@@ -31,7 +32,7 @@ pub mod async_vm;
 pub mod cow_globals;
 
 pub use builder::{VMBuilder as VMBuilderLegacy, VMConfig};
-pub use bytecode::{Bytecode, Opcode};
+pub use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 pub use compiler::{Compiler, CompilerOptions};
 pub use concurrent::{BoundedQueue, LockFreeQueue, LockFreeStack, WorkStealingDeque};
 pub use concurrent_gc::{ConcurrentGc, ConcurrentGcConfig};

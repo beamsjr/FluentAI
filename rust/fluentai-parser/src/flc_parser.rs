@@ -100,6 +100,7 @@ impl<'a> Parser<'a> {
                 self.parse_function_definition(is_public, contract_info)
             }
             Some(Token::Function) => self.parse_function_definition(is_public, contract_info),
+            Some(Token::Const) => self.parse_const_definition(is_public),
             Some(Token::Handle) => self.parse_handler_definition(is_public),
             Some(Token::Struct) => self.parse_struct_definition(is_public),
             Some(Token::Enum) => self.parse_enum_definition(is_public),
@@ -315,6 +316,30 @@ impl<'a> Parser<'a> {
             self.advance();
         }
         
+        self.add_node(Node::Define { name, value })
+    }
+    
+    fn parse_const_definition(&mut self, _is_public: bool) -> Result<NodeId> {
+        self.consume(Token::Const)?;
+        
+        let name = match self.current {
+            Some(Token::UpperIdent(n)) | Some(Token::ConstIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected constant name (uppercase identifier)")),
+        };
+        
+        self.consume(Token::Eq)?;
+        let value = self.parse_expression()?;
+        
+        if matches!(self.current, Some(Token::Semicolon)) {
+            self.advance();
+        }
+        
+        // Constants are just defines with uppercase names
+        // The type system or later passes can enforce immutability
         self.add_node(Node::Define { name, value })
     }
     
@@ -746,9 +771,7 @@ impl<'a> Parser<'a> {
             Some(Token::FString(s)) => {
                 let s = s.to_string();
                 self.advance();
-                // For now, treat f-strings as regular strings
-                // TODO: Implement proper interpolation parsing
-                self.add_node(Node::Literal(Literal::String(s)))
+                self.parse_fstring(&s)
             }
             Some(Token::True) => {
                 self.advance();
@@ -1028,6 +1051,8 @@ impl<'a> Parser<'a> {
             Some(Token::If) => self.parse_if_expression(),
             Some(Token::Let) => self.parse_let_expression(),
             Some(Token::Match) => self.parse_match_expression(),
+            Some(Token::For) => self.parse_for_expression(),
+            Some(Token::While) => self.parse_while_expression(),
             Some(Token::Try) => self.parse_try_expression(),
             Some(Token::Spawn) => self.parse_spawn_expression(),
             Some(Token::Perform) => self.parse_perform_expression(),
@@ -1061,6 +1086,100 @@ impl<'a> Parser<'a> {
             condition, 
             then_branch, 
             else_branch 
+        })
+    }
+    
+    fn parse_for_expression(&mut self) -> Result<NodeId> {
+        // for item in collection { body }
+        self.consume(Token::For)?;
+        
+        // Parse the loop variable (pattern)
+        let var_name = match self.current {
+            Some(Token::LowerIdent(name)) => {
+                let name = name.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected variable name after 'for'")),
+        };
+        
+        self.consume(Token::In)?;
+        
+        // Parse the collection to iterate over
+        let collection = self.parse_expression()?;
+        
+        self.consume(Token::LBrace)?;
+        let body = self.parse_block_expression()?;
+        self.consume(Token::RBrace)?;
+        
+        // Convert to: collection.for_each(var_name => body)
+        let for_each_fn = self.add_node(Node::Variable { name: "for_each".to_string() })?;
+        let lambda = self.add_node(Node::Lambda {
+            params: vec![var_name],
+            body,
+        })?;
+        
+        let method_call = self.add_node(Node::Application {
+            function: for_each_fn,
+            args: vec![collection, lambda],
+        })?;
+        
+        Ok(method_call)
+    }
+    
+    fn parse_while_expression(&mut self) -> Result<NodeId> {
+        // while condition { body }
+        self.consume(Token::While)?;
+        
+        let condition = self.parse_expression()?;
+        
+        self.consume(Token::LBrace)?;
+        let body = self.parse_block_expression()?;
+        self.consume(Token::RBrace)?;
+        
+        // Convert to a recursive function
+        // let loop_fn = rec (unit) => if (condition) { body; loop_fn(unit) } else { nil }
+        // loop_fn(unit)
+        
+        let unit = self.add_node(Node::Literal(Literal::Nil))?;
+        let loop_var = format!("_while_{}", self.graph.nodes.len());
+        
+        // Create the recursive call: loop_fn(unit)
+        let loop_call_inner = self.add_node(Node::Variable { name: loop_var.clone() })?;
+        let recursive_call = self.add_node(Node::Application {
+            function: loop_call_inner,
+            args: vec![unit],
+        })?;
+        
+        // Create body sequence: body; loop_fn(unit)
+        let body_with_recursion = self.add_node(Node::Begin {
+            exprs: vec![body, recursive_call],
+        })?;
+        
+        // Create the if expression
+        let if_expr = self.add_node(Node::If {
+            condition,
+            then_branch: body_with_recursion,
+            else_branch: unit,
+        })?;
+        
+        // Create the recursive lambda
+        let loop_lambda = self.add_node(Node::Lambda {
+            params: vec!["_".to_string()],
+            body: if_expr,
+        })?;
+        
+        // Create the let-rec binding and call
+        let binding = (loop_var.clone(), loop_lambda);
+        let loop_call = self.add_node(Node::Variable { name: loop_var })?;
+        let final_call = self.add_node(Node::Application {
+            function: loop_call,
+            args: vec![unit],
+        })?;
+        
+        self.add_node(Node::Letrec {
+            bindings: vec![binding],
+            body: final_call,
         })
     }
     
@@ -1555,9 +1674,47 @@ impl<'a> Parser<'a> {
         
         self.consume(Token::RBrace)?;
         
+        // Check for .derive() attributes
+        let mut derive_traits = vec![];
+        if matches!(self.current, Some(Token::Dot)) {
+            self.advance();
+            if let Some(Token::LowerIdent(method)) = self.current {
+                if method == "derive" {
+                    self.advance();
+                    self.consume(Token::LParen)?;
+                    
+                    // Parse derive traits
+                    while !matches!(self.current, Some(Token::RParen)) {
+                        match self.current {
+                            Some(Token::UpperIdent(trait_name)) => {
+                                derive_traits.push(trait_name.to_string());
+                                self.advance();
+                            }
+                            _ => return Err(anyhow!("Expected trait name in derive")),
+                        }
+                        
+                        if matches!(self.current, Some(Token::Comma)) {
+                            self.advance();
+                        }
+                    }
+                    
+                    self.consume(Token::RParen)?;
+                }
+            }
+        }
+        
         // For now, create a define node with a special struct value
         // In a full implementation, we'd have a Node::Struct variant
-        let struct_value = self.add_node(Node::List(vec![]))?;
+        let struct_value = if derive_traits.is_empty() {
+            self.add_node(Node::List(vec![]))?
+        } else {
+            // Add derive info as metadata
+            let derive_list = derive_traits.into_iter()
+                .map(|t| self.add_node(Node::Literal(Literal::Symbol(t))))
+                .collect::<Result<Vec<_>>>()?;
+            self.add_node(Node::List(derive_list))?
+        };
+        
         self.add_node(Node::Define {
             name: struct_name,
             value: struct_value,
@@ -1635,8 +1792,46 @@ impl<'a> Parser<'a> {
         
         self.consume(Token::RBrace)?;
         
+        // Check for .derive() attributes
+        let mut derive_traits = vec![];
+        if matches!(self.current, Some(Token::Dot)) {
+            self.advance();
+            if let Some(Token::LowerIdent(method)) = self.current {
+                if method == "derive" {
+                    self.advance();
+                    self.consume(Token::LParen)?;
+                    
+                    // Parse derive traits
+                    while !matches!(self.current, Some(Token::RParen)) {
+                        match self.current {
+                            Some(Token::UpperIdent(trait_name)) => {
+                                derive_traits.push(trait_name.to_string());
+                                self.advance();
+                            }
+                            _ => return Err(anyhow!("Expected trait name in derive")),
+                        }
+                        
+                        if matches!(self.current, Some(Token::Comma)) {
+                            self.advance();
+                        }
+                    }
+                    
+                    self.consume(Token::RParen)?;
+                }
+            }
+        }
+        
         // Create a define node for the enum
-        let enum_value = self.add_node(Node::List(vec![]))?;
+        let enum_value = if derive_traits.is_empty() {
+            self.add_node(Node::List(vec![]))?
+        } else {
+            // Add derive info as metadata
+            let derive_list = derive_traits.into_iter()
+                .map(|t| self.add_node(Node::Literal(Literal::Symbol(t))))
+                .collect::<Result<Vec<_>>>()?;
+            self.add_node(Node::List(derive_list))?
+        };
+        
         self.add_node(Node::Define {
             name: enum_name,
             value: enum_value,
@@ -2626,6 +2821,192 @@ impl<'a> Parser<'a> {
                 // For other pattern types, just create a generic pattern node
                 self.add_node(Node::Variable { name: "UnknownPattern".to_string() })
             }
+        }
+    }
+    
+    fn parse_fstring(&mut self, s: &str) -> Result<NodeId> {
+        // Parse f-string with interpolations
+        // Format: f"text {expression} more text {expression}"
+        
+        #[cfg(test)]
+        eprintln!("parse_fstring: input = {:?}", s);
+        
+        let mut parts = Vec::new();
+        let mut current = String::new();
+        let mut chars = s.chars().peekable();
+        
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                // Check for escaped brace
+                if chars.peek() == Some(&'{') {
+                    chars.next(); // consume second '{'
+                    current.push('{');
+                } else {
+                    // We have an interpolation
+                    // First, add any accumulated string literal
+                    if !current.is_empty() {
+                        let string_node = self.add_node(Node::Literal(Literal::String(current.clone())))?;
+                        parts.push(string_node);
+                        current.clear();
+                    }
+                    
+                    // Extract the expression between braces
+                    let mut expr_str = String::new();
+                    let mut brace_depth = 1;
+                    
+                    while let Some(ch) = chars.next() {
+                        if ch == '{' {
+                            brace_depth += 1;
+                            expr_str.push(ch);
+                        } else if ch == '}' {
+                            brace_depth -= 1;
+                            if brace_depth == 0 {
+                                break;
+                            }
+                            expr_str.push(ch);
+                        } else {
+                            expr_str.push(ch);
+                        }
+                    }
+                    
+                    if brace_depth != 0 {
+                        return Err(anyhow!("Unclosed interpolation in f-string"));
+                    }
+                    
+                    // Parse the expression
+                    let expr_node = self.parse_interpolated_expression(&expr_str)?;
+                    
+                    // Convert to string using a to_string application
+                    let to_string_var = self.add_node(Node::Variable { name: "to_string".to_string() })?;
+                    let string_expr = self.add_node(Node::Application {
+                        function: to_string_var,
+                        args: vec![expr_node],
+                    })?;
+                    
+                    parts.push(string_expr);
+                }
+            } else if ch == '}' {
+                // Check for escaped brace
+                if chars.peek() == Some(&'}') {
+                    chars.next(); // consume second '}'
+                    current.push('}');
+                } else {
+                    return Err(anyhow!("Unexpected '}}' in f-string"));
+                }
+            } else {
+                current.push(ch);
+            }
+        }
+        
+        // Add any remaining string literal
+        if !current.is_empty() {
+            let string_node = self.add_node(Node::Literal(Literal::String(current)))?;
+            parts.push(string_node);
+        }
+        
+        // If we have no parts, return empty string
+        if parts.is_empty() {
+            return self.add_node(Node::Literal(Literal::String(String::new())));
+        }
+        
+        // If we have only one part, return it directly
+        if parts.len() == 1 {
+            return Ok(parts[0]);
+        }
+        
+        // Otherwise, concatenate all parts using string-append
+        let mut result = parts[0];
+        for part in parts.into_iter().skip(1) {
+            let append_var = self.add_node(Node::Variable { name: "string-append".to_string() })?;
+            result = self.add_node(Node::Application {
+                function: append_var,
+                args: vec![result, part],
+            })?;
+        }
+        
+        Ok(result)
+    }
+    
+    fn parse_interpolated_expression(&mut self, expr_str: &str) -> Result<NodeId> {
+        // Create a sub-parser for the expression
+        let mut sub_parser = Parser::new(expr_str);
+        let sub_graph = sub_parser.parse()?;
+        
+        // Import the nodes from the sub-graph into our main graph
+        if let Some(root_id) = sub_graph.root_id {
+            self.import_subgraph_node(&sub_graph, root_id)
+        } else {
+            Err(anyhow!("Empty expression in interpolation"))
+        }
+    }
+    
+    fn import_subgraph_node(&mut self, sub_graph: &Graph, node_id: NodeId) -> Result<NodeId> {
+        // Recursively import nodes from the sub-graph
+        if let Some(node) = sub_graph.get_node(node_id) {
+            match node {
+                Node::Literal(lit) => self.add_node(Node::Literal(lit.clone())),
+                Node::Variable { name } => self.add_node(Node::Variable { name: name.clone() }),
+                Node::Application { function, args } => {
+                    let new_function = self.import_subgraph_node(sub_graph, *function)?;
+                    let mut new_args = Vec::new();
+                    for arg in args {
+                        new_args.push(self.import_subgraph_node(sub_graph, *arg)?);
+                    }
+                    self.add_node(Node::Application {
+                        function: new_function,
+                        args: new_args,
+                    })
+                }
+                Node::If { condition, then_branch, else_branch } => {
+                    let new_condition = self.import_subgraph_node(sub_graph, *condition)?;
+                    let new_then = self.import_subgraph_node(sub_graph, *then_branch)?;
+                    let new_else = self.import_subgraph_node(sub_graph, *else_branch)?;
+                    self.add_node(Node::If {
+                        condition: new_condition,
+                        then_branch: new_then,
+                        else_branch: new_else,
+                    })
+                }
+                Node::Lambda { params, body } => {
+                    let new_body = self.import_subgraph_node(sub_graph, *body)?;
+                    self.add_node(Node::Lambda {
+                        params: params.clone(),
+                        body: new_body,
+                    })
+                }
+                Node::Let { bindings, body } => {
+                    let mut new_bindings = Vec::new();
+                    for (name, value) in bindings {
+                        let new_value = self.import_subgraph_node(sub_graph, *value)?;
+                        new_bindings.push((name.clone(), new_value));
+                    }
+                    let new_body = self.import_subgraph_node(sub_graph, *body)?;
+                    self.add_node(Node::Let {
+                        bindings: new_bindings,
+                        body: new_body,
+                    })
+                }
+                Node::List(items) => {
+                    let mut new_items = Vec::new();
+                    for item in items {
+                        new_items.push(self.import_subgraph_node(sub_graph, *item)?);
+                    }
+                    self.add_node(Node::List(new_items))
+                }
+                Node::QualifiedVariable { module_name, variable_name } => {
+                    self.add_node(Node::QualifiedVariable {
+                        module_name: module_name.clone(),
+                        variable_name: variable_name.clone(),
+                    })
+                }
+                // Add other node types as needed
+                _ => {
+                    // For now, just create a placeholder
+                    self.add_node(Node::Variable { name: "UnsupportedInterpolation".to_string() })
+                }
+            }
+        } else {
+            Err(anyhow!("Invalid node in subgraph"))
         }
     }
 }

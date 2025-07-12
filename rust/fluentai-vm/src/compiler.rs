@@ -1,8 +1,9 @@
 //! Compiler from AST to bytecode
 
-use crate::bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
+use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use crate::compiler_builtins::BuiltinResult;
 use crate::free_var_analysis::FreeVarAnalyzer;
+use fluentai_bytecode::source_map::{SourceLocation, SourceMap, ModuleSourceMap};
 use crate::stack_effect::stack_effect;
 use anyhow::{anyhow, Result};
 use fluentai_core::ast::{Graph as ASTGraph, Literal, Node, NodeId, Pattern};
@@ -44,6 +45,9 @@ pub struct Compiler {
     // Tail call optimization tracking
     in_tail_position: bool, // Whether we're compiling in tail position
     current_function: Option<String>, // Name of current function being compiled
+    // Source mapping
+    current_node_id: Option<NodeId>, // Current AST node being compiled
+    source_filename: Option<String>, // Optional source filename
 }
 
 /// Helper struct to hold error handler information during try/catch/finally compilation
@@ -76,10 +80,21 @@ impl Compiler {
             options,
             in_tail_position: false,
             current_function: None,
+            current_node_id: None,
+            source_filename: None,
         }
     }
 
+    /// Set the source filename for error reporting
+    pub fn with_source_filename(mut self, filename: String) -> Self {
+        self.source_filename = Some(filename);
+        self
+    }
+    
     pub fn compile(mut self, graph: &ASTGraph) -> Result<Bytecode> {
+        // Initialize module source map if debug info is enabled
+        self.init_module_source_map();
+        
         // Apply optimizations if enabled
         let optimized_graph = if self.options.optimization_level != OptimizationLevel::None {
             let config = OptimizationConfig::for_level(self.options.optimization_level);
@@ -201,6 +216,11 @@ impl Compiler {
             .get(&node_id)
             .ok_or_else(|| anyhow!("Invalid node ID: {:?}", node_id))?;
         
+        // Track current node for source mapping
+        let previous_node = self.current_node_id;
+        self.current_node_id = Some(node_id);
+        
+        // Source location is recorded in emit() method when instructions are generated
 
         match node {
             Node::Literal(lit) => self.compile_literal(lit)?,
@@ -366,6 +386,9 @@ impl Compiler {
                 self.compile_assignment(graph, *target, *value)?;
             }
         }
+
+        // Restore previous node
+        self.current_node_id = previous_node;
 
         Ok(())
     }
@@ -1095,7 +1118,16 @@ impl Compiler {
             );
         }
         
-        self.bytecode.chunks[self.current_chunk].add_instruction(instruction)
+        let offset = self.bytecode.chunks[self.current_chunk].add_instruction(instruction);
+        
+        // Record source location for this instruction if we have a current node
+        if self.options.debug_info {
+            if let Some(node_id) = self.current_node_id {
+                self.record_source_location(offset, node_id);
+            }
+        }
+        
+        offset
     }
 
     fn add_constant(&mut self, value: Value) -> u32 {
@@ -2816,6 +2848,9 @@ mod tests {
         assert_eq!(compiler.scope_bases.len(), 1);
         assert_eq!(compiler.scope_bases[0], 0);
         
+        // Set up stack depth to simulate compilation state with 5 values on stack
+        compiler.stack_depth = 5;
+        
         // Push a catch scope with handler depth 5
         compiler.push_catch_scope(5);
         
@@ -2856,6 +2891,9 @@ mod tests {
         // Test multiple nested catch scopes
         let mut compiler = Compiler::new();
         
+        // Set up stack depth to allow all handler depths (max is 10)
+        compiler.stack_depth = 10;
+        
         // Push first catch scope
         compiler.push_catch_scope(3);
         assert_eq!(compiler.scope_bases.len(), 2);
@@ -2882,6 +2920,9 @@ mod tests {
     fn test_push_catch_scope_with_pop() {
         // Test interaction between push_catch_scope and pop_scope
         let mut compiler = Compiler::new();
+        
+        // Set up stack depth to allow handler depth of 5
+        compiler.stack_depth = 5;
         
         // Push a regular scope first
         compiler.push_scope();
@@ -2914,7 +2955,7 @@ mod tests {
         let mut compiler = Compiler::new();
         
         // Set up initial stack depth
-        compiler.stack_depth = 2;
+        compiler.stack_depth = 3;  // Changed from 2 to 3 to allow handler depth of 3
         compiler.scope_bases[0] = 0;
         
         // Add some variables to outer scope
@@ -3091,5 +3132,44 @@ impl Compiler {
     #[cfg(not(debug_assertions))]
     fn verify_scope_consistency(&self, _scope_idx: usize) {
         // No-op in release builds
+    }
+    
+    /// Initialize module source map if debug info is enabled
+    fn init_module_source_map(&mut self) {
+        if self.options.debug_info {
+            if self.bytecode.module_source_map.is_none() {
+                self.bytecode.module_source_map = Some(ModuleSourceMap::new());
+            }
+        }
+    }
+    
+    /// Record source location for an instruction
+    fn record_source_location(&mut self, instruction_offset: usize, node_id: NodeId) {
+        if self.options.debug_info {
+            // Ensure source map exists for current chunk
+            let chunk = &mut self.bytecode.chunks[self.current_chunk];
+            if chunk.source_map.is_none() {
+                let mut source_map = SourceMap::new();
+                if let Some(ref filename) = self.source_filename {
+                    source_map.filename = Some(filename.clone());
+                }
+                chunk.source_map = Some(source_map);
+            }
+            
+            // Add location mapping
+            if let Some(source_map) = &mut chunk.source_map {
+                // For now, we don't have actual line/column info from AST nodes
+                // This would need to be added during parsing
+                // Use node ID's internal value as a placeholder for start/end positions
+                let node_id_value = node_id.0.get() as usize;
+                source_map.add_instruction_location(instruction_offset, SourceLocation {
+                    start: node_id_value,
+                    end: node_id_value,
+                    line: None,
+                    column: None,
+                });
+                source_map.add_instruction_node(instruction_offset, node_id);
+            }
+        }
     }
 }

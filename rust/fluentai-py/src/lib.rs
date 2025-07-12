@@ -512,8 +512,8 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
 }
 
 /// Convert opcode to u8 representation
-fn opcode_to_u8(opcode: &fluentai_vm::bytecode::Opcode) -> u8 {
-    use fluentai_vm::bytecode::Opcode::*;
+fn opcode_to_u8(opcode: &fluentai_bytecode::Opcode) -> u8 {
+    use fluentai_bytecode::Opcode::*;
     match opcode {
         Push => 0,
         Pop => 1,

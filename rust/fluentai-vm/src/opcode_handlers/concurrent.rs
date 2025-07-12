@@ -1,6 +1,6 @@
 //! Concurrent and async operations handler
 
-use crate::bytecode::{Instruction, Opcode};
+use fluentai_bytecode::{Instruction, Opcode};
 use crate::error::{VMError, VMResult};
 use crate::vm::{VM, VMState};
 use fluentai_core::value::Value;

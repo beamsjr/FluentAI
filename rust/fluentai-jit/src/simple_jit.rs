@@ -3,7 +3,8 @@
 //! This is a minimal JIT implementation that compiles basic arithmetic
 //! to demonstrate the performance gains of native code generation.
 
-use fluentai_vm::bytecode::{Bytecode, Value, Opcode};
+use fluentai_bytecode::{Bytecode, Opcode};
+use fluentai_core::value::Value;
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::mem;

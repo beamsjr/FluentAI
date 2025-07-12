@@ -166,7 +166,7 @@ impl RuntimeEngine {
     fn execute_interpreted(
         &self,
         vm: &mut fluentai_vm::VM,
-        _bytecode: &fluentai_vm::bytecode::Bytecode,
+        _bytecode: &fluentai_bytecode::Bytecode,
     ) -> Result<Value> {
         // Check timeout before running
         self.context.check_timeout()?;
@@ -180,7 +180,7 @@ impl RuntimeEngine {
     fn execute_jit(
         &self,
         vm: &mut fluentai_vm::VM,
-        bytecode: &fluentai_vm::bytecode::Bytecode,
+        bytecode: &fluentai_bytecode::Bytecode,
         _threshold: u32,
     ) -> Result<Value> {
         // For now, just use interpreted mode

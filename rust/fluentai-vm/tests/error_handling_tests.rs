@@ -183,13 +183,10 @@ fn test_call_stack_overflow() {
     let result = vm.run();
     assert!(result.is_err(), "Expected error but got: {:?}", result);
     let err = result.unwrap_err();
-    // Currently the compiler incorrectly detects tail calls, resulting in a type error
-    // TODO: Fix tail call detection in the compiler
     assert!(
         err.to_string().contains("Stack overflow")
-            || err.to_string().contains("Call stack overflow")
-            || err.to_string().contains("Type error in tail_call"),
-        "Expected stack overflow or tail call error but got: {}",
+            || err.to_string().contains("Call stack overflow"),
+        "Expected stack overflow but got: {}",
         err
     );
 }
