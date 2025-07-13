@@ -293,6 +293,37 @@ impl FreeVarAnalyzer {
                 }
             }
             
+            Node::Send { channel, value } => {
+                let channel_analysis = self.analyze_node(graph, *channel, scope_id, bound_vars)?;
+                self.merge_analysis(&mut analysis, channel_analysis);
+                
+                let value_analysis = self.analyze_node(graph, *value, scope_id, bound_vars)?;
+                self.merge_analysis(&mut analysis, value_analysis);
+            }
+            
+            Node::Receive { channel } => {
+                let channel_analysis = self.analyze_node(graph, *channel, scope_id, bound_vars)?;
+                self.merge_analysis(&mut analysis, channel_analysis);
+            }
+            
+            Node::Spawn { expr } => {
+                let expr_analysis = self.analyze_node(graph, *expr, scope_id, bound_vars)?;
+                self.merge_analysis(&mut analysis, expr_analysis);
+            }
+            
+            Node::TrySend { channel, value } => {
+                let channel_analysis = self.analyze_node(graph, *channel, scope_id, bound_vars)?;
+                self.merge_analysis(&mut analysis, channel_analysis);
+                
+                let value_analysis = self.analyze_node(graph, *value, scope_id, bound_vars)?;
+                self.merge_analysis(&mut analysis, value_analysis);
+            }
+            
+            Node::TryReceive { channel } => {
+                let channel_analysis = self.analyze_node(graph, *channel, scope_id, bound_vars)?;
+                self.merge_analysis(&mut analysis, channel_analysis);
+            }
+            
             // Literals and other leaf nodes have no variables
             Node::Literal(_) | Node::Channel { .. } => {}
             

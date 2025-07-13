@@ -171,6 +171,9 @@ pub struct VM {
     // JIT compilation manager
     #[cfg(feature = "jit")]
     jit_manager: JitManager,
+    // Renderer bridge for Dom effects
+    #[cfg(feature = "renderer")]
+    renderer_bridge: Option<fluentai_renderer::RendererBridge>,
 }
 
 /// Handler frame for tracking active effect handlers
@@ -248,11 +251,19 @@ impl VM {
             finally_states: Vec::new(),
             #[cfg(feature = "jit")]
             jit_manager: JitManager::new(JitConfig::default()),
+            #[cfg(feature = "renderer")]
+            renderer_bridge: None,
         }
     }
 
     pub fn enable_trace(&mut self) {
         self.trace = true;
+    }
+    
+    /// Set the renderer bridge for Dom effects
+    #[cfg(feature = "renderer")]
+    pub fn set_renderer_bridge(&mut self, bridge: fluentai_renderer::RendererBridge) {
+        self.renderer_bridge = Some(bridge);
     }
 
     /// Reset VM state for reuse while keeping expensive initializations
@@ -2218,8 +2229,78 @@ impl VM {
     
     
     // Effect operations
-    pub fn perform_effect(&mut self, operation: String) -> VMResult<()> {
-        // Simplified implementation
+    pub fn perform_effect(&mut self, effect_type: String, operation: String, args: Vec<Value>) -> VMResult<()> {
+        let effect_type = effect_type.as_str();
+        let effect_op = operation.as_str();
+        
+        // The effect type might come as "IO" or "Dom" from debug format
+        let effect_type = effect_type.trim_matches('"');
+        
+        match effect_type {
+            "IO" => {
+                // Handle IO effects through stdlib
+                match effect_op {
+                    "print" => {
+                        if args.is_empty() {
+                            return Err(VMError::RuntimeError {
+                                message: "IO.print requires an argument".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        self.perform_io_print(args[0].clone())?;
+                    }
+                    "println" => {
+                        if args.is_empty() {
+                            return Err(VMError::RuntimeError {
+                                message: "IO.println requires an argument".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        self.perform_io_println(args[0].clone())?;
+                    }
+                    _ => return Err(VMError::RuntimeError {
+                        message: format!("Unknown IO operation: {}", effect_op),
+                        stack_trace: None,
+                    }),
+                }
+            }
+            #[cfg(feature = "renderer")]
+            "Dom" => {
+                if let Some(bridge) = &self.renderer_bridge {
+                    // Convert Value arguments to JSON
+                    let mut json_args = Vec::new();
+                    for arg in args {
+                        let json_value = self.value_to_json(arg)?;
+                        json_args.push(json_value);
+                    }
+                    
+                    // Handle the Dom effect
+                    let result = bridge.handle_dom_effect(effect_op, json_args)
+                        .map_err(|e| VMError::RuntimeError {
+                            message: format!("Dom effect error: {}", e),
+                            stack_trace: None,
+                        })?;
+                    
+                    // Convert result back to Value
+                    let value = self.json_to_value(result)?;
+                    self.push(value)?;
+                } else {
+                    return Err(VMError::RuntimeError {
+                        message: "Renderer bridge not initialized".to_string(),
+                        stack_trace: None,
+                    });
+                }
+            }
+            _ => {
+                // For other effects, try the effect context
+                // This is a simplified version - in reality we'd need to handle async effects properly
+                return Err(VMError::RuntimeError {
+                    message: format!("Unhandled effect type: {}", effect_type),
+                    stack_trace: None,
+                });
+            }
+        }
+        
         Ok(())
     }
     
@@ -2262,6 +2343,111 @@ impl VM {
     pub fn end_finally_block(&mut self) -> VMResult<()> {
         // Simplified implementation
         Ok(())
+    }
+    
+    // Helper methods for effects
+    fn perform_io_print(&mut self, value: Value) -> VMResult<()> {
+        // Convert to string and print
+        let s = match value {
+            Value::String(s) => s,
+            Value::Tagged { tag, values } if tag == "Printable" => {
+                if let Some(inner) = values.first() {
+                    match inner {
+                        Value::String(s) => s.clone(),
+                        _ => inner.to_string(),
+                    }
+                } else {
+                    String::new()
+                }
+            }
+            _ => value.to_string(),
+        };
+        print!("{}", s);
+        Ok(())
+    }
+    
+    fn perform_io_println(&mut self, value: Value) -> VMResult<()> {
+        // Convert to string and print with newline
+        let s = match value {
+            Value::String(s) => s,
+            Value::Tagged { tag, values } if tag == "Printable" => {
+                if let Some(inner) = values.first() {
+                    match inner {
+                        Value::String(s) => s.clone(),
+                        _ => inner.to_string(),
+                    }
+                } else {
+                    String::new()
+                }
+            }
+            _ => value.to_string(),
+        };
+        println!("{}", s);
+        Ok(())
+    }
+    
+    #[cfg(feature = "renderer")]
+    fn value_to_json(&self, value: Value) -> VMResult<serde_json::Value> {
+        match value {
+            Value::Nil => Ok(serde_json::Value::Null),
+            Value::Boolean(b) => Ok(serde_json::Value::Bool(b)),
+            Value::Integer(i) => Ok(serde_json::Value::Number(i.into())),
+            Value::Float(f) => {
+                serde_json::Number::from_f64(f)
+                    .map(serde_json::Value::Number)
+                    .ok_or_else(|| VMError::RuntimeError("Invalid float value".to_string()))
+            }
+            Value::String(s) => Ok(serde_json::Value::String(s)),
+            Value::List(list) => {
+                let json_list: Result<Vec<_>, _> = list.into_iter()
+                    .map(|v| self.value_to_json(v))
+                    .collect();
+                Ok(serde_json::Value::Array(json_list?))
+            }
+            Value::Map(map) => {
+                let mut json_map = serde_json::Map::new();
+                for (k, v) in map {
+                    let key = match k {
+                        Value::String(s) => s,
+                        _ => k.to_string(),
+                    };
+                    json_map.insert(key, self.value_to_json(v)?);
+                }
+                Ok(serde_json::Value::Object(json_map))
+            }
+            _ => Err(VMError::RuntimeError(format!("Cannot convert {} to JSON", value.type_name()))),
+        }
+    }
+    
+    #[cfg(feature = "renderer")]
+    fn json_to_value(&self, json: serde_json::Value) -> VMResult<Value> {
+        match json {
+            serde_json::Value::Null => Ok(Value::Nil),
+            serde_json::Value::Bool(b) => Ok(Value::Boolean(b)),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    Ok(Value::Integer(i))
+                } else if let Some(f) = n.as_f64() {
+                    Ok(Value::Float(f))
+                } else {
+                    Err(VMError::RuntimeError("Invalid number value".to_string()))
+                }
+            }
+            serde_json::Value::String(s) => Ok(Value::String(s)),
+            serde_json::Value::Array(arr) => {
+                let values: Result<Vec<_>, _> = arr.into_iter()
+                    .map(|v| self.json_to_value(v))
+                    .collect();
+                Ok(Value::List(values?))
+            }
+            serde_json::Value::Object(obj) => {
+                let mut map = Vec::new();
+                for (k, v) in obj {
+                    map.push((Value::String(k), self.json_to_value(v)?));
+                }
+                Ok(Value::Map(map))
+            }
+        }
     }
     
     // ===== Async support accessor methods =====
