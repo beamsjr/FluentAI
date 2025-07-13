@@ -1,0 +1,5 @@
+// Very simple test to verify basic functionality
+let x = 42;
+perform IO.println("Hello from FluentAI!");
+perform IO.println(f"The answer is: {x}");
+x

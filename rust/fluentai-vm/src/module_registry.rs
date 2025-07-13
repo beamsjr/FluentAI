@@ -5,6 +5,7 @@ use fluentai_core::value::Value;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use anyhow::{anyhow, Result};
+use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 
 /// Information about a loaded module
 #[derive(Debug, Clone)]
@@ -192,11 +193,11 @@ mod tests {
         graph.graph_metadata.insert("module_name".to_string(), "TestModule".to_string());
         graph.graph_metadata.insert("exports".to_string(), r#"[{"name":"test_func","alias":null}]"#.to_string());
         
-        let bytecode = Arc::new(Bytecode {
-            instructions: vec![Instruction::Return],
-            constants: vec![],
-            debug_info: None,
-        });
+        let mut bytecode = Bytecode::new();
+        let mut chunk = BytecodeChunk::new(Some("test".to_string()));
+        chunk.add_instruction(Instruction::new(Opcode::Return));
+        bytecode.main_chunk = bytecode.add_chunk(chunk);
+        let bytecode = Arc::new(bytecode);
         
         let result = registry.register_module(&graph, bytecode, None);
         assert!(result.is_ok());
@@ -217,11 +218,11 @@ mod tests {
         let mut graph = Graph::new();
         graph.graph_metadata.insert("module_name".to_string(), "DupModule".to_string());
         
-        let bytecode = Arc::new(Bytecode {
-            instructions: vec![Instruction::Return],
-            constants: vec![],
-            debug_info: None,
-        });
+        let mut bytecode = Bytecode::new();
+        let mut chunk = BytecodeChunk::new(Some("test".to_string()));
+        chunk.add_instruction(Instruction::new(Opcode::Return));
+        bytecode.main_chunk = bytecode.add_chunk(chunk);
+        let bytecode = Arc::new(bytecode);
         
         // First registration should succeed
         assert!(registry.register_module(&graph, bytecode.clone(), None).is_ok());
@@ -238,11 +239,11 @@ mod tests {
         let graph = Graph::new();
         // No module name in metadata, should derive from path
         
-        let bytecode = Arc::new(Bytecode {
-            instructions: vec![Instruction::Return],
-            constants: vec![],
-            debug_info: None,
-        });
+        let mut bytecode = Bytecode::new();
+        let mut chunk = BytecodeChunk::new(Some("test".to_string()));
+        chunk.add_instruction(Instruction::new(Opcode::Return));
+        bytecode.main_chunk = bytecode.add_chunk(chunk);
+        let bytecode = Arc::new(bytecode);
         
         let result = registry.register_module(&graph, bytecode, Some("/path/to/utils.flc".to_string()));
         assert!(result.is_ok());

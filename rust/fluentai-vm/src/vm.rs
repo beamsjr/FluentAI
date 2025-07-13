@@ -691,14 +691,17 @@ impl VM {
             }
             
             // Memory operations
-            Load | Store | LoadLocal0 | LoadLocal1 | LoadLocal2 | LoadLocal3 |
+            Load | Store | LoadLocal | StoreLocal | DefineGlobal |
+            LoadLocal0 | LoadLocal1 | LoadLocal2 | LoadLocal3 |
             StoreLocal0 | StoreLocal1 | StoreLocal2 | StoreLocal3 |
-            LoadGlobal | StoreGlobal | LoadCaptured | UpdateLocal => {
+            LoadGlobal | StoreGlobal | LoadCaptured | UpdateLocal |
+            LoadUpvalue | StoreUpvalue => {
                 return memory_handler.execute(self, instruction, chunk_id);
             }
             
             // Collection operations
-            MakeList | ListLen | ListEmpty | ListHead | ListTail | ListCons => {
+            MakeList | ListGet | ListSet | ListLen | ListEmpty | ListHead | ListTail | ListCons |
+            MakeMap | MapGet | MapSet => {
                 return collections_handler.execute(self, instruction, chunk_id);
             }
             
@@ -708,22 +711,24 @@ impl VM {
             }
             
             // Concurrent operations
-            Await | Spawn | Channel | ChannelWithCapacity | Send | Receive |
-            TrySend | TryReceive | Select | CreateActor | ActorSend |
+            Await | Spawn | Channel | ChannelWithCapacity | MakeChannel | Send | Receive |
+            TrySend | TryReceive | Select | CreateActor | MakeActor | ActorSend |
             ActorReceive | Become | PromiseNew | PromiseAll | PromiseRace |
             WithTimeout => {
                 return concurrent_handler.execute(self, instruction, chunk_id);
             }
             
             // Effect operations
-            Effect | EffectAsync | Try | Catch | Finally | EndFinally |
+            Effect | EffectAsync | Perform | Resume |
+            Try | TryStart | TryStartWithFinally | TryEnd |
+            Catch | Finally | FinallyStart | FinallyEnd | EndFinally |
             Throw | PushHandler | PushFinally | PopHandler |
             MakeHandler | InstallHandler | UninstallHandler => {
                 return effects_handler.execute(self, instruction, chunk_id);
             }
             
             // Cell operations
-            MakeCell | CellGet | CellSet => {
+            MakeCell | LoadCell | StoreCell | CellGet | CellSet => {
                 return memory_handler.execute(self, instruction, chunk_id);
             }
             
@@ -1954,6 +1959,38 @@ impl VM {
                 stack_trace: None,
             })
         }
+    }
+    
+    /// Get the current actor message being processed
+    /// This is used by the ActorReceive opcode
+    pub fn get_current_actor_message(&self) -> Option<Value> {
+        // TODO: Implement actor message context tracking
+        // For now, return None as actor message processing is not fully implemented
+        None
+    }
+    
+    /// Get the current actor context (actor ID being executed)
+    /// This is used by the Become opcode
+    pub fn current_actor_context(&self) -> Option<ActorId> {
+        // TODO: Implement actor context tracking
+        // For now, return None as actor execution context is not fully implemented
+        None
+    }
+    
+    /// Update the state of an actor
+    /// This is used by the Become opcode
+    pub fn update_actor_state(&mut self, _actor_id: ActorId, _new_state: Value) -> VMResult<()> {
+        // TODO: Implement actor state update
+        // For now, this is a no-op as actor state management is not fully implemented
+        Ok(())
+    }
+    
+    /// Process all pending actor messages
+    /// This is used in tests to drive actor message processing
+    pub fn process_all_actor_messages(&mut self) -> VMResult<()> {
+        // TODO: Implement actor message processing
+        // For now, this is a no-op as actor message processing is not fully implemented
+        Ok(())
     }
     
     pub fn take_promise(&mut self, promise_id: &PromiseId) -> Option<oneshot::Receiver<VMResult<Value>>> {

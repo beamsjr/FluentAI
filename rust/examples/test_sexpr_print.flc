@@ -1,0 +1,2 @@
+;; Test with S-expression syntax
+(effect IO print "Hello from S-expression!")

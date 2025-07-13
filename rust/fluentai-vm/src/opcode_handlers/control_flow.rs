@@ -82,8 +82,13 @@ impl OpcodeHandler for ControlFlowHandler {
                         // Debug event if enabled
                         vm.emit_function_call_debug_event(&func, arg_count);
                     }
-                    Value::NativeFunction { name, .. } => {
-                        vm.call_native_function(&name, args)?;
+                    Value::NativeFunction { function, .. } => {
+                        // Call the native function directly
+                        let result = function(&args).map_err(|e| VMError::RuntimeError {
+                            message: format!("Native function error: {}", e),
+                            stack_trace: Some(vm.build_stack_trace()),
+                        })?;
+                        vm.push(result)?;
                     }
                     Value::String(s) if s.starts_with("__stdlib__") || s.starts_with("__builtin__") => {
                         // Handle special function strings from LoadGlobal

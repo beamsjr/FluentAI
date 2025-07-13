@@ -1,10 +1,10 @@
-;; Simple test of effects
-(effect io:print "Hello from FluentAI!")
-(effect io:print "Testing effects...")
+// Simple effects demonstration in FluentAI
+// Shows basic print effects using the $() syntax
 
-;; Test state
-(effect state:set "counter" 0)
-(effect io:print (effect state:get "counter"))
+// Print a message
+$("Hello from FluentAI!").print()
 
-;; Test arithmetic
-(+ 1 2)
+// Note: Full effect syntax would be:
+// perform IO.print("Hello")
+// perform State.set("counter", 0)
+// perform State.get("counter")
