@@ -4,6 +4,8 @@
 //! to native machine code using Cranelift, achieving near-native performance.
 //! It uses a tagged-pointer ABI to handle different value types.
 
+#![warn(missing_docs)]
+
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{Linkage, Module};
@@ -28,15 +30,21 @@ use function_registry::FunctionRegistry;
 /// JIT compilation statistics
 #[derive(Debug, Default)]
 pub struct JitStats {
+    /// Number of functions that have been compiled
     pub functions_compiled: usize,
+    /// Total number of bytecode instructions compiled
     pub total_instructions: usize,
+    /// Time spent in optimization passes (milliseconds)
     pub optimization_time_ms: f64,
+    /// Time spent in code generation (milliseconds)
     pub codegen_time_ms: f64,
 }
 
 /// A handle to a compiled function, containing its signature and memory location.
 pub struct CompiledFunction {
+    /// The Cranelift function signature
     pub signature: Signature,
+    /// Raw pointer to the compiled machine code
     pub code_ptr: *const u8,
 }
 

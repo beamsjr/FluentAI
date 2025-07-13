@@ -1,4 +1,9 @@
 //! Cranelift IR code generation for FluentAi bytecode
+//!
+//! This module handles the translation of FluentAI bytecode instructions
+//! into Cranelift's intermediate representation (IR). It manages the
+//! compile-time stack, generates code for each opcode, and handles
+//! the tagged value representation used by the JIT.
 
 use cranelift::prelude::*;
 use cranelift_codegen::ir::MemFlags;

@@ -9,14 +9,22 @@ use std::ptr;
 /// Tag bits for different value types (using lowest 3 bits)
 #[repr(u8)]
 pub enum ValueTag {
-    Integer = 0b000,  // Integer (shifted left 3)
-    Float = 0b001,    // Pointer to heap-allocated f64
-    String = 0b010,   // Pointer to heap-allocated String
-    List = 0b011,     // Pointer to heap-allocated List
-    Closure = 0b100,  // Pointer to heap-allocated Closure
-    Symbol = 0b101,   // Symbol ID (shifted left 3)
-    Tagged = 0b110,   // Pointer to Tagged value
-    Other = 0b111,    // Other heap objects (Boolean, Nil, etc.)
+    /// Integer value (stored inline, shifted left 3 bits)
+    Integer = 0b000,
+    /// Pointer to heap-allocated f64
+    Float = 0b001,
+    /// Pointer to heap-allocated String
+    String = 0b010,
+    /// Pointer to heap-allocated List
+    List = 0b011,
+    /// Pointer to heap-allocated Closure
+    Closure = 0b100,
+    /// Symbol ID (stored inline, shifted left 3 bits)
+    Symbol = 0b101,
+    /// Pointer to Tagged value
+    Tagged = 0b110,
+    /// Other heap objects (Boolean, Nil, Error, etc.)
+    Other = 0b111,
 }
 
 const TAG_MASK: u64 = 0b111;
@@ -121,9 +129,19 @@ impl TaggedValue {
 /// Heap-allocated values that don't fit in a tagged pointer
 #[derive(Debug)]
 pub enum HeapValue {
+    /// Boolean value
     Boolean(bool),
+    /// Nil value
     Nil,
-    Error { kind: String, message: String, stack_trace: Option<Vec<String>> },
+    /// Error value with details
+    Error { 
+        /// Error type/kind
+        kind: String, 
+        /// Error message
+        message: String, 
+        /// Optional stack trace
+        stack_trace: Option<Vec<String>> 
+    },
 }
 
 /// Convert a VM Value to a tagged value

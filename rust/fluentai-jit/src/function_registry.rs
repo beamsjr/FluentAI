@@ -34,6 +34,7 @@ pub struct FunctionRegistry {
 }
 
 impl FunctionRegistry {
+    /// Create a new function registry
     pub fn new() -> Self {
         Self {
             chunk_to_jit: HashMap::new(),

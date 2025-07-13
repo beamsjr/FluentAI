@@ -7,6 +7,8 @@
 //! - Go to definition
 //! - Hover information
 
+#![warn(missing_docs)]
+
 use anyhow::Result;
 use dashmap::DashMap;
 use fluentai_core::ast::Graph;
@@ -48,6 +50,7 @@ pub struct FluentAiServer {
 }
 
 impl FluentAiServer {
+    /// Create a new language server instance
     pub fn new(client: Client) -> Self {
         Self {
             client,

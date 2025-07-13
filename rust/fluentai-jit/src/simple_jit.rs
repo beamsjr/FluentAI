@@ -16,6 +16,7 @@ pub struct SimpleJIT {
 }
 
 impl SimpleJIT {
+    /// Create a new simple JIT compiler
     pub fn new() -> Self {
         Self {
             code_buffer: Vec::with_capacity(4096),
@@ -47,6 +48,7 @@ impl SimpleJIT {
         Ok(func)
     }
     
+    /// Compile and execute bytecode in one step
     pub fn compile_and_run(&mut self, bytecode: &Bytecode) -> Result<Value> {
         let func = self.compile(bytecode, bytecode.main_chunk)?;
         Ok(Value::Integer(func()))
