@@ -29,44 +29,43 @@ impl Template for ConsoleTemplate {
         helpers::create_project_file(path, name, "Exe", &[])?;
 
         // Create main program file
-        let program_content = r#";; FluentAI Console Application
-;; Entry point for the application
+        let program_content = r#"// main.flc
+// FluentAI Console Application
 
-(define main (args)
-  (println "Hello, FluentAI!")
-  0) ;; Return exit code
+private function main() {
+    $("Hello, FluentAI!").print();
+}
 
-;; Run main if this is the entry module
-(when (= __name__ "__main__")
-  (exit (main (command-line-args))))
+// Run the application
+main()
 "#;
-        fs::write(path.join("Program.ai"), program_content)?;
+        fs::write(path.join("main.flc"), program_content)?;
 
         // Create directories
         helpers::create_directories(path, &["src", "tests"])?;
 
         // Create a sample module
-        let utils_content = r#";; Utility functions
+        let utils_content = r#"// Utils.flc
+module Utils;
 
-(define greet (name)
-  (format "Hello, {}!" name))
-
-(export greet)
+public function greet(name: string) -> string {
+    f"Hello, {name}!"
+}
 "#;
-        fs::write(path.join("src/Utils.ai"), utils_content)?;
+        fs::write(path.join("src/Utils.flc"), utils_content)?;
 
         // Create a sample test
-        let test_content = r#";; Tests for Utils module
+        let test_content = r#"// Utils.test.flc
+use ../src/Utils::{greet};
+use std::test::{describe, it, expect};
 
-(import "../src/Utils.ai" :as utils)
-(import "fluentai/test" :as test)
-
-(test/describe "Utils"
-  (test/it "greets correctly"
-    (test/expect (utils/greet "World") 
-                 :to-equal "Hello, World!")))
+describe("Utils", () => {
+    it("greets correctly", () => {
+        expect(greet("World")).to_equal("Hello, World!");
+    });
+});
 "#;
-        fs::write(path.join("tests/Utils.test.ai"), test_content)?;
+        fs::write(path.join("tests/Utils.test.flc"), test_content)?;
 
         // Create .gitignore
         helpers::create_gitignore(path)?;

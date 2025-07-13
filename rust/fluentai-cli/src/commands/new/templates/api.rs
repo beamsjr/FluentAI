@@ -65,73 +65,75 @@ impl Template for ApiTemplate {
 
         // Create main program
         let program_content = format!(
-            r#";; {} API
-;; RESTful API with authentication and database
+            r#"// main.flc
+// {} API - RESTful API with authentication and database
 
-(import "fluentai/http" :as http)
-(import "fluentai/json" :as json)
-(import "fluentai/openapi" :as openapi)
-(import "./src/config" :as config)
-(import "./src/database" :as db)
-(import "./src/auth" :as auth)
-(import "./src/routes" :as routes)
-(import "./src/middleware" :as middleware)
+use std::http::{{create_app, use, mount, listen}};
+use std::json;
+use std::openapi;
+use ./src/config;
+use ./src/database as db;
+use ./src/auth;
+use ./src/routes;
+use ./src/middleware;
 
-;; Initialize application
-(define init-app ()
-  ;; Load configuration
-  (config/load)
-  
-  ;; Connect to database
-  {}
-  
-  ;; Initialize OpenAPI documentation
-  (openapi/init
-    :title "{} API"
-    :version "1.0.0"
-    :description "RESTful API built with FluentAI"))
-
-;; Main entry point
-(define main (args)
-  (init-app)
-  
-  (let ([app (http/create-app)]
-        [port (config/get :port 8080)])
+// Initialize application
+private async function init_app() {{
+    // Load configuration
+    config.load();
     
-    ;; Apply global middleware
-    (http/use app (middleware/error-handler))
-    (http/use app (middleware/request-logger))
-    (http/use app (middleware/cors))
-    {}
+    // Connect to database
+    {};
     
-    ;; Mount routes
-    (http/mount app "/api/v1" routes/api-v1)
-    (http/mount app "/docs" (openapi/ui))
-    (http/mount app "/openapi.json" (openapi/spec))
-    
-    ;; Start server
-    (println (format "🚀 {} API running on port {{}}" port))
-    (http/listen app :port port)))
+    // Initialize OpenAPI documentation
+    openapi.init({{
+        "title": "{} API",
+        "version": "1.0.0",
+        "description": "RESTful API built with FluentAI"
+    }});
+}}
 
-;; Run if main module
-(when (= __name__ "__main__")
-  (main (command-line-args)))
+// Main entry point
+private async function main() {{
+    init_app().await();
+    
+    let app = create_app();
+    let port = config.get("port", 8080);
+    
+    // Apply global middleware
+    app.use(middleware.error_handler());
+    app.use(middleware.request_logger());
+    app.use(middleware.cors());
+    {};
+    
+    // Mount routes
+    app.mount("/api/v1", routes.api_v1());
+    app.mount("/docs", openapi.ui());
+    app.mount("/openapi.json", openapi.spec());
+    
+    // Start server
+    $(f"🚀 {} API running on port {{port}}").print();
+    app.listen(port).await();
+}}
+
+// Run the application
+main()
 "#,
             name,
             if db_type != "none" {
-                "(db/connect)"
+                "db.connect().await()"
             } else {
-                ";; No database"
+                "// No database configured"
             },
             name,
             if auth_type != "none" {
-                "(http/use app (middleware/authenticate))"
+                "app.use(middleware.authenticate())"
             } else {
                 ""
             },
             name
         );
-        fs::write(path.join("Program.ai"), program_content)?;
+        fs::write(path.join("main.flc"), program_content)?;
 
         // Create directories
         helpers::create_directories(
@@ -151,86 +153,102 @@ impl Template for ApiTemplate {
         )?;
 
         // Create config module
-        let config_content = r#";; Configuration management
+        let config_content = r#"// config.flc
+module config;
 
-(module config
-  (import "fluentai/env" :as env)
-  
-  (define config (atom {}))
-  
-  ;; Load configuration from environment
-  (define load ()
-    (reset! config
-      {:port (env/get "PORT" 8080)
-       :env (env/get "NODE_ENV" "development")
-       :database-url (env/get "DATABASE_URL")
-       :jwt-secret (env/get "JWT_SECRET" "change-me-in-production")
-       :cors-origin (env/get "CORS_ORIGIN" "*")
-       :log-level (env/get "LOG_LEVEL" "info")}))
-  
-  ;; Get configuration value
-  (define get 
-    ([key] (get @config key))
-    ([key default] (get @config key default)))
-  
-  ;; Check if production
-  (define production? ()
-    (= (get :env) "production"))
-  
-  (export load get production?))
+use std::env;
+
+// Configuration state
+private let config_state = {
+    "port": 8080,
+    "env": "development",
+    "database_url": "",
+    "jwt_secret": "change-me-in-production",
+    "cors_origin": "*",
+    "log_level": "info"
+};
+
+// Load configuration from environment
+public function load() {
+    config_state.port = env.get("PORT", 8080);
+    config_state.env = env.get("NODE_ENV", "development");
+    config_state.database_url = env.get("DATABASE_URL", "");
+    config_state.jwt_secret = env.get("JWT_SECRET", "change-me-in-production");
+    config_state.cors_origin = env.get("CORS_ORIGIN", "*");
+    config_state.log_level = env.get("LOG_LEVEL", "info");
+}
+
+// Get configuration value
+public function get(key: string, default_value?) {
+    config_state.get(key).unwrap_or(default_value)
+}
+
+// Check if production
+public function is_production() -> bool {
+    config_state.env == "production"
+}
 "#;
-        fs::write(path.join("src/config.ai"), config_content)?;
+        fs::write(path.join("src/config.flc"), config_content)?;
 
         // Create database module
         let db_content = if db_type != "none" {
             format!(
-                r#";; Database connection and queries
+                r#"// database.flc
+module database;
 
-(module database
-  (import "fluentai/db" :as db)
-  (import "fluentai/db/{}" :as driver)
-  (import "./config" :as config)
-  
-  (define connection (atom nil))
-  
-  ;; Connect to database
-  (define connect ()
-    (let ([url (config/get :database-url)])
-      (when (nil? url)
-        (throw (Error "DATABASE_URL not configured")))
-      (reset! connection (driver/connect url))
-      (println "\\u2713 Database connected")))
-  
-  ;; Get connection
-  (define conn () @connection)
-  
-  ;; Execute query
-  (define query [sql & params]
-    (db/query (conn) sql params))
-  
-  ;; Execute command
-  (define execute! [sql & params]
-    (db/execute! (conn) sql params))
-  
-  ;; Transaction helper
-  (define with-transaction [f]
-    (db/with-transaction (conn) f))
-  
-  (export connect conn query execute! with-transaction))
+use std::db;
+use std::db::{} as driver;
+use ./config;
+
+// Connection state
+private let connection = null;
+
+// Connect to database
+public async function connect() {{
+    let url = config.get("database_url");
+    if (!url) {{
+        throw Error("DATABASE_URL not configured");
+    }}
+    connection = driver.connect(url).await();
+    $("✓ Database connected").print();
+}}
+
+// Get connection
+public function conn() {{
+    connection
+}}
+
+// Execute query
+public async function query(sql: string, ...params) {{
+    db.query(conn(), sql, params).await()
+}}
+
+// Execute command
+public async function execute(sql: string, ...params) {{
+    db.execute(conn(), sql, params).await()
+}}
+
+// Transaction helper
+public async function with_transaction(f: function) {{
+    db.with_transaction(conn(), f).await()
+}}
 "#,
                 db_type
             )
         } else {
-            r#";; Database module (no database configured)
+            r#"// database.flc
+module database;
 
-(module database
-  ;; Placeholder for database operations
-  (define connect () nil)
-  (export connect))
+// Database module (no database configured)
+
+// Placeholder for database operations
+public async function connect() {
+    // No database to connect
+}
 "#
             .to_string()
         };
-        fs::write(path.join("src/database.ai"), db_content)?;
+        fs::write(path.join("src/database.flc"), db_content)?;
 
         // Create auth module
         let auth_content = if auth_type != "none" {

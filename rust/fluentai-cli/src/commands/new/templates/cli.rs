@@ -35,8 +35,8 @@ impl Template for CliTemplate {
 
         // Create main program
         let program_content = format!(
-            r#";; {} CLI
-;; Command-line interface application
+            r#"// main.flc
+// {} CLI - Command-line interface application
 
 (import "fluentai/cli" :as cli)
 (import "fluentai/console" :as console)
