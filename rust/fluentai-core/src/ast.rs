@@ -18,7 +18,7 @@ pub type AstHashSet<T> = FxHashSet<T>;
 
 /// Node identifier in the AST graph
 ///
-/// Uses NonZeroU32 internally to enable null pointer optimization for Option<NodeId>.
+/// Uses NonZeroU32 internally to enable null pointer optimization for `Option<NodeId>`.
 /// NodeId(0) is reserved as an invalid/null node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeId(pub NonZeroU32);
@@ -104,6 +104,7 @@ pub struct PerformanceHint {
     pub context: Option<String>,
 }
 
+/// Type of performance optimization hint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PerformanceHintType {
     /// This function should be inlined
@@ -175,7 +176,9 @@ pub enum ParallelismStrategy {
 /// - The root_id, if present, must point to a valid node
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
+    /// Map of node IDs to their corresponding AST nodes
     pub nodes: AstHashMap<NodeId, Node>,
+    /// Optional root node ID for the AST graph
     pub root_id: Option<NodeId>,
     /// Next ID to assign. Starts at 1 and monotonically increases.
     /// IDs are never reused, even after node deletion.
@@ -193,6 +196,7 @@ impl Default for Graph {
 }
 
 impl Graph {
+    /// Creates a new empty AST graph
     pub fn new() -> Self {
         Self {
             nodes: AstHashMap::default(),
@@ -203,6 +207,7 @@ impl Graph {
         }
     }
 
+    /// Adds a new node to the graph and returns its unique ID
     pub fn add_node(&mut self, node: Node) -> crate::error::Result<NodeId> {
         // Check for overflow before incrementing
         if self.next_id == u32::MAX {
@@ -216,6 +221,7 @@ impl Graph {
         Ok(id)
     }
 
+    /// Gets an immutable reference to a node by its ID
     pub fn get_node(&self, id: NodeId) -> Option<&Node> {
         self.nodes.get(&id)
     }
@@ -852,189 +858,285 @@ impl Graph {
 /// AST node types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Node {
-    // Literals
+    /// Literal values (numbers, strings, booleans, nil)
     Literal(Literal),
 
-    // Variables and bindings
+    /// Variable reference
     Variable {
+        /// Name of the variable
         name: String,
     },
+    /// Lambda (anonymous function) expression
     Lambda {
+        /// Parameter names
         params: Vec<String>,
+        /// Function body expression
         body: NodeId,
     },
+    /// Let binding for local variables
     Let {
+        /// Variable bindings (name, value expression)
         bindings: Vec<(String, NodeId)>,
+        /// Body expression with bindings in scope
         body: NodeId,
     },
+    /// Recursive let binding for mutually recursive definitions
     Letrec {
+        /// Recursive bindings (name, value expression)
         bindings: Vec<(String, NodeId)>,
+        /// Body expression with bindings in scope
         body: NodeId,
     },
 
-    // Control flow
+    /// Conditional if-then-else expression
     If {
+        /// Condition to evaluate
         condition: NodeId,
+        /// Expression to evaluate if condition is true
         then_branch: NodeId,
+        /// Expression to evaluate if condition is false
         else_branch: NodeId,
     },
 
-    // Function application
+    /// Function application
     Application {
+        /// Function to apply
         function: NodeId,
+        /// Arguments to pass to the function
         args: Vec<NodeId>,
     },
 
-    // Effects
+    /// Effect operation
     Effect {
+        /// Type of effect (IO, State, etc.)
         effect_type: EffectType,
+        /// Name of the operation
         operation: String,
+        /// Arguments for the effect operation
         args: Vec<NodeId>,
     },
 
-    // Effect handlers
+    /// Effect handler for managing effects
     Handler {
         /// List of handlers: (effect_type, optional operation filter, handler function)
         handlers: Vec<(EffectType, Option<String>, NodeId)>,
+        /// Body expression where handlers are active
         body: NodeId,
     },
 
-    // Data structures
+    /// List data structure
     List(Vec<NodeId>),
 
-    // Pattern matching
+    /// Pattern matching expression
     Match {
+        /// Expression to match against
         expr: NodeId,
+        /// Pattern branches (pattern, result expression)
         branches: Vec<(Pattern, NodeId)>,
     },
 
-    // Module system
+    /// Module definition
     Module {
+        /// Module name
         name: String,
+        /// Exported symbols
         exports: Vec<String>,
+        /// Module body
         body: NodeId,
     },
+    /// Import statement
     Import {
+        /// Path to the module to import from
         module_path: String,
+        /// List of items to import
         import_list: Vec<ImportItem>,
+        /// Whether to import all exports
         import_all: bool,
     },
+    /// Export statement
     Export {
+        /// List of items to export
         export_list: Vec<ExportItem>,
     },
+    /// Qualified variable reference (module::variable)
     QualifiedVariable {
+        /// Name of the module
         module_name: String,
+        /// Name of the variable within the module
         variable_name: String,
     },
 
-    // Top-level definitions
+    /// Top-level definition
     Define {
+        /// Name of the definition
         name: String,
+        /// Value expression
         value: NodeId,
     },
 
-    // Assignment statement
+    /// Assignment statement
     Assignment {
-        target: NodeId,  // The lvalue to assign to
-        value: NodeId,   // The rvalue expression
+        /// The lvalue to assign to
+        target: NodeId,
+        /// The rvalue expression
+        value: NodeId,
     },
 
-    // Sequencing
+    /// Sequential expression evaluation
     Begin {
+        /// Expressions to evaluate in order
         exprs: Vec<NodeId>,
     },
 
-    // Async/concurrent constructs
+    /// Async block
     Async {
+        /// Body to execute asynchronously
         body: NodeId,
     },
+    /// Await expression
     Await {
+        /// Async expression to wait for
         expr: NodeId,
     },
+    /// Spawn a concurrent task
     Spawn {
+        /// Expression to execute concurrently
         expr: NodeId,
     },
+    /// Channel creation
     Channel {
-        capacity: Option<NodeId>, // Optional capacity expression
+        /// Optional capacity expression
+        capacity: Option<NodeId>,
     },
+    /// Send a value through a channel
     Send {
+        /// Channel to send to
         channel: NodeId,
+        /// Value to send
         value: NodeId,
     },
+    /// Receive a value from a channel
     Receive {
+        /// Channel to receive from
         channel: NodeId,
     },
+    /// Try to send a value without blocking
     TrySend {
+        /// Channel to send to
         channel: NodeId,
+        /// Value to send
         value: NodeId,
     },
+    /// Try to receive a value without blocking
     TryReceive {
+        /// Channel to receive from
         channel: NodeId,
     },
+    /// Select from multiple channel operations
     Select {
-        branches: Vec<(NodeId, NodeId)>, // (channel_op, handler)
-        default: Option<NodeId>,         // optional default branch
+        /// Channel operations and their handlers (channel_op, handler)
+        branches: Vec<(NodeId, NodeId)>,
+        /// Optional default branch if no channel is ready
+        default: Option<NodeId>,
     },
     
-    // Actor model primitives
+    /// Actor creation
     Actor {
+        /// Initial state of the actor
         initial_state: NodeId,
-        handler: NodeId, // Lambda that handles messages
+        /// Message handler function (lambda)
+        handler: NodeId,
     },
+    /// Send message to an actor
     ActorSend {
+        /// Target actor
         actor: NodeId,
+        /// Message to send
         message: NodeId,
     },
+    /// Receive messages in an actor
     ActorReceive {
-        patterns: Vec<(Pattern, NodeId)>, // Pattern matching for messages
-        timeout: Option<(NodeId, NodeId)>, // Optional timeout (duration, handler)
+        /// Pattern matching for messages
+        patterns: Vec<(Pattern, NodeId)>,
+        /// Optional timeout (duration, handler)
+        timeout: Option<(NodeId, NodeId)>,
     },
+    /// Change actor state
     Become {
-        new_state: NodeId, // New state for the actor
+        /// New state for the actor
+        new_state: NodeId,
     },
     
-    // Error handling
+    /// Try-catch-finally error handling
     Try {
+        /// Body to try
         body: NodeId,
-        catch_branches: Vec<(Pattern, NodeId)>, // Pattern match on error types
-        finally: Option<NodeId>, // Optional finally block
+        /// Pattern match on error types
+        catch_branches: Vec<(Pattern, NodeId)>,
+        /// Optional finally block
+        finally: Option<NodeId>,
     },
+    /// Throw an error
     Throw {
-        error: NodeId, // Error value to throw
+        /// Error value to throw
+        error: NodeId,
     },
+    /// Promise creation
     Promise {
-        body: NodeId, // Body that returns a promise
+        /// Body that returns a promise
+        body: NodeId,
     },
+    /// Wait for all promises to complete
     PromiseAll {
-        promises: Vec<NodeId>, // List of promises to wait for
+        /// List of promises to wait for
+        promises: Vec<NodeId>,
     },
+    /// Wait for first promise to complete
     PromiseRace {
-        promises: Vec<NodeId>, // List of promises to race
+        /// List of promises to race
+        promises: Vec<NodeId>,
     },
+    /// Timeout for a promise
     Timeout {
-        duration: NodeId, // Timeout duration in milliseconds
-        promise: NodeId,  // Promise to timeout
-        default: Option<NodeId>, // Optional default value on timeout
+        /// Timeout duration in milliseconds
+        duration: NodeId,
+        /// Promise to timeout
+        promise: NodeId,
+        /// Optional default value on timeout
+        default: Option<NodeId>,
     },
 
-    // Contract specification
+    /// Contract specification for verification
     Contract {
+        /// Name of the function being specified
         function_name: String,
+        /// Precondition expressions
         preconditions: Vec<NodeId>,
+        /// Postcondition expressions
         postconditions: Vec<NodeId>,
+        /// Invariant expressions
         invariants: Vec<NodeId>,
+        /// Computational complexity bound
         complexity: Option<String>,
+        /// Whether the function is pure
         pure: bool,
     },
 }
 
+/// Literal values in the AST
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Literal {
+    /// Integer literal
     Integer(i64),
+    /// Floating-point literal
     Float(f64),
+    /// String literal
     String(String),
+    /// Symbol literal
     Symbol(String),
+    /// Boolean literal (true/false)
     Boolean(bool),
+    /// Nil literal
     Nil,
 }
 
@@ -1051,32 +1153,46 @@ impl fmt::Display for Literal {
     }
 }
 
+/// Range pattern for pattern matching
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RangePattern {
+    /// Start of the range
     pub start: Literal,
+    /// End of the range
     pub end: Literal,
-    pub inclusive: bool, // true for ..=, false for ..
+    /// Whether the range is inclusive (true for ..=, false for ..)
+    pub inclusive: bool,
 }
 
+/// Pattern for pattern matching
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pattern {
+    /// Variable pattern that binds to a name
     Variable(String),
+    /// Literal pattern that matches exact values
     Literal(Literal),
+    /// Constructor pattern for matching structured data
     Constructor {
+        /// Constructor name
         name: String,
+        /// Nested patterns for constructor arguments
         patterns: Vec<Pattern>,
     },
+    /// Wildcard pattern that matches anything
     Wildcard,
 
-    // Complex pattern extensions
     /// Pattern with a guard condition: pattern when condition
     Guard {
+        /// The pattern to match
         pattern: Box<Pattern>,
+        /// Guard condition that must be true
         condition: NodeId,
     },
     /// As-pattern: binds the whole match while also destructuring
     As {
+        /// Name to bind the whole match to
         binding: String,
+        /// Pattern to destructure
         pattern: Box<Pattern>,
     },
     /// Or-pattern: multiple patterns that lead to the same branch
@@ -1085,7 +1201,9 @@ pub enum Pattern {
     Range(RangePattern),
     /// View pattern: applies a function before matching
     View {
+        /// Function to apply to the value
         function: NodeId,
+        /// Pattern to match the result against
         pattern: Box<Pattern>,
     },
 }
@@ -1214,19 +1332,32 @@ impl Pattern {
     }
 }
 
+/// Types of effects in the effect system
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EffectType {
+    /// No side effects
     Pure,
+    /// Input/output operations
     IO,
+    /// Mutable state operations
     State,
+    /// Error handling effects
     Error,
+    /// Time-related operations
     Time,
+    /// Network operations
     Network,
+    /// Random number generation
     Random,
+    /// DOM manipulation (browser)
     Dom,
+    /// Asynchronous operations
     Async,
+    /// Concurrent operations
     Concurrent,
+    /// HTTP server operations
     HttpServer,
+    /// WebSocket operations
     WebSocket,
 }
 
@@ -1271,15 +1402,21 @@ impl DocumentedNode for Literal {
     }
 }
 
+/// An item to import from a module
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportItem {
+    /// Name of the item to import
     pub name: String,
+    /// Optional alias for the imported item
     pub alias: Option<String>,
 }
 
+/// An item to export from a module
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportItem {
+    /// Name of the item to export
     pub name: String,
+    /// Optional alias for the exported item
     pub alias: Option<String>,
 }
 
@@ -1421,65 +1558,65 @@ impl Node {
             },
             Node::Lambda { .. } => Documentation {
                 name: "Lambda".to_string(),
-                syntax: "(lambda (<params>) <body>)".to_string(),
+                syntax: "(<params>) => <body>".to_string(),
                 description: "Lambda creates anonymous functions. Parameters are bound in the function body scope.".to_string(),
-                examples: vec!["(lambda (x) (+ x 1))".to_string(), "(lambda (x y) (* x y))".to_string()],
+                examples: vec!["(x) => x + 1".to_string(), "(x, y) => x * y".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Application".to_string(), "Let".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Let { .. } => Documentation {
                 name: "Let".to_string(),
-                syntax: "(let ((<var> <expr>) ...) <body>)".to_string(),
+                syntax: "let <var> = <expr>; <body>".to_string(),
                 description: "Let creates local variable bindings. Bindings are evaluated sequentially and are available in the body.".to_string(),
-                examples: vec!["(let ((x 5)) (+ x 1))".to_string(), "(let ((x 10) (y 20)) (+ x y))".to_string()],
+                examples: vec!["let x = 5; x + 1".to_string(), "let x = 10; let y = 20; x + y".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Letrec".to_string(), "Lambda".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Letrec { .. } => Documentation {
                 name: "Letrec".to_string(),
-                syntax: "(letrec ((<var> <expr>) ...) <body>)".to_string(),
+                syntax: "let <var> = <expr>; ... <body>".to_string(),
                 description: "Letrec creates recursive local bindings. All bindings are in scope for all binding expressions, enabling mutual recursion.".to_string(),
-                examples: vec!["(letrec ((fact (lambda (n) (if (= n 0) 1 (* n (fact (- n 1))))))) (fact 5))".to_string()],
+                examples: vec!["let fact = (n) => { if (n == 0) { 1 } else { n * fact(n - 1) } }; fact(5)".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Let".to_string(), "Lambda".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::If { .. } => Documentation {
                 name: "If".to_string(),
-                syntax: "(if <condition> <then> <else>)".to_string(),
+                syntax: "if (<condition>) { <then> } else { <else> }".to_string(),
                 description: "Conditional expression. Evaluates condition, then evaluates and returns either the then or else branch.".to_string(),
-                examples: vec!["(if true \"yes\" \"no\")".to_string(), "(if (> x 0) \"positive\" \"non-positive\")".to_string()],
+                examples: vec!["if (true) { \"yes\" } else { \"no\" }".to_string(), "if (x > 0) { \"positive\" } else { \"non-positive\" }".to_string()],
                 category: DocumentationCategory::ControlFlow,
                 see_also: vec!["Match".to_string(), "Boolean".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Application { .. } => Documentation {
                 name: "Application".to_string(),
-                syntax: "(<function> <arg1> <arg2> ...)".to_string(),
+                syntax: "<function>(<arg1>, <arg2>, ...)".to_string(),
                 description: "Function application. Applies a function to zero or more arguments.".to_string(),
-                examples: vec!["(+ 1 2)".to_string(), "(print \"Hello\")".to_string(), "(map square [1 2 3])".to_string()],
+                examples: vec!["add(1, 2)".to_string(), "print(\"Hello\")".to_string(), "[1, 2, 3].map(square)".to_string()],
                 category: DocumentationCategory::Function,
                 see_also: vec!["Lambda".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Effect { .. } => Documentation {
                 name: "Effect".to_string(),
-                syntax: "(effect <type> <operation> <args>...) | (<type>:<operation> <args>...)".to_string(),
+                syntax: "perform <Type>.<operation>(<args>...)".to_string(),
                 description: "Performs an effectful operation. Effects are tracked by the type system and handled by effect handlers. Can be called using explicit effect syntax or shorthand notation with colon.".to_string(),
-                examples: vec!["(effect IO print \"Hello\")".to_string(), "(io:print \"Hello\")".to_string()],
+                examples: vec!["perform IO.print(\"Hello\")".to_string(), "perform State.set(42)".to_string()],
                 category: DocumentationCategory::Effect,
                 see_also: vec!["Handler".to_string(), "Async".to_string(), "IO".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Handler { .. } => Documentation {
                 name: "Handler".to_string(),
-                syntax: "(handler ((<effect-type> <handler-fn>) ...) <body>)".to_string(),
+                syntax: "handle { <body> } with { <Type>.<operation>(<args>) => <handler>, ... }".to_string(),
                 description: "Installs effect handlers for the dynamic scope of the body expression. Handlers intercept matching effects and can provide custom implementations.".to_string(),
                 examples: vec![
-                    "(handler ((error (lambda (err) \"default\"))) (risky-op))".to_string(),
-                    "(handler ((io (lambda (op . args) (log op args)))) (io:print \"test\"))".to_string(),
+                    "handle { risky_op() } with { Error.raise(e) => \"default\" }".to_string(),
+                    "handle { perform IO.print(\"test\") } with { IO.print(msg) => log(msg) }".to_string(),
                 ],
                 category: DocumentationCategory::Effect,
                 see_also: vec!["Effect".to_string(), "Error".to_string()],
@@ -1496,36 +1633,36 @@ impl Node {
             },
             Node::Match { .. } => Documentation {
                 name: "Match".to_string(),
-                syntax: "(match <expr> (<pattern> <body>) ...)".to_string(),
+                syntax: "<expr>.match().case(<pattern>, <body>)....get()".to_string(),
                 description: "Pattern matching expression. Matches the expression against patterns and evaluates the corresponding body.".to_string(),
-                examples: vec!["(match x (0 \"zero\") (1 \"one\") (_ \"other\"))".to_string()],
+                examples: vec!["x.match().case(0, \"zero\").case(1, \"one\").case(_, \"other\").get()".to_string()],
                 category: DocumentationCategory::PatternMatching,
                 see_also: vec!["If".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Module { .. } => Documentation {
                 name: "Module".to_string(),
-                syntax: "(module <name> <exports> <body>)".to_string(),
+                syntax: "mod <name> { export { <items>... }; <body> }".to_string(),
                 description: "Defines a module with a name, list of exports, and body. Modules provide namespace isolation.".to_string(),
-                examples: vec!["(module math [add subtract] (let ((add +) (subtract -)) ...))".to_string()],
+                examples: vec!["mod math { export { add, subtract }; private function add(x, y) { x + y } }".to_string()],
                 category: DocumentationCategory::Module,
                 see_also: vec!["Import".to_string(), "Export".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Import { .. } => Documentation {
                 name: "Import".to_string(),
-                syntax: "(import <module-path> [<items>...] | *)".to_string(),
+                syntax: "use <module-path>::{<items>...} | use <module-path>::*".to_string(),
                 description: "Imports items from a module. Can import specific items or all exports with *.".to_string(),
-                examples: vec!["(import \"std/math\" [sin cos])".to_string(), "(import \"utils\" *)".to_string()],
+                examples: vec!["use std::math::{sin, cos};".to_string(), "use utils::*;".to_string()],
                 category: DocumentationCategory::Module,
                 see_also: vec!["Module".to_string(), "Export".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Export { .. } => Documentation {
                 name: "Export".to_string(),
-                syntax: "(export <name1> <name2> ... | <name> as <alias> ...)".to_string(),
+                syntax: "export { <name1>, <name2>, ... } | export { <name> as <alias>, ... }".to_string(),
                 description: "Exports items from the current module. Can optionally rename exports with aliases.".to_string(),
-                examples: vec!["(export add subtract multiply)".to_string()],
+                examples: vec!["export { add, subtract, multiply };".to_string()],
                 category: DocumentationCategory::Module,
                 see_also: vec!["Module".to_string(), "Import".to_string()],
                 visibility: DocumentationVisibility::Public,
@@ -1541,12 +1678,11 @@ impl Node {
             },
             Node::Define { .. } => Documentation {
                 name: "Define".to_string(),
-                syntax: "(define <name> <value>) | (define (<name> <params>...) <body>)".to_string(),
+                syntax: "private function <name>(<params>) { <body> }".to_string(),
                 description: "Defines a top-level binding. Can define variables or functions using nested syntax.".to_string(),
                 examples: vec![
-                    "(define x 42)".to_string(),
-                    "(define add (lambda (x y) (+ x y)))".to_string(),
-                    "(define (square x) (* x x))".to_string()
+                    "private function add(x, y) { x + y }".to_string(),
+                    "public function square(x) { x * x }".to_string()
                 ],
                 category: DocumentationCategory::Variable,
                 see_also: vec!["Let".to_string(), "Lambda".to_string()],
@@ -1554,11 +1690,11 @@ impl Node {
             },
             Node::Begin { .. } => Documentation {
                 name: "Begin".to_string(),
-                syntax: "(begin <expr1> <expr2> ... <exprN>)".to_string(),
+                syntax: "{ <expr1>; <expr2>; ... <exprN> }".to_string(),
                 description: "Evaluates multiple expressions in sequence, returning the value of the last expression.".to_string(),
                 examples: vec![
-                    "(begin (print \"Hello\") (print \"World\") 42)".to_string(),
-                    "(begin (set! x 10) (set! y 20) (+ x y))".to_string()
+                    "{ print(\"Hello\"); print(\"World\"); 42 }".to_string(),
+                    "{ x := 10; y := 20; x + y }".to_string()
                 ],
                 category: DocumentationCategory::ControlFlow,
                 see_also: vec!["Let".to_string()],
@@ -1566,83 +1702,83 @@ impl Node {
             },
             Node::Async { .. } => Documentation {
                 name: "Async".to_string(),
-                syntax: "(async <body>)".to_string(),
+                syntax: "async { <body> }".to_string(),
                 description: "Creates an asynchronous computation that can be awaited.".to_string(),
-                examples: vec!["(async (http-get \"https://api.example.com\"))".to_string()],
+                examples: vec!["async { http.get(\"https://api.example.com\") }".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Await".to_string(), "Spawn".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Await { .. } => Documentation {
                 name: "Await".to_string(),
-                syntax: "(await <async-expr>)".to_string(),
+                syntax: "<async-expr>.await()".to_string(),
                 description: "Waits for an asynchronous computation to complete and returns its result.".to_string(),
-                examples: vec!["(await (async (+ 1 2)))".to_string()],
+                examples: vec!["async { 1 + 2 }.await()".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Async".to_string(), "Spawn".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Spawn { .. } => Documentation {
                 name: "Spawn".to_string(),
-                syntax: "(spawn <expr>)".to_string(),
+                syntax: "spawn { <expr> }".to_string(),
                 description: "Spawns a new concurrent task. Returns immediately without waiting for completion.".to_string(),
-                examples: vec!["(spawn (process-data data))".to_string()],
+                examples: vec!["spawn { process_data(data) }".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Async".to_string(), "Channel".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Channel { .. } => Documentation {
                 name: "Channel".to_string(),
-                syntax: "(chan) or (chan capacity)".to_string(),
+                syntax: "channel() | channel(<capacity>)".to_string(),
                 description: "Creates a new communication channel for sending values between concurrent tasks. Optional capacity parameter specifies buffer size (default is 1).".to_string(),
-                examples: vec!["(let ((ch (chan))) ...)".to_string(), "(let ((ch (chan 10))) ...)".to_string()],
+                examples: vec!["let ch = channel();".to_string(), "let ch = channel(10);".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Send".to_string(), "Receive".to_string(), "Spawn".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Send { .. } => Documentation {
                 name: "Send".to_string(),
-                syntax: "(send! <channel> <value>)".to_string(),
+                syntax: "send!(<channel>, <value>)".to_string(),
                 description: "Sends a value through a channel. May block if the channel is full.".to_string(),
-                examples: vec!["(send! ch 42)".to_string()],
+                examples: vec!["send!(ch, 42)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Receive".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Receive { .. } => Documentation {
                 name: "Receive".to_string(),
-                syntax: "(recv! <channel>)".to_string(),
+                syntax: "recv!(<channel>)".to_string(),
                 description: "Receives a value from a channel. Blocks until a value is available.".to_string(),
-                examples: vec!["(recv! ch)".to_string()],
+                examples: vec!["recv!(ch)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Send".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::TrySend { .. } => Documentation {
                 name: "TrySend".to_string(),
-                syntax: "(try-send! <channel> <value>)".to_string(),
+                syntax: "try_send!(<channel>, <value>)".to_string(),
                 description: "Attempts to send a value through a channel. Returns a result indicating success or failure.".to_string(),
-                examples: vec!["(try-send! ch 42)".to_string()],
+                examples: vec!["try_send!(ch, 42)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Send".to_string(), "TryReceive".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::TryReceive { .. } => Documentation {
                 name: "TryReceive".to_string(),
-                syntax: "(try-recv! <channel>)".to_string(),
+                syntax: "try_recv!(<channel>)".to_string(),
                 description: "Attempts to receive a value from a channel. Returns a result indicating success or failure.".to_string(),
-                examples: vec!["(try-recv! ch)".to_string()],
+                examples: vec!["try_recv!(ch)".to_string()],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Receive".to_string(), "TrySend".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
             Node::Select { .. } => Documentation {
                 name: "Select".to_string(),
-                syntax: "(select ((recv! ch1) handler1) ((recv! ch2) handler2) ...)".to_string(),
+                syntax: "select { recv!(ch1) => handler1, recv!(ch2) => handler2, ... }".to_string(),
                 description: "Waits on multiple channel operations and executes the handler for the first one that completes.".to_string(),
                 examples: vec![
-                    "(select ((recv! ch1) (handle-ch1)) ((recv! ch2) (handle-ch2)))".to_string(),
-                    "(select ((recv! ch) (process it)) (default (timeout-handler)))".to_string()
+                    "select { recv!(ch1) => handle_ch1(), recv!(ch2) => handle_ch2() }".to_string(),
+                    "select { recv!(ch) => process(it), default => timeout_handler() }".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Channel".to_string(), "Receive".to_string(), "Send".to_string()],
@@ -1650,10 +1786,10 @@ impl Node {
             },
             Node::Actor { .. } => Documentation {
                 name: "Actor".to_string(),
-                syntax: "(actor <initial-state> <handler-fn>)".to_string(),
+                syntax: "actor <Name> { <state>: <type> = <initial>; handle <message>(<params>) { ... } }".to_string(),
                 description: "Creates an actor with an initial state and a message handler function.".to_string(),
                 examples: vec![
-                    "(actor 0 (lambda (state msg) ...))".to_string()
+                    "actor Counter { count: int = 0; handle Inc(amount: int) { self.count += amount; } }".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["ActorSend".to_string(), "ActorReceive".to_string(), "Become".to_string()],
@@ -1661,10 +1797,10 @@ impl Node {
             },
             Node::ActorSend { .. } => Documentation {
                 name: "ActorSend".to_string(),
-                syntax: "(! <actor> <message>)".to_string(),
+                syntax: "<actor>.send(<message>)".to_string(),
                 description: "Sends a message to an actor asynchronously.".to_string(),
                 examples: vec![
-                    "(! counter-actor (increment 5))".to_string()
+                    "counter_actor.send(Increment(5))".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Actor".to_string(), "ActorReceive".to_string()],
@@ -1672,10 +1808,10 @@ impl Node {
             },
             Node::ActorReceive { .. } => Documentation {
                 name: "ActorReceive".to_string(),
-                syntax: "(receive ((pattern1) handler1) ((pattern2) handler2) ...)".to_string(),
+                syntax: "receive { <pattern1> => <handler1>, <pattern2> => <handler2>, ... }".to_string(),
                 description: "Receives messages in an actor, pattern matching on message types.".to_string(),
                 examples: vec![
-                    "(receive ((increment n) (+ state n)) ((get reply-to) (send! reply-to state)))".to_string()
+                    "receive { Increment(n) => state + n, Get(reply_to) => { send!(reply_to, state); state } }".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Actor".to_string(), "ActorSend".to_string(), "Become".to_string()],
@@ -1683,10 +1819,10 @@ impl Node {
             },
             Node::Become { .. } => Documentation {
                 name: "Become".to_string(),
-                syntax: "(become <new-state>)".to_string(),
+                syntax: "become <new-state>".to_string(),
                 description: "Changes the state of an actor to a new value.".to_string(),
                 examples: vec![
-                    "(become (+ state 1))".to_string()
+                    "become state + 1".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Actor".to_string(), "ActorReceive".to_string()],
@@ -1694,10 +1830,10 @@ impl Node {
             },
             Node::Try { .. } => Documentation {
                 name: "Try".to_string(),
-                syntax: "(try <body> (catch <pattern> <handler>) ... [(finally <cleanup>)])".to_string(),
+                syntax: "try { <body> } catch (<pattern>) { <handler> } ... finally { <cleanup> }".to_string(),
                 description: "Executes body and catches errors matching patterns.".to_string(),
                 examples: vec![
-                    "(try (risky-operation) (catch (error msg) (log msg)))".to_string()
+                    "try { risky_operation() } catch (Error(msg)) { log(msg) }".to_string()
                 ],
                 category: DocumentationCategory::ControlFlow,
                 see_also: vec!["Throw".to_string()],
@@ -1705,10 +1841,10 @@ impl Node {
             },
             Node::Throw { .. } => Documentation {
                 name: "Throw".to_string(),
-                syntax: "(throw <error>)".to_string(),
+                syntax: "throw <error>".to_string(),
                 description: "Throws an error that can be caught by try-catch.".to_string(),
                 examples: vec![
-                    "(throw (error \"Invalid input\"))".to_string()
+                    "throw Error(\"Invalid input\")".to_string()
                 ],
                 category: DocumentationCategory::ControlFlow,
                 see_also: vec!["Try".to_string()],
@@ -1716,10 +1852,10 @@ impl Node {
             },
             Node::Promise { .. } => Documentation {
                 name: "Promise".to_string(),
-                syntax: "(promise <body>)".to_string(),
+                syntax: "Promise { <body> }".to_string(),
                 description: "Creates a promise that resolves to the result of body.".to_string(),
                 examples: vec![
-                    "(promise (compute-async))".to_string()
+                    "Promise { compute_async() }".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["PromiseAll".to_string(), "PromiseRace".to_string(), "Await".to_string()],
@@ -1727,10 +1863,10 @@ impl Node {
             },
             Node::PromiseAll { .. } => Documentation {
                 name: "PromiseAll".to_string(),
-                syntax: "(promise-all <promise1> <promise2> ...)".to_string(),
+                syntax: "Promise.all([<promise1>, <promise2>, ...])".to_string(),
                 description: "Waits for all promises to resolve and returns their results.".to_string(),
                 examples: vec![
-                    "(promise-all (fetch-user) (fetch-posts))".to_string()
+                    "Promise.all([fetch_user(), fetch_posts()])".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Promise".to_string(), "PromiseRace".to_string()],
@@ -1738,10 +1874,10 @@ impl Node {
             },
             Node::PromiseRace { .. } => Documentation {
                 name: "PromiseRace".to_string(),
-                syntax: "(promise-race <promise1> <promise2> ...)".to_string(),
+                syntax: "Promise.race([<promise1>, <promise2>, ...])".to_string(),
                 description: "Returns the result of the first promise to resolve.".to_string(),
                 examples: vec![
-                    "(promise-race (fetch-primary) (fetch-backup))".to_string()
+                    "Promise.race([fetch_primary(), fetch_backup()])".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Promise".to_string(), "PromiseAll".to_string()],
@@ -1749,10 +1885,10 @@ impl Node {
             },
             Node::Timeout { .. } => Documentation {
                 name: "Timeout".to_string(),
-                syntax: "(timeout <duration-ms> <promise> [<default>])".to_string(),
+                syntax: "timeout(<duration-ms>, <promise>, <default>)".to_string(),
                 description: "Waits for a promise with timeout, returning default on timeout.".to_string(),
                 examples: vec![
-                    "(timeout 5000 (fetch-data) \"timeout\")".to_string()
+                    "timeout(5000, fetch_data(), \"timeout\")".to_string()
                 ],
                 category: DocumentationCategory::Async,
                 see_also: vec!["Promise".to_string(), "Await".to_string()],
@@ -1760,11 +1896,11 @@ impl Node {
             },
             Node::Contract { .. } => Documentation {
                 name: "Contract".to_string(),
-                syntax: "(spec:contract <function-name> :requires [...] :ensures [...] :invariant [...] :complexity \"...\" :pure <bool>)".to_string(),
+                syntax: "@contract { requires: <conditions>, ensures: <conditions>, invariants: <conditions> }".to_string(),
                 description: "Specifies formal contracts for functions including preconditions, postconditions, invariants, complexity bounds, and purity constraints.".to_string(),
                 examples: vec![
-                    "(spec:contract factorial :requires [(>= n 0)] :ensures [(>= result 1)] :complexity \"O(n)\" :pure true)".to_string(),
-                    "(spec:contract sort :requires [(list? input)] :ensures [(sorted? result) (= (length result) (length input))] :pure true)".to_string()
+                    "@contract { requires: n >= 0, ensures: result >= 1 }".to_string(),
+                    "@contract { requires: input.is_list(), ensures: result.is_sorted() && result.length() == input.length() }".to_string()
                 ],
                 category: DocumentationCategory::Verification,
                 see_also: vec!["Lambda".to_string()],

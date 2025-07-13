@@ -3,38 +3,67 @@
 use crate::documentation::traits::{DocumentationCategory, DocumentedNode};
 
 // Marker types for documentation
+/// Documentation for literal expressions
 pub struct LiteralDoc;
+/// Documentation for variable references
 pub struct VariableDoc;
+/// Documentation for lambda expressions
 pub struct LambdaDoc;
+/// Documentation for let bindings
 pub struct LetDoc;
+/// Documentation for recursive let bindings
 pub struct LetrecDoc;
+/// Documentation for if expressions
 pub struct IfDoc;
+/// Documentation for function applications
 pub struct ApplicationDoc;
+/// Documentation for effect operations
 pub struct EffectDoc;
+/// Documentation for list expressions
 pub struct ListDoc;
+/// Documentation for match expressions
 pub struct MatchDoc;
+/// Documentation for module definitions
 pub struct ModuleDoc;
+/// Documentation for import statements
 pub struct ImportDoc;
+/// Documentation for export statements
 pub struct ExportDoc;
+/// Documentation for qualified variables
 pub struct QualifiedVariableDoc;
+/// Documentation for async blocks
 pub struct AsyncDoc;
+/// Documentation for await expressions
 pub struct AwaitDoc;
+/// Documentation for spawn expressions
 pub struct SpawnDoc;
+/// Documentation for channel creation
 pub struct ChannelDoc;
+/// Documentation for send operations
 pub struct SendDoc;
+/// Documentation for receive operations
 pub struct ReceiveDoc;
 
 // Additional constructs
+/// Documentation for do/begin blocks
 pub struct DoDoc;
+/// Documentation for map literals
 pub struct MapDoc;
+/// Documentation for tagged values
 pub struct TaggedDoc;
+/// Documentation for list literals
 pub struct ListLiteralDoc;
 
 // Literal types
+/// Documentation for integer literals
 pub struct IntegerDoc;
+/// Documentation for float literals
 pub struct FloatDoc;
+/// Documentation for string literals
 pub struct StringDoc;
+/// Documentation for boolean literals
 pub struct BooleanDoc;
+/// Documentation for nil literal
 pub struct NilDoc;
 
 impl DocumentedNode for IntegerDoc {
