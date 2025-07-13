@@ -7,6 +7,8 @@
 //! - Error types
 //! - Documentation system
 
+#![warn(missing_docs)]
+
 pub mod ast;
 pub mod documentation;
 pub mod error;
