@@ -1,4 +1,5 @@
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 use fluentai_vm::{
     compiler::{Compiler, CompilerOptions},
     VM,
@@ -56,7 +57,7 @@ fn test_pattern(name: &str, code: &str) {
     println!("Test: {}", name);
     println!("Code: {}", code.trim());
 
-    match parse(code) {
+    match parse_flc(code) {
         Ok(graph) => {
             let options = CompilerOptions {
                 optimization_level: OptimizationLevel::None,

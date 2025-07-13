@@ -2,6 +2,7 @@
 
 use fluentai_vm::{Compiler, CompilerOptions};
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn test_assignment_with_optimization() {
@@ -9,7 +10,7 @@ fn test_assignment_with_optimization() {
     let code = "let x = 10; x := 42";
     
     eprintln!("Parsing code: {}", code);
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     
     eprintln!("\nParsed graph:");
     eprintln!("  Root: {:?}", graph.root_id);
@@ -55,7 +56,7 @@ fn test_assignment_without_optimization() {
     // Simple assignment test
     let code = "let x = 10; x := 42";
     
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     
     // Try without optimization
     println!("\nCompiling without optimization...");

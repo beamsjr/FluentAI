@@ -5,6 +5,7 @@ use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::compiler::Compiler;
 use fluentai_vm::safety::{checked_ops, ResourceLimits};
 use fluentai_vm::VM;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn test_integer_overflow_protection() {
@@ -188,7 +189,7 @@ fn test_typed_ids() {
 #[test]
 fn test_stack_trace_generation() {
     // Create a simple function that will be in the stack trace
-    let graph = parse("((x) => x / 0)(42)").unwrap();
+    let graph = parse_flc("((x) => x / 0)(42)").unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
 

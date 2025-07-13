@@ -10,18 +10,26 @@ use std::time::Instant;
 /// Build configuration
 #[derive(Debug, Clone)]
 pub struct BuildConfig {
-    pub configuration: String, // Debug or Release
+    /// Build configuration type (Debug or Release)
+    pub configuration: String,
+    /// Optional output path for build artifacts
     pub output_path: Option<PathBuf>,
+    /// Target platform for the build
     pub target: BuildTarget,
+    /// Optimization level (0-3)
     pub optimization_level: u8,
+    /// Enable verbose output
     pub verbose: bool,
 }
 
 /// Build target types
 #[derive(Debug, Clone)]
 pub enum BuildTarget {
+    /// Build as executable binary
     Executable,
+    /// Build as library
     Library,
+    /// Build as WebAssembly module
     WebAssembly,
 }
 
@@ -110,15 +118,22 @@ pub async fn build(project_path: Option<PathBuf>, config: BuildConfig) -> Result
 /// Project configuration
 #[derive(Debug)]
 struct Project {
+    /// Project name
     name: String,
+    /// Output type (Exe, Library, etc.)
     output_type: String,
+    /// Target framework version
     target_framework: String,
+    /// Project dependencies
     dependencies: Vec<Dependency>,
 }
 
+/// Project dependency information
 #[derive(Debug)]
 struct Dependency {
+    /// Dependency name
     name: String,
+    /// Dependency version
     version: String,
 }
 
@@ -195,13 +210,19 @@ fn collect_flc_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
 
 /// Compiled module representation
 struct CompiledModule {
+    /// Module name
     name: String,
+    /// Compiled bytecode
     bytecode: Vec<u8>,
+    /// Module metadata
     metadata: ModuleMetadata,
 }
 
+/// Module metadata information
 struct ModuleMetadata {
+    /// Exported symbols
     exports: Vec<String>,
+    /// Imported symbols
     imports: Vec<String>,
 }
 

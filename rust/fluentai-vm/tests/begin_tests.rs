@@ -1,10 +1,11 @@
 //! Comprehensive tests for multiple top-level expressions (Begin node)
 
 use fluentai_core::value::Value;
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, CompilerOptions, OptimizationLevel, VM};
 
 fn compile_and_run(code: &str) -> Result<Value, Box<dyn std::error::Error>> {
-    let graph = parse(code)?;
+    let graph = parse_flc(code)?;
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         ..Default::default()
@@ -62,7 +63,7 @@ fn test_begin_with_let_bindings() {
     println!("\nTesting: test_begin_with_let_bindings");
     println!("Code: {}", code);
     
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     if let Some(root_id) = graph.root_id {
         let root_node = graph.get_node(root_id);
         println!("Root node: {:?}", root_node);
@@ -107,7 +108,7 @@ fn test_block_return_debug() {
     
     println!("Testing code: {}", code);
     
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     println!("Parsed graph root: {:?}", graph.root_id);
     
     if let Some(root_id) = graph.root_id {
@@ -137,7 +138,7 @@ fn test_block_with_semicolon() {
     println!("\nTesting: Block with semicolon");
     println!("Code: {}", code1);
     
-    let graph1 = parse(code1).unwrap();
+    let graph1 = parse_flc(code1).unwrap();
     if let Some(root_id) = graph1.root_id {
         let root_node = graph1.get_node(root_id);
         println!("Root node: {:?}", root_node);
@@ -151,7 +152,7 @@ fn test_block_with_semicolon() {
     println!("\nTesting: Two blocks with semicolon");
     println!("Code: {}", code2);
     
-    let graph2 = parse(code2).unwrap();
+    let graph2 = parse_flc(code2).unwrap();
     if let Some(root_id) = graph2.root_id {
         let root_node = graph2.get_node(root_id);
         println!("Root node: {:?}", root_node);
@@ -285,7 +286,7 @@ fn test_mutation_operator_simple() {
     println!("\nTesting mutation operator return value");
     println!("Code: {}", code);
     
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     if let Some(root_id) = graph.root_id {
         println!("Root node: {:?}", graph.get_node(root_id));
         
@@ -356,7 +357,7 @@ fn test_nested_let_begin_simple() {
     println!("\nTesting nested let/begin issue");
     println!("Code: {}", code);
     
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     println!("\nGraph structure:");
     
     if let Some(root_id) = graph.root_id {

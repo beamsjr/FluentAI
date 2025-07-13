@@ -2,12 +2,13 @@
 
 use fluentai_core::ast::Graph;
 use fluentai_bytecode::Opcode;
+use fluentai_parser::parse_flc;
 use fluentai_vm::compiler::Compiler;
 
 #[test]
 fn test_compile_begin_empty() {
     let compiler = Compiler::new();
-    let graph = parse("").unwrap_or_else(|_| {
+    let graph = parse_flc("").unwrap_or_else(|_| {
         // Create empty graph if parse fails
         let mut g = Graph::new();
         g.root_id = None;
@@ -27,7 +28,7 @@ fn test_compile_begin_empty() {
 #[test]
 fn test_compile_begin_multiple_literals() {
     let code = "1 2 3";
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
     let chunk = &bytecode.chunks[bytecode.main_chunk];
@@ -50,7 +51,7 @@ fn test_compile_begin_expressions_with_side_effects() {
         perform State.get("x") + perform State.get("y")
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
     let chunk = &bytecode.chunks[bytecode.main_chunk];
@@ -75,7 +76,7 @@ fn test_compile_begin_preserves_last_value() {
         300
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
     let chunk = &bytecode.chunks[bytecode.main_chunk];
@@ -115,7 +116,7 @@ fn test_compile_begin_with_define() {
         x() + y()
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
     let chunk = &bytecode.chunks[bytecode.main_chunk];
@@ -138,7 +139,7 @@ fn test_compile_begin_nested_in_let() {
         }
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
     let chunk = &bytecode.chunks[bytecode.main_chunk];
@@ -160,7 +161,7 @@ fn test_compile_begin_pop_optimization() {
         5
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
     let chunk = &bytecode.chunks[bytecode.main_chunk];
@@ -189,7 +190,7 @@ fn test_compile_begin_with_match() {
         42
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
     let chunk = &bytecode.chunks[bytecode.main_chunk];
@@ -215,7 +216,7 @@ fn test_compile_begin_with_invalid_syntax() {
     // This should fail during parsing
     let code = "(+ 1 2) (+ 3"; // Incomplete expression
 
-    let result = parse(code);
+    let result = parse_flc(code);
     assert!(result.is_err());
 }
 
@@ -229,7 +230,7 @@ fn test_compile_begin_optimization_levels() {
         3
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
 
     // Test with no optimization
     let options = CompilerOptions {

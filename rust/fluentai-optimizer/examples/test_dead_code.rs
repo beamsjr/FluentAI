@@ -1,12 +1,13 @@
 //! Test dead code elimination
 
 use fluentai_optimizer::{AdvancedOptimizer, GraphOptimizer};
+use fluentai_parser::parse_flc;
 
 fn main() {
     let code = "(let ((x 1) (y 2) (unused 3)) (+ x y))";
     println!("Original code: {}", code);
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     println!("Original graph nodes: {}", graph.nodes.len());
 
     // Test with GraphOptimizer

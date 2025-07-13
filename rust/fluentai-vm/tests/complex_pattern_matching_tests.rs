@@ -3,10 +3,11 @@
 // Complex pattern matching tests
 use anyhow::Result;
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, CompilerOptions, Value, VM};
 
 fn compile_and_run(source: &str) -> Result<Value> {
-    let graph = parse(source)?;
+    let graph = parse_flc(source)?;
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,

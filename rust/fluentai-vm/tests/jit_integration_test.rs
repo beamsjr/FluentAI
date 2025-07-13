@@ -3,6 +3,7 @@
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]
 use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]
+use fluentai_parser::parse_flc;
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]
 use fluentai_vm::{Bytecode, Compiler, VM, Value};
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]
@@ -19,7 +20,7 @@ fn test_jit_hot_path_compilation() {
                 (* n (factorial (- n 1)))))
     "#;
     
-    let ast = parse(source).unwrap();
+    let ast = parse_flc(source).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&ast).unwrap();
     
@@ -79,7 +80,7 @@ fn test_jit_simple_arithmetic() {
             (+ (* x x) (* y y)))
     "#;
     
-    let ast = parse(source).unwrap();
+    let ast = parse_flc(source).unwrap();
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&ast).unwrap();
     

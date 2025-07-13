@@ -4,53 +4,70 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+/// Main configuration structure for FluentAI CLI
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    /// Visualization server configuration
     #[serde(default)]
     pub visualization: VisualizationConfig,
 
+    /// REPL configuration
     #[serde(default)]
     pub repl: ReplConfig,
 
+    /// Package management configuration
     #[serde(default)]
     pub package: PackageConfig,
 }
 
+/// Configuration for the visualization server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisualizationConfig {
+    /// Port number for the visualization server
     #[serde(default = "default_viz_port")]
     pub port: u16,
 
+    /// Whether to automatically open browser when starting visualization
     #[serde(default = "default_true")]
     pub auto_open_browser: bool,
 
+    /// Theme name for the visualization interface
     #[serde(default = "default_theme")]
     pub theme: String,
 
+    /// Delay in milliseconds between visualization updates
     #[serde(default)]
     pub delay_ms: u64,
 }
 
+/// Configuration for the REPL (Read-Eval-Print Loop)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReplConfig {
+    /// Whether to show AST output after each evaluation
     #[serde(default = "default_true")]
     pub show_ast: bool,
 
+    /// Path to the history file for command history
     #[serde(default)]
     pub history_file: Option<PathBuf>,
 
+    /// Custom prompt string for the REPL
     #[serde(default = "default_prompt")]
     pub prompt: String,
 }
 
+/// Configuration for package management
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageConfig {
+    /// URL of the package registry
     #[serde(default = "default_registry")]
     pub registry: String,
 
+    /// Whether to operate in offline mode
     #[serde(default)]
     pub offline: bool,
 
+    /// Directory for caching downloaded packages
     #[serde(default)]
     pub cache_dir: Option<PathBuf>,
 }

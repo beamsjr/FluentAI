@@ -1,6 +1,7 @@
 //! Tests for effect handler functionality
 
 use fluentai_vm::{Compiler, Value, VM};
+use fluentai_parser::parse_flc;
 
 #[test]
 fn test_handler_parsing_and_compilation() {
@@ -11,7 +12,7 @@ fn test_handler_parsing_and_compilation() {
             (+ 1 2))
     "#;
 
-    let graph = parse(code).expect("Should parse handler syntax");
+    let graph = parse_flc(code).expect("Should parse handler syntax");
     let bytecode = Compiler::new()
         .compile(&graph)
         .expect("Should compile handler");
@@ -36,7 +37,7 @@ fn test_handler_without_actual_effects() {
             (+ 10 20))
     "#;
 
-    let graph = parse(code).expect("Should parse handler");
+    let graph = parse_flc(code).expect("Should parse handler");
     let bytecode = Compiler::new()
         .compile(&graph)
         .expect("Should compile handler");
@@ -62,7 +63,7 @@ fn test_nested_handlers() {
                 42))
     "#;
 
-    let graph = parse(code).expect("Should parse nested handlers");
+    let graph = parse_flc(code).expect("Should parse nested handlers");
     let bytecode = Compiler::new()
         .compile(&graph)
         .expect("Should compile nested handlers");

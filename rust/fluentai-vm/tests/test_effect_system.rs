@@ -5,6 +5,7 @@ use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
 use fluentai_vm::{Compiler, CompilerOptions, VM, VMBuilder};
+use fluentai_parser::parse_flc;
 
 fn main() -> Result<()> {
     println!("Testing FluentAI async/await functionality...\n");
@@ -52,7 +53,7 @@ fn main() -> Result<()> {
 
 fn run_code(code: &str) -> Result<Value> {
     // Parse the code
-    let graph = parse(code)?;
+    let graph = parse_flc(code)?;
     
     // Compile it
     let options = CompilerOptions {

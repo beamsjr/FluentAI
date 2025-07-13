@@ -2,6 +2,7 @@
 
 use fluentai_optimizer::pipeline::OptimizationLevel;
 use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline};
+use fluentai_parser::parse_flc;
 
 fn main() {
     let code = r#"
@@ -12,7 +13,7 @@ fn main() {
     "#;
 
     println!("Parsing code...");
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     println!("Graph has {} nodes", graph.nodes.len());
 
     // First try with AdvancedOptimizer directly

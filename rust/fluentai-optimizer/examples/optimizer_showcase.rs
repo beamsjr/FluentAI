@@ -2,6 +2,7 @@
 
 use fluentai_optimizer::pipeline::OptimizationLevel;
 use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline};
+use fluentai_parser::parse_flc;
 
 fn main() {
     println!("=== FluentAi Optimizer Showcase ===\n");
@@ -58,7 +59,7 @@ fn showcase_optimization(name: &str, code: &str, level: OptimizationLevel) {
     println!("### {} ###", name);
     println!("Original: {}", code);
 
-    let graph = match parse(code) {
+    let graph = match parse_flc(code) {
         Ok(g) => g,
         Err(e) => {
             println!("Parse error: {}", e);

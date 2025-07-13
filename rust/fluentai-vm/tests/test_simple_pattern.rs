@@ -1,4 +1,5 @@
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, CompilerOptions, VM};
 
 #[test]
@@ -13,7 +14,7 @@ fn test_simple_or_pattern() {
 
     println!("Parsing source: {}", source);
 
-    match parse(source) {
+    match parse_flc(source) {
         Ok(graph) => {
             println!("Parse successful!");
             println!("Graph: {:?}", graph);

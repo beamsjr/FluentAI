@@ -4,6 +4,7 @@
 //! including proper interception, handler chaining, and state management.
 
 use fluentai_vm::{Compiler, Value, VM};
+use fluentai_parser::parse_flc;
 
 #[test]
 fn test_basic_handler_syntax() {
@@ -14,7 +15,7 @@ fn test_basic_handler_syntax() {
             42)
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -36,7 +37,7 @@ fn test_handler_with_effect_invocation() {
             (effect error:raise "test error"))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -60,7 +61,7 @@ fn test_nested_handlers() {
                 (effect error:raise "test")))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -83,7 +84,7 @@ fn test_handler_with_multiple_handlers() {
             (+ (effect io:print) (effect error:raise "test")))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -107,7 +108,7 @@ fn test_handler_passes_through_unhandled() {
                 (effect error:raise "test")))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -130,7 +131,7 @@ fn test_handler_with_lexical_scope() {
                 (effect error:raise "test")))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -152,7 +153,7 @@ fn test_handler_function_receives_args() {
             (effect io:print))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -174,7 +175,7 @@ fn test_handler_with_conditional() {
             (effect io:print))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -196,7 +197,7 @@ fn test_handler_with_string_result() {
             (effect io:test))
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);
@@ -220,7 +221,7 @@ fn test_handler_removes_after_body() {
             result)
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");
 
     let mut vm = VM::new(bytecode);

@@ -1,8 +1,9 @@
 use fluentai_optimizer::GraphOptimizer;
+use fluentai_parser::parse_flc;
 
 fn main() {
     let code = "(module test-module (export x) (define x 10))";
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     
     println!("Original graph:");
     println!("  Root: {:?}", graph.root_id);

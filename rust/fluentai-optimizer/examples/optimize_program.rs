@@ -2,6 +2,7 @@
 
 use fluentai_optimizer::pipeline::OptimizationLevel;
 use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline};
+use fluentai_parser::parse_flc;
 use std::env;
 
 fn main() {
@@ -23,7 +24,7 @@ fn main() {
     println!();
 
     // Parse the program
-    let graph = match parse(&code) {
+    let graph = match parse_flc(&code) {
         Ok(g) => g,
         Err(e) => {
             eprintln!("Parse error: {}", e);

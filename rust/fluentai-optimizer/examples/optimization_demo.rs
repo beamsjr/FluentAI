@@ -2,6 +2,7 @@
 
 use fluentai_optimizer::pipeline::OptimizationLevel;
 use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline};
+use fluentai_parser::parse_flc;
 
 fn main() {
     println!("FluentAi Optimization Demo\n");
@@ -74,7 +75,7 @@ fn main() {
         println!("{}", description);
         println!("Original program: {}", program);
 
-        let graph = match parse(program) {
+        let graph = match parse_flc(program) {
             Ok(g) => g,
             Err(e) => {
                 println!("Parse error: {}", e);
@@ -132,7 +133,7 @@ fn main() {
 
     println!("Complex functional program with map/filter/reduce");
 
-    let graph = parse(benchmark_program).expect("Failed to parse benchmark");
+    let graph = parse_flc(benchmark_program).expect("Failed to parse benchmark");
     let original_nodes = graph.nodes.len();
 
     for level in &levels {

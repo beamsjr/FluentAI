@@ -1,6 +1,7 @@
 //! Test the VM with simple examples
 
 use fluentai_vm::{Compiler, VM};
+use fluentai_parser::parse_flc;
 
 fn main() {
     println!("Testing FluentAi VM\n");
@@ -48,7 +49,7 @@ fn main() {
 
 fn run_code(code: &str) -> anyhow::Result<String> {
     // Parse
-    let ast = parse(code)?;
+    let ast = parse_flc(code)?;
     
     // Compile
     let compiler = Compiler::new();

@@ -6,6 +6,7 @@ use fluentai_vm::{compiler::{Compiler, CompilerOptions}, VM};
 use std::sync::Arc;
 use fluentai_effects::EffectRuntime;
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 
 fn compile_and_run(source: &str) -> Result<Value> {
     // Parse the source code using FLC parser

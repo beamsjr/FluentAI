@@ -1,5 +1,6 @@
 use fluentai_vm::{VM, compiler::{Compiler, CompilerOptions}};
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 
 fn main() {
     let code = r#"
@@ -12,7 +13,7 @@ fn main() {
     println!("Testing Cons/Nil pattern matching:");
     println!("{}", code);
     
-    match parse(code) {
+    match parse_flc(code) {
         Ok(graph) => {
             println!("✓ Parse successful!");
             

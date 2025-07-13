@@ -66,6 +66,8 @@ pub enum Token<'a> {
     Parallel,
     #[token("handle", priority = 10)]
     Handle,
+    #[token("promise", priority = 10)]
+    Promise,
 
     // Error handling keywords
     #[token("try", priority = 10)]

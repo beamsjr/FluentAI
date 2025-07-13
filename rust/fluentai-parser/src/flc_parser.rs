@@ -758,6 +758,21 @@ impl<'a> Parser<'a> {
                             // expr.await() -> Node::Await
                             self.consume(Token::RParen)?;
                             expr = self.add_node(Node::Await { expr })?;
+                        } else if method_name == "timeout" {
+                            // promise.timeout(ms) -> with_timeout(promise, ms)
+                            if matches!(self.current, Some(Token::RParen)) {
+                                return Err(anyhow!("timeout() requires a milliseconds argument"));
+                            }
+                            let timeout_ms = self.parse_expression()?;
+                            self.consume(Token::RParen)?;
+                            
+                            let with_timeout_fn = self.add_node(Node::Variable {
+                                name: "with_timeout".to_string(),
+                            })?;
+                            expr = self.add_node(Node::Application {
+                                function: with_timeout_fn,
+                                args: vec![expr, timeout_ms],
+                            })?;
                         } else if method_name == "case" {
                             // Special handling for case method: case(pattern, value)
                             // The first argument is a pattern, not an expression
@@ -1012,6 +1027,48 @@ impl<'a> Parser<'a> {
                     } else {
                         return Err(anyhow!("Expected method name after Channel."));
                     }
+                } else if name == "Promise" && matches!(self.current, Some(Token::Dot)) {
+                    // Promise.all() or Promise.race() syntax
+                    self.advance(); // consume dot
+                    if let Some(Token::LowerIdent(method)) = self.current {
+                        let method_name = method.to_string();
+                        self.advance(); // consume method name
+                        self.consume(Token::LParen)?;
+                        
+                        match method_name.as_str() {
+                            "all" => {
+                                // Promise.all([...])
+                                let promises = self.parse_expression()?;
+                                self.consume(Token::RParen)?;
+                                
+                                let promise_all_fn = self.add_node(Node::Variable {
+                                    name: "promise_all".to_string(),
+                                })?;
+                                self.add_node(Node::Application {
+                                    function: promise_all_fn,
+                                    args: vec![promises],
+                                })
+                            }
+                            "race" => {
+                                // Promise.race([...])
+                                let promises = self.parse_expression()?;
+                                self.consume(Token::RParen)?;
+                                
+                                let promise_race_fn = self.add_node(Node::Variable {
+                                    name: "promise_race".to_string(),
+                                })?;
+                                self.add_node(Node::Application {
+                                    function: promise_race_fn,
+                                    args: vec![promises],
+                                })
+                            }
+                            _ => {
+                                return Err(anyhow!("Unknown method '{}' on Promise", method));
+                            }
+                        }
+                    } else {
+                        return Err(anyhow!("Expected method name after Promise."));
+                    }
                 } else {
                     self.add_node(Node::Variable { name })
                 }
@@ -1249,6 +1306,7 @@ impl<'a> Parser<'a> {
             Some(Token::While) => self.parse_while_expression(),
             Some(Token::Try) => self.parse_try_expression(),
             Some(Token::Spawn) => self.parse_spawn_expression(),
+            Some(Token::Promise) => self.parse_promise_expression(),
             Some(Token::Perform) => self.parse_perform_expression(),
             Some(Token::Handle) => self.parse_handle_expression(),
             Some(Token::Receive) => self.parse_receive_expression(),
@@ -3190,6 +3248,30 @@ impl<'a> Parser<'a> {
         };
 
         self.add_node(Node::Spawn { expr })
+    }
+
+    fn parse_promise_expression(&mut self) -> Result<NodeId> {
+        // promise { expr }
+        self.consume(Token::Promise)?;
+        self.consume(Token::LBrace)?;
+        let body = self.parse_expression()?;
+        self.consume(Token::RBrace)?;
+
+        // Create a lambda from the body
+        let lambda = self.add_node(Node::Lambda {
+            params: vec![],
+            body,
+        })?;
+
+        // Create promise_new(lambda) function call
+        let promise_new_fn = self.add_node(Node::Variable {
+            name: "promise_new".to_string(),
+        })?;
+        
+        self.add_node(Node::Application {
+            function: promise_new_fn,
+            args: vec![lambda],
+        })
     }
 
     // Helper methods

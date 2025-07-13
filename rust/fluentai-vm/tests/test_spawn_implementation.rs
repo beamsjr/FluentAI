@@ -1,6 +1,6 @@
 use fluentai_vm::{compiler::Compiler, vm::VM};
 use fluentai_effects::{EffectContext, EffectRuntime, handlers::*};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use std::sync::Arc;
 use tokio;
 
@@ -61,7 +61,7 @@ async fn run_test(name: &str, code: &str, context: Arc<EffectContext>, runtime: 
     let start = std::time::Instant::now();
     
     // Parse
-    let ast = parse(code)?;
+    let ast = parse_flc(code)?;
     
     // Compile
     let compiler = Compiler::new();

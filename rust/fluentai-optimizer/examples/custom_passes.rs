@@ -5,6 +5,7 @@ use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_optimizer::di::*;
 use fluentai_optimizer::passes::OptimizationPass;
 use fluentai_optimizer::*;
+use fluentai_parser::parse_flc;
 use std::collections::{HashMap, HashSet};
 
 fn main() -> Result<()> {
@@ -93,7 +94,7 @@ fn string_interning_demo() -> Result<()> {
           (list msg1 msg2 msg3 msg4))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     let mut pipeline = OptimizationPipelineBuilder::new()
         .add_custom_pass(|| Box::new(StringInterningPass::new()))
@@ -183,7 +184,7 @@ fn algebraic_simplification_demo() -> Result<()> {
           (+ (+ (+ (+ a b) c) d) e))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     let mut pipeline = OptimizationPipelineBuilder::new()
         .add_custom_pass(|| Box::new(AlgebraicSimplificationPass::new()))
@@ -267,7 +268,7 @@ fn function_specialization_demo() -> Result<()> {
             (+ (+ (+ a b) c) d)))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     let mut pipeline = OptimizationPipelineBuilder::new()
         .add_custom_pass(|| Box::new(FunctionSpecializationPass::new(5)))
@@ -298,7 +299,7 @@ fn combined_pipeline_demo() -> Result<()> {
             (str-concat msg (number->string e))))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     println!("  Original program: {} nodes", graph.nodes.len());
 

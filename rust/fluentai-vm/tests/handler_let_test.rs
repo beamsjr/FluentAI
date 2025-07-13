@@ -14,7 +14,7 @@ let result = handle {
 result
 "#;
 
-    let ast = parse(code).expect("Failed to parse");
+    let ast = parse_flc(code).expect("Failed to parse");
     let mut compiler = Compiler::new();
     let bytecode = compiler.compile(&ast).expect("Failed to compile");
 

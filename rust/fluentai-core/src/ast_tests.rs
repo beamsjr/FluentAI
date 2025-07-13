@@ -1367,7 +1367,7 @@ mod tests {
         };
         let docs = lambda_node.get_node_docs();
         assert_eq!(docs.name, "Lambda");
-        assert!(docs.syntax.contains("lambda"));
+        assert!(docs.syntax.contains("=>"));
         assert_eq!(docs.category, DocumentationCategory::Function);
         assert!(docs.see_also.contains(&"Application".to_string()));
     }
@@ -1675,7 +1675,7 @@ mod tests {
         };
         let import_docs = import_node.get_node_docs();
         assert_eq!(import_docs.name, "Import");
-        assert!(import_docs.syntax.contains("import"));
+        assert!(import_docs.syntax.contains("use"));
 
         let export_node = Node::Export {
             export_list: vec![],
@@ -1752,7 +1752,7 @@ mod tests {
         assert_eq!(contract_docs.name, "Contract");
         assert_eq!(contract_docs.category, DocumentationCategory::Verification);
         assert!(contract_docs.description.contains("formal contracts"));
-        assert!(contract_docs.syntax.contains("spec:contract"));
+        assert!(contract_docs.syntax.contains("@contract"));
     }
 
     // ===== Context Memory Update Tests =====

@@ -4,6 +4,8 @@
 //! with features like syntax highlighting, auto-completion, and multiple
 //! execution modes.
 
+#![warn(missing_docs)]
+
 pub mod commands;
 pub mod completer;
 pub mod environment;

@@ -5,6 +5,7 @@ use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_di::prelude::*;
 use fluentai_optimizer::di::*;
 use fluentai_optimizer::*;
+use fluentai_parser::parse_flc;
 use std::sync::Arc;
 
 fn main() -> Result<()> {
@@ -40,7 +41,7 @@ fn basic_pipeline_demo() -> Result<()> {
               0))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     println!("Original program: {} nodes", graph.nodes.len());
 
@@ -109,7 +110,7 @@ fn custom_pass_demo() -> Result<()> {
           (+ (+ a b) c))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     // Build pipeline with custom pass
     let mut pipeline = OptimizationPipelineBuilder::new()
@@ -170,7 +171,7 @@ fn di_integration_demo() -> Result<()> {
           (factorial 5))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     println!("  Original: {} nodes", graph.nodes.len());
 
@@ -262,7 +263,7 @@ fn runtime_composition_demo() -> Result<()> {
               double)))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     println!("  Running dynamically composed pipeline:");
     let optimized = pipeline.optimize(&graph)?;

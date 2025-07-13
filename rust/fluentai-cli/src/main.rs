@@ -1,5 +1,7 @@
 //! FluentAi CLI - Main interpreter and tools
 
+#![warn(missing_docs)]
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;

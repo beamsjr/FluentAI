@@ -1,4 +1,5 @@
 use fluentai_core::ast::{Graph, Literal, Node};
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, VM, VMBuilder};
 use fluentai_effects::runtime::EffectRuntime;
 use std::sync::Arc;
@@ -11,7 +12,7 @@ async fn test_basic_await() {
     spawn { f() }.await()
 }"#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
@@ -43,7 +44,7 @@ async fn test_await_with_computation() {
     result
 }"#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
@@ -73,7 +74,7 @@ async fn test_multiple_awaits() {
     r1 + r2
 }"#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
     
     let compiler = Compiler::new();
     let bytecode = compiler.compile(&graph).unwrap();
