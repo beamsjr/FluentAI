@@ -1,6 +1,7 @@
 //! Integration test for IoT demo functionality
 
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 use fluentai_stdlib::init_stdlib;
 use fluentai_vm::{Compiler, CompilerOptions, VM};
 
@@ -129,7 +130,7 @@ fn run_code(code: &str) -> Result<fluentai_vm::Value, Box<dyn std::error::Error>
     let stdlib = init_stdlib();
 
     // Parse
-    let ast = parse(code)?;
+    let ast = parse_flc(code)?;
 
     // Compile
     let options = CompilerOptions {

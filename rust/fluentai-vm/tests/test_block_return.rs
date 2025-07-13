@@ -10,7 +10,7 @@ mod tests {
         
         println!("Testing code: {}", code);
         
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         println!("Parsed graph root: {:?}", graph.root_id);
         
         if let Some(root_id) = graph.root_id {

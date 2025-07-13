@@ -1,5 +1,6 @@
 //! Test assignment as expression functionality
 
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, VM, Value};
 
 #[test]
@@ -7,7 +8,7 @@ fn test_simple_assignment_returns_value() {
     // Simple top-level assignment
     let code = "x := 42";
     
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     
     // The assignment to an undefined variable should work at parse time
     // but fail at compile time since x is not defined
@@ -20,7 +21,7 @@ fn test_assignment_no_optimization() {
     // Assignment after let binding without optimization
     let code = "let x = 10; x := 42";
     
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     
     // Use compiler without optimization
     let options = fluentai_vm::CompilerOptions {
@@ -48,7 +49,7 @@ fn test_assignment_after_let() {
     // Assignment after let binding
     let code = "let x = 10; x := 42";
     
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     
     // Debug: print the graph
     println!("Graph nodes:");
@@ -75,7 +76,7 @@ fn test_assignment_in_expression() {
     // Assignment in arithmetic expression
     let code = "let x = 10; 5 + (x := 20)";
     
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     // Use no optimization to work around optimizer bug with Assignment nodes
     let options = fluentai_vm::CompilerOptions {
         optimization_level: fluentai_optimizer::OptimizationLevel::None,
@@ -94,7 +95,7 @@ fn test_chained_assignment() {
     // Chained assignments
     let code = "let x = 0; let y = 0; x := y := 42";
     
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     // Use no optimization to work around optimizer bug with Assignment nodes
     let options = fluentai_vm::CompilerOptions {
         optimization_level: fluentai_optimizer::OptimizationLevel::None,
@@ -113,7 +114,7 @@ fn test_assignment_with_equals() {
     // Test = operator (should work same as :=)
     let code = "let x = 10; x = 42";
     
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     // Use no optimization to work around optimizer bug with Assignment nodes
     let options = fluentai_vm::CompilerOptions {
         optimization_level: fluentai_optimizer::OptimizationLevel::None,

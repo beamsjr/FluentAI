@@ -3,10 +3,11 @@ use fluentai_vm::error::VMError;
 use fluentai_vm::VM;
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
+use fluentai_parser::parse_flc;
 
 fn compile_and_run(code: &str) -> Result<Value, VMError> {
     // Parse the code to get an AST
-    let ast = parse(code).map_err(|e| VMError::RuntimeError {
+    let ast = parse_flc(code).map_err(|e| VMError::RuntimeError {
         message: format!("Parse error: {:?}", e),
         stack_trace: None,
     })?;
