@@ -121,7 +121,7 @@ fn test_no_transformation_outside_handler() {
     "#;
     
     let result = parse(source);
-    assert!(result.is_ok(), "Failed to parse actor with mixed contexts");
+    assert!(result.is_ok(), "Failed to parse actor with mixed contexts: {:?}", result);
 }
 
 #[test]

@@ -91,9 +91,9 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Self field access: Direct access to actor fields without explicit `self` prefix
   - ✅ Send messages: `actor.send(message)`
   - ✅ Basic message processing: Actors can receive and process messages with handlers
-  - ✅ Become: Update actor state within handlers
-  - ✅ Receive patterns: Pattern matching on messages with `receive { case pattern => handler, ... }`
-  - ❌ Timeout handling in receive: Not yet implemented
+  - ✅ Become: Change actor state with `become new_state` or `become(expression)`
+  - ✅ Receive patterns: Pattern matching on messages with `receive { pattern => handler, ... }`
+  - ✅ Receive with timeout: `receive { patterns } after(duration) { timeout_handler }`
   - ❌ Selective receive: Not yet implemented
 
 ### ✅ Network Effects (Completed July 2025)
@@ -1116,6 +1116,73 @@ private function get_user_profile(id: int) -> Result<UserProfile, AppError> {
         // Add context to errors
         $(f"Failed to get profile for user {id}: {err}").print();
         throw err
+    }
+}
+```
+
+### Actor Model
+
+FluentAI provides a comprehensive actor model for concurrent, message-passing programming:
+
+```flc
+// Define an actor with state and multiple handlers
+private actor BankAccount {
+    balance: float = 0.0;
+    overdraft_limit: float = 100.0;
+    
+    // Multiple typed message handlers
+    private handle deposit(amount: float) {
+        if (amount > 0.0) {
+            become balance + amount;
+            f"Deposited ${amount}. New balance: ${balance + amount}"
+        } else {
+            "Invalid deposit amount"
+        }
+    }
+    
+    private handle withdraw(amount: float) {
+        let new_balance = balance - amount;
+        if (new_balance >= -overdraft_limit) {
+            become new_balance;
+            f"Withdrew ${amount}. New balance: ${new_balance}"
+        } else {
+            "Insufficient funds"
+        }
+    }
+    
+    private handle get_balance() {
+        f"Current balance: ${balance}"
+    }
+}
+
+// Using actors
+let account = BankAccount;
+account.send(deposit(100.0));
+account.send(withdraw(50.0));
+let balance_msg = account.send(get_balance());
+
+// Actors with receive patterns and timeout
+private actor Worker {
+    status: string = "idle";
+    
+    private handle process_task() {
+        receive {
+            "start" => {
+                become "working";
+                "Started processing"
+            },
+            "pause" => {
+                become "paused";
+                "Work paused"
+            },
+            "stop" => {
+                become "idle";
+                "Stopped"
+            }
+        } after(5000) {
+            // Timeout after 5 seconds
+            "Task timed out"
+        }
     }
 }
 ```
