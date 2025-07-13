@@ -215,16 +215,75 @@ impl OpcodeHandler for ConcurrentHandler {
             }
             
             PromiseNew => {
-                // Simplified implementation
-                vm.push(Value::Nil)?;
+                // Create a new promise
+                // The promise body should be on the stack as a function
+                let promise_body = vm.pop()?;
+                
+                // Validate it's a callable
+                match &promise_body {
+                    Value::Function { .. } | Value::Procedure(_) => {
+                        // Generate a new promise ID
+                        let promise_id = vm.id_generator().next_promise_id();
+                        
+                        // Create the promise (actual async execution would happen in async_vm)
+                        // For now, we just create the promise ID
+                        vm.push(Value::Promise(promise_id.0))?;
+                        
+                        // Store the promise body for later execution
+                        // This would be handled by the async runtime
+                        vm.pending_promise_bodies().insert(promise_id, promise_body);
+                    }
+                    _ => {
+                        return Err(VMError::TypeError {
+                            operation: "promise_new".to_string(),
+                            expected: "function".to_string(),
+                            got: vm.value_type_name(&promise_body).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        });
+                    }
+                }
             }
             
             PromiseAll => {
                 let promises = vm.pop()?;
                 match promises {
-                    Value::List(_) => {
-                        // Simplified - return completed promise
-                        vm.push(Value::Nil)?;
+                    Value::List(promise_list) => {
+                        // Validate all items are promises
+                        let mut promise_ids = Vec::new();
+                        for (i, item) in promise_list.iter().enumerate() {
+                            match item {
+                                Value::Promise(id) => {
+                                    promise_ids.push(crate::safety::PromiseId(*id));
+                                }
+                                _ => {
+                                    return Err(VMError::TypeError {
+                                        operation: "promise_all".to_string(),
+                                        expected: format!("promise at index {}", i),
+                                        got: vm.value_type_name(item).to_string(),
+                                        location: None,
+                                        stack_trace: None,
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Create a new promise that will resolve when all promises complete
+                        let all_promise_id = vm.id_generator().next_promise_id();
+                        vm.push(Value::Promise(all_promise_id.0))?;
+                        
+                        // Store the promise IDs for async resolution
+                        // The actual waiting would happen in async_vm
+                        // For now, we just track that this is a Promise.all
+                        vm.pending_promise_bodies().insert(
+                            all_promise_id,
+                            Value::Tagged {
+                                tag: "PromiseAll".to_string(),
+                                values: promise_ids.into_iter()
+                                    .map(|id| Value::Promise(id.0))
+                                    .collect(),
+                            }
+                        );
                     }
                     _ => {
                         return Err(VMError::TypeError {
@@ -241,9 +300,48 @@ impl OpcodeHandler for ConcurrentHandler {
             PromiseRace => {
                 let promises = vm.pop()?;
                 match promises {
-                    Value::List(_) => {
-                        // Simplified - return completed promise
-                        vm.push(Value::Nil)?;
+                    Value::List(promise_list) => {
+                        if promise_list.is_empty() {
+                            return Err(VMError::RuntimeError {
+                                message: "Promise.race requires at least one promise".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        
+                        // Validate all items are promises
+                        let mut promise_ids = Vec::new();
+                        for (i, item) in promise_list.iter().enumerate() {
+                            match item {
+                                Value::Promise(id) => {
+                                    promise_ids.push(crate::safety::PromiseId(*id));
+                                }
+                                _ => {
+                                    return Err(VMError::TypeError {
+                                        operation: "promise_race".to_string(),
+                                        expected: format!("promise at index {}", i),
+                                        got: vm.value_type_name(item).to_string(),
+                                        location: None,
+                                        stack_trace: None,
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Create a new promise that will resolve with the first promise
+                        let race_promise_id = vm.id_generator().next_promise_id();
+                        vm.push(Value::Promise(race_promise_id.0))?;
+                        
+                        // Store the promise IDs for async resolution
+                        // The actual racing would happen in async_vm
+                        vm.pending_promise_bodies().insert(
+                            race_promise_id,
+                            Value::Tagged {
+                                tag: "PromiseRace".to_string(),
+                                values: promise_ids.into_iter()
+                                    .map(|id| Value::Promise(id.0))
+                                    .collect(),
+                            }
+                        );
                     }
                     _ => {
                         return Err(VMError::TypeError {
@@ -258,10 +356,69 @@ impl OpcodeHandler for ConcurrentHandler {
             }
             
             WithTimeout => {
-                let _timeout = vm.pop()?;
-                let _future = vm.pop()?;
-                // Simplified - return the future unchanged
-                vm.push(Value::Nil)?;
+                let timeout_ms = vm.pop()?;
+                let promise = vm.pop()?;
+                
+                // Validate timeout is a number
+                let timeout_value = match timeout_ms {
+                    Value::Integer(ms) => {
+                        if ms < 0 {
+                            return Err(VMError::RuntimeError {
+                                message: "Timeout must be non-negative".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        ms as u64
+                    }
+                    Value::Float(ms) => {
+                        if ms < 0.0 {
+                            return Err(VMError::RuntimeError {
+                                message: "Timeout must be non-negative".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        ms as u64
+                    }
+                    _ => {
+                        return Err(VMError::TypeError {
+                            operation: "with_timeout".to_string(),
+                            expected: "number (milliseconds)".to_string(),
+                            got: vm.value_type_name(&timeout_ms).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        });
+                    }
+                };
+                
+                // Validate promise
+                match promise {
+                    Value::Promise(promise_id) => {
+                        // Create a new promise that will timeout
+                        let timeout_promise_id = vm.id_generator().next_promise_id();
+                        vm.push(Value::Promise(timeout_promise_id.0))?;
+                        
+                        // Store the timeout information
+                        vm.pending_promise_bodies().insert(
+                            timeout_promise_id,
+                            Value::Tagged {
+                                tag: "PromiseTimeout".to_string(),
+                                values: vec![
+                                    Value::Promise(promise_id),
+                                    Value::Integer(timeout_value as i64),
+                                ],
+                            }
+                        );
+                    }
+                    _ => {
+                        return Err(VMError::TypeError {
+                            operation: "with_timeout".to_string(),
+                            expected: "promise".to_string(),
+                            got: vm.value_type_name(&promise).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        });
+                    }
+                }
             }
             
             _ => unreachable!("ConcurrentHandler received non-concurrent opcode"),

@@ -22,6 +22,7 @@ pub mod module_loader;
 pub mod module_registry;
 pub mod opcode_handlers;
 pub mod optimization;
+pub mod promise_manager;
 pub mod safety;
 pub mod security;
 pub mod simd;

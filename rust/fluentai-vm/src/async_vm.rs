@@ -13,6 +13,7 @@ use tokio::time::{timeout, Duration};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use crate::safety::PromiseId;
 
 /// Async VM executor that wraps the synchronous VM
 pub struct AsyncVM {
@@ -111,7 +112,11 @@ impl AsyncVM {
             
             // Execute the instruction
             match self.vm.execute_instruction(&instruction, chunk_id)? {
-                VMState::Continue => continue,
+                VMState::Continue => {
+                    // Check if any promises need to be spawned
+                    self.spawn_pending_promises();
+                    continue;
+                }
                 VMState::Return => {
                     if self.vm.call_stack().len() == 1 {
                         // Main function returning
@@ -221,6 +226,30 @@ impl AsyncVM {
             AsyncOperation::None => {}
         }
         Ok(())
+    }
+    
+    /// Spawn execution for any pending promise bodies
+    fn spawn_pending_promises(&mut self) {
+        // For now, we'll just process promises synchronously
+        // A full implementation would require either:
+        // 1. Making VM cloneable (complex due to all the state)
+        // 2. Using Arc<Mutex<VM>> (performance implications)
+        // 3. Creating a separate promise execution context
+        
+        // This is a placeholder that at least creates the promise IDs
+        let pending = std::mem::take(self.vm.pending_promise_bodies());
+        
+        for (promise_id, _body) in pending {
+            // Create a channel for the promise result
+            let (sender, receiver) = oneshot::channel();
+            
+            // Store the receiver in the VM
+            self.vm.promises_mut().insert(promise_id, receiver);
+            
+            // For now, immediately resolve with a placeholder
+            // TODO: Implement actual promise execution
+            let _ = sender.send(Ok(Value::Nil));
+        }
     }
 }
 

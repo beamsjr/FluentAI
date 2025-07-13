@@ -135,6 +135,7 @@ pub struct VM {
     // Async support with typed IDs
     id_generator: IdGenerator,
     promises: FxHashMap<PromiseId, oneshot::Receiver<VMResult<Value>>>,
+    pending_promise_bodies: FxHashMap<PromiseId, Value>,
     channels: FxHashMap<ChannelId, (mpsc::Sender<Value>, mpsc::Receiver<Value>)>,
     // Actor support
     actors: FxHashMap<ActorId, Actor>,
@@ -223,6 +224,7 @@ impl VM {
             effect_runtime: Arc::new(EffectRuntime::default()),
             id_generator: IdGenerator::new(),
             promises: FxHashMap::default(),
+            pending_promise_bodies: FxHashMap::default(),
             channels: FxHashMap::default(),
             actors: FxHashMap::default(),
             cells: Vec::new(),
@@ -1995,6 +1997,21 @@ impl VM {
     
     pub fn take_promise(&mut self, promise_id: &PromiseId) -> Option<oneshot::Receiver<VMResult<Value>>> {
         self.promises.remove(promise_id)
+    }
+    
+    /// Get the ID generator for creating new IDs
+    pub fn id_generator(&mut self) -> &mut IdGenerator {
+        &mut self.id_generator
+    }
+    
+    /// Get the pending promise bodies map
+    pub fn pending_promise_bodies(&mut self) -> &mut FxHashMap<PromiseId, Value> {
+        &mut self.pending_promise_bodies
+    }
+    
+    /// Get mutable access to promises map
+    pub fn promises_mut(&mut self) -> &mut FxHashMap<PromiseId, oneshot::Receiver<VMResult<Value>>> {
+        &mut self.promises
     }
     
     // Memory operations

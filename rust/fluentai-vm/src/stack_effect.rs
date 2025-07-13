@@ -232,7 +232,7 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         MakeEnv | PopEnv => StackEffect::new(0, 0), // No direct stack effect
         
         // Promise operations
-        PromiseNew => StackEffect::new(0, 1), // Creates new promise
+        PromiseNew => StackEffect::new(1, 1), // Consumes function, produces promise
         PromiseAll => StackEffect::new(1, 1), // Consumes list, produces promise
         PromiseRace => StackEffect::new(1, 1), // Consumes list, produces promise
         WithTimeout => StackEffect::new(2, 1), // Consumes promise and timeout, produces promise

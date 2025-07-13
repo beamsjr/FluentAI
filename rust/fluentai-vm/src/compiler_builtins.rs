@@ -97,6 +97,12 @@ impl Compiler {
             "Spawn" => self.compile_unary_op(graph, args, Opcode::Spawn),
             "Await" => self.compile_unary_op(graph, args, Opcode::Await),
             
+            // Promise operations
+            "promise_new" => self.compile_unary_op(graph, args, Opcode::PromiseNew),
+            "promise_all" => self.compile_unary_op(graph, args, Opcode::PromiseAll),
+            "promise_race" => self.compile_unary_op(graph, args, Opcode::PromiseRace),
+            "with_timeout" => self.compile_binary_op(graph, args, Opcode::WithTimeout),
+            
             _ => Ok(BuiltinResult::NotBuiltin),
         }
     }
