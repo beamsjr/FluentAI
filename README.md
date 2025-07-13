@@ -85,7 +85,10 @@ FluentAI is an experimental programming language designed for AI systems rather 
   - ✅ Finally blocks: `finally { ... }` - Execute cleanup code regardless of try/catch outcome
   - ❌ Promise operations: AST/compiler ready, runtime not implemented
 - **Actor Model**: Actor primitives with message passing and pattern matching
-  - ✅ Actor definition: `private actor Name { state; handle MessageType(...) { ... } }`
+  - ✅ Actor definition: `private actor Name { state; handle method_name(...) { ... } }`
+  - ✅ Multiple handler methods: Each actor can have multiple named handlers
+  - ✅ Typed message handlers: Handlers support typed parameters for type-safe messaging
+  - ✅ Self field access: Direct access to actor fields without explicit `self` prefix
   - ✅ Send messages: `actor.send(message)`
   - ✅ Basic message processing: Actors can receive and process messages with handlers
   - ✅ Become: Update actor state within handlers
@@ -824,11 +827,11 @@ private async function fetch_user_data(id: Uuid) -> User {
     http.get(f"/users/{id}").await()
 }
 
-// Actor model
+// Actor model with typed handlers
 private actor Counter {
     count: int = 0;
-    private handle Inc(amount: int) { self.count += amount; }
-    private handle Get() -> int { self.count }
+    private handle inc(amount: int) { count + amount }
+    private handle get() -> int { count }
 }
 
 // Effects with type safety
@@ -931,22 +934,22 @@ private function select_example() {
 private actor BankAccount {
     balance: float = 0.0;
     
-    private handle Deposit(amount: float) {
-        self.balance += amount;
-        $(f"Deposited {amount}, new balance: {self.balance}").print();
+    private handle deposit(amount: float) {
+        let new_balance = balance + amount;
+        $(f"Deposited {amount}, new balance: {new_balance}").print();
+        new_balance
     }
     
-    private handle Withdraw(amount: float) -> Result<float, string> {
-        if (amount > self.balance) {
+    private handle withdraw(amount: float) -> Result<float, string> {
+        if (amount > balance) {
             Err("Insufficient funds")
         } else {
-            self.balance -= amount;
-            Ok(amount)
+            Ok(balance - amount)
         }
     }
     
-    private handle GetBalance() -> float {
-        self.balance
+    private handle get_balance() -> float {
+        balance
     }
 }
 
@@ -954,18 +957,18 @@ private actor BankAccount {
 private async function bank_example() {
     let account = BankAccount.spawn();
     
-    // Concurrent deposits
+    // Send messages to handlers by name
     let tasks = range(1, 10).map(i => {
         spawn {
-            account.send(Deposit(i * 100.0))
+            account.send(("deposit", i * 100.0))
         }
     });
     
     // Wait for all deposits
     tasks.for_each(task => task.await());
     
-    // Check balance
-    let balance = account.ask(GetBalance()).await();
+    // Query balance
+    let balance = account.send(("get_balance")).await();
     $(f"Final balance: {balance}").print();
 }
 
@@ -1512,6 +1515,23 @@ FluentAI/
 ```
 
 ## Recent Updates
+
+### 🎭 Enhanced Actor Model (July 2025)
+- **Multiple Handler Methods**: Actors can now define multiple named handler methods
+  - Each handler can have its own typed parameters and return type
+  - Handlers are called by name: `actor.send(("handler_name", args))`
+  - Better organization and type safety for actor message handling
+- **Self Field Access**: Direct access to actor state fields without `self` prefix
+  - Parser automatically transforms field references in handlers
+  - Cleaner, more readable handler implementations
+  - Example: `count + 1` instead of `self.count + 1`
+- **Typed Message Handlers**: Full type safety for actor messages
+  - Handler parameters can specify types: `handle deposit(amount: float)`
+  - Compile-time type checking for message formats
+  - Better IDE support and error detection
+- **Improved FLC Syntax**: Updated parser to match modern FLC conventions
+  - Lowercase handler names for consistency
+  - More ergonomic actor definitions
 
 ### 🚀 High-Performance Packet Processing
 - **Tail Call Optimization**: Transforms recursive packet parsers into efficient loops

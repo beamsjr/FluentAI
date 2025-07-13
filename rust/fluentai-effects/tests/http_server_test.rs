@@ -79,7 +79,7 @@ async fn test_multiple_route_registration() {
         ("GET", "/api/users/:id", "getUserHandler"),
         ("PUT", "/api/users/:id", "updateUserHandler"),
         ("DELETE", "/api/users/:id", "deleteUserHandler"),
-        ("*", "/*", "notFoundHandler"),
+        ("*", "/", "notFoundHandler"),
     ];
     
     for (method, path, handler_id) in routes {

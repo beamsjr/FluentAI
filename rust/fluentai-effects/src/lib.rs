@@ -17,6 +17,7 @@ pub mod handlers;
 pub mod provider;
 pub mod reactive;
 pub mod router;
+pub mod trie_router;
 pub mod runtime;
 
 pub use handlers::*;

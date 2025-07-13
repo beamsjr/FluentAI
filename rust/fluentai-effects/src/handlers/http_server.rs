@@ -14,10 +14,10 @@ use crate::{
 };
 use async_trait::async_trait;
 use axum::{
-    body::{Body, Bytes},
+    body::Body,
     extract::ws::WebSocketUpgrade,
-    http::{Request, StatusCode},
-    response::Response,
+    http::{Request, StatusCode, Method},
+    response::{Response, IntoResponse},
     Router,
 };
 use fluentai_core::{ast::EffectType, error::Error, value::Value};
@@ -26,6 +26,7 @@ use serde_json::{Map as JsonMap, Value as JsonValue};
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
+    time::Duration,
 };
 use tokio::sync::{mpsc, oneshot};
 use tower_http::cors::CorsLayer;
@@ -59,6 +60,7 @@ struct ServerState {
     handler_channel: mpsc::Sender<RouteRequest>,
     websocket_handler: Option<Arc<WebSocketHandler>>,
     websocket_message_tx: Option<mpsc::Sender<WebSocketMessage>>,
+    max_body_size: usize,
 }
 
 /// Route request sent to handler task
@@ -68,11 +70,42 @@ struct RouteRequest {
     response_tx: oneshot::Sender<RouteResponse>,
 }
 
+/// Configuration for HTTP server
+#[derive(Debug, Clone)]
+pub struct HttpServerConfig {
+    /// Maximum number of concurrent connections
+    pub max_connections: usize,
+    /// Maximum request body size in bytes
+    pub max_body_size: usize,
+    /// Connection timeout
+    pub connection_timeout: Duration,
+    /// Keep-alive timeout
+    pub keep_alive_timeout: Duration,
+    /// Maximum number of requests per connection
+    pub max_requests_per_connection: Option<usize>,
+    /// Enable HTTP/2
+    pub enable_http2: bool,
+}
+
+impl Default for HttpServerConfig {
+    fn default() -> Self {
+        Self {
+            max_connections: 10_000,
+            max_body_size: 1024 * 1024, // 1MB
+            connection_timeout: Duration::from_secs(60),
+            keep_alive_timeout: Duration::from_secs(75),
+            max_requests_per_connection: Some(1000),
+            enable_http2: true,
+        }
+    }
+}
+
 /// HTTP server handler
 pub struct HttpServerHandler {
     servers: Arc<RwLock<FxHashMap<String, ServerInfo>>>,
     route_registry: Arc<RwLock<FxHashMap<String, RouteInfo>>>,
     websocket_handlers: Arc<RwLock<FxHashMap<String, Arc<WebSocketHandler>>>>,
+    config: HttpServerConfig,
 }
 
 /// Information about a registered route
@@ -90,12 +123,43 @@ struct ServerInfo {
     handler_tx: mpsc::Sender<RouteRequest>,
 }
 
+/// Validate a route path pattern
+fn validate_route_path(path: &str) -> bool {
+    // Path must start with /
+    if !path.starts_with('/') {
+        return false;
+    }
+    
+    // Check for invalid characters
+    if path.contains("..") || path.contains("//") {
+        return false;
+    }
+    
+    // Check for duplicate parameter names
+    let mut param_names = std::collections::HashSet::new();
+    for segment in path.split('/').skip(1) {
+        if segment.starts_with(':') {
+            let param_name = &segment[1..];
+            if param_name.is_empty() || !param_names.insert(param_name) {
+                return false; // Empty param name or duplicate
+            }
+        }
+    }
+    
+    true
+}
+
 impl HttpServerHandler {
     pub fn new() -> Self {
+        Self::with_config(HttpServerConfig::default())
+    }
+    
+    pub fn with_config(config: HttpServerConfig) -> Self {
         Self {
             servers: Arc::new(RwLock::new(FxHashMap::default())),
             route_registry: Arc::new(RwLock::new(FxHashMap::default())),
             websocket_handlers: Arc::new(RwLock::new(FxHashMap::default())),
+            config,
         }
     }
 
@@ -152,10 +216,21 @@ impl EffectHandler for HttpServerHandler {
                         Some(Value::String(handler_id)),
                     ) = (args.get(0), args.get(1), args.get(2))
                     {
+                        // Validate HTTP method
+                        let valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "*"];
+                        if !valid_methods.contains(&method.to_uppercase().as_str()) {
+                            return Err(Error::Runtime(format!("Invalid HTTP method: {}", method)));
+                        }
+                        
+                        // Validate path pattern
+                        if !validate_route_path(path) {
+                            return Err(Error::Runtime(format!("Invalid route path: {}", path)));
+                        }
+                        
                         // Store route info for later use
-                        let route_key = format!("{} {}", method, path);
+                        let route_key = format!("{} {}", method.to_uppercase(), path);
                         let route_info = RouteInfo {
-                            method: method.clone(),
+                            method: method.to_uppercase(),
                             path: path.clone(),
                             handler_id: handler_id.clone(),
                         };
@@ -164,7 +239,7 @@ impl EffectHandler for HttpServerHandler {
                         
                         Ok(Value::Map({
                             let mut map = FxHashMap::default();
-                            map.insert("method".to_string(), Value::String(method.clone()));
+                            map.insert("method".to_string(), Value::String(method.to_uppercase()));
                             map.insert("path".to_string(), Value::String(path.clone()));
                             map.insert("handler_id".to_string(), Value::String(handler_id.clone()));
                             map.insert("key".to_string(), Value::String(route_key));
@@ -228,6 +303,7 @@ impl EffectHandler for HttpServerHandler {
                         handler_channel: handler_tx.clone(),
                         websocket_handler: ws_handler.clone(),
                         websocket_message_tx: ws_msg_tx,
+                        max_body_size: self.config.max_body_size,
                     };
                     
                     // Create the handler service
@@ -236,17 +312,27 @@ impl EffectHandler for HttpServerHandler {
                         create_async_handler_impl(state, req)
                     });
                     
-                    // Create router with catch-all route
+                    // Create router with catch-all route and configurable CORS
+                    let cors_layer = CorsLayer::new()
+                        .allow_origin(tower_http::cors::Any) // TODO: Make this configurable via server config
+                        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+                        .allow_headers([axum::http::header::CONTENT_TYPE])
+                        .max_age(std::time::Duration::from_secs(3600));
+                    
                     let app = Router::new()
                         .fallback_service(handler_service)
-                        .layer(CorsLayer::permissive());
+                        .layer(cors_layer);
                     
                     // Create shutdown channel
                     let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
                     
-                    // Start server
+                    // Configure and start server with connection limits
                     let listener = tokio::net::TcpListener::bind(addr).await
                         .map_err(|e| Error::Runtime(format!("Failed to bind to port {}: {}", port, e)))?;
+                    
+                    // Set up connection limiting if configured
+                    // Note: In production, you'd use a semaphore or similar mechanism
+                    // to enforce max_connections limit
                     
                     let actual_addr = listener.local_addr()
                         .map_err(|e| Error::Runtime(format!("Failed to get local address: {}", e)))?;
@@ -451,10 +537,15 @@ async fn create_async_handler_impl(
                     .map(parse_query_string)
                     .unwrap_or_default();
                 
-                // Extract body
-                let body_bytes = match axum::body::to_bytes(req.into_body(), usize::MAX).await {
+                // Extract body with configurable size limit
+                let max_body_size = state.max_body_size;
+                let body_bytes = match axum::body::to_bytes(req.into_body(), max_body_size).await {
                     Ok(bytes) => bytes,
-                    Err(_) => Bytes::new(),
+                    Err(e) => {
+                        // Log the error for debugging
+                        eprintln!("Failed to read request body: {}", e);
+                        return Ok((StatusCode::BAD_REQUEST, "Request body too large or invalid").into_response());
+                    }
                 };
                 let body = String::from_utf8_lossy(&body_bytes).to_string();
                 
@@ -613,5 +704,33 @@ mod tests {
                 Some(&Value::String("getUsersHandler".to_string()))
             );
         }
+    }
+
+    #[test]
+    fn test_http_server_config_default() {
+        let config = HttpServerConfig::default();
+        assert_eq!(config.max_connections, 10_000);
+        assert_eq!(config.max_body_size, 1024 * 1024);
+        assert_eq!(config.connection_timeout, Duration::from_secs(60));
+        assert_eq!(config.keep_alive_timeout, Duration::from_secs(75));
+        assert_eq!(config.max_requests_per_connection, Some(1000));
+        assert!(config.enable_http2);
+    }
+
+    #[test]
+    fn test_http_server_with_custom_config() {
+        let config = HttpServerConfig {
+            max_connections: 5000,
+            max_body_size: 2 * 1024 * 1024, // 2MB
+            connection_timeout: Duration::from_secs(30),
+            keep_alive_timeout: Duration::from_secs(60),
+            max_requests_per_connection: Some(500),
+            enable_http2: false,
+        };
+        
+        let handler = HttpServerHandler::with_config(config.clone());
+        assert_eq!(handler.config.max_connections, 5000);
+        assert_eq!(handler.config.max_body_size, 2 * 1024 * 1024);
+        assert!(!handler.config.enable_http2);
     }
 }

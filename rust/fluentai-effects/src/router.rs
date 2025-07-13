@@ -29,6 +29,9 @@ pub struct RoutePattern {
 impl RoutePattern {
     /// Parse a route pattern string into segments
     pub fn new(pattern: &str) -> Self {
+        // Validate pattern
+        Self::validate_pattern(pattern);
+        
         let segments = pattern
             .split('/')
             .filter(|s| !s.is_empty())
@@ -46,6 +49,36 @@ impl RoutePattern {
         Self {
             segments,
             original: pattern.to_string(),
+        }
+    }
+    
+    /// Validate a route pattern
+    fn validate_pattern(pattern: &str) {
+        // Check for duplicate parameter names
+        let mut param_names = std::collections::HashSet::new();
+        let mut has_wildcard = false;
+        
+        for (i, segment) in pattern.split('/').enumerate() {
+            if segment.is_empty() && i > 0 {
+                continue; // Skip empty segments from double slashes
+            }
+            
+            if segment == "*" {
+                if has_wildcard {
+                    panic!("Route pattern '{}' has multiple wildcards", pattern);
+                }
+                has_wildcard = true;
+            } else if let Some(param) = segment.strip_prefix(':') {
+                if param.is_empty() {
+                    panic!("Route pattern '{}' has empty parameter name", pattern);
+                }
+                if !param_names.insert(param) {
+                    panic!("Route pattern '{}' has duplicate parameter '{}'", pattern, param);
+                }
+                if has_wildcard {
+                    panic!("Route pattern '{}' has parameters after wildcard", pattern);
+                }
+            }
         }
     }
 
@@ -96,19 +129,31 @@ pub struct Route {
 }
 
 /// HTTP router that manages routes and matches requests
+/// Uses a trie-based implementation for O(log n) route matching
 pub struct Router {
+    /// Fallback to linear search for compatibility
     routes: Vec<Route>,
+    /// Trie-based router for efficient matching
+    trie_router: crate::trie_router::TrieRouter,
 }
 
 impl Router {
     pub fn new() -> Self {
         Self {
             routes: Vec::new(),
+            trie_router: crate::trie_router::TrieRouter::new(),
         }
     }
 
     /// Add a route to the router
     pub fn add_route(&mut self, method: &str, path: &str, handler_id: &str) {
+        // Add to trie router for efficient matching
+        if let Err(e) = self.trie_router.add_route(method, path, handler_id) {
+            // Log error but continue with linear router for compatibility
+            eprintln!("Warning: Failed to add route to trie router: {}", e);
+        }
+        
+        // Also add to linear routes for compatibility and introspection
         let route = Route {
             method: method.to_uppercase(),
             pattern: RoutePattern::new(path),
@@ -119,6 +164,12 @@ impl Router {
 
     /// Find a matching route for the given method and path
     pub fn find_route(&self, method: &str, path: &str) -> Option<(String, FxHashMap<String, String>)> {
+        // Try trie-based router first for O(log n) performance
+        if let Some(result) = self.trie_router.find_route(method, path) {
+            return Some(result);
+        }
+        
+        // Fallback to linear search for edge cases
         let method = method.to_uppercase();
         
         for route in &self.routes {
@@ -138,6 +189,11 @@ impl Router {
             .iter()
             .map(|r| (r.method.clone(), r.pattern.original.clone(), r.handler_id.clone()))
             .collect()
+    }
+    
+    /// Get router statistics
+    pub fn stats(&self) -> crate::trie_router::RouterStats {
+        self.trie_router.stats()
     }
 }
 
