@@ -86,7 +86,11 @@ fn test_mixed_visibility() {
         
         public type UserId = int;
         
-        private actor InternalActor {}
+        private actor InternalActor {
+            private handle ping() {
+                "pong"
+            }
+        }
         
         public effect Logger {}
     "#;

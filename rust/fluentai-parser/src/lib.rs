@@ -8,6 +8,7 @@ pub mod error;
 pub mod flc_error;
 pub mod flc_lexer;
 pub mod flc_parser;
+pub mod actor_validation;
 
 
 pub use error::{ErrorKind, ParseError};

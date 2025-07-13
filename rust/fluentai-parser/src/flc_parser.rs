@@ -4,8 +4,10 @@ use anyhow::{anyhow, Result};
 use fluentai_core::ast::{
     EffectType, ExportItem, Graph, ImportItem, Literal, Node, NodeId, Pattern, RangePattern,
 };
+use std::collections::HashSet;
 
 use crate::flc_lexer::{Lexer, Token};
+use crate::actor_validation::ActorValidator;
 
 #[derive(Debug, Clone)]
 struct ContractInfo {
@@ -32,6 +34,7 @@ pub struct Parser<'a> {
 struct ActorContext {
     state_fields: Vec<(String, String)>, // (field_name, field_type)
     in_handler: bool,
+    local_variables: HashSet<String>, // Track local variables to handle shadowing
 }
 
 impl<'a> Parser<'a> {
@@ -902,7 +905,19 @@ impl<'a> Parser<'a> {
                 // Check if this is a lambda (single parameter)
                 if matches!(self.current, Some(Token::FatArrow)) {
                     self.advance();
+                    
+                    // If we're in an actor context, add the parameter to local_variables
+                    if let Some(ref mut ctx) = self.actor_context {
+                        ctx.local_variables.insert(name.clone());
+                    }
+                    
                     let body = self.parse_expression()?;
+                    
+                    // Remove the parameter from local_variables after parsing the body
+                    if let Some(ref mut ctx) = self.actor_context {
+                        ctx.local_variables.remove(&name);
+                    }
+                    
                     self.add_node(Node::Lambda {
                         params: vec![name],
                         body,
@@ -924,9 +939,17 @@ impl<'a> Parser<'a> {
                 } else {
                     // Check if we're in an actor handler and this is a state field reference
                     if let Some(ref ctx) = self.actor_context {
+                        #[cfg(test)]
+                        eprintln!("Actor context exists, in_handler={}, state_fields={:?}, local_vars={:?}, checking var={}", 
+                                  ctx.in_handler, ctx.state_fields, ctx.local_variables, name);
+                        
                         if ctx.in_handler {
-                            // Check if this variable name matches any state field
-                            if ctx.state_fields.iter().any(|(field_name, _)| field_name == &name) {
+                            // Check if this variable name matches any state field AND is not shadowed
+                            if ctx.state_fields.iter().any(|(field_name, _)| field_name == &name) 
+                                && !ctx.local_variables.contains(&name) {
+                                #[cfg(test)]
+                                eprintln!("Transforming {} to get_{}", name, name);
+                                
                                 // Transform to state parameter access
                                 // Instead of 'count', generate an application that accesses the field
                                 let state_var = self.add_node(Node::Variable {
@@ -1039,7 +1062,23 @@ impl<'a> Parser<'a> {
                                     if matches!(self.current, Some(Token::FatArrow)) {
                                         // It's definitely a lambda!
                                         self.advance(); // consume =>
+                                        
+                                        // If we're in an actor context, add the parameters to local_variables
+                                        if let Some(ref mut ctx) = self.actor_context {
+                                            for param in &params {
+                                                ctx.local_variables.insert(param.clone());
+                                            }
+                                        }
+                                        
                                         let body = self.parse_expression()?;
+                                        
+                                        // Remove the parameters from local_variables after parsing the body
+                                        if let Some(ref mut ctx) = self.actor_context {
+                                            for param in &params {
+                                                ctx.local_variables.remove(param);
+                                            }
+                                        }
+                                        
                                         return self.add_node(Node::Lambda { params, body });
                                     } else {
                                         // Not a lambda, break and restore
@@ -1213,6 +1252,7 @@ impl<'a> Parser<'a> {
             Some(Token::Perform) => self.parse_perform_expression(),
             Some(Token::Handle) => self.parse_handle_expression(),
             Some(Token::Receive) => self.parse_receive_expression(),
+            Some(Token::Become) => self.parse_become_expression(),
             Some(Token::Dollar) => self.parse_printable(),
             _ => Err(anyhow!(
                 "Unexpected token in expression: {:?}",
@@ -1356,6 +1396,9 @@ impl<'a> Parser<'a> {
         if is_rec {
             self.advance();
         }
+        
+        // Track the names we're binding in this let expression
+        let mut bound_names = vec![];
 
         // Check if this is a destructuring pattern
         if matches!(self.current, Some(Token::LBrace)) {
@@ -1396,7 +1439,8 @@ impl<'a> Parser<'a> {
                     function: getter_fn,
                     args: vec![struct_var],
                 })?;
-                bindings.push((field_name, field_access));
+                bindings.push((field_name.clone(), field_access));
+                bound_names.push(field_name);
             }
         } else {
             // Parse regular binding
@@ -1407,6 +1451,8 @@ impl<'a> Parser<'a> {
                 }
                 _ => return Err(anyhow!("Expected variable name after 'let'")),
             };
+            
+            bound_names.push(name.clone());
 
             self.consume(Token::Eq)?;
             let value = self.parse_expression()?;
@@ -1427,6 +1473,8 @@ impl<'a> Parser<'a> {
                 _ => return Err(anyhow!("Expected variable name after 'let'")),
             };
 
+            bound_names.push(name.clone());
+            
             self.consume(Token::Eq)?;
             let value = self.parse_expression()?;
             bindings.push((name, value));
@@ -1434,8 +1482,22 @@ impl<'a> Parser<'a> {
             self.consume(Token::Semicolon)?;
         }
 
+        // If we're in an actor context, add the bound names to local_variables
+        if let Some(ref mut ctx) = self.actor_context {
+            for name in &bound_names {
+                ctx.local_variables.insert(name.clone());
+            }
+        }
+        
         // Parse body
         let body = self.parse_expression()?;
+        
+        // Remove the bound names from local_variables after parsing the body
+        if let Some(ref mut ctx) = self.actor_context {
+            for name in &bound_names {
+                ctx.local_variables.remove(name);
+            }
+        }
 
         if is_rec {
             self.add_node(Node::Letrec { bindings, body })
@@ -1474,7 +1536,12 @@ impl<'a> Parser<'a> {
                 self.consume(Token::Eq)?;
                 let value = self.parse_expression()?;
 
-                let_bindings.push((name, value));
+                let_bindings.push((name.clone(), value));
+                
+                // If we're in an actor context, add the name to local_variables
+                if let Some(ref mut ctx) = self.actor_context {
+                    ctx.local_variables.insert(name);
+                }
 
                 // Optional semicolon after let binding
                 if matches!(self.current, Some(Token::Semicolon)) {
@@ -2206,15 +2273,21 @@ impl<'a> Parser<'a> {
 
         self.consume(Token::LBrace)?;
 
+        // Create validator for this actor
+        let mut validator = ActorValidator::new();
+
         // Set up actor context to track state fields
         let mut state_fields = Vec::new();
-        let mut definitions = vec![];
+        let mut state_initializers = vec![];
+        let mut handlers = vec![];
+        let mut other_definitions = vec![];
         
         // Save previous actor context (for nested actors)
         let prev_context = self.actor_context.clone();
         self.actor_context = Some(ActorContext {
             state_fields: Vec::new(),
             in_handler: false,
+            local_variables: HashSet::new(),
         });
 
         while !matches!(self.current, Some(Token::RBrace)) {
@@ -2226,33 +2299,137 @@ impl<'a> Parser<'a> {
                     self.consume(Token::Colon)?;
                     let field_type = self.parse_type()?;
                     
+                    // Validate state field
+                    validator.validate_state_field(&field_name)?;
+                    ActorValidator::validate_field_type(&field_type)?;
+                    
                     // Track this state field
                     state_fields.push((field_name.clone(), field_type.clone()));
                     if let Some(ref mut ctx) = self.actor_context {
-                        ctx.state_fields.push((field_name, field_type));
+                        ctx.state_fields.push((field_name.clone(), field_type));
                     }
 
-                    // Skip initializer if present
+                    // Parse initializer if present
                     if matches!(self.current, Some(Token::Eq)) {
                         self.advance();
-                        self.parse_expression()?;
+                        let init_value = self.parse_expression()?;
+                        state_initializers.push((field_name, init_value));
                     }
 
                     self.consume(Token::Semicolon)?;
                 }
                 Some(Token::Private) | Some(Token::Public) => {
-                    // Handler method or other definition
-                    // Mark that we're in a handler
-                    if let Some(ref mut ctx) = self.actor_context {
-                        ctx.in_handler = true;
-                    }
+                    let is_public = matches!(self.current, Some(Token::Public));
+                    let visibility_pos = self.position;
+                    let visibility_token = self.current.clone();
+                    self.advance(); // consume visibility modifier
                     
-                    let def = self.parse_definition()?;
-                    definitions.push(def);
-                    
-                    // Clear handler flag
-                    if let Some(ref mut ctx) = self.actor_context {
-                        ctx.in_handler = false;
+                    // Check if this is a handle definition
+                    if matches!(self.current, Some(Token::Handle)) {
+                        self.advance(); // consume 'handle'
+                        
+                        // Parse handler name
+                        let handler_name = match self.current {
+                            Some(Token::LowerIdent(name)) | Some(Token::UpperIdent(name)) => {
+                                let name = name.to_string();
+                                self.advance();
+                                name
+                            }
+                            _ => return Err(anyhow!("Expected handler name after 'handle'")),
+                        };
+                        
+                        // Validate handler
+                        validator.validate_handler(&handler_name)?;
+                        
+                        // Mark that we're in a handler
+                        if let Some(ref mut ctx) = self.actor_context {
+                            ctx.in_handler = true;
+                        }
+                        
+                        // Parse parameters
+                        self.consume(Token::LParen)?;
+                        let mut params = vec![];
+                        let mut param_types = vec![];
+                        
+                        while !matches!(self.current, Some(Token::RParen)) {
+                            let param_name = match self.current {
+                                Some(Token::LowerIdent(name)) => {
+                                    let name = name.to_string();
+                                    self.advance();
+                                    name
+                                }
+                                _ => return Err(anyhow!("Expected parameter name")),
+                            };
+                            
+                            // Optional type annotation
+                            if matches!(self.current, Some(Token::Colon)) {
+                                self.advance();
+                                let param_type = self.parse_type()?;
+                                param_types.push((param_name.clone(), param_type));
+                            }
+                            
+                            params.push(param_name);
+                            
+                            if matches!(self.current, Some(Token::Comma)) {
+                                self.advance();
+                            }
+                        }
+                        
+                        self.consume(Token::RParen)?;
+                        
+                        // Validate handler parameters
+                        ActorValidator::validate_handler_params(&param_types)?;
+                        
+                        // Parse return type if present
+                        if matches!(self.current, Some(Token::Arrow)) {
+                            self.advance();
+                            self.parse_type()?; // Parse but ignore for now
+                        }
+                        
+                        // Parse handler body
+                        self.consume(Token::LBrace)?;
+                        let body = self.parse_block()?;
+                        self.consume(Token::RBrace)?;
+                        
+                        // Create handler lambda
+                        let handler_lambda = self.add_node(Node::Lambda {
+                            params: params.clone(),
+                            body,
+                        })?;
+                        
+                        // Store handler with its name
+                        let handler_def = self.add_node(Node::Define {
+                            name: format!("handle_{}", handler_name),
+                            value: handler_lambda,
+                        })?;
+                        
+                        handlers.push((handler_name, handler_def, is_public));
+                        
+                        // Clear handler flag and local variables
+                        if let Some(ref mut ctx) = self.actor_context {
+                            ctx.in_handler = false;
+                            ctx.local_variables.clear();
+                        }
+                    } else {
+                        // Other definition (function, const, etc.)
+                        // Parse based on the current token
+                        let def = match self.current {
+                            Some(Token::Function) => {
+                                let (node, _) = self.parse_function_definition(is_public, None)?;
+                                node
+                            }
+                            Some(Token::Const) => {
+                                let (node, _) = self.parse_const_definition(is_public)?;
+                                node
+                            }
+                            _ => {
+                                // For anything else, reset and use parse_definition
+                                self.position = visibility_pos;
+                                self.current = visibility_token;
+                                self.parse_definition()?
+                            }
+                        };
+                        other_definitions.push(def);
                     }
                 }
                 _ => return Err(anyhow!("Expected field or handler in actor")),
@@ -2261,14 +2438,126 @@ impl<'a> Parser<'a> {
 
         self.consume(Token::RBrace)?;
         
+        // Validate complete actor structure
+        validator.validate_complete(&actor_name)?;
+        
         // Restore previous actor context
         self.actor_context = prev_context;
 
-        // Create a define node for the actor
-        let actor_value = self.add_node(Node::Begin { exprs: definitions })?;
+        // Create the initial state as a record (using Application of a record constructor)
+        // For now, we'll use a simple representation with a list of field definitions
+        let mut state_init_bindings = vec![];
+        
+        // Add field initializations to state
+        for (field_name, field_type) in &state_fields {
+            // Check if we have an initializer for this field
+            let init_value = state_initializers.iter()
+                .find(|(name, _)| name == field_name)
+                .map(|(_, value)| *value)
+                .unwrap_or_else(|| {
+                    // Default initialization based on type
+                    match field_type.as_str() {
+                        "int" => self.add_node(Node::Literal(Literal::Integer(0))).unwrap(),
+                        "float" => self.add_node(Node::Literal(Literal::Float(0.0))).unwrap(),
+                        "string" => self.add_node(Node::Literal(Literal::String("".to_string()))).unwrap(),
+                        "bool" => self.add_node(Node::Literal(Literal::Boolean(false))).unwrap(),
+                        _ => self.add_node(Node::Literal(Literal::Nil)).unwrap(),
+                    }
+                });
+            
+            state_init_bindings.push((field_name.clone(), init_value));
+        }
+        
+        // Create initial state as a let expression that binds all fields
+        let initial_state = if state_init_bindings.is_empty() {
+            self.add_node(Node::Literal(Literal::Nil))?
+        } else {
+            // Create a record-like structure using nested let bindings
+            let record_var = self.add_node(Node::Variable { name: "__state".to_string() })?;
+            self.add_node(Node::Let {
+                bindings: state_init_bindings,
+                body: record_var,
+            })?
+        };
+        
+        // Create state getter functions
+        let mut state_getters = vec![];
+        for (field_name, _) in &state_fields {
+            let getter_name = format!("get_{}", field_name);
+            // Access field from state by name
+            let field_access = self.add_node(Node::Variable { name: field_name.clone() })?;
+            let getter_lambda = self.add_node(Node::Lambda {
+                params: vec!["state".to_string()],
+                body: field_access,
+            })?;
+            let getter_def = self.add_node(Node::Define {
+                name: getter_name,
+                value: getter_lambda,
+            })?;
+            state_getters.push(getter_def);
+        }
+        
+        // Combine all handlers into a single message handler
+        // The handler will be a lambda that takes (state, message) and returns new state
+        let mut handler_cases = vec![];
+        
+        for (handler_name, handler_def, _) in handlers {
+            // Extract the handler lambda from the Define node
+            if let Some(Node::Define { value, .. }) = self.graph.nodes.get(&handler_def) {
+                // Create a pattern for this handler's message type
+                let pattern = Pattern::Literal(Literal::String(handler_name.clone()));
+                handler_cases.push((pattern, *value));
+            }
+        }
+        
+        // Create the main message handler
+        let message_handler = if handler_cases.is_empty() {
+            // No handlers - just return state unchanged
+            let state_var = self.add_node(Node::Variable { name: "state".to_string() })?;
+            self.add_node(Node::Lambda {
+                params: vec!["state".to_string(), "message".to_string()],
+                body: state_var,
+            })?
+        } else {
+            // Create a match expression for message handling
+            let message_var = self.add_node(Node::Variable { name: "message".to_string() })?;
+            let state_var = self.add_node(Node::Variable { name: "state".to_string() })?;
+            
+            // Convert handler cases to use state parameter
+            // Add default case
+            handler_cases.push((Pattern::Wildcard, state_var));
+            
+            let match_expr = self.add_node(Node::Match {
+                expr: message_var,
+                branches: handler_cases,
+            })?;
+            
+            self.add_node(Node::Lambda {
+                params: vec!["state".to_string(), "message".to_string()],
+                body: match_expr,
+            })?
+        };
+        
+        // Create the actor node
+        let actor_node = self.add_node(Node::Actor {
+            initial_state,
+            handler: message_handler,
+        })?;
+        
+        // Create the actor constructor function
+        let constructor_body = if state_getters.is_empty() {
+            actor_node
+        } else {
+            // Include getter definitions
+            let mut all_defs = state_getters;
+            all_defs.extend(other_definitions);
+            all_defs.push(actor_node);
+            self.add_node(Node::Begin { exprs: all_defs })?
+        };
+        
         let node = self.add_node(Node::Define {
             name: actor_name.clone(),
-            value: actor_value,
+            value: constructor_body,
         })?;
         Ok((node, actor_name))
     }
@@ -2770,7 +3059,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_receive_expression(&mut self) -> Result<NodeId> {
-        // receive { pattern => handler, ... }
+        // receive { pattern => handler, ... } or
+        // receive { pattern => handler, ... } after(duration) { timeout_handler }
         self.consume(Token::Receive)?;
         self.consume(Token::LBrace)?;
 
@@ -2796,11 +3086,51 @@ impl<'a> Parser<'a> {
 
         self.consume(Token::RBrace)?;
 
-        // For now, create an ActorReceive node without timeout
+        // Check for optional timeout clause: after(duration) { handler }
+        let timeout = if let Some(Token::LowerIdent(ident)) = self.current {
+            if ident == "after" {
+                self.advance(); // consume 'after'
+                
+                // Parse duration expression in parentheses
+                self.consume(Token::LParen)?;
+                let duration = self.parse_expression()?;
+                self.consume(Token::RParen)?;
+                
+                // Parse timeout handler block
+                self.consume(Token::LBrace)?;
+                let timeout_handler = self.parse_block()?;
+                self.consume(Token::RBrace)?;
+                
+                Some((duration, timeout_handler))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         self.add_node(Node::ActorReceive {
             patterns,
-            timeout: None,
+            timeout,
         })
+    }
+
+    fn parse_become_expression(&mut self) -> Result<NodeId> {
+        // become(new_state) or become new_state
+        self.consume(Token::Become)?;
+        
+        // Check if there's a parenthesis (optional)
+        let new_state = if matches!(self.current, Some(Token::LParen)) {
+            self.advance(); // consume (
+            let state = self.parse_expression()?;
+            self.consume(Token::RParen)?;
+            state
+        } else {
+            // Parse expression directly
+            self.parse_expression()?
+        };
+        
+        self.add_node(Node::Become { new_state })
     }
 
     fn parse_try_expression(&mut self) -> Result<NodeId> {
