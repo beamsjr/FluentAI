@@ -2,7 +2,7 @@
 
 use fluentai_core::ast::{EffectType, Graph, Literal, Node, NodeId};
 use fluentai_optimizer::analysis::{is_effect_primitive, EffectAnalysis};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashSet;
 use std::num::NonZeroU32;
 
@@ -243,7 +243,7 @@ fn test_pure_primitives_have_no_effects() {
 fn test_effect_detection_in_simple_application() {
     // Test that effect primitives are detected in function applications
     let code = "(print \"hello world\")";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -264,7 +264,7 @@ fn test_effect_detection_in_simple_application() {
 fn test_effect_detection_in_nested_application() {
     // Test effects in nested expressions
     let code = "(+ 1 (print \"side effect\") 3)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -279,7 +279,7 @@ fn test_effect_detection_in_nested_application() {
 fn test_multiple_effects_in_expression() {
     // Test detection of multiple effect types
     let code = "(list (print \"io\") (set! x 42) (random))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -299,7 +299,7 @@ fn test_effect_propagation_through_let() {
         (let ((x (print "effect in binding")))
           (+ x 10))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -323,7 +323,7 @@ fn test_effect_propagation_through_if() {
             (print "positive")
             (error "non-positive"))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -344,7 +344,7 @@ fn test_effect_propagation_through_if() {
 fn test_effect_in_function_argument() {
     // Test effects in function arguments are detected
     let code = "(map print (list 1 2 3))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -361,7 +361,7 @@ fn test_effect_in_function_argument() {
 fn test_pure_expression_optimization_hint() {
     // Test that pure expressions are marked for optimization
     let code = "(+ (* 2 3) (/ 10 2))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -382,7 +382,7 @@ fn test_mixed_pure_and_effectful() {
               (effect-val (read-line)))
           (+ pure-val (str-len effect-val)))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -416,7 +416,7 @@ fn test_effect_free_lambda_body() {
     // Test that lambda definitions themselves are pure
     // even if their body contains effect primitives
     let code = "(lambda (x) (print x))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 

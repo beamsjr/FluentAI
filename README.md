@@ -434,7 +434,7 @@ curl -sSL https://get.fluentai.dev | sh
 
 # Or via package managers
 brew install fluentai         # macOS
-apt install fluentai-sdk      # Ubuntu/Debian  
+apt install fluentai          # Ubuntu/Debian  
 choco install fluentai        # Windows
 ```
 

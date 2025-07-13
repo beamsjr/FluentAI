@@ -2,6 +2,8 @@
 //! 
 //! A self-contained network analyzer that embeds ClaudeScope logic
 //! and provides a native executable without external dependencies.
+use fluentai_parser::parse_flc;
+
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -323,7 +325,7 @@ fn run_demo() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = Cli::parse_flc();
     
     // ASCII art banner
     println!("{}", r#"

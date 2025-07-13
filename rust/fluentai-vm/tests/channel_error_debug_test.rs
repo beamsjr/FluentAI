@@ -9,7 +9,7 @@ use fluentai_optimizer::OptimizationLevel;
 
 fn compile_and_run(source: &str) -> Result<Value> {
     // Parse the source code
-    let graph = fluentai_parser::parse(source)
+    let graph = fluentai_parser::parse_flc(source)
         .map_err(|e| anyhow::anyhow!("Parse error: {:?}", e))?;
 
     // Compile to bytecode without optimization

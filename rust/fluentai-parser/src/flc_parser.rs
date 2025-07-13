@@ -328,16 +328,16 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_handler_definition(&mut self, _is_public: bool) -> Result<(NodeId, String)> {
-        // handle MessageType(param1: Type, param2: Type) { ... }
+        // handle handler_name(param1: Type, param2: Type) { ... }
         self.consume(Token::Handle)?;
 
-        let message_type = match self.current {
-            Some(Token::UpperIdent(name)) => {
+        let handler_name = match self.current {
+            Some(Token::LowerIdent(name)) => {
                 let name = name.to_string();
                 self.advance();
                 name
             }
-            _ => return Err(anyhow!("Expected message type after 'handle'")),
+            _ => return Err(anyhow!("Expected handler name after 'handle'")),
         };
 
         self.consume(Token::LParen)?;
@@ -377,13 +377,13 @@ impl<'a> Parser<'a> {
         self.consume(Token::RBrace)?;
 
         // Create handler as a special function
-        let handler_name = format!("handle_{}", message_type);
+        let full_handler_name = format!("handle_{}", handler_name);
         let lambda = self.add_node(Node::Lambda { params, body })?;
         let define_node = self.add_node(Node::Define {
-            name: handler_name.clone(),
+            name: full_handler_name.clone(),
             value: lambda,
         })?;
-        Ok((define_node, handler_name))
+        Ok((define_node, full_handler_name))
     }
 
     fn parse_value_definition(&mut self, _is_public: bool) -> Result<(NodeId, String)> {

@@ -5,7 +5,7 @@ use crate::diagnostic::{DiagnosticKind, LintDiagnostic};
 use crate::rules::{Rule, RuleRegistry};
 use anyhow::Result;
 use fluentai_core::ast::Graph;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashMap;
 use std::path::Path;
 
@@ -88,7 +88,7 @@ impl LintEngine {
 
     /// Lint a string of FluentAi code
     pub fn lint_string(&self, source: &str, filename: &str) -> Result<LintResult> {
-        let graph = parse(source)?;
+        let graph = parse_flc(source)?;
         self.lint_graph(&graph, filename)
     }
 

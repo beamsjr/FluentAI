@@ -1,7 +1,6 @@
 //! Comprehensive tests for multiple top-level expressions (Begin node)
 
 use fluentai_core::value::Value;
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, CompilerOptions, OptimizationLevel, VM};
 
 fn compile_and_run(code: &str) -> Result<Value, Box<dyn std::error::Error>> {

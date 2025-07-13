@@ -10,7 +10,7 @@
 use anyhow::Result;
 use dashmap::DashMap;
 use fluentai_core::ast::Graph;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc as parse;
 use ropey::Rope;
 use std::sync::Arc;
 use tokio::sync::RwLock;

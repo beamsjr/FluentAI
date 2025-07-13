@@ -1,5 +1,4 @@
 use fluentai_core::ast::{Graph, Literal, Node};
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM, VMBuilder};
 use fluentai_effects::runtime::EffectRuntime;
 use std::sync::Arc;

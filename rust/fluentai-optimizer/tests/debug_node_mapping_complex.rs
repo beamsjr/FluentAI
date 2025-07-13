@@ -1,12 +1,12 @@
 use fluentai_core::ast::{Node, NodeId};
 use fluentai_optimizer::AdvancedOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn debug_node_mapping_complex() {
     // The exact test case that's failing
-    let code = "(let ((x 5) (y (+ x 2))) (* y 3))";
-    let ast = parse(code).unwrap();
+    let code = "{ let x = 5; let y = x + 2; y * 3 }";
+    let ast = parse_flc(code).unwrap();
 
     println!("=== Original AST ===");
     for (id, node) in &ast.nodes {

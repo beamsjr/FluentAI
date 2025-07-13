@@ -1,7 +1,6 @@
 //! Benchmarks for FluentAi VM execution performance
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM};
 
 fn benchmark_vm_arithmetic(c: &mut Criterion) {

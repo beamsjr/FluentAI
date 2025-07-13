@@ -852,12 +852,12 @@ impl Interpreter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     #[test]
     fn test_eval_literal() {
         let mut interp = Interpreter::new(InterpreterOptions::default());
-        let graph = parse("42").unwrap();
+        let graph = parse_flc("42").unwrap();
         let result = interp.interpret(&graph).unwrap();
         assert_eq!(result.to_integer(), Some(42));
     }
@@ -865,7 +865,7 @@ mod tests {
     #[test]
     fn test_eval_arithmetic() {
         let mut interp = Interpreter::new(InterpreterOptions::default());
-        let graph = parse("1 + 2").unwrap();
+        let graph = parse_flc("1 + 2").unwrap();
         let result = interp.interpret(&graph).unwrap();
         assert_eq!(result.to_integer(), Some(3));
     }
@@ -876,7 +876,7 @@ mod tests {
         let mut interp = Interpreter::new(InterpreterOptions::default());
         // Original test expects let expression syntax that FLC doesn't support
         // And interpreter doesn't handle Begin nodes from block syntax
-        let graph = parse("{ let x = 10; x + 5 }").unwrap();
+        let graph = parse_flc("{ let x = 10; x + 5 }").unwrap();
         let result = interp.interpret(&graph).unwrap();
         assert_eq!(result.to_integer(), Some(15));
     }
@@ -884,7 +884,7 @@ mod tests {
     #[test]
     fn test_eval_if() {
         let mut interp = Interpreter::new(InterpreterOptions::default());
-        let graph = parse("if (5 > 3) { 1 } else { 2 }").unwrap();
+        let graph = parse_flc("if (5 > 3) { 1 } else { 2 }").unwrap();
         let result = interp.interpret(&graph).unwrap();
         assert_eq!(result.to_integer(), Some(1));
     }
@@ -892,7 +892,7 @@ mod tests {
     #[test]
     fn test_eval_lambda() {
         let mut interp = Interpreter::new(InterpreterOptions::default());
-        let graph = parse("((x) => x * 2)(5)").unwrap();
+        let graph = parse_flc("((x) => x * 2)(5)").unwrap();
         let result = interp.interpret(&graph).unwrap();
         assert_eq!(result.to_integer(), Some(10));
     }

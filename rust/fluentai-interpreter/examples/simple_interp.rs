@@ -1,7 +1,7 @@
 //! Simple interpreter example
 
 use fluentai_interpreter::{Interpreter, InterpreterOptions};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 fn main() -> anyhow::Result<()> {
     // Create interpreter
@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
     for (code, desc) in tests {
         println!("\n{}: {}", desc, code);
 
-        match parse(code) {
+        match parse_flc(code) {
             Ok(graph) => match interpreter.interpret(&graph) {
                 Ok(result) => println!("=> {}", result),
                 Err(e) => println!("Error: {}", e),

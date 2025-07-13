@@ -7,7 +7,6 @@
 //! - Pattern matching
 //! - List operations
 
-use fluentai_parser::parse;
 use fluentai_vm::{VM, Compiler};
 use std::time::{Duration, Instant};
 

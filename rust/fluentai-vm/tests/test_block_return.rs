@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use fluentai_core::value::Value;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     use fluentai_vm::{Compiler, CompilerOptions, OptimizationLevel, VM};
     
     #[test]

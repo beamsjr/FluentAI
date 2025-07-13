@@ -660,7 +660,7 @@ fn is_control_flow_op(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::ml_hints::*;
-    use fluentai_core::ast::{Graph, Literal, Node, NodeId};
+    use fluentai_core::ast::{Graph, Literal, Node};
 
     #[test]
     fn test_optimization_hint_traits() {

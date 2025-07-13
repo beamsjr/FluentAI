@@ -5,7 +5,7 @@
 //! instead of recursive ones.
 
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 // Helper to create safe parse depth based on test requirements
 fn safe_parse_depth() -> usize {
@@ -32,7 +32,7 @@ fn test_deeply_nested_let_bindings() {
         code.push(')');
     }
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);
@@ -76,7 +76,7 @@ fn test_deeply_nested_applications() {
     }
     code.push(')');
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);
@@ -117,7 +117,7 @@ fn test_deeply_nested_lambda_bodies() {
         code.push(')');
     }
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);
@@ -161,7 +161,7 @@ fn test_deeply_nested_if_chains() {
         code.push_str(" 0)");
     }
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);
@@ -203,7 +203,7 @@ fn test_deeply_nested_list_structures() {
     }
     code.push(')');
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);
@@ -258,7 +258,7 @@ fn test_complex_deep_nesting() {
 
     code.push_str(" 0)"); // else branch
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);
@@ -308,7 +308,7 @@ fn test_extremely_deep_nesting_stress() {
             code.push(')');
 
             // This is so deep that even parsing might fail
-            match parse(&code) {
+            match parse_flc(&code) {
                 Ok(ast) => {
                     println!("Parsed extremely deep AST with {} nodes", ast.nodes.len());
 
@@ -363,7 +363,7 @@ fn test_mark_reachable_deep_nesting() {
     }
     code.push_str("))"); // Close + and let
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);
@@ -411,7 +411,7 @@ fn test_deep_copy_with_substitution_nesting() {
         code.push_str(&format!(") {})", i));
     }
 
-    let ast = match parse(&code) {
+    let ast = match parse_flc(&code) {
         Ok(ast) => ast,
         Err(e) => {
             println!("Parse error (expected for deep nesting): {}", e);

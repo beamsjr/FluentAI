@@ -2,7 +2,7 @@
 
 use crate::error::{CompilerError, Result};
 use fluentai_core::ast::{Graph, Node, NodeId};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -81,7 +81,7 @@ impl UICompiler {
     /// Compile FluentAi UI code to JavaScript
     pub fn compile(&mut self, source: &str) -> Result<String> {
         // Parse the source
-        let graph = parse(source).map_err(|e| CompilerError::ParseError(e.to_string()))?;
+        let graph = parse_flc(source).map_err(|e| CompilerError::ParseError(e.to_string()))?;
 
         // Optimize if enabled
         let optimized_graph = if self.options.enable_ui_optimization {

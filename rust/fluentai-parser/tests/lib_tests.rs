@@ -3,6 +3,7 @@ mod tests {
     use bumpalo::Bump;
     use fluentai_core::ast::Node;
     use fluentai_parser::*;
+    use fluentai_parser::parse_flc as parse;
 
     #[test]
     fn test_parse_basic() {

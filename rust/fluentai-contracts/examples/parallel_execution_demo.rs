@@ -1,10 +1,11 @@
 //! Example demonstrating parallel symbolic execution
+use fluentai_parser::parse_flc;
+
 
 use fluentai_contracts::{
     parallel_execution::{benchmark_parallel_execution, ParallelConfig, ParallelSymbolicExecutor},
     SymbolicExecutor,
 };
-use fluentai_parser::parse;
 use std::num::NonZero;
 use std::time::Instant;
 
@@ -34,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                       'a-zero)))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
 
         println!("Testing complex branching function with 3 parameters...\n");
 
@@ -93,7 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                          (tree-sum (- n 2))))))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
 
         // Configure parallel execution
         let config = ParallelConfig {
@@ -139,7 +140,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (define (f3 a b c) (+ a (+ b c)))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
         let parallel_executor = ParallelSymbolicExecutor::new(graph);
 
         // Execute multiple functions in parallel

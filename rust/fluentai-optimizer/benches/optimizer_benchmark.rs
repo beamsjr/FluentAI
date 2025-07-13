@@ -1,7 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use fluentai_optimizer::pipeline::OptimizationLevel;
 use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline, OptimizationStats};
-use fluentai_parser::parse;
 
 fn create_test_programs() -> Vec<(&'static str, &'static str)> {
     vec![

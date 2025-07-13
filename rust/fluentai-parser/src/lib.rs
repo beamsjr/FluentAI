@@ -14,11 +14,6 @@ pub use error::{ErrorKind, ParseError};
 
 use fluentai_core::ast::Graph;
 
-/// Parse FluentAi source code into an AST graph
-pub fn parse(source: &str) -> Result<Graph, ParseError> {
-    parse_flc(source)
-}
-
 /// Parse FLC syntax into an AST graph
 pub fn parse_flc(source: &str) -> Result<Graph, ParseError> {
     let parser = flc_parser::Parser::new(source);
@@ -33,5 +28,5 @@ pub fn parse_with_arena<'a>(
     _arena: &'a bumpalo::Bump,
 ) -> Result<Graph, ParseError> {
     // FLC parser doesn't use arena allocator yet, just parse normally
-    parse(source)
+    parse_flc(source)
 }

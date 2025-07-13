@@ -1,6 +1,5 @@
 //! Example demonstrating context-aware optimization
 
-use fluentai_parser::parse;
 use fluentai_core::ast::{ContextMemory, PerformanceHint, PerformanceHintType, UsageStatistics};
 use fluentai_optimizer::OptimizationPipeline;
 use fluentai_optimizer::passes::context_aware::ContextAwarePass;

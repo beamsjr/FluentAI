@@ -219,7 +219,7 @@ impl Transformer {
             expanded = expanded.replace(&format!("${}", name), &node_str);
         }
 
-        fluentai_parser::parse(&expanded)
+        fluentai_parser::parse_flc(&expanded)
             .map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
 

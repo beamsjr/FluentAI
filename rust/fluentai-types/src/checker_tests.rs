@@ -7,12 +7,12 @@ mod checker_edge_case_tests {
     use crate::inference::TypeError;
     use crate::types::*;
     use fluentai_core::ast::{EffectType, Graph, NodeId};
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     use std::collections::HashSet;
 
     // Helper function to create a simple graph for testing
     fn create_test_graph(code: &str) -> Graph {
-        parse(code).unwrap()
+        parse_flc(code).unwrap()
     }
 
     // Test TypeChecker with custom environment

@@ -1,6 +1,7 @@
 //! Fast diagnostic computation for FluentAi
 
 use fluentai_core::ast::{Graph, Node, NodeId};
+use fluentai_parser::parse_flc as parse;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 
 /// Compute diagnostics for an AST
@@ -139,7 +140,7 @@ fn is_undefined_variable(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     #[test]
     fn test_no_diagnostics_for_valid_code() {

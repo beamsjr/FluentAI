@@ -1,7 +1,6 @@
 //! Test the optimizer with a simple example
 
 use fluentai_optimizer::GraphOptimizer;
-use fluentai_parser::parse;
 
 fn main() {
     let code = "(+ (* 2 3) (- 10 5))";

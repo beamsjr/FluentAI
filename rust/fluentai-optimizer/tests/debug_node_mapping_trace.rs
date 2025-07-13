@@ -1,6 +1,6 @@
 use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_optimizer::AdvancedOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashMap;
 
 // A wrapper to trace optimization steps
@@ -26,8 +26,8 @@ impl TracingOptimizer {
 
 #[test]
 fn debug_node_mapping_trace() {
-    let code = "(let ((x 5) (y (+ x 2))) (* y 3))";
-    let ast = parse(code).unwrap();
+    let code = "{ let x = 5; let y = x + 2; y * 3 }";
+    let ast = parse_flc(code).unwrap();
 
     println!("=== Analyzing Original AST ===");
 

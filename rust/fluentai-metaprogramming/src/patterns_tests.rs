@@ -2,7 +2,7 @@
 mod tests {
     use crate::patterns::{MatchResult, NodePattern, Pattern, PatternMatcher};
     use fluentai_core::ast::{Graph, Literal, Node, NodeId};
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     
     
 
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn test_match_lambda_pattern() {
         let code = "(x, y) => x + y";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let root_id = graph.root_id.unwrap();
 
         let mut matcher = PatternMatcher::new(&graph);
@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn test_match_application_pattern() {
         let code = "1 + 2";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let root_id = graph.root_id.unwrap();
 
         let mut matcher = PatternMatcher::new(&graph);
@@ -379,7 +379,7 @@ mod tests {
     fn test_complex_pattern() {
         // Match: (if <condition> <then> <else>) where then and else are the same
         let code = "if (x > 0) { 42 } else { 42 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let root_id = graph.root_id.unwrap();
 
         let mut matcher = PatternMatcher::new(&graph);
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn test_match_multiple_nodes() {
         let code = "1 + (2 + (3 + 4))";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
 
         // Pattern to match all additions
         let pattern = Pattern::NodeType(NodePattern::Application {

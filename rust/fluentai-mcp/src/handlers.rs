@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde_json::{json, Value as JsonValue};
 use tracing::debug;
 
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc as parse;
 use fluentai_vm::security::SecurityPolicy;
 use fluentai_vm::Value;
 use fluentai_vm::{Bytecode, Compiler, VMBuilder, VM};

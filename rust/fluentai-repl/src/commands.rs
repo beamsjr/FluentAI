@@ -336,8 +336,8 @@ fn cmd_load(env: &mut ReplEnvironment, args: &[String]) -> ReplResult<CommandRes
     let content = std::fs::read_to_string(path)?;
 
     // Parse and execute the file
-    use fluentai_parser::parse;
-    let graph = parse(&content)?;
+    use fluentai_parser::parse_flc;
+    let graph = parse_flc(&content)?;
     let result = env.execute(&graph)?;
 
     Ok(CommandResult::Success(format!(
@@ -369,11 +369,11 @@ fn cmd_time(env: &mut ReplEnvironment, args: &[String]) -> ReplResult<CommandRes
 
     let expr = args.join(" ");
 
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     use std::time::Instant;
 
     let start = Instant::now();
-    let graph = parse(&expr)?;
+    let graph = parse_flc(&expr)?;
     let parse_time = start.elapsed();
 
     let start = Instant::now();

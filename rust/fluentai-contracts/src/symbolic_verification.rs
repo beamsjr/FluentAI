@@ -536,7 +536,7 @@ pub fn verify_function_contract(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     #[test]
     fn test_basic_verification() {
@@ -551,7 +551,7 @@ mod tests {
             }
         "#;
 
-        let graph = parse(program).unwrap();
+        let graph = parse_flc(program).unwrap();
 
         // Create a simple contract
         let contract = Contract {

@@ -1,7 +1,6 @@
 //! Tests for qualified symbol parsing (e.g., module.function)
 
 use fluentai_core::ast::Node;
-use fluentai_parser::parse;
 
 #[test]
 fn test_parse_simple_qualified_symbol() {

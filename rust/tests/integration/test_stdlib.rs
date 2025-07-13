@@ -1,6 +1,5 @@
 //! Test the FluentAi standard library integration
 
-use fluentai_parser::parse;
 use fluentai_vm::{VM, compiler::Compiler};
 
 fn main() -> anyhow::Result<()> {

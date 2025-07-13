@@ -244,6 +244,7 @@ async fn test_response_headers() {
 }
 
 #[tokio::test]
+#[ignore = "NetworkHandler doesn't support timeout configuration yet"]
 async fn test_timeout_handling() {
     let mock_server = MockServer::start().await;
     
@@ -263,6 +264,5 @@ async fn test_timeout_handling() {
     // This test will actually wait for the response (which takes 30s)
     // For this test, we'll skip it as the handler doesn't support custom timeouts
     
-    // Skip this test as the NetworkHandler doesn't support timeout configuration yet
-    return;
+    // TODO: Implement timeout configuration in NetworkHandler
 }

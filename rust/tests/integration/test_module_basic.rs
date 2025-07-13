@@ -1,7 +1,6 @@
 //! Test basic module functionality
 
 use anyhow::Result;
-use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, VM};
 
 fn main() -> Result<()> {

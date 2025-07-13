@@ -464,11 +464,11 @@ User as Serializable {
 private actor Counter {
     count: int = 0;
     
-    private handle Inc(amount: int) {
+    private handle inc(amount: int) {
         self.count := self.count + amount;
     }
     
-    private handle Get() -> int {
+    private handle get() -> int {
         self.count
     }
 }
@@ -577,7 +577,7 @@ private actor Counter {
                 private actor Echo {
                     state: string = "ready";
                     
-                    private handle Message(msg: any) {
+                    private handle message(msg: any) {
                         receive {
                             "ping" => "pong",
                             "hello" => "world",
@@ -590,7 +590,7 @@ private actor Counter {
                 private actor Counter {
                     count: int = 0;
                     
-                    private handle Command(msg: any) {
+                    private handle command(msg: any) {
                         receive {
                             "inc" => count + 1,
                             "dec" => count - 1,

@@ -1,15 +1,15 @@
 #[cfg(test)]
 mod tests {
     use crate::passes::*;
-    use fluentai_core::ast::{Graph, Literal, Node, NodeId};
-    use fluentai_parser::parse;
+    use fluentai_core::ast::{EffectType, Literal, Node};
+    use fluentai_parser::parse_flc;
 
     // ===== Constant Folding Tests =====
 
     #[test]
     fn test_constant_folding_arithmetic() {
         let code = "1 + 2";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = constant_folding::ConstantFoldingPass::new();
 
         let result = pass.run(&graph);
@@ -27,7 +27,7 @@ mod tests {
     #[test]
     fn test_constant_folding_nested() {
         let code = "(1 + 2) * (5 - 3)";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = constant_folding::ConstantFoldingPass::new();
 
         let result = pass.run(&graph);
@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn test_constant_folding_with_variables() {
         let code = "x + 0";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = constant_folding::ConstantFoldingPass::new();
 
         let result = pass.run(&graph);
@@ -60,7 +60,7 @@ mod tests {
     #[test]
     fn test_constant_folding_boolean() {
         let code = "true && false";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = constant_folding::ConstantFoldingPass::new();
 
         let result = pass.run(&graph);
@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn test_dead_code_unused_binding() {
         let code = "{ let x = 1; let y = 2; x }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
 
         let original_size = graph.nodes.len();
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_dead_code_unreachable_branch() {
         let code = "if (true) { 1 } else { error(\"unreachable\") }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
 
         let result = pass.run(&graph);
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn test_dead_code_keep_effects() {
         let code = "{ let x = perform IO.print(\"hello\"); 42 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
 
         let result = pass.run(&graph);
@@ -124,8 +124,8 @@ mod tests {
     #[test]
     fn test_dead_code_effect_analysis_print() {
         // Test that print function is recognized as having effects
-        let code = "{ let x = print(\"side effect\"); let y = 10; y }";
-        let graph = parse(code).unwrap();
+        let code = "{ let x = perform IO.print(\"side effect\"); let y = 10; y }";
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
         
         let original_size = graph.nodes.len();
@@ -142,13 +142,13 @@ mod tests {
     fn test_dead_code_effect_analysis_multiple_effects() {
         // Test multiple effect types
         let code = r#"{
-            let io_effect = println("hello");
-            let state_effect = x := 42;
+            let io_effect = perform IO.println("hello");
+            let state_effect = perform State.set("x", 42);
             let unused_pure = 2 * 3;
             let used = 10;
             used
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
         
         let result = pass.run(&graph);
@@ -165,7 +165,7 @@ mod tests {
         for (_, node) in &optimized.nodes {
             node_count += 1;
             match node {
-                Node::Variable { name } if name == "println" => has_io_effect = true,
+                Node::Effect { effect_type: EffectType::IO, .. } => has_io_effect = true,
                 Node::Assignment { .. } => has_state_effect = true,
                 Node::Let { bindings, .. } => {
                     // Check if any binding contains an assignment
@@ -193,11 +193,11 @@ mod tests {
     fn test_dead_code_effect_analysis_network() {
         // Test network effects
         let code = r#"{
-            let response = http_get("https://api.example.com");
+            let response = perform Network.request({"method": "GET", "url": "https://api.example.com"});
             let unused = 42;
             "done"
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
         
         let result = pass.run(&graph);
@@ -209,7 +209,7 @@ mod tests {
         let mut has_response_binding = false;
         for (_, node) in &optimized.nodes {
             match node {
-                Node::Variable { name } if name == "http_get" => has_network_effect = true,
+                Node::Effect { effect_type: EffectType::Network, .. } => has_network_effect = true,
                 Node::Let { bindings, .. } => {
                     // Check if response binding is preserved
                     if bindings.iter().any(|(name, _)| name == "response") {
@@ -230,11 +230,11 @@ mod tests {
         let code = r#"{
             let unused_add = 1 + 2;
             let unused_mul = 3 * 4;
-            let unused_str = str_concat("a", "b");
+            let unused_str = "a" + "b";
             let result = 100;
             result
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
         
         let original_size = graph.nodes.len();
@@ -252,9 +252,11 @@ mod tests {
         for (_, node) in &optimized.nodes {
             if let Node::Variable { name } = node {
                 match name.as_str() {
-                    "+" => has_add = true,
+                    "+" => {
+                        has_add = true;
+                        has_concat = true;
+                    }
                     "*" => has_mul = true,
-                    "str-concat" => has_concat = true,
                     _ => {}
                 }
             }
@@ -271,9 +273,9 @@ mod tests {
         let code = r#"{
             let ch = channel();
             let unused_pure = 42;
-            send!(ch, "message")
+            ch.send("message")
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
         
         let result = pass.run(&graph);
@@ -287,7 +289,7 @@ mod tests {
             if let Node::Variable { name } = node {
                 match name.as_str() {
                     "channel" => has_channel = true,
-                    "chan-send!" => has_send = true,
+                    "send" => has_send = true,
                     _ => {}
                 }
             }
@@ -305,7 +307,7 @@ mod tests {
             let result = 10;
             result
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
         
         let result = pass.run(&graph);
@@ -332,7 +334,7 @@ mod tests {
             let result = 5;
             result
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = dead_code::DeadCodeEliminationPass::new();
         
         let result = pass.run(&graph);
@@ -354,7 +356,7 @@ mod tests {
     #[test]
     fn test_cse_identical_expressions() {
         let code = "(x * y) + (x * y)";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = cse::CommonSubexpressionEliminationPass::new();
 
         let original_size = graph.nodes.len();
@@ -369,7 +371,7 @@ mod tests {
     #[test]
     fn test_cse_with_let() {
         let code = "{ let a = x + 1; (x + 1) + a }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = cse::CommonSubexpressionEliminationPass::new();
 
         let result = pass.run(&graph);
@@ -383,7 +385,7 @@ mod tests {
     #[test]
     fn test_cse_no_effects() {
         let code = "perform IO.read() + perform IO.read()";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let original_size = graph.nodes.len();
         let mut pass = cse::CommonSubexpressionEliminationPass::new();
 
@@ -401,7 +403,7 @@ mod tests {
     #[test]
     fn test_inline_simple_function() {
         let code = "{ let f = (x) => x + 1; f(5) }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = inline::InlinePass::new(10);
 
         let result = pass.run(&graph);
@@ -419,7 +421,7 @@ mod tests {
             let large = (x) => (x * x) + (x * x) + (x * x);
             small(1) + large(2)
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = inline::InlinePass::new(10);
 
         let result = pass.run(&graph);
@@ -436,7 +438,7 @@ mod tests {
             let fact = (n) => if (n <= 1) { 1 } else { n * fact(n - 1) };
             fact(5)
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = inline::InlinePass::new(10);
 
         let result = pass.run(&graph);
@@ -452,7 +454,7 @@ mod tests {
     #[test]
     fn test_beta_reduction_simple() {
         let code = "((x) => x + 1)(5)";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = beta_reduction::BetaReductionPass::new();
 
         let result = pass.run(&graph);
@@ -466,7 +468,7 @@ mod tests {
     #[test]
     fn test_beta_reduction_multiple_params() {
         let code = "((x, y) => x + y)(3, 4)";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = beta_reduction::BetaReductionPass::new();
 
         let result = pass.run(&graph);
@@ -480,7 +482,7 @@ mod tests {
     #[test]
     fn test_beta_reduction_preserve_effects() {
         let code = "((x) => perform IO.print(x))(\"hello\")";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = beta_reduction::BetaReductionPass::new();
 
         let result = pass.run(&graph);
@@ -501,7 +503,7 @@ mod tests {
                 else { loop(n - 1, acc + n) };
             loop(10, 0)
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = tail_call::TailCallOptimizationPass::new();
 
         let result = pass.run(&graph);
@@ -519,7 +521,7 @@ mod tests {
             let odd = (n) => if (n == 0) { false } else { even(n - 1) };
             even(10)
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = tail_call::TailCallOptimizationPass::new();
 
         let result = pass.run(&graph);
@@ -544,7 +546,7 @@ mod tests {
                 };
             loop(0)
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = loop_opts::LoopOptimizationPass::new();
 
         let result = pass.run(&graph);
@@ -566,7 +568,7 @@ mod tests {
                 };
             loop(0)
         }"#;
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = loop_opts::LoopOptimizationPass::new();
 
         let result = pass.run(&graph);
@@ -582,7 +584,7 @@ mod tests {
     #[test]
     fn test_partial_eval_known_args() {
         let code = "{ let f = (x, y) => x + y; f(5, y) }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = partial_eval::PartialEvaluationPass::new();
 
         let result = pass.run(&graph);
@@ -596,7 +598,7 @@ mod tests {
     #[test]
     fn test_partial_eval_higher_order() {
         let code = "{ let add = (x) => (y) => x + y; add(5)(3) }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut pass = partial_eval::PartialEvaluationPass::new();
 
         let result = pass.run(&graph);

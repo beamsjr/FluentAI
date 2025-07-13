@@ -1,0 +1,51 @@
+// Actor Demo with Multiple Handlers
+// Using the current FLC syntax for actor handlers
+
+private actor BankAccount {
+    balance: float = 1000.0;
+    owner: string = "Alice";
+    
+    // Handler with typed parameters
+    private handle deposit(amount: float) {
+        balance + amount
+    }
+    
+    private handle withdraw(amount: float) {
+        if (balance >= amount) {
+            balance - amount
+        } else {
+            balance
+        }
+    }
+    
+    private handle get_balance() {
+        balance
+    }
+}
+
+private actor Counter {
+    count: int = 0;
+    
+    private handle increment(n: int) {
+        count + n
+    }
+    
+    private handle decrement(n: int) {
+        count - n
+    }
+    
+    private handle reset() {
+        0
+    }
+    
+    private handle get() {
+        count
+    }
+}
+
+// Create and use the actors
+let bank = BankAccount;
+let counter = Counter;
+
+// These would be used with actor.send() in actual usage
+(bank, counter)

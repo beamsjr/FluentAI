@@ -1,4 +1,3 @@
-use fluentai_parser::parse;
 
 fn main() -> anyhow::Result<()> {
     // Test parsing nested closures

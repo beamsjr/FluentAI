@@ -1,0 +1,171 @@
+// Complete Actor Demo - Showcasing all implemented features
+// This example demonstrates:
+// 1. Multiple handler methods with different names
+// 2. Typed message handlers with specific parameter types
+// 3. Self field access within handlers
+// 4. State management with become
+
+// A bank account actor with typed handlers
+private actor BankAccount {
+    balance: float = 1000.0;
+    account_holder: string = "John Doe";
+    transaction_count: int = 0;
+    
+    // Typed handler for deposits
+    private handle deposit(amount: float) {
+        if (amount > 0) {
+            let new_balance = balance + amount;
+            let new_count = transaction_count + 1;
+            $(f"Deposited ${amount}. New balance: ${new_balance}").print();
+            new_balance
+        } else {
+            $(f"Invalid deposit amount: ${amount}").print();
+            balance
+        }
+    }
+    
+    // Typed handler for withdrawals
+    private handle withdraw(amount: float) {
+        if (amount > 0 && amount <= balance) {
+            let new_balance = balance - amount;
+            let new_count = transaction_count + 1;
+            $(f"Withdrew ${amount}. New balance: ${new_balance}").print();
+            new_balance
+        } else {
+            $(f"Insufficient funds or invalid amount. Current balance: ${balance}").print();
+            balance
+        }
+    }
+    
+    // Handler to get balance
+    private handle get_balance() {
+        $(f"Account holder: {account_holder}, Balance: ${balance}").print();
+        balance
+    }
+    
+    // Handler to get transaction count
+    private handle get_stats() {
+        $(f"Total transactions: {transaction_count}").print();
+        transaction_count
+    }
+}
+
+// Task queue actor with typed messages
+private actor TaskQueue {
+    tasks: List<string> = [];
+    max_size: int = 10;
+    
+    // Add a task to the queue
+    private handle add_task(task: string, priority: int) {
+        if (tasks.len() < max_size) {
+            let new_tasks = tasks.append(f"[P{priority}] {task}");
+            $(f"Task added: {task} with priority {priority}").print();
+            new_tasks
+        } else {
+            $("Queue is full!").print();
+            tasks
+        }
+    }
+    
+    // Process the next task
+    private handle process_next() {
+        if (!tasks.is_empty()) {
+            let task = tasks.head();
+            let remaining = tasks.tail();
+            $(f"Processing: {task}").print();
+            remaining
+        } else {
+            $("No tasks to process").print();
+            tasks
+        }
+    }
+    
+    // Get queue status
+    private handle status() {
+        let count = tasks.len();
+        let capacity = max_size - count;
+        $(f"Queue: {count} tasks, {capacity} slots available").print();
+        count
+    }
+    
+    // Clear all tasks
+    private handle clear() {
+        $("Clearing all tasks").print();
+        []
+    }
+}
+
+// Calculator actor with pure computation handlers
+private actor Calculator {
+    last_result: float = 0.0;
+    
+    // Basic arithmetic operations
+    private handle add(x: float, y: float) {
+        let result = x + y;
+        $(f"{x} + {y} = {result}").print();
+        result
+    }
+    
+    private handle multiply(x: float, y: float) {
+        let result = x * y;
+        $(f"{x} * {y} = {result}").print();
+        result
+    }
+    
+    private handle divide(x: float, y: float) {
+        if (y != 0) {
+            let result = x / y;
+            $(f"{x} / {y} = {result}").print();
+            result
+        } else {
+            $("Error: Division by zero").print();
+            last_result
+        }
+    }
+    
+    // Store and retrieve last result
+    private handle store(value: float) {
+        $(f"Stored: {value}").print();
+        value
+    }
+    
+    private handle recall() {
+        $(f"Last result: {last_result}").print();
+        last_result
+    }
+}
+
+// Demo usage
+$("=== Bank Account Demo ===").print();
+let account = BankAccount;
+account.send(("deposit", 500.0));
+account.send(("withdraw", 200.0));
+account.send(("get_balance"));
+account.send(("withdraw", 2000.0));  // Should fail
+account.send(("get_stats"));
+
+$("\n=== Task Queue Demo ===").print();
+let queue = TaskQueue;
+queue.send(("add_task", "Write documentation", 1));
+queue.send(("add_task", "Fix bug #123", 3));
+queue.send(("add_task", "Code review", 2));
+queue.send(("status"));
+queue.send(("process_next"));
+queue.send(("process_next"));
+queue.send(("status"));
+
+$("\n=== Calculator Demo ===").print();
+let calc = Calculator;
+calc.send(("add", 10.5, 20.3));
+calc.send(("multiply", 5.0, 7.0));
+calc.send(("divide", 100.0, 4.0));
+calc.send(("divide", 10.0, 0.0));  // Should show error
+calc.send(("store", 42.0));
+calc.send(("recall"));
+
+// Return all actors for potential further interaction
+{
+    bank_account: account,
+    task_queue: queue,
+    calculator: calc
+}

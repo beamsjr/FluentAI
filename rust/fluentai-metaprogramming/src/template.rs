@@ -2,7 +2,7 @@
 
 use crate::error::{MetaprogrammingError, Result};
 use fluentai_core::ast::{Graph, Node, NodeId};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -190,7 +190,7 @@ impl TemplateEngine {
             if !param.optional && !context.values.contains_key(&param.name) {
                 if let Some(default) = &param.default {
                     // Parse default value
-                    let default_graph = parse(default)
+                    let default_graph = parse_flc(default)
                         .map_err(|e| MetaprogrammingError::ParseError(e.to_string()))?;
                     context
                         .values
@@ -251,7 +251,7 @@ impl TemplateEngine {
         }
 
         // Parse expanded template
-        parse(&expanded).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
+        parse_flc(&expanded).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
 
     /// Convert node to string
@@ -334,7 +334,7 @@ impl TemplateEngine {
 
         result.push_str("))");
 
-        parse(&result).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
+        parse_flc(&result).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
 }
 

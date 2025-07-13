@@ -1,7 +1,6 @@
 //! Tests for channel operations (send/receive) parsing
 
 use fluentai_core::ast::Node;
-use fluentai_parser::parse;
 
 #[test]
 fn test_parse_channel_creation() {

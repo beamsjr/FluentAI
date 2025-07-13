@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
     use crate::analysis::{
-        calculate_node_size, is_recursive_function, AliasAnalysis, ControlFlowGraph,
+        AliasAnalysis, ControlFlowGraph,
         DataFlowAnalysis, EffectAnalysis, TypeAnalysis,
     };
     use fluentai_core::ast::{EffectType, Graph, Literal, Node, NodeId};
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     use std::num::NonZeroU32;
 
     // ===== Helper Functions =====
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn test_cfg_if_expression() {
         let code = "if (x > 0) { x + 1 } else { x - 1 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
         // Should have one entry (the if node)
@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn test_cfg_let_expression() {
         let code = "{ let x = 1; let y = 2; x + y }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
         assert_eq!(cfg.entries.len(), 1);
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn test_cfg_lambda() {
         let code = "(x) => x + 1";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
         assert_eq!(cfg.entries.len(), 1);
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn test_cfg_application() {
         let code = "f(a, b, c)";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
         assert_eq!(cfg.entries.len(), 1);
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn test_cfg_match_expression() {
         let code = "match(x) { 0 => \"zero\", 1 => \"one\", _ => \"other\" }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
         assert_eq!(cfg.entries.len(), 1);
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn test_cfg_nested_control_flow() {
         let code = "if (if (a) { b } else { c }) { if (d) { e } else { f } } else { g }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
         assert_eq!(cfg.entries.len(), 1);
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn test_cfg_list_nodes() {
         let code = "[1 2 3 4 5]";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
 
         // List elements should be analyzed
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn test_dataflow_variable_use() {
         let code = "x + y";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
 
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn test_dataflow_let_binding() {
         let code = "{ let x = 1; x + 2 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
 
@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn test_dataflow_lambda_params() {
         let code = "(x, y) => x + y";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
 
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn test_dataflow_shadowing() {
         let code = "{ let x = 1; { let x = 2; x } }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let cfg = ControlFlowGraph::build(&graph);
         let dataflow = DataFlowAnalysis::analyze(&graph, &cfg);
 
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn test_effect_analysis_pure() {
         let code = "1 + 2";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
         // Pure arithmetic should have no effects
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn test_effect_analysis_io() {
         let code = "perform IO.print(\"hello\")";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
         // Should detect IO effect
@@ -219,7 +219,7 @@ mod tests {
     #[ignore = "Effect propagation through let bindings not fully implemented"]
     fn test_effect_analysis_propagation() {
         let code = "{ let x = perform IO.read(); x + 1 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
         // Effects should propagate through let binding
@@ -232,7 +232,7 @@ mod tests {
     fn test_effect_analysis_multiple() {
         let code =
             "{ perform IO.print(\"start\"); perform State.set(\"x\", 1); perform IO.print(\"end\") }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
         // Should have both IO and State effects
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn test_effect_analysis_lambda() {
         let code = "(x) => perform IO.print(x)";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let effects = EffectAnalysis::analyze(&graph);
 
         // Lambda itself might be pure, but body has effects
@@ -271,7 +271,7 @@ mod tests {
     #[test]
     fn test_alias_analysis_simple_binding() {
         let code = "{ let x = y; x }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let alias = AliasAnalysis::analyze(&graph);
 
         // x and y might be aliases
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn test_alias_analysis_multiple() {
         let code = "{ let a = b; let c = a; a + c }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let alias = AliasAnalysis::analyze(&graph);
 
         // Should detect transitive aliases
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn test_type_analysis_literals() {
         let code = "list(42, 3.14, \"hello\", true)";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let type_info = TypeAnalysis::analyze(&graph);
 
         // Should infer types for literals
@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn test_type_analysis_function() {
         let code = "(x) => x + 1";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let type_info = TypeAnalysis::analyze(&graph);
 
         // Should infer function type
@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn test_type_analysis_propagation() {
         let code = "{ let x = 42; x + 1 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let type_info = TypeAnalysis::analyze(&graph);
 
         // Type info should propagate through bindings

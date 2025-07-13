@@ -5,7 +5,6 @@
 //! - Simple expressions: ~2.2 µs  
 //! - Complex expressions: ~5.2 µs
 
-use fluentai_parser::parse;
 use std::time::{Duration, Instant};
 
 const ITERATIONS: usize = 10_000;

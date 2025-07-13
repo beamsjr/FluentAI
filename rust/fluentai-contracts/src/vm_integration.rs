@@ -231,7 +231,7 @@ mod vm_integration_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     #[test]
     fn test_contract_registry() {
@@ -245,7 +245,7 @@ mod tests {
             }
         "#;
 
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut registry = ContractRegistry::new();
         registry.enable(Arc::new(graph.clone()));
         registry.register_contracts_from_ast(&graph);

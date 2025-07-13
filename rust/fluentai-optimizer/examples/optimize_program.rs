@@ -2,7 +2,6 @@
 
 use fluentai_optimizer::pipeline::OptimizationLevel;
 use fluentai_optimizer::{OptimizationConfig, OptimizationPipeline};
-use fluentai_parser::parse;
 use std::env;
 
 fn main() {

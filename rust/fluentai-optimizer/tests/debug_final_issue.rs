@@ -1,13 +1,13 @@
 use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_optimizer::AdvancedOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use std::num::NonZeroU32;
 
 #[test]
 fn debug_final_issue() {
     // Minimal test case
-    let code = "(let ((x 5)) x)";
-    let ast = parse(code).unwrap();
+    let code = "{ let x = 5; x }";
+    let ast = parse_flc(code).unwrap();
 
     println!("=== Original AST ===");
     let mut node_list: Vec<_> = ast.nodes.iter().collect();

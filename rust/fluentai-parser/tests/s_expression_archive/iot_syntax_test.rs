@@ -1,6 +1,5 @@
 //! Test that IoT demo syntax parses correctly
 
-use fluentai_parser::parse;
 
 #[test]
 fn test_iot_demo_parses() {

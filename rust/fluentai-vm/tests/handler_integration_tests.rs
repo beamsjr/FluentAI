@@ -3,7 +3,6 @@
 //! These tests verify that handlers work correctly with effects,
 //! including proper interception, handler chaining, and state management.
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, Value, VM};
 
 #[test]

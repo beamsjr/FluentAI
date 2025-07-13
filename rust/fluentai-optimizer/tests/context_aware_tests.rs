@@ -31,10 +31,9 @@ fn create_context_memory(
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_context_aware_basic() {
     let mut pass = ContextAwarePass::new();
-    let graph = parse_flc("(+ 1 2)").unwrap();
+    let graph = parse_flc("1 + 2").unwrap();
 
     // Should run without errors
     let result = pass.run(&graph);
@@ -47,10 +46,9 @@ fn test_context_aware_basic() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_should_inline_hot_small_function() {
     let mut pass = ContextAwarePass::new();
-    let mut graph = parse_flc("(lambda (x) (+ x 1))").unwrap();
+    let mut graph = parse_flc("(x) => x + 1").unwrap();
 
     // Add context memory indicating this is a hot function
     if let Some(root) = graph.root_id {
@@ -85,10 +83,9 @@ fn test_should_inline_hot_small_function() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_should_not_inline_error_prone_function() {
     let mut pass = ContextAwarePass::new();
-    let mut graph = parse_flc("(lambda (x) (/ 1 x))").unwrap();
+    let mut graph = parse_flc("(x) => 1 / x").unwrap();
 
     // Add context memory indicating high error rate
     if let Some(root) = graph.root_id {
@@ -121,10 +118,9 @@ fn test_should_not_inline_error_prone_function() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_should_inline_with_existing_hint() {
     let mut pass = ContextAwarePass::new();
-    let mut graph = parse_flc("(lambda (x) x)").unwrap();
+    let mut graph = parse_flc("(x) => x").unwrap();
 
     // Add context memory with inline hint
     if let Some(root) = graph.root_id {
@@ -157,11 +153,10 @@ fn test_should_inline_with_existing_hint() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_should_unroll_with_hint() {
     let mut pass = ContextAwarePass::new();
     let mut graph =
-        parse("(letrec ((loop (lambda (i) (if (< i 10) (loop (+ i 1)) i)))) (loop 0))").unwrap();
+        parse_flc("{ let loop = (i) => if (i < 10) { loop(i + 1) } else { i }; loop(0) }").unwrap();
 
     // Add unroll hint to loop
     if let Some(root) = graph.root_id {
@@ -180,10 +175,9 @@ fn test_should_unroll_with_hint() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_can_vectorize_map_operation() {
     let mut pass = ContextAwarePass::new();
-    let mut graph = parse_flc("(map (lambda (x) (* x 2)) list)").unwrap();
+    let mut graph = parse_flc("list.map((x) => x * 2)").unwrap();
 
     // Find the map application node and add context
     for (id, node) in &graph.nodes {
@@ -227,10 +221,9 @@ fn test_can_vectorize_map_operation() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_filter_vectorization() {
     let mut pass = ContextAwarePass::new();
-    let code = "(filter (lambda (x) (> x 0)) numbers)";
+    let code = "numbers.filter((x) => x > 0)";
     let mut graph = parse_flc(code).unwrap();
 
     // Find filter application and mark as vectorizable
@@ -280,10 +273,9 @@ fn test_filter_vectorization() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_preserve_metadata() {
     let mut pass = ContextAwarePass::new();
-    let mut graph = parse_flc("(let ((f (lambda (x) x))) (f 5))").unwrap();
+    let mut graph = parse_flc("{ let f = (x) => x; f(5) }").unwrap();
 
     // Add metadata to various nodes
     for (id, _) in graph.nodes.clone() {
@@ -311,10 +303,9 @@ fn test_preserve_metadata() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_nested_lambdas() {
     let mut pass = ContextAwarePass::new();
-    let code = "(lambda (x) (lambda (y) (+ x y)))";
+    let code = "(x) => (y) => x + y";
     let mut graph = parse_flc(code).unwrap();
 
     // Mark outer lambda as hot
@@ -328,24 +319,24 @@ fn test_nested_lambdas() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_large_function_not_inlined() {
     let mut pass = ContextAwarePass::new();
 
     // Create a large function with a simple nested structure that will generate many nodes
     let code = r#"
-        (lambda (x)
-            (let ((a (+ x 1))
-                  (b (+ x 2))
-                  (c (+ x 3))
-                  (d (+ x 4))
-                  (e (+ x 5))
-                  (f (+ x 6))
-                  (g (+ x 7))
-                  (h (+ x 8))
-                  (i (+ x 9))
-                  (j (+ x 10)))
-                (+ (+ (+ (+ (+ (+ (+ (+ (+ a b) c) d) e) f) g) h) i) j)))
+        (x) => {
+            let a = x + 1;
+            let b = x + 2;
+            let c = x + 3;
+            let d = x + 4;
+            let e = x + 5;
+            let f = x + 6;
+            let g = x + 7;
+            let h = x + 8;
+            let i = x + 9;
+            let j = x + 10;
+            a + b + c + d + e + f + g + h + i + j
+        }
     "#;
 
     let mut graph = parse_flc(code).unwrap();
@@ -376,14 +367,12 @@ fn test_large_function_not_inlined() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_pass_name() {
     let pass = ContextAwarePass::new();
     assert_eq!(pass.name(), "context-aware");
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_is_applicable() {
     let pass = ContextAwarePass::new();
 
@@ -392,12 +381,11 @@ fn test_is_applicable() {
     assert!(!pass.is_applicable(&empty_graph));
 
     // Non-empty graph
-    let graph = parse_flc("(+ 1 2)").unwrap();
+    let graph = parse_flc("1 + 2").unwrap();
     assert!(pass.is_applicable(&graph));
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_stats() {
     let pass = ContextAwarePass::new();
     let stats = pass.stats();
@@ -405,10 +393,9 @@ fn test_stats() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_multiple_hints_same_node() {
     let mut pass = ContextAwarePass::new();
-    let mut graph = parse_flc("(map (lambda (x) (* x x)) data)").unwrap();
+    let mut graph = parse_flc("data.map((x) => x * x)").unwrap();
 
     // Find map node and add multiple hints
     for (id, node) in &graph.nodes {
@@ -462,10 +449,9 @@ fn test_multiple_hints_same_node() {
 }
 
 #[test]
-#[ignore = "Optimizer needs update for FLC syntax"]
 fn test_no_context_memory() {
     let mut pass = ContextAwarePass::new();
-    let graph = parse_flc("(lambda (x) (+ x 1))").unwrap();
+    let graph = parse_flc("(x) => x + 1").unwrap();
 
     // Run without any context memory
     let result = pass.run(&graph);

@@ -5,7 +5,7 @@ use fluentai_vm::{
 };
 
 fn compile_and_run(code: &str) -> Result<Value, Box<dyn std::error::Error>> {
-    let graph = fluentai_parser::parse(code)?;
+    let graph = fluentai_parser::parse_flc(code)?;
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         ..Default::default()

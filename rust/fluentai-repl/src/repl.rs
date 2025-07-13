@@ -209,8 +209,8 @@ impl Repl {
         }
 
         // Parse and execute
-        use fluentai_parser::parse;
-        match parse(&input) {
+        use fluentai_parser::parse_flc;
+        match parse_flc(&input) {
             Ok(graph) => match self.env.execute(&graph) {
                 Ok(result) => {
                     println!("{}", result.cyan());

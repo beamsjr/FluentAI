@@ -933,10 +933,10 @@ impl TypeInferencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     fn infer_code(code: &str) -> Result<TypedValue> {
-        let graph = parse(code)?;
+        let graph = parse_flc(code)?;
         let mut inferencer = TypeInferencer::new();
         let types = inferencer.infer_graph(&graph)?;
 

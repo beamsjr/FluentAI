@@ -9,7 +9,6 @@
 //! TODO: Migrate to FLC syntax once the parser fully implements module system features
 
 use anyhow::Result;
-use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, VM};
 use rustc_hash::FxHashMap;
 

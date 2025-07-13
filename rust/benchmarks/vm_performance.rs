@@ -2,7 +2,6 @@
 //! 
 //! Detailed performance analysis of VM execution characteristics
 
-use fluentai_parser::parse;
 use fluentai_vm::{VM, Compiler};
 use std::time::Instant;
 

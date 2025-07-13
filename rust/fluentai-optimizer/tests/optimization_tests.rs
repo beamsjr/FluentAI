@@ -1,12 +1,12 @@
 use fluentai_core::ast::NodeId;
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, CompilerOptions, VM};
 
 #[test]
 fn test_constant_folding() {
-    let code = "(+ 2 3)";
-    let ast = parse(code).unwrap();
+    let code = "2 + 3";
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         constant_folding: true,
@@ -32,8 +32,8 @@ fn test_constant_folding() {
 
 #[test]
 fn test_dead_code_elimination() {
-    let code = "(let ((x 10) (y 20)) x)"; // y is dead code
-    let ast = parse(code).unwrap();
+    let code = "{ let x = 10; let y = 20; x }"; // y is dead code
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         constant_folding: false,
@@ -59,8 +59,8 @@ fn test_dead_code_elimination() {
 
 #[test]
 fn test_inline_optimization() {
-    let code = "((lambda (x) (+ x 1)) 5)";
-    let ast = parse(code).unwrap();
+    let code = "((x) => x + 1)(5)";
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         constant_folding: false,
@@ -81,20 +81,20 @@ fn test_inline_optimization() {
     let optimized = pipeline.optimize(&ast).unwrap();
 
     // Function should be inlined
-    // Resulting code should be equivalent to (+ 5 1)
+    // Resulting code should be equivalent to 5 + 1
     assert!(optimized.nodes.len() < ast.nodes.len());
 }
 
 #[test]
 fn test_performance_improvement() {
     // Test complex expression with multiple optimization opportunities
-    let code = r#"
-        (let ((add (lambda (x y) (+ x y)))
-              (mul (lambda (x y) (* x y))))
-          (+ (add 2 3) (mul 4 5)))
-    "#;
+    let code = r#"{
+        let add = (x, y) => x + y;
+        let mul = (x, y) => x * y;
+        add(2, 3) + mul(4, 5)
+    }"#;
 
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     // Compile without optimization
     let unopt_compiler = Compiler::with_options(CompilerOptions {
@@ -188,8 +188,8 @@ fn test_performance_improvement() {
 
 #[test]
 fn test_partial_evaluation() {
-    let code = "(if #t (+ 1 2) (- 4 5))";
-    let ast = parse(code).unwrap();
+    let code = "if (true) { 1 + 2 } else { 4 - 5 }";
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         constant_folding: true,
@@ -216,13 +216,15 @@ fn test_partial_evaluation() {
 #[test]
 fn test_optimization_levels() {
     let code = r#"
-        (let ((x 10)
-              (y 20)
-              (add (lambda (a b) (+ a b))))
-          (add x y))
+        {
+            let x = 10;
+            let y = 20;
+            let add = (a, b) => a + b;
+            add(x, y)
+        }
     "#;
 
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     // Test each optimization level
     for level in [

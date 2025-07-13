@@ -1,6 +1,5 @@
 //! Integration tests for FluentAi module system and package manager
 
-use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, vm::VM, Value};
 use fluentai_modules::{ModuleLoader, ModuleConfig};
 use fluentai_package::{Manifest, DependencyResolver, registry::LocalRegistry};

@@ -1,6 +1,6 @@
 //! Tests for actor self field access transformation
 
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc as parse;
 
 #[test]
 fn test_simple_field_access_in_handler() {
@@ -8,7 +8,7 @@ fn test_simple_field_access_in_handler() {
         private actor Counter {
             count: int = 0;
             
-            private handle Inc(n: int) {
+            private handle inc(n: int) {
                 count + n
             }
         }
@@ -36,7 +36,7 @@ fn test_multiple_field_access() {
             x: int = 0;
             y: int = 0;
             
-            private handle Add() {
+            private handle add() {
                 x + y
             }
         }
@@ -71,7 +71,7 @@ fn test_field_access_in_receive_pattern() {
         private actor Counter {
             count: int = 0;
             
-            private handle Message(msg: any) {
+            private handle message(msg: any) {
                 receive {
                     "get" => count,
                     "double" => count * 2,
@@ -91,7 +91,7 @@ fn test_field_access_with_method_chaining() {
         private actor Logger {
             messages: List<string> = [];
             
-            private handle GetLast() {
+            private handle get_last() {
                 messages.last().unwrap_or("none")
             }
         }
@@ -113,7 +113,7 @@ fn test_no_transformation_outside_handler() {
                 count + 1
             }
             
-            private handle Inc() {
+            private handle inc() {
                 // This 'count' SHOULD be transformed
                 count + 1
             }
@@ -131,7 +131,7 @@ fn test_field_access_in_conditional() {
             balance: int = 0;
             overdraft: int = 100;
             
-            private handle Withdraw(amount: int) {
+            private handle withdraw(amount: int) {
                 if (balance >= amount) {
                     balance - amount
                 } else {
@@ -151,7 +151,7 @@ fn test_field_name_shadowing() {
         private actor Counter {
             count: int = 0;
             
-            private handle Complex() {
+            private handle complex() {
                 let count = 10;  // Local variable shadows field
                 count + 1  // This should refer to local, not field
             }

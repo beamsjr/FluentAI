@@ -1,7 +1,7 @@
 //! Performance and stress tests for the optimizer
 
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use std::time::Instant;
 
 #[test]
@@ -13,7 +13,7 @@ fn test_large_constant_expression() {
     }
     code.push(')');
 
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let start = Instant::now();
     let mut optimizer = AdvancedOptimizer::new();
@@ -39,7 +39,7 @@ fn test_many_let_bindings() {
     }
     code.push_str(") (+ x0 x499))");
 
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let start = Instant::now();
     let mut optimizer = AdvancedOptimizer::new();
@@ -62,7 +62,7 @@ fn test_deeply_nested_if() {
         code.push_str(" 0)");
     }
 
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let start = Instant::now();
     let mut optimizer = AdvancedOptimizer::new();
@@ -90,7 +90,7 @@ fn test_cse_with_many_duplicates() {
         "Generated code (first 200 chars): {}",
         &code[..200.min(code.len())]
     );
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let start = Instant::now();
     let config = OptimizationConfig {
@@ -131,7 +131,7 @@ fn test_optimization_scales_linearly() {
         }
         code.push(')');
 
-        let ast = parse(&code).unwrap();
+        let ast = parse_flc(&code).unwrap();
 
         let start = Instant::now();
         let mut optimizer = AdvancedOptimizer::new();
@@ -169,7 +169,7 @@ fn test_memory_usage_bounded() {
     }
     code.push_str(") 42)");
 
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -193,7 +193,7 @@ fn test_pathological_cse_case() {
     }
     code.push(')');
 
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let start = Instant::now();
     let mut optimizer = AdvancedOptimizer::new();
@@ -224,7 +224,7 @@ fn test_stress_recursive_optimization() {
     }
 
     let code = generate_recursive_expr(15); // Creates 2^15 nodes
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let start = Instant::now();
     let mut optimizer = AdvancedOptimizer::new();
@@ -244,7 +244,7 @@ fn test_optimization_deterministic() {
               (c (- 10 5)))
           (+ a (+ b c)))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     // Run optimization multiple times
     let mut results = Vec::new();
@@ -270,7 +270,7 @@ fn test_incremental_optimization_benefit() {
                                (* n (expensive (- n 1)))))))
           (+ (expensive 5) (expensive 5) (expensive 5)))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     // Get stats
     let mut optimizer = AdvancedOptimizer::new();

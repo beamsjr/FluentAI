@@ -1,6 +1,5 @@
 //! Benchmark optimization performance
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, CompilerOptions, VM};
 use fluentai_optimizer::OptimizationLevel;
 use std::time::Instant;

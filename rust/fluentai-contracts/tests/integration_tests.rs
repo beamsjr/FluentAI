@@ -14,11 +14,11 @@ use fluentai_core::{
     ast::{Graph, Node},
     value::Value,
 };
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 /// Helper to set up a contract registry with parsed code
 fn setup_contracts(code: &str) -> (Arc<Graph>, ContractRegistry) {
-    let graph = Arc::new(parse(code).expect("Failed to parse code"));
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
     let mut registry = ContractRegistry::new();
     registry.enable(graph.clone());
     registry.register_contracts_from_ast(&graph);
@@ -26,18 +26,20 @@ fn setup_contracts(code: &str) -> (Arc<Graph>, ContractRegistry) {
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
-
 fn test_parse_simple_contract() {
     let code = r#"
-        (spec:contract add
-          :requires [(>= x 0) (>= y 0)]
-          :ensures [(>= result 0)]
-          :complexity "O(1)")
+        @contract(add)
+        @requires(x >= 0)
+        @requires(y >= 0)
+        @ensures(result >= 0)
+        @complexity("O(1)")
+        @pure(true)
+        private function add(x: int, y: int) -> int {
+            x + y
+        }
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
 
     // Find the contract node
     let contract_node = graph
@@ -64,18 +66,26 @@ fn test_parse_simple_contract() {
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_parse_contract_with_invariants() {
     let code = r#"
-        (spec:contract binary-search
-          :requires [(sorted? arr)]
-          :ensures [(or (= result -1) (= (nth arr result) target))]
-          :invariant [(>= high low)]
-          :complexity "O(log n)")
+        @contract(binary_search)
+        @requires(sorted(arr))
+        @ensures(result == -1 || nth(arr, result) == target)
+        @invariant(high >= low)
+        @complexity("O(log n)")
+        @pure(true)
+        private function binary_search(arr, target, low, high) -> int {
+            if (low > high) { -1 }
+            else {
+                let mid = (low + high) / 2;
+                if (nth(arr, mid) == target) { mid }
+                else { if (nth(arr, mid) < target) { binary_search(arr, target, mid + 1, high) }
+                else { binary_search(arr, target, low, mid - 1) } }
+            }
+        }
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
 
     let contract_node = graph
         .nodes
@@ -90,24 +100,25 @@ fn test_parse_contract_with_invariants() {
         ..
     } = contract_node
     {
-        assert_eq!(function_name, "binary-search");
+        assert_eq!(function_name, "binary_search");
         assert_eq!(invariants.len(), 1);
         assert_eq!(complexity, &Some("O(log n)".to_string()));
     }
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_parse_impure_contract() {
     let code = r#"
-        (spec:contract read-file
-          :requires [(file-exists? path)]
-          :ensures [(string? result)]
-          :pure false)
+        @contract(read_file)
+        @requires(file_exists(path))
+        @ensures(is_string(result))
+        @pure(false)
+        private function read_file(path: string) -> string {
+            perform IO.read_file(path)
+        }
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
 
     let contract_node = graph
         .nodes
@@ -121,22 +132,23 @@ fn test_parse_impure_contract() {
         ..
     } = contract_node
     {
-        assert_eq!(function_name, "read-file");
+        assert_eq!(function_name, "read_file");
         assert_eq!(*pure, false);
     }
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_parse_contract_with_pre_post_keywords() {
     let code = r#"
-        (spec:contract divide
-          :pre [(not= y 0)]
-          :post [(= result (/ x y))])
+        @contract(divide)
+        @requires(y != 0)
+        @ensures(result == x / y)
+        private function divide(x: int, y: int) -> int {
+            x / y
+        }
     "#;
 
-    let graph = parse(code).unwrap();
+    let graph = parse_flc(code).unwrap();
 
     let contract_node = graph
         .nodes
@@ -156,16 +168,20 @@ fn test_parse_contract_with_pre_post_keywords() {
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_precondition_success() {
     let code = r#"
-        (spec:contract divide
-          :requires [(not= y 0)]
-          :ensures [(= result (/ x y))])
+        @contract(divide)
+        @requires(y != 0)
+        @ensures(result == x / y)
+        private function divide(x: int, y: int) -> int {
+            x / y
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
     registry.register_function_params("divide".to_string(), vec!["x".to_string(), "y".to_string()]);
 
     // Test valid precondition
@@ -174,16 +190,20 @@ fn test_precondition_success() {
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_precondition_failure() {
     let code = r#"
-        (spec:contract divide
-          :requires [(not= y 0)]
-          :ensures [(= result (/ x y))])
+        @contract(divide)
+        @requires(y != 0)
+        @ensures(result == x / y)
+        private function divide(x: int, y: int) -> int {
+            x / y
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
     registry.register_function_params("divide".to_string(), vec!["x".to_string(), "y".to_string()]);
 
     // Test invalid precondition
@@ -201,15 +221,19 @@ fn test_precondition_failure() {
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_postcondition_success() {
     let code = r#"
-        (spec:contract abs
-          :ensures [(>= result 0)])
+        @contract(abs)
+        @ensures(result >= 0)
+        private function abs(x: int) -> int {
+            if (x < 0) { -x } else { x }
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
     registry.register_function_params("abs".to_string(), vec!["x".to_string()]);
 
     // Test valid postcondition
@@ -218,15 +242,19 @@ fn test_postcondition_success() {
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_postcondition_failure() {
     let code = r#"
-        (spec:contract abs
-          :ensures [(>= result 0)])
+        @contract(abs)
+        @ensures(result >= 0)
+        private function abs(x: int) -> int {
+            if (x < 0) { -x } else { x }
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
     registry.register_function_params("abs".to_string(), vec!["x".to_string()]);
 
     // Test invalid postcondition (bug: returning negative)
@@ -248,29 +276,34 @@ fn test_postcondition_failure() {
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_type_predicates() {
     let code = r#"
-        (spec:contract add-numbers
-          :requires [(number? x) (number? y)]
-          :ensures [(number? result)])
+        @contract(add_numbers)
+        @requires(is_number(x))
+        @requires(is_number(y))
+        @ensures(is_number(result))
+        private function add_numbers(x: float, y: float) -> float {
+            x + y
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
     registry.register_function_params(
-        "add-numbers".to_string(),
+        "add_numbers".to_string(),
         vec!["x".to_string(), "y".to_string()],
     );
 
     // Test with valid types
     let result =
-        registry.check_preconditions("add-numbers", &[Value::Integer(3), Value::Float(4.5)]);
+        registry.check_preconditions("add_numbers", &[Value::Integer(3), Value::Float(4.5)]);
     assert!(result.is_ok());
 
     // Test postcondition
     let result = registry.check_postconditions(
-        "add-numbers",
+        "add_numbers",
         &[Value::Integer(3), Value::Float(4.5)],
         &Value::Float(7.5),
     );
@@ -278,58 +311,66 @@ fn test_type_predicates() {
 
     // Test with invalid types
     let result = registry.check_preconditions(
-        "add-numbers",
+        "add_numbers",
         &[Value::String("not a number".to_string()), Value::Integer(4)],
     );
     assert!(result.is_err());
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_complex_conditions() {
     let code = r#"
-        (spec:contract safe-divide
-          :requires [(and (number? x) (number? y) (not= y 0))]
-          :ensures [(number? result)])
+        @contract(safe_divide)
+        @requires(is_number(x) && is_number(y) && y != 0)
+        @ensures(is_number(result))
+        private function safe_divide(x: float, y: float) -> float {
+            x / y
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
     registry.register_function_params(
-        "safe-divide".to_string(),
+        "safe_divide".to_string(),
         vec!["x".to_string(), "y".to_string()],
     );
 
     // Test valid case
     let result =
-        registry.check_preconditions("safe-divide", &[Value::Integer(10), Value::Integer(2)]);
+        registry.check_preconditions("safe_divide", &[Value::Integer(10), Value::Integer(2)]);
     assert!(result.is_ok());
 
     // Test division by zero
     let result =
-        registry.check_preconditions("safe-divide", &[Value::Integer(10), Value::Integer(0)]);
+        registry.check_preconditions("safe_divide", &[Value::Integer(10), Value::Integer(0)]);
     assert!(result.is_err());
 
     // Test non-number
     let result = registry.check_preconditions(
-        "safe-divide",
+        "safe_divide",
         &[Value::String("ten".to_string()), Value::Integer(2)],
     );
     assert!(result.is_err());
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_list_operations() {
     let code = r#"
-        (spec:contract first-element
-          :requires [(and (list? lst) (not (empty? lst)))]
-          :ensures [(= result (nth lst 0))])
+        @contract(first_element)
+        @requires(is_list(lst) && !is_empty(lst))
+        @ensures(result == nth(lst, 0))
+        private function first_element(lst) -> int {
+            nth(lst, 0)
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
-    registry.register_function_params("first-element".to_string(), vec!["lst".to_string()]);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
+    registry.register_function_params("first_element".to_string(), vec!["lst".to_string()]);
 
     // Test with non-empty list
     let list = Value::List(vec![
@@ -337,84 +378,100 @@ fn test_list_operations() {
         Value::Integer(2),
         Value::Integer(3),
     ]);
-    let result = registry.check_preconditions("first-element", &[list.clone()]);
+    let result = registry.check_preconditions("first_element", &[list.clone()]);
     assert!(result.is_ok());
 
     // Test postcondition
-    let result = registry.check_postconditions("first-element", &[list], &Value::Integer(1));
+    let result = registry.check_postconditions("first_element", &[list], &Value::Integer(1));
     assert!(result.is_ok());
 
     // Test with empty list
     let empty_list = Value::List(vec![]);
-    let result = registry.check_preconditions("first-element", &[empty_list]);
+    let result = registry.check_preconditions("first_element", &[empty_list]);
     assert!(result.is_err());
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_purity_checking() {
     let code = r#"
-        (spec:contract pure-add
-          :requires [(number? x) (number? y)]
-          :ensures [(= result (+ x y))]
-          :pure true)
+        @contract(pure_add)
+        @requires(is_number(x))
+        @requires(is_number(y))
+        @ensures(result == x + y)
+        @pure(true)
+        private function pure_add(x: int, y: int) -> int {
+            x + y
+        }
     "#;
 
-    let (_, registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let registry = ContractRegistry::new();
+    let mut registry = registry;
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
 
     // Check that function is marked as pure
-    assert!(registry.is_pure_function("pure-add"));
+    assert!(registry.is_pure_function("pure_add"));
 
     // Test purity violation
-    let result = registry.check_purity("pure-add", true); // had_side_effects = true
+    let result = registry.check_purity("pure_add", true); // had_side_effects = true
     assert!(result.is_err());
 
     // Test no purity violation
-    let result = registry.check_purity("pure-add", false);
+    let result = registry.check_purity("pure_add", false);
     assert!(result.is_ok());
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_contract_with_multiple_conditions() {
     let code = r#"
-        (spec:contract range-check
-          :requires [(number? x)]
-          :ensures [(>= result 0) (<= result 100)])
+        @contract(range_check)
+        @requires(is_number(x))
+        @ensures(result >= 0)
+        @ensures(result <= 100)
+        private function range_check(x) -> int {
+            if (x < 0) { 0 } else { if (x > 100) { 100 } else { x } }
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
-    registry.register_function_params("range-check".to_string(), vec!["x".to_string()]);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
+    registry.register_function_params("range_check".to_string(), vec!["x".to_string()]);
 
     // Test valid result
     let result =
-        registry.check_postconditions("range-check", &[Value::Integer(150)], &Value::Integer(50));
+        registry.check_postconditions("range_check", &[Value::Integer(150)], &Value::Integer(50));
     assert!(result.is_ok());
 
     // Test result too low
     let result =
-        registry.check_postconditions("range-check", &[Value::Integer(150)], &Value::Integer(-1));
+        registry.check_postconditions("range_check", &[Value::Integer(150)], &Value::Integer(-1));
     assert!(result.is_err());
 
     // Test result too high
     let result =
-        registry.check_postconditions("range-check", &[Value::Integer(150)], &Value::Integer(101));
+        registry.check_postconditions("range_check", &[Value::Integer(150)], &Value::Integer(101));
     assert!(result.is_err());
 }
 
 #[test]
-#[ignore = "Requires FLC contract syntax support"]
-
 fn test_sorted_predicate() {
     let code = r#"
-        (spec:contract sort
-          :requires [(list? input)]
-          :ensures [(sorted? result) (= (length result) (length input))])
+        @contract(sort)
+        @requires(is_list(input))
+        @ensures(is_sorted(result))
+        @ensures(length(result) == length(input))
+        private function sort(input) {
+            input
+        }
     "#;
 
-    let (_, mut registry) = setup_contracts(code);
+    let graph = Arc::new(parse_flc(code).expect("Failed to parse code"));
+    let mut registry = ContractRegistry::new();
+    registry.enable(graph.clone());
+    registry.register_contracts_from_ast(&graph);
     registry.register_function_params("sort".to_string(), vec!["input".to_string()]);
 
     let input = Value::List(vec![

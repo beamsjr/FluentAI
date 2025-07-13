@@ -1,12 +1,12 @@
 use fluentai_optimizer::pipeline::OptimizationLevel;
 use fluentai_optimizer::{AdvancedOptimizer, OptimizationConfig, OptimizationPipeline};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn debug_cse() {
     // Program with repeated subexpressions
-    let code = "(let ((x 5)) (+ (* x 2) (* x 2) (* x 2)))";
-    let graph = parse(code).unwrap();
+    let code = "{ let x = 5; (x * 2) + (x * 2) + (x * 2) }";
+    let graph = parse_flc(code).unwrap();
 
     println!("Original AST ({} nodes):", graph.nodes.len());
     for (id, node) in &graph.nodes {

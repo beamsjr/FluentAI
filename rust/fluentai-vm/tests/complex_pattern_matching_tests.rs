@@ -3,7 +3,6 @@
 // Complex pattern matching tests
 use anyhow::Result;
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, CompilerOptions, Value, VM};
 
 fn compile_and_run(source: &str) -> Result<Value> {

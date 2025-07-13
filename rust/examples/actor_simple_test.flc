@@ -1,0 +1,9 @@
+// Minimal actor with handler
+
+private actor Counter {
+    count: int = 0;
+    
+    private handle inc(n: int) {
+        count + n
+    }
+}

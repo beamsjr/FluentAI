@@ -1,7 +1,6 @@
 //! Tests for VM safety improvements
 
 use fluentai_core::value::Value;
-use fluentai_parser::parse;
 use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};
 use fluentai_vm::compiler::Compiler;
 use fluentai_vm::safety::{checked_ops, ResourceLimits};
