@@ -1,5 +1,6 @@
 //! Simple test to debug handler functionality
 
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, Value, VM};
 
 #[test]
@@ -13,7 +14,7 @@ fn test_simple_handler() {
         }
     "#;
 
-    let graph = parse(code).expect("Should parse");
+    let graph = parse_flc(code).expect("Should parse");
     println!("AST: {:#?}", graph);
 
     let bytecode = Compiler::new().compile(&graph).expect("Should compile");

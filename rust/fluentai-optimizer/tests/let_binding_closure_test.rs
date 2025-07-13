@@ -45,15 +45,12 @@ fn test_optimizer_preserves_let_bindings_with_closures() {
     println!("Original root: {:?}", graph.root_id);
     println!("Optimized root: {:?}", optimized.root_id);
     
-    // Check that the let binding still exists
-    let let_node_opt = optimized.get_node(let_node);
-    println!("Let node in optimized graph: {:?}", let_node_opt);
+    // Check the root is still a Let node
+    assert!(optimized.root_id.is_some(), "Optimized graph has no root");
+    let root_id = optimized.root_id.unwrap();
+    let root_node = optimized.get_node(root_id).expect("Root node not found");
     
-    // Check what happened to the root
-    if let Some(root_id) = optimized.root_id {
-        let root_node = optimized.get_node(root_id);
-        println!("Root node in optimized graph: {:?}", root_node);
-    }
+    println!("Root node in optimized graph: {:?}", root_node);
     
     // Print all nodes to see what happened
     println!("\nAll nodes in optimized graph:");
@@ -61,20 +58,34 @@ fn test_optimizer_preserves_let_bindings_with_closures() {
         println!("  {:?}: {:?}", id, node);
     }
     
-    assert!(let_node_opt.is_some(), "Let node was removed by optimizer");
-    
-    // Check that the channel node still exists
-    let channel_opt = optimized.get_node(channel);
-    assert!(channel_opt.is_some(), "Channel node was removed by optimizer");
-    
-    // Check the structure is preserved
-    if let Some(Node::Let { bindings, body }) = let_node_opt {
-        assert_eq!(bindings.len(), 1, "Let binding was modified");
-        assert_eq!(bindings[0].0, "ch", "Let binding name was changed");
-        assert_eq!(bindings[0].1, channel, "Let binding value was changed");
-        assert_eq!(*body, sequence, "Let body was changed");
-    } else {
-        panic!("Let node type was changed: {:?}", let_node_opt);
+    // Check the structure is preserved at the root
+    match root_node {
+        Node::Let { bindings, body } => {
+            assert_eq!(bindings.len(), 1, "Let binding count was modified");
+            assert_eq!(bindings[0].0, "ch", "Let binding name was changed");
+            
+            // Check that the bound value is a Channel
+            let channel_id = bindings[0].1;
+            let channel_node = optimized.get_node(channel_id).expect("Channel node not found");
+            assert!(matches!(channel_node, Node::Channel { .. }), "Let binding value is not a Channel");
+            
+            // Check that the body contains spawn and receive
+            let body_node = optimized.get_node(*body).expect("Let body not found");
+            if let Node::List(items) = body_node {
+                assert_eq!(items.len(), 2, "Body should have 2 items (spawn and receive)");
+                
+                // Check first item is a spawn
+                let spawn_node = optimized.get_node(items[0]).expect("Spawn node not found");
+                assert!(matches!(spawn_node, Node::Spawn { .. }), "First item should be Spawn");
+                
+                // Check second item is a receive
+                let receive_node = optimized.get_node(items[1]).expect("Receive node not found");
+                assert!(matches!(receive_node, Node::Receive { .. }), "Second item should be Receive");
+            } else {
+                panic!("Let body should be a List, got: {:?}", body_node);
+            }
+        }
+        _ => panic!("Root should be a Let node, got: {:?}", root_node),
     }
 }
 
@@ -118,16 +129,28 @@ fn test_individual_passes_on_let_binding() {
             println!("  Root changed from {:?} to {:?}", graph.root_id, result.root_id);
         }
         
-        if let Some(let_node_after) = result.get_node(let_node) {
-            if !matches!(let_node_after, Node::Let { .. }) {
-                println!("  Let node type changed to: {:?}", let_node_after);
+        // Check if the root is still a Let node
+        if let Some(root_id) = result.root_id {
+            if let Some(root_node) = result.get_node(root_id) {
+                if !matches!(root_node, Node::Let { .. }) {
+                    println!("  Root is no longer a Let node: {:?}", root_node);
+                } else if let Node::Let { bindings, .. } = root_node {
+                    if bindings.len() != 1 || bindings[0].0 != "ch" {
+                        println!("  Let bindings were modified: {:?}", bindings);
+                    }
+                    // Check that the channel still exists (might have new ID)
+                    let channel_id = bindings[0].1;
+                    if let Some(channel_node) = result.get_node(channel_id) {
+                        if !matches!(channel_node, Node::Channel { .. }) {
+                            println!("  Channel node type changed: {:?}", channel_node);
+                        }
+                    } else {
+                        println!("  Channel node was removed!");
+                    }
+                }
             }
         } else {
-            println!("  Let node was removed!");
-        }
-        
-        if result.get_node(channel).is_none() {
-            println!("  Channel node was removed!");
+            println!("  Root was removed!");
         }
     }
 }
@@ -151,7 +174,25 @@ fn test_optimizer_preserves_channel_side_effects() {
     let mut pipeline = OptimizationPipeline::new(config);
     let optimized = pipeline.optimize(&graph).unwrap();
     
-    // Channel should still exist because it has side effects
-    let channel_opt = optimized.get_node(channel);
-    assert!(channel_opt.is_some(), "Channel with side effects was removed");
+    // The root should still be a Let node
+    assert!(optimized.root_id.is_some(), "Optimized graph has no root");
+    let root_node = optimized.get_node(optimized.root_id.unwrap()).expect("Root node not found");
+    
+    // Check the structure is preserved
+    match root_node {
+        Node::Let { bindings, body } => {
+            assert_eq!(bindings.len(), 1, "Let binding count was modified");
+            assert_eq!(bindings[0].0, "unused_ch", "Let binding name was changed");
+            
+            // Check that the bound value is a Channel
+            let channel_id = bindings[0].1;
+            let channel_node = optimized.get_node(channel_id).expect("Channel node not found");
+            assert!(matches!(channel_node, Node::Channel { .. }), "Channel with side effects was removed");
+            
+            // Check that the body is still Nil
+            let body_node = optimized.get_node(*body).expect("Let body not found");
+            assert!(matches!(body_node, Node::Literal(Literal::Nil)), "Let body should be Nil");
+        }
+        _ => panic!("Root should be a Let node, got: {:?}", root_node),
+    }
 }
