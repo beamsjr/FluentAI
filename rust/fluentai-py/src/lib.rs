@@ -1,7 +1,7 @@
 //! Python bindings for FluentAi Rust implementation
 
 use fluentai_core::ast::{Graph, Literal, Node};
-use fluentai_parser::parse as rust_parse;
+use fluentai_parser::parse_flc as rust_parse;
 use fluentai_vm::{compiler::Compiler, vm::VM, Value};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;

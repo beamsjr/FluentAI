@@ -3,7 +3,7 @@
 use crate::error::{MetaprogrammingError, Result};
 use crate::patterns::{Pattern, PatternMatcher};
 use fluentai_core::ast::{Graph, Node, NodeId};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
@@ -246,7 +246,7 @@ impl MacroExpander {
         }
 
         // Parse expanded code
-        parse(&expanded).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
+        parse_flc(&expanded).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
 
     /// Convert node to string representation
@@ -271,7 +271,7 @@ impl MacroExpander {
         args: &[NodeId],
     ) -> Result<Graph> {
         if args.is_empty() {
-            return parse("nil").map_err(|e| MetaprogrammingError::ParseError(e.to_string()));
+            return parse_flc("nil").map_err(|e| MetaprogrammingError::ParseError(e.to_string()));
         }
 
         // Build nested if expressions
@@ -288,7 +288,7 @@ impl MacroExpander {
             }
         }
 
-        parse(&result).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
+        parse_flc(&result).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
 
     /// Expand let* macro
@@ -331,7 +331,7 @@ impl MacroExpander {
             }
         }
 
-        parse(&result).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
+        parse_flc(&result).map_err(|e| MetaprogrammingError::ParseError(e.to_string()))
     }
 
     /// Replace a node in the graph

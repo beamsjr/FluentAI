@@ -210,7 +210,7 @@ fn compile_file(source_file: &Path, config: &BuildConfig) -> Result<CompiledModu
     let source = fs::read_to_string(source_file)?;
 
     // Parse
-    let ast = fluentai_parser::parse(&source).context("Failed to parse source file")?;
+    let ast = fluentai_parser::parse_flc(&source).context("Failed to parse source file")?;
 
     // Optimize
     let ast = if config.optimization_level > 0 {

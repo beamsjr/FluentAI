@@ -18,6 +18,8 @@ pub mod gc;
 #[cfg(feature = "jit")]
 pub mod jit_integration;
 pub mod memory_pool;
+pub mod module_loader;
+pub mod module_registry;
 pub mod opcode_handlers;
 pub mod optimization;
 pub mod safety;
@@ -47,6 +49,8 @@ pub use fluentai_optimizer::OptimizationLevel;
 pub use free_var_analysis::{FreeVarAnalyzer, VarInfo};
 pub use gc::{GarbageCollector, GcConfig, GcHandle, GcScope};
 pub use memory_pool::{MemoryPool, ObjectPool, PoolConfig, SlabAllocator};
+pub use module_loader::{ModuleLoader, ModuleLoaderConfig};
+pub use module_registry::{ModuleInfo, ModuleRegistry};
 pub use optimization::{CachedValue, FusedOpcode, InlineCache, InstructionFusion, ProfileInfo};
 pub use security::{Capability, SecurityManager, SecurityPolicy, TaintLevel};
 pub use simd::{PortableSimd, SimdOp, SimdOps};

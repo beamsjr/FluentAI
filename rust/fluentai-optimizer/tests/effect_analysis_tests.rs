@@ -2,7 +2,7 @@
 
 use fluentai_core::ast::{EffectType, Graph, Literal, Node, NodeId};
 use fluentai_optimizer::analysis::EffectAnalysis;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashSet;
 use std::num::NonZeroU32;
 
@@ -10,7 +10,7 @@ use std::num::NonZeroU32;
 fn test_pure_expressions() {
     // Test that pure expressions are correctly identified
     let code = "(+ 1 2)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -26,7 +26,7 @@ fn test_pure_expressions() {
 fn test_io_effect_detection() {
     // Test that IO effects are detected
     let code = "(print \"hello\")";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -47,7 +47,7 @@ fn test_io_effect_detection() {
 fn test_effect_propagation() {
     // Test that effects propagate through expressions
     let code = "(let ((x (print \"side effect\"))) (+ x 1))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -65,7 +65,7 @@ fn test_nested_effect_detection() {
             (print "positive")
             (print "non-positive"))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -84,7 +84,7 @@ fn test_nested_effect_detection() {
 fn test_pure_function_definition() {
     // Test that lambda definitions are pure
     let code = "(lambda (x) (+ x 1))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -108,7 +108,7 @@ fn test_effect_in_let_binding() {
               (c 3))
           (+ a c))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -127,7 +127,7 @@ fn test_effect_in_let_binding() {
 fn test_const_evaluable_detection() {
     // Test const evaluable expressions
     let code = "(+ 2 (* 3 4))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -143,7 +143,7 @@ fn test_const_evaluable_detection() {
 fn test_non_const_evaluable() {
     // Test non-const evaluable expressions
     let code = "(+ x 1)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -220,7 +220,7 @@ fn test_multiple_effect_types() {
 fn test_effect_cycle_handling() {
     // Test that cycles in effect analysis are handled
     let code = "(letrec ((f (lambda () (f)))) f)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     // Should not panic or infinite loop
     let analysis = EffectAnalysis::analyze(&ast);
@@ -243,7 +243,7 @@ fn test_pure_primitive_functions() {
     ];
 
     for code in pure_ops {
-        let ast = parse(code).unwrap();
+        let ast = parse_flc(code).unwrap();
         let analysis = EffectAnalysis::analyze(&ast);
 
         // All nodes should be pure
@@ -262,7 +262,7 @@ fn test_effect_aware_optimization_hints() {
               (effect-val (print "hello")))
           pure-val)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -302,7 +302,7 @@ fn test_effect_in_function_application() {
         (let ((f (lambda (x) (print x))))
           (f "test"))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -378,7 +378,7 @@ fn test_effect_free_program() {
               (add (lambda (x y) (+ x y))))
           (add (square 3) (square 4)))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 
@@ -403,7 +403,7 @@ fn test_effect_analysis_completeness() {
             (let ((a 1)) (+ a 2))
             (list 1 2 3))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let analysis = EffectAnalysis::analyze(&ast);
 

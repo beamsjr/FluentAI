@@ -11,10 +11,10 @@
 //!
 //! ```no_run
 //! use fluentai_types::{TypeChecker, TypeEnvironment};
-//! use fluentai_parser::parse;
+//! use fluentai_parser::parse_flc;
 //!
 //! let code = "(lambda (x) (+ x 1))";
-//! let graph = parse(code).unwrap();
+//! let graph = parse_flc(code).unwrap();
 //!
 //! let mut checker = TypeChecker::new();
 //! let result = checker.check(&graph);
@@ -81,12 +81,12 @@ mod checker_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     #[test]
     fn test_basic_type_inference() {
         let code = "1 + 2";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let types = infer_types(&graph).unwrap();
 
         assert!(!types.is_empty());
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn test_function_type_inference() {
         let code = "(x, y) => x + y";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let types = infer_types(&graph).unwrap();
 
         if let Some(root_id) = graph.root_id {
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_type_checking() {
         let code = "if (true) { 1 } else { 2 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let result = type_check(&graph);
 
         assert!(result.success);
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_type_error_detection() {
         let code = "1 + \"hello\"";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let result = type_check(&graph);
 
         assert!(!result.success);

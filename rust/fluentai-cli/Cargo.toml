@@ -18,7 +18,6 @@ fluentai-vm = { path = "../fluentai-vm" }
 fluentai-package = { path = "../fluentai-package" }
 fluentai-optimizer = { path = "../fluentai-optimizer" }
 fluentai-core-lib = { path = "../fluentai-core-lib" }
-fluentai-sdk = { path = "../fluentai-sdk" }
 
 # Optional visualization
 fluentai-viz = { path = "../fluentai-viz", optional = true }

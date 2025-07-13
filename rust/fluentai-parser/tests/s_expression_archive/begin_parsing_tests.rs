@@ -1,7 +1,6 @@
 //! Parser tests for multiple top-level expressions
 
 use fluentai_core::ast::{Graph, Node};
-use fluentai_parser::parse;
 
 #[test]
 fn test_parse_multiple_expressions() {

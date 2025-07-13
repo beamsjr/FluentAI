@@ -15,6 +15,9 @@ pub mod collections;
 pub mod concurrent;
 pub mod effects;
 pub mod logical;
+pub mod comparison;
+pub mod string;
+pub mod module;
 
 /// Trait for opcode handlers
 pub trait OpcodeHandler {
@@ -31,3 +34,6 @@ pub use collections::CollectionsHandler;
 pub use concurrent::ConcurrentHandler;
 pub use effects::EffectsHandler;
 pub use logical::LogicalHandler;
+pub use comparison::ComparisonHandler;
+pub use string::StringHandler;
+pub use module::ModuleHandler;

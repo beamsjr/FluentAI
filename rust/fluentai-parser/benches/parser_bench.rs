@@ -1,5 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use fluentai_parser::parse;
 
 const SIMPLE_EXPR: &str = "(+ 1 2)";
 const NESTED_EXPR: &str = "(* (+ 1 2) (- 4 3))";

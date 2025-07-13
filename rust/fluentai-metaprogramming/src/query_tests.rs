@@ -3,14 +3,13 @@ mod tests {
     use crate::patterns::{MatchResult, NodePattern, Pattern};
     use crate::query::{Constraint, GraphQuery, OrderBy, QueryExecutor, QueryResult, SelectClause};
     use fluentai_core::ast::{Graph, Literal, NodeId};
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     use std::num::NonZeroU32;
 
     // ===== GraphQuery Tests =====
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_graph_query_creation() {
+        fn test_graph_query_creation() {
         let query = GraphQuery {
             pattern: Pattern::Any,
             constraints: vec![],
@@ -27,8 +26,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_graph_query_with_limit() {
+        fn test_graph_query_with_limit() {
         let query = GraphQuery {
             pattern: Pattern::Any,
             constraints: vec![],
@@ -41,8 +39,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_graph_query_with_ordering() {
+        fn test_graph_query_with_ordering() {
         let query = GraphQuery {
             pattern: Pattern::Any,
             constraints: vec![],
@@ -63,8 +60,7 @@ mod tests {
     // ===== Constraint Tests =====
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_path_constraint() {
+        fn test_path_constraint() {
         let constraint = Constraint::Path {
             from: "start".to_string(),
             to: "end".to_string(),
@@ -86,8 +82,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_ancestor_constraint() {
+        fn test_ancestor_constraint() {
         let constraint = Constraint::Ancestor {
             ancestor: "parent".to_string(),
             descendant: "child".to_string(),
@@ -106,8 +101,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_sibling_constraint() {
+        fn test_sibling_constraint() {
         let constraint = Constraint::Sibling {
             node1: "a".to_string(),
             node2: "b".to_string(),
@@ -123,8 +117,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_predicate_constraint() {
+        fn test_predicate_constraint() {
         let constraint = Constraint::Predicate {
             name: "is_pure".to_string(),
             args: vec!["func".to_string()],
@@ -142,15 +135,13 @@ mod tests {
     // ===== SelectClause Tests =====
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_select_all() {
+        fn test_select_all() {
         let select = SelectClause::All;
         assert!(matches!(select, SelectClause::All));
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_select_bindings() {
+        fn test_select_bindings() {
         let select = SelectClause::Bindings(vec!["x".to_string(), "y".to_string()]);
         match select {
             SelectClause::Bindings(bindings) => {
@@ -163,8 +154,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_select_transform() {
+        fn test_select_transform() {
         let select = SelectClause::Transform("node_type".to_string());
         match select {
             SelectClause::Transform(transform) => {
@@ -175,8 +165,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_select_count() {
+        fn test_select_count() {
         let select = SelectClause::Count;
         assert!(matches!(select, SelectClause::Count));
     }
@@ -184,8 +173,7 @@ mod tests {
     // ===== QueryResult Tests =====
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_query_result_empty() {
+        fn test_query_result_empty() {
         let result = QueryResult {
             matches: vec![],
             total_count: 0,
@@ -196,8 +184,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_query_result_with_matches() {
+        fn test_query_result_with_matches() {
         let mut match1 = MatchResult::new();
         match1
             .matched_nodes
@@ -220,18 +207,16 @@ mod tests {
     // ===== QueryExecutor Tests =====
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_query_executor_new() {
+        fn test_query_executor_new() {
         let graph = Graph::new();
         let executor = QueryExecutor::new(&graph);
         // Just verify it can be created
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_execute_simple_query() {
-        let code = "(+ 1 2)";
-        let graph = parse(code).unwrap();
+        fn test_execute_simple_query() {
+        let code = "1 + 2";
+        let graph = parse_flc(code).unwrap();
 
         let executor = QueryExecutor::new(&graph);
         let query = GraphQuery {
@@ -250,10 +235,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_execute_query_with_bindings() {
-        let code = "(+ 1 2)";
-        let graph = parse(code).unwrap();
+        fn test_execute_query_with_bindings() {
+        let code = "1 + 2";
+        let graph = parse_flc(code).unwrap();
 
         let executor = QueryExecutor::new(&graph);
         let query = GraphQuery {
@@ -275,10 +259,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_execute_query_with_limit() {
-        let code = "(list 1 2 3 4 5)";
-        let graph = parse(code).unwrap();
+        fn test_execute_query_with_limit() {
+        let code = "[1, 2, 3, 4, 5]";
+        let graph = parse_flc(code).unwrap();
 
         let executor = QueryExecutor::new(&graph);
         let query = GraphQuery {
@@ -298,10 +281,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_execute_query_count() {
-        let code = "(+ 1 (+ 2 (+ 3 4)))";
-        let graph = parse(code).unwrap();
+        fn test_execute_query_count() {
+        let code = "1 + (2 + (3 + 4))";
+        let graph = parse_flc(code).unwrap();
 
         let executor = QueryExecutor::new(&graph);
         let query = GraphQuery {
@@ -325,10 +307,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_execute_query_no_matches() {
-        let code = "(+ 1 2)";
-        let graph = parse(code).unwrap();
+        fn test_execute_query_no_matches() {
+        let code = "1 + 2";
+        let graph = parse_flc(code).unwrap();
 
         let executor = QueryExecutor::new(&graph);
         let query = GraphQuery {
@@ -348,10 +329,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_query_with_ancestor_constraint() {
-        let code = "(let ((x 1)) (+ x 2))";
-        let graph = parse(code).unwrap();
+        fn test_query_with_ancestor_constraint() {
+        let code = "let x = 1; x + 2";
+        let graph = parse_flc(code).unwrap();
 
         let executor = QueryExecutor::new(&graph);
         let query = GraphQuery {
@@ -377,15 +357,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_complex_query() {
-        let code = r#"
-            (define (factorial n)
-              (if (<= n 1)
-                  1
-                  (* n (factorial (- n 1)))))
-        "#;
-        let graph = parse(code).unwrap();
+        fn test_complex_query() {
+        let code = "private function factorial(n) { if (n <= 1) { 1 } else { n * factorial(n - 1) } }";
+        let graph = parse_flc(code).unwrap();
 
         let executor = QueryExecutor::new(&graph);
 
@@ -413,8 +387,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Uses s-expression syntax - needs FLC update"]
-    fn test_query_builder_pattern() {
+        fn test_query_builder_pattern() {
         // Test that queries can be built incrementally
         let mut query = GraphQuery {
             pattern: Pattern::Any,

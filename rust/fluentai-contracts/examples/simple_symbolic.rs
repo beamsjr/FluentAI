@@ -1,7 +1,8 @@
 //! Simple example demonstrating symbolic execution
+use fluentai_parser::parse_flc;
+
 
 use fluentai_contracts::{SymbolicExecutor, SymbolicValue};
-use fluentai_parser::parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Simple arithmetic function with branches
@@ -14,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   x))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
 
         // Create symbolic executor
         let executor = SymbolicExecutor::new();
@@ -52,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                       0)))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
         let executor = SymbolicExecutor::new();
         let states = executor.execute_function_by_name(&graph, "sign")?;
 
@@ -88,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   b))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
         let executor = SymbolicExecutor::new();
         let states = executor.execute_function_by_name(&graph, "max")?;
 

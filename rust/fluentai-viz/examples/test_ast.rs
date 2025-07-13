@@ -1,10 +1,10 @@
 //! Test AST transmission
 
 use anyhow::Result;
-use fluentai_parser::parse;
 use fluentai_viz::{
     layout::ASTLayouter, serializer::VisualizationMessage, ServerConfig, VisualizationServer,
 };
+use fluentai_parser::parse_flc;
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
     for (name, source) in programs {
         println!("Parsing {}: {}", name, source);
 
-        match parse(source) {
+        match parse_flc(source) {
             Ok(ast) => {
                 let layouter = ASTLayouter::default();
                 let graph_layout = layouter.layout(&ast);

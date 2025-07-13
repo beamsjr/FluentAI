@@ -1,7 +1,6 @@
 //! Tests for parsing complex pattern matching syntax
 
 use fluentai_core::ast::{Literal, Node, Pattern, RangePattern};
-use fluentai_parser::parse;
 
 #[test]
 fn test_parse_or_pattern() {

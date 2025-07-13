@@ -1,5 +1,4 @@
 // Validation test for IoT demo syntax
-use fluentai_parser::parse;
 
 fn main() {
     println!("Validating IoT demo FluentAI syntax...\n");

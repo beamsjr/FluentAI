@@ -2,13 +2,13 @@
 
 use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn test_empty_program() {
     // Test optimization of empty program
     let code = "()";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -20,7 +20,7 @@ fn test_empty_program() {
 fn test_single_literal() {
     // Test optimization of single literal
     let code = "42";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -41,7 +41,7 @@ fn test_deeply_nested_let() {
     }
     code.push(')');
 
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -58,7 +58,7 @@ fn test_many_unused_bindings() {
     }
     code.push_str("(used 42)) used)");
 
-    let ast = parse(&code).unwrap();
+    let ast = parse_flc(&code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -71,7 +71,7 @@ fn test_many_unused_bindings() {
 fn test_circular_let_bindings() {
     // Test handling of circular let bindings (should fail gracefully)
     let code = "(let ((x y) (y x)) x)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -84,7 +84,7 @@ fn test_circular_let_bindings() {
 fn test_empty_function_body() {
     // Test lambda with empty body
     let code = "(lambda () ())";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -96,7 +96,7 @@ fn test_empty_function_body() {
 fn test_if_with_same_branches() {
     // Test if expression with identical branches
     let code = "(if (> x 0) 42 42)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -109,7 +109,7 @@ fn test_if_with_same_branches() {
 fn test_application_with_no_args() {
     // Test function application with no arguments
     let code = "((lambda () 42))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -123,7 +123,7 @@ fn test_application_with_no_args() {
 fn test_let_with_no_bindings() {
     // Test let with no bindings
     let code = "(let () 42)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -136,7 +136,7 @@ fn test_let_with_no_bindings() {
 fn test_list_optimization() {
     // Test optimization of list expressions
     let code = "(list (+ 1 2) (- 5 3) (* 2 3))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -154,7 +154,7 @@ fn test_match_optimization() {
           (3 "three")
           (_ "other"))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -173,7 +173,7 @@ fn test_module_optimization() {
           (let ((add (lambda (x y) (+ x y))))
             add))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -185,7 +185,7 @@ fn test_module_optimization() {
 fn test_async_optimization() {
     // Test optimization of async/await expressions
     let code = "(async (+ 1 2))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -204,7 +204,7 @@ fn test_contract_optimization() {
           (post (> result 0))
           (pure #t))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -219,7 +219,7 @@ fn test_effect_optimization() {
         (effect io
           (read-file "test.txt"))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -280,7 +280,7 @@ fn test_optimization_with_invalid_node_ids() {
 fn test_mixed_numeric_types() {
     // Test optimization with mixed integer and float operations
     let code = "(+ 1 2.5)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -293,7 +293,7 @@ fn test_mixed_numeric_types() {
 fn test_variable_without_binding() {
     // Test optimization of free variables
     let code = "(+ x 5)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -310,7 +310,7 @@ fn test_variable_without_binding() {
 fn test_multiple_optimization_passes() {
     // Test running optimization multiple times
     let code = "(let ((x 5) (y 10)) (+ (+ x y) (+ x y)))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer1 = AdvancedOptimizer::new();
     let opt1 = optimizer1.optimize(&ast).unwrap();

@@ -1,6 +1,7 @@
 //! Debug AST structure to understand how functions are stored
+use fluentai_parser::parse_flc;
 
-use fluentai_parser::parse;
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let program = r#"
@@ -10,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
               x))
     "#;
 
-    let graph = parse(program)?;
+    let graph = parse_flc(program)?;
 
     println!("Graph nodes:");
     for (id, node) in &graph.nodes {

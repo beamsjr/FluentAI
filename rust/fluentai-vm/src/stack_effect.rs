@@ -59,11 +59,15 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         
         // Load operations
         Load | LoadGlobal | LoadCaptured | LoadLocal0 
-        | LoadLocal1 | LoadLocal2 | LoadLocal3 => StackEffect::new(0, 1),
+        | LoadLocal1 | LoadLocal2 | LoadLocal3 | LoadLocal 
+        | LoadUpvalue => StackEffect::new(0, 1),
         
         // Store operations
         Store => StackEffect::new(1, 0),
         StoreGlobal => StackEffect::new(1, 0),
+        StoreLocal => StackEffect::new(1, 0),
+        StoreUpvalue => StackEffect::new(1, 0),
+        DefineGlobal => StackEffect::new(1, 0),
         UpdateLocal => StackEffect::new(1, 0),
         
         // Binary operations (consume 2, produce 1)
@@ -102,6 +106,8 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
             let count = instruction.arg as usize;
             StackEffect::new(count, 1)
         }
+        ListGet => StackEffect::new(2, 1), // Consumes list and index, produces value
+        ListSet => StackEffect::new(3, 1), // Consumes list, index, and value, produces list
         
         // Tagged values
         MakeTagged => {
@@ -112,6 +118,8 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         
         // Cell operations
         MakeCell => StackEffect::new(1, 1), // Consumes value, produces cell
+        LoadCell => StackEffect::new(0, 1), // Loads cell from environment
+        StoreCell => StackEffect::new(1, 0), // Stores value to cell
         CellGet => StackEffect::new(1, 1), // Consumes cell, produces value
         CellSet => StackEffect::new(2, 1), // Consumes cell and value, produces nil
         
@@ -127,6 +135,8 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         
         // Channel operations
         Channel => StackEffect::new(0, 1), // Creates channel
+        ChannelWithCapacity => StackEffect::new(1, 1), // Consumes capacity, produces channel
+        MakeChannel => StackEffect::new(0, 1), // Creates channel (alias for Channel)
         Send => StackEffect::new(2, 1), // Consumes channel and value, produces nil
         Receive => StackEffect::new(1, 1), // Consumes channel, produces value
         TrySend => StackEffect::new(2, 1), // Consumes channel and value, produces bool
@@ -140,6 +150,7 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         }
         
         // Actor operations
+        MakeActor => StackEffect::new(2, 1), // Consumes state and handler, produces actor
         ActorSend => StackEffect::new(2, 1), // Consumes actor and message, produces nil
         
         // Handler operations
@@ -155,6 +166,11 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         PushHandler => StackEffect::new(0, 0), // No immediate stack effect
         PopHandler => StackEffect::new(0, 0), // No immediate stack effect
         Throw => StackEffect::new(1, 0), // Consumes error (but unwinds stack)
+        TryStart => StackEffect::new(0, 0), // No stack effect
+        TryStartWithFinally => StackEffect::new(0, 0), // No stack effect
+        TryEnd => StackEffect::new(0, 0), // No stack effect
+        FinallyStart => StackEffect::new(0, 0), // No stack effect
+        FinallyEnd => StackEffect::new(0, 0), // No stack effect
         
         // Loop operations
         LoopStart | LoopEnd => StackEffect::new(0, 0),
@@ -169,9 +185,20 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
             let arg_count = instruction.arg as usize;
             StackEffect::new(2 + arg_count, 1)
         }
+        Perform => StackEffect::new(1, 1), // Consumes effect, produces result
+        Resume => StackEffect::new(2, 1), // Consumes continuation and value, produces result
         
         // Additional operations
         MakeFuture => StackEffect::new(1, 1), // Consumes function, produces future
+        
+        // Map operations
+        MakeMap => {
+            // Creates map from N key-value pairs (so 2*N values)
+            let pair_count = instruction.arg as usize;
+            StackEffect::new(2 * pair_count, 1)
+        }
+        MapGet => StackEffect::new(2, 1), // Consumes map and key, produces value
+        MapSet => StackEffect::new(3, 1), // Consumes map, key, and value, produces map
         
         // Qualified name loading
         LoadQualified => StackEffect::new(0, 1), // Pushes value
@@ -214,6 +241,10 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         CreateActor => StackEffect::new(2, 1), // Consumes state and handler, produces actor
         ActorReceive => StackEffect::new(0, 1), // Produces current message from context
         
+        // Async operations
+        Spawn => StackEffect::new(1, 1), // Consumes function, produces promise/future
+        Await => StackEffect::new(1, 1), // Consumes promise/future, produces result
+        
         // Effect operations
         EffectAsync => StackEffect::new(2, 1), // Like Effect but async
         
@@ -223,14 +254,6 @@ pub fn stack_effect(instruction: &Instruction) -> StackEffect {
         
         // Special
         Nop => StackEffect::new(0, 0), // No operation
-        
-        // Catch-all for any missing opcodes (should not happen)
-        _ => {
-            panic!(
-                "Unknown opcode in stack_effect: {:?}. This is a bug - all opcodes should have defined stack effects.",
-                instruction.opcode
-            );
-        }
     }
 }
 

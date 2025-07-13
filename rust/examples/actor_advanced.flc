@@ -110,6 +110,7 @@ let light = TrafficLight;
 light.send("next");  // red -> green
 light.send("next");  // green -> yellow
 light.send("next");  // yellow -> red
+light.send("status");
 
 // Demo: Worker Pool
 let pool = WorkerPool;
@@ -123,10 +124,5 @@ pool.send(("dispatch", "Task A"));
 pool.send(("dispatch", "Task B"));
 pool.send(("dispatch", "Task C"));
 
-// Return demonstration results
-{
-    "user_count": user_count,
-    "server_stats": all_stats,
-    "traffic_light": light,
-    "worker_pool": pool
-}
+// Return all actors for inspection
+(server, light, pool, worker1, worker2)

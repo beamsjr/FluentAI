@@ -1,10 +1,11 @@
 //! Example demonstrating symbolic execution path visualization
+use fluentai_parser::parse_flc;
+
 
 use fluentai_contracts::{
     visualization::{ExecutionTree, TreeBuilder},
     SymbolicExecutor,
 };
-use fluentai_parser::parse;
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                           'positive))))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
 
         // Execute symbolically
         let executor = SymbolicExecutor::new();
@@ -74,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   (countdown (- n 1))))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
 
         // Execute with limited depth
         let executor = SymbolicExecutor::with_limits(10, 20);

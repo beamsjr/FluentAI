@@ -64,11 +64,11 @@ pub fn build_function(
     let entry_block = builder.create_block();
     builder.append_block_params_for_function_params(entry_block);
     builder.switch_to_block(entry_block);
-    // Note: Sealing the entry block immediately is fine as it has no predecessors.
+    builder.seal_block(entry_block);  // Seal immediately as it has no predecessors
 
     // --- Pass 1: Discover all jump targets and create blocks for them ---
     let mut blocks = HashMap::new();
-    blocks.insert(0, entry_block); // The entry point is at pc=0
+    // Don't insert entry_block for pc=0 since we're already in it
 
     for (pc, instruction) in chunk.instructions.iter().enumerate() {
         match instruction.opcode {
@@ -119,12 +119,15 @@ pub fn build_function(
     
     while pc < chunk.instructions.len() {
         // If the current PC is a jump target, switch to its block.
-        if let Some(&block) = blocks.get(&pc) {
-            if !block_terminated {
-                 builder.ins().jump(block, &[]);
+        // Skip if pc=0 since we're already in the entry block
+        if pc > 0 {
+            if let Some(&block) = blocks.get(&pc) {
+                if !block_terminated {
+                     builder.ins().jump(block, &[]);
+                }
+                builder.switch_to_block(block);
+                block_terminated = false;
             }
-            builder.switch_to_block(block);
-            block_terminated = false;
         }
 
         let instruction = &chunk.instructions[pc];
@@ -150,6 +153,13 @@ pub fn build_function(
                 value_stack.pop().ok_or_else(|| anyhow!("JIT Error: Stack underflow on POP"))?;
             }
             
+            Opcode::PopN => {
+                let n = instruction.arg as usize;
+                for _ in 0..n {
+                    value_stack.pop().ok_or_else(|| anyhow!("JIT Error: Stack underflow on POPN"))?;
+                }
+            }
+            
             Opcode::Dup => {
                 let val = value_stack.last()
                     .ok_or_else(|| anyhow!("JIT Error: Stack underflow on DUP"))?
@@ -163,6 +173,69 @@ pub fn build_function(
                     return Err(anyhow!("JIT Error: Stack underflow on SWAP"));
                 }
                 value_stack.swap(len - 1, len - 2);
+            }
+            
+            // --- Local Variable Operations ---
+            Opcode::LoadLocal0 => {
+                let var = locals.get(&0).ok_or_else(|| anyhow!("Undefined local variable 0"))?;
+                let val = builder.use_var(*var);
+                value_stack.push(JitValue { val, ty: types::I64 });
+            }
+            
+            Opcode::LoadLocal1 => {
+                let var = locals.get(&1).ok_or_else(|| anyhow!("Undefined local variable 1"))?;
+                let val = builder.use_var(*var);
+                value_stack.push(JitValue { val, ty: types::I64 });
+            }
+            
+            Opcode::LoadLocal2 => {
+                let var = locals.get(&2).ok_or_else(|| anyhow!("Undefined local variable 2"))?;
+                let val = builder.use_var(*var);
+                value_stack.push(JitValue { val, ty: types::I64 });
+            }
+            
+            Opcode::LoadLocal3 => {
+                let var = locals.get(&3).ok_or_else(|| anyhow!("Undefined local variable 3"))?;
+                let val = builder.use_var(*var);
+                value_stack.push(JitValue { val, ty: types::I64 });
+            }
+            
+            Opcode::StoreLocal0 => {
+                let value = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let var = locals.get(&0).ok_or_else(|| anyhow!("Undefined local variable 0"))?;
+                builder.def_var(*var, value.val);
+            }
+            
+            Opcode::StoreLocal1 => {
+                let value = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let var = locals.get(&1).ok_or_else(|| anyhow!("Undefined local variable 1"))?;
+                builder.def_var(*var, value.val);
+            }
+            
+            Opcode::StoreLocal2 => {
+                let value = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let var = locals.get(&2).ok_or_else(|| anyhow!("Undefined local variable 2"))?;
+                builder.def_var(*var, value.val);
+            }
+            
+            Opcode::StoreLocal3 => {
+                let value = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let var = locals.get(&3).ok_or_else(|| anyhow!("Undefined local variable 3"))?;
+                builder.def_var(*var, value.val);
+            }
+            
+            Opcode::LoadLocal => {
+                let idx = instruction.arg as u32;
+                let var = locals.get(&idx).ok_or_else(|| anyhow!("Undefined local variable {}", idx))?;
+                let val = builder.use_var(*var);
+                value_stack.push(JitValue { val, ty: types::I64 });
+            }
+            
+            Opcode::StoreLocal => {
+                let idx = instruction.arg as u32;
+                let value = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let var = locals.get(&idx).ok_or_else(|| anyhow!("Undefined local variable {}", idx))?;
+                builder.def_var(*var, value.val);
             }
             
             // --- Specialized Push Operations ---
@@ -725,8 +798,13 @@ pub fn build_function(
             
             // --- Halt and Unimplemented Opcodes ---
             Opcode::Halt => {
-                let zero = builder.ins().iconst(types::I64, 0);
-                builder.ins().return_(&[zero]);
+                // Return the value on top of the stack, or 0 if empty
+                let result = if let Some(value) = value_stack.last() {
+                    value.val
+                } else {
+                    builder.ins().iconst(types::I64, 0)
+                };
+                builder.ins().return_(&[result]);
                 block_terminated = true;
             }
 

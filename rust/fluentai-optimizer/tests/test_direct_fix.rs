@@ -1,12 +1,12 @@
 use fluentai_core::ast::{Graph, Node, NodeId};
 use fluentai_optimizer::AdvancedOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn test_direct_fix() {
     // Test the exact failing case
     let code = "(let ((x 5) (y (+ x 2))) (* y 3))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();

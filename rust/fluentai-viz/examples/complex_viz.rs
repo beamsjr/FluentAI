@@ -1,7 +1,7 @@
 //! Complex visualization example with many nodes
 
 use anyhow::Result;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use fluentai_viz::{
     debug::{debug_channel, serialize_value, timestamp_micros, DebugEvent as VizDebugEvent},
     layout::ASTLayouter,
@@ -146,7 +146,7 @@ async fn main() -> Result<()> {
     println!("- Multiple levels of computation");
     println!("- Tree structure with depth");
 
-    let ast = parse(source)?;
+    let ast = parse_flc(source)?;
 
     // Layout and send AST graph
     let layouter = ASTLayouter::default();

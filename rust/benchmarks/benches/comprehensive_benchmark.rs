@@ -1,7 +1,6 @@
 //! Comprehensive benchmark comparing all FluentAi implementations
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, vm::VM};
 
 struct BenchmarkResults {

@@ -16,6 +16,8 @@ use std::sync::Arc;
 pub mod handlers;
 pub mod provider;
 pub mod reactive;
+pub mod router;
+pub mod trie_router;
 pub mod runtime;
 
 pub use handlers::*;
@@ -131,6 +133,8 @@ impl Default for EffectContext {
         context.register_handler(Arc::new(handlers::AsyncHandler::new()));
         context.register_handler(Arc::new(handlers::ConcurrentHandler::new()));
         context.register_handler(Arc::new(handlers::DomHandler::new()));
+        context.register_handler(Arc::new(handlers::HttpServerHandler::new()));
+        context.register_handler(Arc::new(handlers::WebSocketHandler::new()));
 
         context
     }

@@ -3,7 +3,6 @@
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]
 use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]
-use fluentai_parser::parse;
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]
 use fluentai_vm::{Bytecode, Compiler, VM, Value};
 #[cfg(all(feature = "jit", target_arch = "x86_64"))]

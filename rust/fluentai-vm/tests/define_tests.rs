@@ -5,7 +5,7 @@ use fluentai_vm::{
 };
 
 fn compile_and_run(code: &str) -> Result<Value, Box<dyn std::error::Error>> {
-    let graph = fluentai_parser::parse(code)?;
+    let graph = fluentai_parser::parse_flc(code)?;
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         ..Default::default()
@@ -96,7 +96,7 @@ factorial(5)
 #[test]
 fn test_top_level_define() {
     // Test that define works at the top level without explicit begin
-    let graph = fluentai_parser::parse(
+    let graph = fluentai_parser::parse_flc(
         r#"
 private function x() { 10 }
 private function y() { 20 }

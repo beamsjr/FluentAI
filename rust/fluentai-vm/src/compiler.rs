@@ -6,7 +6,7 @@ use crate::free_var_analysis::FreeVarAnalyzer;
 use fluentai_bytecode::source_map::{SourceLocation, SourceMap, ModuleSourceMap};
 use crate::stack_effect::stack_effect;
 use anyhow::{anyhow, Result};
-use fluentai_core::ast::{Graph as ASTGraph, Literal, Node, NodeId, Pattern};
+use fluentai_core::ast::{Graph as ASTGraph, Literal, Node, NodeId, Pattern, RangePattern};
 use fluentai_core::value::Value;
 use fluentai_optimizer::{OptimizationConfig, OptimizationLevel, OptimizationPipeline};
 use std::collections::{HashMap, HashSet};
@@ -295,13 +295,48 @@ impl Compiler {
                 self.compile_actor(graph, *initial_state, *handler)?;
             }
             Node::ActorSend { actor, message } => {
-                self.compile_actor_send(graph, *actor, *message)?;
+                // Compile actor
+                self.compile_node(graph, *actor)?;
+                
+                // Compile message
+                self.compile_node(graph, *message)?;
+                
+                // Send message to actor
+                self.emit(Instruction::new(Opcode::ActorSend));
             }
             Node::ActorReceive { patterns, timeout } => {
-                self.compile_actor_receive(graph, patterns, timeout.as_ref())?;
+                // Push pattern count
+                let mut count_instr = Instruction::new(Opcode::PushIntSmall);
+                count_instr.arg = patterns.len() as u32;
+                self.emit(count_instr);
+                
+                // Compile each pattern and handler
+                for (pattern, handler) in patterns {
+                    // Compile the pattern
+                    self.compile_pattern(pattern)?;
+                    
+                    // Compile the handler
+                    self.compile_node(graph, *handler)?;
+                }
+                
+                // Compile timeout if present
+                if let Some((timeout_value, timeout_handler)) = timeout {
+                    self.emit(Instruction::new(Opcode::PushTrue));
+                    self.compile_node(graph, *timeout_value)?;
+                    self.compile_node(graph, *timeout_handler)?;
+                } else {
+                    self.emit(Instruction::new(Opcode::PushFalse));
+                }
+                
+                // Emit the ActorReceive instruction
+                self.emit(Instruction::new(Opcode::ActorReceive));
             }
             Node::Become { new_state } => {
-                self.compile_become(graph, *new_state)?;
+                // Compile new state
+                self.compile_node(graph, *new_state)?;
+                
+                // Become new state
+                self.emit(Instruction::new(Opcode::Become));
             }
             Node::Try { body, catch_branches, finally } => {
                 self.compile_try(graph, *body, catch_branches, finally.as_ref().copied())?;
@@ -1340,116 +1375,118 @@ impl Compiler {
         Ok(())
     }
     
-    fn compile_actor_send(
-        &mut self,
-        graph: &ASTGraph,
-        actor: NodeId,
-        message: NodeId,
-    ) -> Result<()> {
-        // Compile actor
-        self.compile_node(graph, actor)?;
-        
-        // Compile message
-        self.compile_node(graph, message)?;
-        
-        // Send message to actor
-        self.emit(Instruction::new(Opcode::ActorSend));
-        
-        // Stack effect is now managed by emit()
-        
-        Ok(())
-    }
     
-    fn compile_actor_receive(
-        &mut self,
-        graph: &ASTGraph,
-        patterns: &[(Pattern, NodeId)],
-        timeout: Option<&(NodeId, NodeId)>,
-    ) -> Result<()> {
-        // The ActorReceive opcode will put the current message on the stack
-        self.emit(Instruction::new(Opcode::ActorReceive));
-        
-        // Now we have the message on the stack, compile it like a match expression
-        // We'll compile pattern matching as a series of if-else chains
-        let mut jump_to_ends = Vec::new();
-        
-        for (i, (pattern, handler)) in patterns.iter().enumerate() {
-            let is_last = i == patterns.len() - 1;
-            
-            // Compile pattern test
-            let (bindings, always_matches) = self.compile_pattern_test(graph, pattern)?;
-            
-            // Handle the test result
-            let jump_to_next = if always_matches {
-                // Pattern always matches - no jump needed
-                None
-            } else {
-                // We have a boolean on the stack from the pattern test
-                // Jump to next branch if false
-                Some(self.emit(Instruction::with_arg(Opcode::JumpIfNot, 0)))
-            };
-            
-            // Pattern matched - the matched value is still on the stack
-            
-            // Apply bindings in reverse order
-            for (name, _) in bindings.iter().rev() {
-                let idx = self.add_local(name.to_string())?;
-                self.emit(Instruction::with_arg(Opcode::Store, idx as u32));
+    fn compile_pattern(&mut self, pattern: &Pattern) -> Result<()> {
+        // For now, compile patterns as values
+        // TODO: Implement proper pattern compilation with matching instructions
+        match pattern {
+            Pattern::Literal(lit) => {
+                self.compile_literal(lit)?;
             }
-            
-            // Pop the matched value (we've extracted what we need)
-            self.emit(Instruction::new(Opcode::Pop));
-            
-            // Compile the handler body
-            self.compile_node(graph, *handler)?;
-            
-            // Jump to end
-            let jump_to_end = self.emit(Instruction::with_arg(Opcode::Jump, 0));
-            jump_to_ends.push(jump_to_end);
-            
-            // Patch the jump to next branch (if any)
-            if let Some(jump_idx) = jump_to_next {
-                let next_branch_start = self.bytecode.chunks[self.current_chunk].instructions.len();
-                self.bytecode.chunks[self.current_chunk].patch_jump(jump_idx, next_branch_start);
+            Pattern::Variable(name) => {
+                // Push variable name as string for binding (use constant pool)
+                let const_idx = self.add_constant(Value::String(name.clone()));
+                let mut instr = Instruction::new(Opcode::PushConst);
+                instr.arg = const_idx as u32;
+                self.emit(instr);
             }
-            
-            // If this is the last branch and it doesn't always match, we need a default case
-            if is_last && !always_matches {
-                // No pattern matched - pop the message and return nil
-                self.emit(Instruction::new(Opcode::Pop));
+            Pattern::Wildcard => {
+                // Push special wildcard marker
+                let const_idx = self.add_constant(Value::Symbol("_".to_string()));
+                let mut instr = Instruction::new(Opcode::PushConst);
+                instr.arg = const_idx as u32;
+                self.emit(instr);
+            }
+            Pattern::Constructor { name, patterns } => {
+                // Push constructor name
+                let const_idx = self.add_constant(Value::Symbol(name.clone()));
+                let mut instr = Instruction::new(Opcode::PushConst);
+                instr.arg = const_idx as u32;
+                self.emit(instr);
+                // Push sub-pattern count
+                let mut count_instr = Instruction::new(Opcode::PushIntSmall);
+                count_instr.arg = patterns.len() as u32;
+                self.emit(count_instr);
+                // Compile sub-patterns
+                for sub in patterns {
+                    self.compile_pattern(sub)?;
+                }
+            }
+            Pattern::Range(range) => {
+                // Compile range pattern
+                match range {
+                    RangePattern { start, end, inclusive: true } => {
+                        let const_idx = self.add_constant(Value::Symbol("RangeInclusive".to_string()));
+                        let mut instr = Instruction::new(Opcode::PushConst);
+                        instr.arg = const_idx as u32;
+                        self.emit(instr);
+                        self.compile_literal(start)?;
+                        self.compile_literal(end)?;
+                    }
+                    RangePattern { start, end, inclusive: false } => {
+                        let const_idx = self.add_constant(Value::Symbol("RangeExclusive".to_string()));
+                        let mut instr = Instruction::new(Opcode::PushConst);
+                        instr.arg = const_idx as u32;
+                        self.emit(instr);
+                        self.compile_literal(start)?;
+                        self.compile_literal(end)?;
+                    }
+                }
+            }
+            Pattern::Or(patterns) => {
+                // Push or marker and pattern count
+                let const_idx = self.add_constant(Value::Symbol("Or".to_string()));
+                let mut instr = Instruction::new(Opcode::PushConst);
+                instr.arg = const_idx as u32;
+                self.emit(instr);
+                let mut count_instr = Instruction::new(Opcode::PushIntSmall);
+                count_instr.arg = patterns.len() as u32;
+                self.emit(count_instr);
+                for p in patterns {
+                    self.compile_pattern(p)?;
+                }
+            }
+            Pattern::Guard { pattern, condition } => {
+                // Push guard marker
+                let const_idx = self.add_constant(Value::Symbol("Guard".to_string()));
+                let mut instr = Instruction::new(Opcode::PushConst);
+                instr.arg = const_idx as u32;
+                self.emit(instr);
+                // Compile the pattern
+                self.compile_pattern(pattern)?;
+                // Note: Guard conditions need to be handled differently in actual pattern matching
+                // For now, just push nil as placeholder
                 self.emit(Instruction::new(Opcode::PushNil));
             }
+            Pattern::As { binding, pattern } => {
+                // Push as marker
+                let const_idx = self.add_constant(Value::Symbol("As".to_string()));
+                let mut instr = Instruction::new(Opcode::PushConst);
+                instr.arg = const_idx as u32;
+                self.emit(instr);
+                // Push binding name
+                let binding_idx = self.add_constant(Value::String(binding.clone()));
+                let mut binding_instr = Instruction::new(Opcode::PushConst);
+                binding_instr.arg = binding_idx as u32;
+                self.emit(binding_instr);
+                // Compile the pattern
+                self.compile_pattern(pattern)?;
+            }
+            Pattern::View { function, pattern } => {
+                // Push view marker
+                let const_idx = self.add_constant(Value::Symbol("View".to_string()));
+                let mut instr = Instruction::new(Opcode::PushConst);
+                instr.arg = const_idx as u32;
+                self.emit(instr);
+                // Note: View patterns need special handling
+                // For now, just compile the pattern
+                self.compile_pattern(pattern)?;
+            }
         }
-        
-        // Patch all jumps to end
-        let end_pos = self.bytecode.chunks[self.current_chunk].instructions.len();
-        for jump_idx in jump_to_ends {
-            self.bytecode.chunks[self.current_chunk].patch_jump(jump_idx, end_pos);
-        }
-        
-        // TODO: Handle timeout if provided
-        if timeout.is_some() {
-            // For now, ignore timeout
-        }
-        
         Ok(())
     }
     
-    fn compile_become(
-        &mut self,
-        graph: &ASTGraph,
-        new_state: NodeId,
-    ) -> Result<()> {
-        // Compile new state
-        self.compile_node(graph, new_state)?;
-        
-        // Become new state
-        self.emit(Instruction::new(Opcode::Become));
-        
-        // Stack effect: pop new state, push nil
-        
-        Ok(())
-    }
+    
     
     /// Set up error handlers for try/catch/finally block
     fn setup_error_handlers(&mut self, finally: Option<NodeId>) -> Result<(usize, Option<usize>)> {
@@ -2702,6 +2739,8 @@ impl Compiler {
                 fluentai_core::ast::EffectType::Async => "Async",
                 fluentai_core::ast::EffectType::Concurrent => "Concurrent",
                 fluentai_core::ast::EffectType::Pure => "Pure",
+                fluentai_core::ast::EffectType::HttpServer => "HttpServer",
+                fluentai_core::ast::EffectType::WebSocket => "WebSocket",
             }
             .to_string();
             let idx = self.add_constant(Value::String(effect_str));

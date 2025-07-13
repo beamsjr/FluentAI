@@ -1,7 +1,7 @@
 //! Test interpreter with a file
 
 use fluentai_interpreter::{Interpreter, InterpreterOptions};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use std::fs;
 
 fn main() -> anyhow::Result<()> {
@@ -16,7 +16,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         println!("\n> {}", line);
-        match parse(line) {
+        match parse_flc(line) {
             Ok(graph) => match interpreter.interpret(&graph) {
                 Ok(result) => println!("=> {}", result),
                 Err(e) => println!("Error: {}", e),

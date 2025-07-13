@@ -1,7 +1,13 @@
-; Basic arithmetic operations in FluentAI
+// Basic arithmetic operations in FluentAI
+// Demonstrates various arithmetic operations
 
-; Addition
-(+ 10 20)
+// Simple arithmetic expressions
+10 + 20    // Addition: 30
 
-; Nested arithmetic
-; (* (+ 2 3) (- 10 5))
+// We can't use the output yet, but here are more examples:
+// 100 - 45   // Subtraction: 55
+// 6 * 7      // Multiplication: 42
+// 100 / 4    // Division: 25
+// 17 % 5     // Modulo: 2
+// (2 + 3) * (10 - 5)  // Nested: 25
+// ((10 + 5) * 3) / (20 - 5)  // Complex: 3

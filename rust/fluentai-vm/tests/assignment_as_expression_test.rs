@@ -1,6 +1,5 @@
 //! Test assignment as expression functionality
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM, Value};
 
 #[test]

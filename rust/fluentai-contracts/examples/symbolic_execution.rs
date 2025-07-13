@@ -1,9 +1,10 @@
 //! Example demonstrating symbolic execution for contract verification
+use fluentai_parser::parse_flc;
+
 
 use fluentai_contracts::{
     Contract, ContractCondition, ContractKind, SymbolicExecutor, SymbolicValue,
 };
-use fluentai_parser::parse;
 
 /// Helper to find function definitions in the graph
 fn find_definition(
@@ -38,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   x))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         // Find the function node
         let function_id = find_definition(&graph, "abs").expect("Function 'abs' not found");
@@ -121,7 +122,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                       0)))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         let function_id = find_definition(&graph, "sign").expect("Function 'sign' not found");
 
@@ -162,7 +163,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
               (sum-helper 1 0))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         let function_id =
             find_definition(&graph, "sum-to-n").expect("Function 'sum-to-n' not found");
@@ -193,7 +194,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   (/ x y)))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         let function_id =
             find_definition(&graph, "safe-divide").expect("Function 'safe-divide' not found");

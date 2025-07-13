@@ -1,0 +1,101 @@
+// HTTP Server Demo with Dynamic Routing
+// This example demonstrates the HTTP server capabilities with path parameters
+
+use http;
+
+// Define route handlers
+private function handle_home(context: Map) -> Map {
+    {
+        "status": 200,
+        "headers": {"Content-Type": "text/html"},
+        "body": "<h1>Welcome to FluentAI HTTP Server!</h1><p>Try /api/users/123 or /api/hello/YourName</p>"
+    }
+}
+
+private function handle_user(context: Map) -> Map {
+    let user_id = context.params.id;
+    let response_body = f"User Profile for ID: {user_id}";
+    
+    {
+        "status": 200,
+        "headers": {"Content-Type": "text/plain"},
+        "body": response_body
+    }
+}
+
+private function handle_greeting(context: Map) -> Map {
+    let name = context.params.name;
+    let greeting = if context.query.get("formal") == "true" {
+        f"Good day, {name}!"
+    } else {
+        f"Hello, {name}!"
+    };
+    
+    {
+        "status": 200,
+        "headers": {"Content-Type": "text/plain"},
+        "body": greeting
+    }
+}
+
+private function handle_json_api(context: Map) -> Map {
+    let data = {
+        "users": [
+            {"id": 1, "name": "Alice"},
+            {"id": 2, "name": "Bob"},
+            {"id": 3, "name": "Charlie"}
+        ],
+        "total": 3,
+        "page": context.query.get("page") || "1"
+    };
+    
+    {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": data.to_json()
+    }
+}
+
+private function handle_not_found(context: Map) -> Map {
+    {
+        "status": 404,
+        "headers": {"Content-Type": "text/plain"},
+        "body": f"Route not found: {context.path}"
+    }
+}
+
+private async function main() {
+    $("Starting HTTP server demo...").print();
+    
+    // Register routes
+    perform HttpServer.route("GET", "/", "handle_home");
+    perform HttpServer.route("GET", "/api/users/:id", "handle_user");
+    perform HttpServer.route("GET", "/api/hello/:name", "handle_greeting");
+    perform HttpServer.route("GET", "/api/users", "handle_json_api");
+    perform HttpServer.route("*", "/*", "handle_not_found");
+    
+    // Start the server
+    let server = perform HttpServer.listen(8080).await();
+    
+    $(f"Server running at http://localhost:{server.port}").print();
+    $("Routes registered:").print();
+    $("  GET  /                 - Home page").print();
+    $("  GET  /api/users/:id    - Get user by ID").print();
+    $("  GET  /api/hello/:name  - Personalized greeting").print();
+    $("  GET  /api/users        - List all users (with pagination)").print();
+    $("  *    /*                - Catch-all for 404").print();
+    $("").print();
+    $("Try these URLs:").print();
+    $("  http://localhost:8080/").print();
+    $("  http://localhost:8080/api/users/42").print();
+    $("  http://localhost:8080/api/hello/World").print();
+    $("  http://localhost:8080/api/hello/World?formal=true").print();
+    $("  http://localhost:8080/api/users?page=2").print();
+    $("").print();
+    $("Press Ctrl+C to stop the server...").print();
+    
+    // Keep the server running
+    loop {
+        perform Time.sleep(1000).await();
+    }
+}

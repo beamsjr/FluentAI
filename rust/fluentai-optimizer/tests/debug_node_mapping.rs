@@ -1,10 +1,10 @@
 use fluentai_optimizer::AdvancedOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn debug_node_id_mapping() {
-    let code = "(let ((x 5) (y (+ x 2))) (* y 3))";
-    let ast = parse(code).unwrap();
+    let code = "{ let x = 5; let y = x + 2; y * 3 }";
+    let ast = parse_flc(code).unwrap();
 
     println!("Original AST ({} nodes):", ast.nodes.len());
     for (id, node) in &ast.nodes {

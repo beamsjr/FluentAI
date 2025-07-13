@@ -1,12 +1,12 @@
-use fluentai_parser::flc_parser::Parser;
 use fluentai_core::ast::Node;
+use fluentai_parser::flc_parser::Parser;
 
 fn main() {
     println!("=== Testing Binary Operation Parsing ===");
-    
+
     // Test parsing "1 + 2"
     test_parse("1 + 2", "simple addition");
-    
+
     // Test other operations
     test_parse("10 - 5", "subtraction");
     test_parse("3 * 4", "multiplication");
@@ -15,15 +15,15 @@ fn main() {
 
 fn test_parse(input: &str, description: &str) {
     println!("\nTesting: {} - Input: {}", description, input);
-    
+
     let parser = Parser::new(input);
     match parser.parse() {
         Ok(graph) => {
             println!("✓ Parse successful!");
-            
+
             if let Some(root_id) = graph.root_id {
                 println!("Root node ID: {:?}", root_id);
-                
+
                 // Analyze the root node
                 if let Some(root_node) = graph.get_node(root_id) {
                     analyze_node(&graph, root_id, root_node, 0);
@@ -38,9 +38,14 @@ fn test_parse(input: &str, description: &str) {
     }
 }
 
-fn analyze_node(graph: &fluentai_core::ast::Graph, _node_id: fluentai_core::ast::NodeId, node: &Node, indent: usize) {
+fn analyze_node(
+    graph: &fluentai_core::ast::Graph,
+    _node_id: fluentai_core::ast::NodeId,
+    node: &Node,
+    indent: usize,
+) {
     let prefix = "  ".repeat(indent);
-    
+
     match node {
         Node::Application { function, args } => {
             println!("{}Application {{", prefix);

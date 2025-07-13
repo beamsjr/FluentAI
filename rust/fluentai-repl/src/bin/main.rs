@@ -86,8 +86,8 @@ fn main() -> anyhow::Result<()> {
         println!("Loading file: {:?}", load_file);
         let content = std::fs::read_to_string(&load_file)?;
 
-        use fluentai_parser::parse;
-        match parse(&content) {
+        use fluentai_parser::parse_flc;
+        match parse_flc(&content) {
             Ok(graph) => {
                 println!("File loaded successfully");
                 // Note: We'd need to execute this through the REPL's environment

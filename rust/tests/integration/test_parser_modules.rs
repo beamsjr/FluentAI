@@ -1,6 +1,5 @@
 //! Test module parsing
 
-use fluentai_parser::parse;
 
 fn main() {
     // Test the exact syntax from the parser test

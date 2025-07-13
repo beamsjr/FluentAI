@@ -4,6 +4,7 @@
 // Simple echo actor that responds to different message types
 private actor EchoActor {
     state: string = "ready";
+    
     private handle message(msg: any) {
         receive {
             case "ping" => "pong",
@@ -21,6 +22,7 @@ private actor EchoActor {
 // Counter actor that maintains internal state
 private actor Counter {
     state: int = 0;
+    
     private handle message(msg: any) {
         receive {
             case "increment" => {
@@ -50,6 +52,7 @@ private actor Counter {
 // Calculator actor with pattern matching on operation types
 private actor Calculator {
     state: float = 0.0;
+    
     private handle message(msg: any) {
         receive {
             case ("add", x, y) => x + y,

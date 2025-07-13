@@ -155,6 +155,14 @@ pub fn register(registry: &mut StdlibRegistry) {
             Some(1),
             "Convert symbol to string (identity function due to VM limitations)",
         ),
+        // Universal to_string function for f-string interpolation
+        StdlibFunction::pure(
+            "to_string",
+            to_string,
+            1,
+            Some(1),
+            "Convert any value to its string representation",
+        ),
     ]);
 }
 
@@ -487,5 +495,75 @@ fn symbol_to_string(args: &[Value]) -> Result<Value> {
         _ => Err(anyhow!(
             "symbol->string: expected symbol (currently represented as string)"
         )),
+    }
+}
+
+// Universal to_string for f-string interpolation
+fn to_string(args: &[Value]) -> Result<Value> {
+    match &args[0] {
+        Value::Integer(i) => Ok(Value::String(i.to_string())),
+        Value::Float(f) => Ok(Value::String(f.to_string())),
+        Value::String(s) => Ok(Value::String(s.clone())),
+        Value::Boolean(b) => Ok(Value::String(b.to_string())),
+        Value::Nil => Ok(Value::String("nil".to_string())),
+        Value::List(items) => {
+            // Convert list to string representation like "[1, 2, 3]"
+            let item_strings: Vec<String> = items
+                .iter()
+                .map(|v| match to_string(&[v.clone()]) {
+                    Ok(Value::String(s)) => s,
+                    _ => "?".to_string(),
+                })
+                .collect();
+            Ok(Value::String(format!("[{}]", item_strings.join(", "))))
+        }
+        Value::Map(map) => {
+            // Convert map to string representation like "{key1: value1, key2: value2}"
+            let mut pairs: Vec<String> = map
+                .iter()
+                .map(|(k, v)| {
+                    match to_string(&[v.clone()]) {
+                        Ok(Value::String(vs)) => format!("{}: {}", k, vs),
+                        _ => format!("{}: ?", k),
+                    }
+                })
+                .collect();
+            pairs.sort(); // For consistent ordering
+            Ok(Value::String(format!("{{{}}}", pairs.join(", "))))
+        }
+        Value::Tagged { tag, values } => {
+            // Convert tagged value to string like "Tag(value1, value2)"
+            let value_strings: Vec<String> = values
+                .iter()
+                .map(|v| match to_string(&[v.clone()]) {
+                    Ok(Value::String(s)) => s,
+                    _ => "?".to_string(),
+                })
+                .collect();
+            Ok(Value::String(format!("{}({})", tag, value_strings.join(", "))))
+        }
+        Value::Function { .. } => Ok(Value::String("<function>".to_string())),
+        Value::NativeFunction { .. } => Ok(Value::String("<native-function>".to_string())),
+        Value::Procedure(_) => Ok(Value::String("<procedure>".to_string())),
+        Value::Vector(items) => {
+            // Convert vector to string representation like "#[1, 2, 3]"
+            let item_strings: Vec<String> = items
+                .iter()
+                .map(|v| match to_string(&[v.clone()]) {
+                    Ok(Value::String(s)) => s,
+                    _ => "?".to_string(),
+                })
+                .collect();
+            Ok(Value::String(format!("#[{}]", item_strings.join(", "))))
+        }
+        Value::Symbol(s) => Ok(Value::String(format!("'{}", s))),
+        Value::Promise(_) => Ok(Value::String("<promise>".to_string())),
+        Value::Future { .. } => Ok(Value::String("<future>".to_string())),
+        Value::Channel(_) => Ok(Value::String("<channel>".to_string())),
+        Value::Actor(_) => Ok(Value::String("<actor>".to_string())),
+        Value::Error { kind, message, .. } => Ok(Value::String(format!("<error: {}: {}>", kind, message))),
+        Value::Cell(_) => Ok(Value::String("<cell>".to_string())),
+        Value::Module { name, .. } => Ok(Value::String(format!("<module: {}>", name))),
+        Value::GcHandle(_) => Ok(Value::String("<gc-handle>".to_string())),
     }
 }

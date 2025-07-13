@@ -1,10 +1,11 @@
 //! Example demonstrating automatic test case generation from symbolic execution
+use fluentai_parser::parse_flc;
+
 
 use fluentai_contracts::{
     test_generation::{format_test_cases, TestGenerator, TestLanguage},
     SymbolicExecutor,
 };
-use fluentai_parser::parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example: Safe division function
@@ -17,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   (/ a b)))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
 
         // Execute symbolically
         let executor = SymbolicExecutor::new();
@@ -62,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                               'scalene)))))
         "#;
 
-        let graph = parse(program)?;
+        let graph = parse_flc(program)?;
 
         // Execute symbolically with limited depth to avoid explosion
         let executor = SymbolicExecutor::with_limits(50, 100);

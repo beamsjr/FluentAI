@@ -4,7 +4,6 @@ use anyhow::Result;
 use fluentai_core::ast::{Graph, Literal, Node};
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, CompilerOptions, VM, VMBuilder};
 
 fn main() -> Result<()> {

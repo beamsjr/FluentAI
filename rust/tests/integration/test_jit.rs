@@ -1,4 +1,3 @@
-use fluentai_parser::parse;
 use fluentai_vm::compiler::Compiler;
 use fluentai_jit::JitCompiler;
 

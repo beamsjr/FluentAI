@@ -1,4 +1,10 @@
-; Lambda functions in FluentAI
+// Lambda functions in FluentAI
+// Demonstrates the modern lambda syntax using =>
 
-(let ((square (lambda (x) (* x x))))
-  (square 7))
+// Simple lambda that squares a number
+((x) => x * x)(7)
+
+// More examples (commented out for now):
+// let double = (x) => x * 2;
+// let add = (x, y) => x + y;
+// let greet = (name) => f"Hello, {name}!";

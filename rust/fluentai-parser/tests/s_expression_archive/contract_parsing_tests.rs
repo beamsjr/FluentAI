@@ -1,7 +1,6 @@
 //! Tests for contract parsing variations
 
 use fluentai_core::ast::Node;
-use fluentai_parser::parse;
 
 #[test]
 fn test_parse_simple_contract() {

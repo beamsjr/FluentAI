@@ -3,7 +3,7 @@ mod tests {
     
     use crate::macros::{ExpansionContext, MacroDefinition, MacroExpander};
     use fluentai_core::ast::Node;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     // ===== MacroDefinition Tests =====
 
@@ -204,7 +204,7 @@ mod tests {
 
         // Test expansion
         let code = "double(5)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
         assert!(result.is_ok());
@@ -226,7 +226,7 @@ mod tests {
 
         // (when (when true 1) 2) should expand to nested ifs
         let code = "when(when(true, 1), 2)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
         assert!(result.is_ok());
@@ -254,7 +254,7 @@ mod tests {
         expander.register_macro(recursive_macro);
 
         let code = "recurse(0)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         // Should fail due to exceeding depth limit
         let result = expander.expand_graph(&mut graph);
@@ -281,7 +281,7 @@ mod tests {
 
         // Variable names should be renamed to avoid capture
         let code = "my_let(x, 10, x + y)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
         assert!(result.is_ok());
@@ -307,7 +307,7 @@ mod tests {
 
         // Non-hygenic macro should allow variable capture
         let code = "capture(x)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
         assert!(result.is_ok());
@@ -338,7 +338,7 @@ mod tests {
         expander.register_macro(swap_macro);
 
         let code = "swap([1, 2])";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
         assert!(result.is_ok());
@@ -363,7 +363,7 @@ mod tests {
         expander.register_macro(list_macro);
 
         let code = "list(1, 2, 3, 4)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         let result = expander.expand_graph(&mut graph);
         assert!(result.is_ok());
@@ -379,7 +379,7 @@ mod tests {
         let expander = MacroExpander::new();
 
         let code = "unknown_macro(42)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         // Should not error on unknown macros
         let result = expander.expand_graph(&mut graph);
@@ -401,7 +401,7 @@ mod tests {
         expander.register_macro(bad_macro);
 
         let code = "bad(5)";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         // Malformed macro should not panic - it's ok to either fail gracefully or expand partially
         let result = expander.expand_graph(&mut graph);
@@ -424,7 +424,7 @@ mod tests {
         expander.register_macro(empty_macro);
 
         let code = "empty()";
-        let mut graph = parse(code).unwrap();
+        let mut graph = parse_flc(code).unwrap();
 
         // Empty body macros should not panic - implementation may vary
         let result = expander.expand_graph(&mut graph);

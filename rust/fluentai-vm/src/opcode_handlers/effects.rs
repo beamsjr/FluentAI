@@ -30,14 +30,6 @@ impl OpcodeHandler for EffectsHandler {
                 vm.perform_effect(operation)?;
             }
             
-            Perform => {
-                let operation_idx = instruction.arg as usize;
-                let operation = vm.get_constant_string_at(chunk_id, operation_idx)?;
-                
-                // Handle the effect
-                vm.perform_effect(operation)?;
-            }
-            
             // Create effect handler
             MakeHandler => {
                 let handler_count = instruction.arg as usize;
@@ -70,12 +62,6 @@ impl OpcodeHandler for EffectsHandler {
             // Remove effect handler
             UninstallHandler => {
                 vm.uninstall_effect_handler()?;
-            }
-            
-            // Resume from effect handler
-            Resume => {
-                let value = vm.pop()?;
-                vm.resume_from_handler(value)?;
             }
             
             // Try-catch-finally error handling
@@ -115,35 +101,9 @@ impl OpcodeHandler for EffectsHandler {
                 vm.pop_error_handler()?;
             }
             
-            TryStart => {
-                let catch_ip = instruction.arg as usize;
-                vm.push_error_handler(catch_ip, None)?;
-            }
-            
-            TryStartWithFinally => {
-                // Unpacked: high 16 bits = catch IP, low 16 bits = finally IP
-                let catch_ip = (instruction.arg >> 16) as usize;
-                let finally_ip = (instruction.arg & 0xFFFF) as usize;
-                vm.push_error_handler(catch_ip, Some(finally_ip))?;
-            }
-            
-            TryEnd => {
-                vm.pop_error_handler()?;
-            }
-            
             Throw => {
                 let error = vm.pop()?;
                 return vm.throw_error(error);
-            }
-            
-            FinallyStart => {
-                // Save the current state for finally block
-                vm.start_finally_block()?;
-            }
-            
-            FinallyEnd => {
-                // Restore state and continue appropriately
-                vm.end_finally_block()?;
             }
             
             _ => unreachable!("EffectsHandler received non-effects opcode"),

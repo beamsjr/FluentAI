@@ -1,6 +1,5 @@
 //! Simple test to debug handler functionality
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, Value, VM};
 
 #[test]

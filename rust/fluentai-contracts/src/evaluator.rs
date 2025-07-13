@@ -124,27 +124,27 @@ impl<'a> ConditionEvaluator<'a> {
             "*" => self.builtin_multiply(&arg_values),
             "/" => self.builtin_divide(&arg_values),
 
-            // Type predicates
-            "int?" | "integer?" => self.builtin_is_integer(&arg_values),
-            "float?" => self.builtin_is_float(&arg_values),
-            "number?" => self.builtin_is_number(&arg_values),
-            "string?" => self.builtin_is_string(&arg_values),
-            "list?" => self.builtin_is_list(&arg_values),
-            "nil?" => self.builtin_is_nil(&arg_values),
+            // Type predicates (support both ? suffix and is_ prefix)
+            "int?" | "integer?" | "is_int" | "is_integer" => self.builtin_is_integer(&arg_values),
+            "float?" | "is_float" => self.builtin_is_float(&arg_values),
+            "number?" | "is_number" => self.builtin_is_number(&arg_values),
+            "string?" | "is_string" => self.builtin_is_string(&arg_values),
+            "list?" | "is_list" => self.builtin_is_list(&arg_values),
+            "nil?" | "is_nil" => self.builtin_is_nil(&arg_values),
 
             // List operations
             "length" => self.builtin_length(&arg_values),
             "nth" => self.builtin_nth(&arg_values),
-            "empty?" => self.builtin_is_empty(&arg_values),
+            "empty?" | "is_empty" => self.builtin_is_empty(&arg_values),
 
             // Logical operators
-            "and" => self.builtin_and(&arg_values),
-            "or" => self.builtin_or(&arg_values),
-            "not" => self.builtin_not(&arg_values),
+            "and" | "&&" => self.builtin_and(&arg_values),
+            "or" | "||" => self.builtin_or(&arg_values),
+            "not" | "!" => self.builtin_not(&arg_values),
 
             // Custom predicates (would be defined elsewhere)
-            "sorted?" => self.builtin_is_sorted(&arg_values),
-            "file-exists?" => self.builtin_file_exists(&arg_values),
+            "sorted?" | "is_sorted" => self.builtin_is_sorted(&arg_values),
+            "file-exists?" | "file_exists" => self.builtin_file_exists(&arg_values),
 
             _ => Err(ContractError::VerificationError(format!(
                 "Unknown predicate in contract: {}",

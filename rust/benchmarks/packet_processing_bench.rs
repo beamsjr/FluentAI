@@ -2,7 +2,6 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VMBuilder, VMConfig, VM};
 
 fn benchmark_tail_recursion(c: &mut Criterion) {

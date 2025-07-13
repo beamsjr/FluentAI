@@ -2,7 +2,7 @@
 
 use fluentai_core::ast::{EffectType, Graph, Node};
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use std::cell::RefCell;
 
 thread_local! {
@@ -20,7 +20,7 @@ fn mock_print(msg: &str) {
 fn test_preserve_io_effects() {
     // Test that IO effects are not eliminated
     let code = r#"(effect io:print "effect1")"#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -39,7 +39,7 @@ fn test_preserve_effect_order() {
               (c (effect io:print "3")))
           42)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -58,7 +58,7 @@ fn test_dead_code_elimination_preserves_effects() {
               (used 10))
           used)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         dead_code_elimination: true,
@@ -90,7 +90,7 @@ fn test_cse_doesnt_merge_effects() {
               (b (effect io:print "effect1")))
           (list a b))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         cse: true,
@@ -114,7 +114,7 @@ fn test_constant_folding_preserves_surrounding_effects() {
                 (_ (effect io:print "after")))
             result))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -136,7 +136,7 @@ fn test_inline_preserves_effects() {
             (+ x 1)))
          10)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         inline: true,
@@ -163,7 +163,7 @@ fn test_if_elimination_preserves_condition_effects() {
             42
             99)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -181,7 +181,7 @@ fn test_unused_branch_effects_eliminated() {
             42
             (effect io:print "unreachable"))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -253,7 +253,7 @@ fn test_concurrent_effects_preserved() {
         (let ((task (spawn (effect io:print "concurrent"))))
           (await task))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -296,7 +296,7 @@ fn test_effect_preservation_correctness() {
 
     // This test would require a full VM with effect support
     // For now, just ensure the code parses and optimizes without error
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let result = optimizer.optimize(&ast);
@@ -314,7 +314,7 @@ fn test_pure_subexpression_extraction() {
         (let ((x (effect io:print "effect")))
           (+ (* 2 3) (* 4 5)))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -337,7 +337,7 @@ fn test_effect_binding_dependency() {
                 (_ (effect io:print "second")))
             y))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -356,7 +356,7 @@ fn test_effect_free_optimization() {
               (b 4))
           (+ (square a) (square b)))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();

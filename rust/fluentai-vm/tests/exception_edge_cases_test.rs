@@ -3,7 +3,6 @@ use fluentai_vm::error::VMError;
 use fluentai_vm::VM;
 use fluentai_core::value::Value;
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse;
 
 fn compile_and_run(code: &str) -> Result<Value, VMError> {
     // Parse the code to get an AST

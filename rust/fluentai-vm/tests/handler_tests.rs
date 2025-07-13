@@ -1,6 +1,5 @@
 //! Tests for effect handler functionality
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, Value, VM};
 
 #[test]

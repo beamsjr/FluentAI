@@ -1,6 +1,5 @@
 //! Test the VM with simple examples
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM};
 
 fn main() {

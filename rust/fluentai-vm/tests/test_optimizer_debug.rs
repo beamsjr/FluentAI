@@ -1,4 +1,3 @@
-use fluentai_parser::parse;
 use fluentai_optimizer::GraphOptimizer;
 
 fn main() {

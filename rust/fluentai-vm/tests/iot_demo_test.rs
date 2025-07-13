@@ -1,7 +1,6 @@
 //! Integration test for IoT demo functionality
 
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse;
 use fluentai_stdlib::init_stdlib;
 use fluentai_vm::{Compiler, CompilerOptions, VM};
 

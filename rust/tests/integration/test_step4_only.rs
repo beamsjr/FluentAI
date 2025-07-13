@@ -1,4 +1,3 @@
-use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, vm::VM};
 use fluentai_effects::{EffectContext, EffectRuntime};
 use std::sync::Arc;

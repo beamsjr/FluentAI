@@ -1,10 +1,11 @@
 //! Example demonstrating proof generation for contracts
+use fluentai_parser::parse_flc;
+
 
 use fluentai_contracts::{
     AdvancedProofGenerator, AdvancedProofStrategy, Contract, ContractCondition, ContractKind,
     Lemma, ProofFormula,
 };
-use fluentai_parser::parse;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Direct proof using symbolic execution
@@ -17,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   x))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         // Create a contract: result >= 0
         let ge_fn = graph
@@ -77,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   (* n (factorial (- n 1)))))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         // Contract: factorial(n) >= 1 for all n >= 0
         let ge_fn = graph
@@ -172,7 +173,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                   (+ n (sum-to-n (- n 1)))))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         // Contract: sum-to-n(n) = n*(n+1)/2
         // For simplicity, we'll check sum-to-n(n) >= 0
@@ -278,7 +279,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
               (if (> a b) a b))
         "#;
 
-        let mut graph = parse(program)?;
+        let mut graph = parse_flc(program)?;
 
         // Contract: result >= a AND result >= b
         let ge_fn1 = graph

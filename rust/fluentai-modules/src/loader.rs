@@ -2,7 +2,7 @@
 
 use crate::{ModuleCache, ModuleConfig, ModuleError, ModuleInfo, Result};
 use fluentai_core::ast::{Graph, Literal, Node};
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashSet;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -128,8 +128,8 @@ impl ModuleLoader {
 
     /// Resolve a module reference to a file path
     fn resolve_module_path(&self, module_ref: &str) -> Result<PathBuf> {
-        // If it's already a path with .ai extension, validate and use it
-        if module_ref.ends_with(".ai") {
+        // If it's already a path with .fc or .flc extension, validate and use it
+        if module_ref.ends_with(".fc") || module_ref.ends_with(".flc") {
             let path = Path::new(module_ref);
             if path.is_absolute() {
                 return Err(ModuleError::InvalidPath {
@@ -143,18 +143,30 @@ impl ModuleLoader {
 
         // Try each search path
         for search_path in &self.config.search_paths {
-            // Try as a file
-            let file_path = search_path.join(format!("{}.ai", module_ref));
-            if file_path.exists() {
-                trace!("Found module at: {:?}", file_path);
-                return self.validate_resolved_path(file_path);
+            // Try as a file with .fc extension first, then .flc
+            let fc_path = search_path.join(format!("{}.fc", module_ref));
+            if fc_path.exists() {
+                trace!("Found module at: {:?}", fc_path);
+                return self.validate_resolved_path(fc_path);
+            }
+            
+            let flc_path = search_path.join(format!("{}.flc", module_ref));
+            if flc_path.exists() {
+                trace!("Found module at: {:?}", flc_path);
+                return self.validate_resolved_path(flc_path);
             }
 
-            // Try as a directory with module.ai
-            let dir_path = search_path.join(module_ref).join("module.ai");
-            if dir_path.exists() {
-                trace!("Found module at: {:?}", dir_path);
-                return self.validate_resolved_path(dir_path);
+            // Try as a directory with module.fc or module.flc
+            let dir_fc_path = search_path.join(module_ref).join("module.fc");
+            if dir_fc_path.exists() {
+                trace!("Found module at: {:?}", dir_fc_path);
+                return self.validate_resolved_path(dir_fc_path);
+            }
+            
+            let dir_flc_path = search_path.join(module_ref).join("module.flc");
+            if dir_flc_path.exists() {
+                trace!("Found module at: {:?}", dir_flc_path);
+                return self.validate_resolved_path(dir_flc_path);
             }
         }
 
@@ -234,7 +246,7 @@ impl ModuleLoader {
         })?;
 
         // Parse the module
-        let mut graph = parse(&contents).map_err(|e| ModuleError::ParseError {
+        let mut graph = parse_flc(&contents).map_err(|e| ModuleError::ParseError {
             path: path.to_path_buf(),
             error: e,
         })?;
@@ -272,6 +284,11 @@ impl ModuleLoader {
         let mut exports = FxHashSet::default();
         let mut dependencies = Vec::new();
 
+        // Check graph metadata for module name (from `mod name;` declaration)
+        if let Some(module_name) = graph.graph_metadata.get("module_name") {
+            name = module_name.clone();
+        }
+
         // Walk through all nodes to find module declarations, exports, and imports
         for (_node_id, node) in &graph.nodes {
             match node {
@@ -280,17 +297,16 @@ impl ModuleLoader {
                     exports: module_exports,
                     body: _,
                 } => {
+                    // Inline module syntax overrides metadata
                     name = module_name.clone();
                     // Module node already has exports, don't collect from Export nodes
                     exports.extend(module_exports.iter().cloned());
                 }
 
                 Node::Export { export_list } => {
-                    // Only collect exports if we haven't found a Module node
-                    if name.is_empty() {
-                        for item in export_list {
-                            exports.insert(item.name.clone());
-                        }
+                    // Collect exports from standalone export statements
+                    for item in export_list {
+                        exports.insert(item.name.clone());
                     }
                 }
 
@@ -340,20 +356,19 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_module_file(dir: &Path, name: &str, content: &str) -> PathBuf {
-        let path = dir.join(format!("{}.ai", name));
+        let path = dir.join(format!("{}.fc", name));
         fs::write(&path, content).unwrap();
         path
     }
 
     #[test]
-    #[ignore = "Module export syntax needs parser update"]
     fn test_load_simple_module() {
         let temp_dir = TempDir::new().unwrap();
         let module_content = r#"
-            mod test_module {
-                export { foo };
-                private function foo() { 42 }
-            }
+mod test_module;
+
+private function foo() -> int { 42 }
+export { foo };
         "#;
 
         create_test_module_file(temp_dir.path(), "test", module_content);
@@ -380,10 +395,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Module export syntax needs parser update"]
     fn test_cache_behavior() {
         let temp_dir = TempDir::new().unwrap();
-        let module_content = r#"mod cached_test { export { x }; private function x() { 1 } }"#;
+        let module_content = r#"
+mod cached_test;
+
+private function x() -> int { 1 }
+export { x };
+        "#;
 
         create_test_module_file(temp_dir.path(), "cached", module_content);
 

@@ -2,7 +2,6 @@
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use fluentai_jit::JitCompiler;
-use fluentai_parser::parse;
 use fluentai_vm::compiler::Compiler;
 use fluentai_vm::vm::VM;
 

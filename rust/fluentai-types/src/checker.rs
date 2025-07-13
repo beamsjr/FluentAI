@@ -351,10 +351,10 @@ impl TypeCheckerBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
 
     fn check_code(code: &str) -> TypeCheckResult {
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let mut checker = TypeChecker::new();
         checker.check(&graph)
     }
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_effect_checking() {
-        let graph = parse("print(\"hello\")").unwrap();
+        let graph = parse_flc("print(\"hello\")").unwrap();
         let mut checker = TypeChecker::new();
         let result = checker.check(&graph);
 

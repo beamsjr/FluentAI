@@ -1,5 +1,18 @@
-; Let bindings in FluentAI
+// Let bindings in FluentAI
+// Demonstrates variable binding with the let keyword
 
-(let ((x 10)
-      (y 20))
-  (+ x y))
+// Simple let bindings in a block
+{
+  let x = 10;
+  let y = 20;
+  x + y  // Returns 30
+}
+
+// More examples (for reference):
+// Multiple bindings with operations
+// {
+//   let a = 5;
+//   let b = a * 2;
+//   let c = b + 3;
+//   c  // Returns 13
+// }

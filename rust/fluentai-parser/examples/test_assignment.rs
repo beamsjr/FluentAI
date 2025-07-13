@@ -1,5 +1,5 @@
-use fluentai_parser::flc_parser::Parser as FlcParser;
 use fluentai_core::ast::Node;
+use fluentai_parser::flc_parser::Parser as FlcParser;
 
 fn main() {
     let input = r#"
@@ -9,7 +9,7 @@ x := 42
 
     let mut parser = FlcParser::new(input);
     let result = parser.parse();
-    
+
     match result {
         Ok(graph) => {
             println!("Parse successful!");
@@ -18,7 +18,7 @@ x := 42
                 println!("  NodeId({}) => {:?}", id.0, node);
             }
             println!("Root: {:?}", graph.root_id);
-            
+
             // Check if all node references are valid
             for (id, node) in &graph.nodes {
                 match node {
@@ -26,7 +26,7 @@ x := 42
                         println!("\nAssignment node {}:", id.0);
                         println!("  target: NodeId({})", target.0);
                         println!("  value: NodeId({})", value.0);
-                        
+
                         if !graph.nodes.contains_key(target) {
                             println!("  ERROR: target NodeId({}) not found in graph!", target.0);
                         }

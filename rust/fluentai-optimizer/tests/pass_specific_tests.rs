@@ -2,7 +2,7 @@
 
 use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, CompilerOptions, VM};
 
 #[test]
@@ -17,7 +17,7 @@ fn test_constant_folding_arithmetic() {
     ];
 
     for (code, expected) in cases {
-        let ast = parse(code).unwrap();
+        let ast = parse_flc(code).unwrap();
         let config = OptimizationConfig {
             constant_folding: true,
             ..OptimizationConfig::for_level(OptimizationLevel::None)
@@ -62,7 +62,7 @@ fn test_constant_folding_boolean() {
     ];
 
     for (code, expected) in cases {
-        let ast = parse(code).unwrap();
+        let ast = parse_flc(code).unwrap();
         let config = OptimizationConfig {
             constant_folding: true,
             ..OptimizationConfig::for_level(OptimizationLevel::None)
@@ -85,7 +85,7 @@ fn test_constant_folding_boolean() {
 fn test_constant_folding_string() {
     // Test string operation constant folding
     let code = r#"(str-concat "hello" " world")"#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         constant_folding: true,
@@ -111,7 +111,7 @@ fn test_dead_code_elimination_unused_let() {
               (used (- 10 5)))
           used)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         dead_code_elimination: true,
@@ -147,7 +147,7 @@ fn test_dead_code_elimination_preserves_effects() {
               (y 10))
           y)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         dead_code_elimination: true,
@@ -176,7 +176,7 @@ fn test_cse_basic() {
               (b (+ 1 2)))
           (* a b))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         cse: true,
@@ -207,7 +207,7 @@ fn test_cse_basic() {
 fn test_inline_simple_function() {
     // Test inlining of simple functions
     let code = "((lambda (x) (+ x 1)) 5)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         inline: true,
@@ -234,7 +234,7 @@ fn test_inline_respects_threshold() {
           (+ x x x x x x x x x x x x x x x x x x x x)) 
          5)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         inline: true,
@@ -263,7 +263,7 @@ fn test_tail_call_optimization_simple() {
                             (sum (- n 1) (+ acc n))))))
           (sum 10 0))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         tail_call_optimization: true,
@@ -289,7 +289,7 @@ fn test_tail_call_optimization_simple() {
 fn test_partial_evaluation_if() {
     // Test partial evaluation of if expressions
     let code = "(if #t 42 (error \"unreachable\"))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         partial_evaluation: true,
@@ -327,7 +327,7 @@ fn test_optimization_preserves_correctness() {
     ];
 
     for code in test_cases {
-        let ast = parse(code).unwrap();
+        let ast = parse_flc(code).unwrap();
 
         // Compile without optimization
         let unopt_compiler = Compiler::with_options(CompilerOptions {
@@ -372,7 +372,7 @@ fn test_optimization_combination() {
               (+ (+ x y) (+ x y))
               (error "unreachable")))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig::for_level(OptimizationLevel::Aggressive);
     let mut pipeline = OptimizationPipeline::new(config);

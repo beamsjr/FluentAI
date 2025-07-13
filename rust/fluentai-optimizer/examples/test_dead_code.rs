@@ -1,7 +1,6 @@
 //! Test dead code elimination
 
 use fluentai_optimizer::{AdvancedOptimizer, GraphOptimizer};
-use fluentai_parser::parse;
 
 fn main() {
     let code = "(let ((x 1) (y 2) (unused 3)) (+ x y))";

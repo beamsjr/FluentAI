@@ -1,7 +1,6 @@
 //! Test higher-order functions with stdlib integration
 
 use anyhow::Result;
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM};
 
 fn test_expr(expr: &str, desc: &str) -> Result<()> {

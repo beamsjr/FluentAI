@@ -1,6 +1,5 @@
 //! Validation tests for IoT demo syntax
 
-use fluentai_parser::parse;
 
 #[test]
 fn test_basic_expressions() {

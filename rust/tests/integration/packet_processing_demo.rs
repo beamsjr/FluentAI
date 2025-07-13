@@ -1,6 +1,5 @@
 //! Demonstration of high-performance packet processing using FluentAI optimizations
 
-use fluentai_parser::parse;
 use fluentai_vm::{
     VM, VMBuilder, VMConfig, Compiler,
     MemoryPool, PoolConfig,

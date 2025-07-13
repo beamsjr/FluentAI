@@ -1,5 +1,4 @@
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, CompilerOptions, VM};
 
 #[test]

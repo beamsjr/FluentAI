@@ -1,0 +1,12 @@
+// Test with block syntax - based on test_effects_working.rs
+{
+  // Simple arithmetic
+  let x = 42;
+  
+  // Print using perform
+  perform IO.println("Hello from FluentAI!");
+  perform IO.println(f"The value is: {x}");
+  
+  // Return value
+  x
+}

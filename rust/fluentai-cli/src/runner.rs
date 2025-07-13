@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, CompilerOptions, Value, VM};
 use std::path::Path;
 
@@ -28,7 +28,7 @@ pub fn run_code(code: &str) -> Result<Value> {
 /// Run FluentAi code with specific optimization level
 pub fn run_code_with_options(code: &str, opt_level: OptimizationLevel) -> Result<Value> {
     // Parse
-    let ast = parse(code)?;
+    let ast = parse_flc(code)?;
 
     // Compile with optimization
     let options = CompilerOptions {
@@ -78,7 +78,7 @@ pub async fn run_with_visualization(
     use std::path::PathBuf;
 
     // Parse first to get AST
-    let ast = parse(code)?;
+    let ast = parse_flc(code)?;
 
     // Create channels
     let (vm_debug_tx, mut vm_debug_rx) = mpsc::unbounded_channel::<VMDebugEvent>();

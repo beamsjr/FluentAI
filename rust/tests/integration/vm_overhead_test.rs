@@ -1,5 +1,4 @@
 use std::time::Instant;
-use fluentai_parser::parse;
 use fluentai_vm::{compiler::Compiler, vm::VM};
 use fluentai_stdlib::StdlibRegistry;
 

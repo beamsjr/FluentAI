@@ -6,7 +6,7 @@
 use crate::error::{Result, RuntimeError};
 use fluentai_core::value::Value;
 use fluentai_optimizer::GraphOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc as parse;
 use fluentai_vm::{Bytecode, VM};
 use parking_lot::RwLock;
 use std::sync::Arc;

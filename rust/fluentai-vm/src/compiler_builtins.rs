@@ -81,6 +81,22 @@ impl Compiler {
             // Special forms - handled elsewhere
             "gc:let" => Ok(BuiltinResult::NotBuiltin),
             
+            // Actor operations
+            "CreateActor" => self.compile_create_actor(graph, args),
+            "ActorSend" => self.compile_actor_send(graph, args),
+            "ActorReceive" => self.compile_actor_receive(graph, args),
+            "Become" => self.compile_become(graph, args),
+            
+            // Channel operations
+            "Channel" => self.compile_nullary_op(graph, args, Opcode::Channel),
+            "ChannelWithCapacity" => self.compile_unary_op(graph, args, Opcode::ChannelWithCapacity),
+            "Send" => self.compile_binary_op(graph, args, Opcode::Send),
+            "Receive" => self.compile_unary_op(graph, args, Opcode::Receive),
+            
+            // Async operations
+            "Spawn" => self.compile_unary_op(graph, args, Opcode::Spawn),
+            "Await" => self.compile_unary_op(graph, args, Opcode::Await),
+            
             _ => Ok(BuiltinResult::NotBuiltin),
         }
     }
@@ -166,6 +182,80 @@ impl Compiler {
             self.compile_node(graph, arg)?;
         }
         self.emit(Instruction::with_arg(Opcode::MakeList, args.len() as u32));
+        
+        Ok(BuiltinResult::Handled)
+    }
+    
+    fn compile_create_actor(
+        &mut self,
+        graph: &ASTGraph,
+        args: &[NodeId],
+    ) -> Result<BuiltinResult> {
+        if args.len() != 2 {
+            return Err(anyhow!("CreateActor requires exactly 2 arguments (initial_state, handler)"));
+        }
+        
+        // Compile initial state
+        self.compile_node(graph, args[0])?;
+        
+        // Compile handler function
+        self.compile_node(graph, args[1])?;
+        
+        // Emit CreateActor instruction
+        self.emit(Instruction::new(Opcode::CreateActor));
+        
+        Ok(BuiltinResult::Handled)
+    }
+    
+    fn compile_actor_send(
+        &mut self,
+        graph: &ASTGraph,
+        args: &[NodeId],
+    ) -> Result<BuiltinResult> {
+        if args.len() != 2 {
+            return Err(anyhow!("ActorSend requires exactly 2 arguments (actor, message)"));
+        }
+        
+        // Compile actor
+        self.compile_node(graph, args[0])?;
+        
+        // Compile message
+        self.compile_node(graph, args[1])?;
+        
+        // Emit ActorSend instruction
+        self.emit(Instruction::new(Opcode::ActorSend));
+        
+        Ok(BuiltinResult::Handled)
+    }
+    
+    fn compile_actor_receive(
+        &mut self,
+        _graph: &ASTGraph,
+        args: &[NodeId],
+    ) -> Result<BuiltinResult> {
+        if args.len() < 1 {
+            return Err(anyhow!("ActorReceive requires at least 1 argument"));
+        }
+        
+        // TODO: Implement proper actor receive compilation
+        // For now, just compile it as a regular function call
+        Ok(BuiltinResult::NotBuiltin)
+    }
+    
+    fn compile_become(
+        &mut self,
+        graph: &ASTGraph,
+        args: &[NodeId],
+    ) -> Result<BuiltinResult> {
+        if args.len() != 1 {
+            return Err(anyhow!("Become requires exactly 1 argument (new_behavior)"));
+        }
+        
+        // Compile new behavior
+        self.compile_node(graph, args[0])?;
+        
+        // Emit Become instruction
+        self.emit(Instruction::new(Opcode::Become));
         
         Ok(BuiltinResult::Handled)
     }

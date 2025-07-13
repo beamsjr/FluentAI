@@ -1,7 +1,7 @@
 //! Properly integrated visualization example
 
 use anyhow::Result;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use fluentai_viz::{
     debug::{debug_channel, serialize_value, timestamp_micros, DebugEvent as VizDebugEvent},
     layout::ASTLayouter,
@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
     let source = "(+ (* 3 4) (* 5 6))";
     println!("Program: {}", source);
 
-    let ast = parse(source)?;
+    let ast = parse_flc(source)?;
 
     // Layout and send AST graph
     let layouter = ASTLayouter::default();

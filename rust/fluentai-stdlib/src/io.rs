@@ -171,7 +171,31 @@ fn print_line_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> 
 }
 
 fn print_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
-    perform_io_effect(context, "print", args)
+    // Special handling for Tagged values with "Printable" tag
+    // Check if any argument is a Tagged value with "Printable" tag
+    let mut processed_args = Vec::new();
+    
+    for arg in args {
+        match arg {
+            Value::Tagged { tag, values } => {
+                // Check if this is a Printable tagged value
+                if values.len() == 1 {
+                    if let Value::String(s) = &values[0] {
+                        if s == "Printable" {
+                            // This is a Printable tagged value, use the tag as the content
+                            processed_args.push(Value::String(tag.clone()));
+                            continue;
+                        }
+                    }
+                }
+                // Not a Printable tagged value, use as-is
+                processed_args.push(arg.clone());
+            }
+            _ => processed_args.push(arg.clone()),
+        }
+    }
+    
+    perform_io_effect(context, "print", &processed_args)
 }
 
 // JSON operations

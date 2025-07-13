@@ -1,11 +1,12 @@
 //! Example demonstrating contract inheritance and refinement
+use fluentai_parser::parse_flc;
+
 
 use fluentai_contracts::{
     CompositionType, Contract, ContractCondition, ContractHierarchy, ContractHierarchyBuilder,
     ContractInterface, ContractKind, InheritanceType, RefinementRule, RefinementType,
 };
 use fluentai_core::ast::NodeId;
-use fluentai_parser::parse;
 use std::num::NonZero;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -99,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("- Derived 'stable_sort' adds: stability guarantee");
 
         // Verify inheritance
-        let graph = parse("(define (dummy) 0)")?; // Dummy graph
+        let graph = parse_flc("(define (dummy) 0)")?; // Dummy graph
         let result = hierarchy.verify_inheritance(&graph, "sort", "stable_sort")?;
 
         println!(

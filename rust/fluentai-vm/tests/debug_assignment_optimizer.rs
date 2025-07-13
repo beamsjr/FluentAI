@@ -1,6 +1,5 @@
 //! Debug test for assignment optimization issue
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, CompilerOptions};
 use fluentai_optimizer::OptimizationLevel;
 

@@ -1226,6 +1226,8 @@ pub enum EffectType {
     Dom,
     Async,
     Concurrent,
+    HttpServer,
+    WebSocket,
 }
 
 impl fmt::Display for EffectType {
@@ -1241,6 +1243,8 @@ impl fmt::Display for EffectType {
             EffectType::Dom => write!(f, "Dom"),
             EffectType::Async => write!(f, "Async"),
             EffectType::Concurrent => write!(f, "Concurrent"),
+            EffectType::HttpServer => write!(f, "HttpServer"),
+            EffectType::WebSocket => write!(f, "WebSocket"),
         }
     }
 }

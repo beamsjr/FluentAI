@@ -18,9 +18,11 @@ fluentai-modules = { path = "../fluentai-modules" }
 fluentai-di = { path = "../fluentai-di" }
 fluentai-optimizer = { path = "../fluentai-optimizer" }
 fluentai-jit = { path = "../fluentai-jit", optional = true }
+fluentai-parser = { path = "../fluentai-parser" }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 byteorder.workspace = true
 rustc-hash.workspace = true
 tokio = { workspace = true, features = ["rt", "sync"] }

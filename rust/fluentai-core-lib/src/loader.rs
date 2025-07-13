@@ -2,7 +2,7 @@
 
 use dashmap::DashMap;
 use fluentai_optimizer::GraphOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc as parse;
 use fluentai_vm::compiler::Compiler;
 use std::collections::HashMap;
 use std::path::Path;

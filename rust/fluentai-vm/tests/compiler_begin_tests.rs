@@ -1,7 +1,6 @@
 //! Compiler tests for Begin node (multiple top-level expressions)
 
 use fluentai_core::ast::Graph;
-use fluentai_parser::parse;
 use fluentai_bytecode::Opcode;
 use fluentai_vm::compiler::Compiler;
 

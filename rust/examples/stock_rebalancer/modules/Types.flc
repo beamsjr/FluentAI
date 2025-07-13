@@ -1,0 +1,82 @@
+// Stock rebalancer type definitions module
+// Using FLC syntax with the new module system
+
+// Stock representation with current holdings
+public function create_stock(symbol: string, shares: float, current_price: float) -> map {
+    {
+        "symbol": symbol,
+        "shares": shares,
+        "current_price": current_price,
+        "value": shares * current_price
+    }
+}
+
+// Allocation target for a specific stock
+public function create_allocation(symbol: string, target_percentage: float) -> map {
+    {
+        "symbol": symbol,
+        "target_percentage": target_percentage
+    }
+}
+
+// Portfolio containing stocks and target allocations
+public function create_portfolio() -> map {
+    {
+        "stocks": [],
+        "allocations": {},
+        "total_value": 0.0
+    }
+}
+
+// Rebalancing actions
+public function create_buy_action(symbol: string, shares: float, value: float) -> map {
+    {
+        "type": "buy",
+        "symbol": symbol,
+        "shares": shares,
+        "value": value
+    }
+}
+
+public function create_sell_action(symbol: string, shares: float, value: float) -> map {
+    {
+        "type": "sell",
+        "symbol": symbol,
+        "shares": shares,
+        "value": value
+    }
+}
+
+public function create_hold_action(symbol: string) -> map {
+    {
+        "type": "hold",
+        "symbol": symbol,
+        "shares": 0.0,
+        "value": 0.0
+    }
+}
+
+// Result types for API calls
+public function create_success(data: any) -> map {
+    {
+        "status": "success",
+        "data": data
+    }
+}
+
+public function create_error(message: string) -> map {
+    {
+        "status": "error",
+        "message": message
+    }
+}
+
+// Helper to check if result is success
+public function is_success(result: map) -> bool {
+    result.get("status") == "success"
+}
+
+// Helper to get error message
+public function get_error_message(result: map) -> string {
+    result.get("message", "Unknown error")
+}

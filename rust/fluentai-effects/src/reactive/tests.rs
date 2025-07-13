@@ -1,9 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::reactive::computed::Computed as ComputedImport;
-    use crate::reactive::watchers::{Watcher, WatcherBuilder};
     use crate::reactive::{Computed, ReactiveContext, ReactiveState};
+    use crate::reactive::watchers::WatcherBuilder;
     use fluentai_core::value::Value;
     use std::sync::{Arc, Mutex};
 

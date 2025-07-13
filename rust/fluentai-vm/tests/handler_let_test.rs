@@ -1,7 +1,7 @@
 // Test handler expressions in let bindings using FLC syntax
 #[test]
 fn test_handler_in_let_binding() {
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     use fluentai_vm::{compiler::Compiler, VM};
 
     // Using FLC handler expression syntax

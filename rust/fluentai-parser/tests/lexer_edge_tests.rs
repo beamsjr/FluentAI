@@ -156,24 +156,27 @@ mod lexer_edge_tests {
     // Additional tests to increase coverage
 
     #[test]
-    #[ignore = "process_string_escapes is not exposed in FLC lexer"]
-    fn test_process_string_escapes_direct() {
-        // Now we can test process_string_escapes directly
-        // use fluentai_parser::flc_lexer::process_string_escapes;
+    fn test_string_escapes_through_lexer() {
+        // Test string escape processing through the lexer API
+        let mut lexer = Lexer::new(r#""hello\nworld""#);
+        assert_eq!(lexer.next_token(), Some(Token::String("hello\nworld".to_string())));
 
-        // Test the None case (line 86) - backslash at end of string
-        // let result = process_string_escapes("test\\");
-        // assert_eq!(result, "test\\");
+        let mut lexer = Lexer::new(r#""tab\there""#);
+        assert_eq!(lexer.next_token(), Some(Token::String("tab\there".to_string())));
 
-        // Test other escape sequences for completeness
-        // let result2 = process_string_escapes("hello\\nworld");
-        // assert_eq!(result2, "hello\nworld");
+        let mut lexer = Lexer::new(r#""quote\"test""#);
+        assert_eq!(lexer.next_token(), Some(Token::String("quote\"test".to_string())));
 
-        // let result3 = process_string_escapes("tab\\there");
-        // assert_eq!(result3, "tab\there");
+        let mut lexer = Lexer::new(r#""backslash\\test""#);
+        assert_eq!(lexer.next_token(), Some(Token::String("backslash\\test".to_string())));
 
-        // let result4 = process_string_escapes("end\\");
-        // assert_eq!(result4, "end\\");
+        // Test invalid escape sequence - should preserve backslash
+        let mut lexer = Lexer::new(r#""invalid\xescape""#);
+        assert_eq!(lexer.next_token(), Some(Token::String("invalid\\xescape".to_string())));
+        
+        // Test edge case - string without closing quote won't tokenize
+        let mut lexer = Lexer::new(r#""unclosed"#);
+        assert_eq!(lexer.next_token(), None);
     }
 
     #[test]

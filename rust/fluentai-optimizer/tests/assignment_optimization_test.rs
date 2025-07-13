@@ -1,6 +1,6 @@
 //! Test for assignment optimization issue
 
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use fluentai_optimizer::{OptimizationConfig, OptimizationLevel, OptimizationPipeline};
 
 #[test]
@@ -8,7 +8,7 @@ fn test_assignment_optimization() {
     let code = "let x = 10; x := 42";
     
     eprintln!("Parsing code: {}", code);
-    let graph = parse(code).expect("Parse failed");
+    let graph = parse_flc(code).expect("Parse failed");
     
     eprintln!("\nOriginal graph:");
     eprintln!("  Root: {:?}", graph.root_id);

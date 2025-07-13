@@ -1,0 +1,249 @@
+// Actor Feature Showcase
+// This example demonstrates all implemented actor features:
+// 1. Self field access without explicit 'self'
+// 2. Multiple handler methods
+// 3. Typed message handlers
+
+// Example 1: Simple Counter with field access
+private actor Counter {
+    value: int = 0;
+    step: int = 1;
+    
+    // Direct field access - 'value' is automatically transformed
+    private handle increment() {
+        value + step
+    }
+    
+    private handle decrement() {
+        value - step
+    }
+    
+    private handle set_step(new_step: int) {
+        new_step  // Returns new step value for state update
+    }
+    
+    private handle get() -> int {
+        value
+    }
+}
+
+// Example 2: Bank Account with typed handlers
+private actor BankAccount {
+    balance: float = 0.0;
+    owner: string = "";
+    transactions: List<string> = [];
+    
+    // Constructor-like initialization handler
+    private handle init(owner_name: string, initial_balance: float) {
+        // Multiple field updates would be handled by returning new state
+        initial_balance
+    }
+    
+    // Typed parameter with validation
+    private handle deposit(amount: float) -> float {
+        if (amount > 0) {
+            balance + amount
+        } else {
+            balance
+        }
+    }
+    
+    // Handler with complex logic
+    private handle withdraw(amount: float) -> float {
+        if (amount > 0 && amount <= balance) {
+            balance - amount
+        } else {
+            balance
+        }
+    }
+    
+    // Handler returning complex type
+    private handle get_statement() -> (string, float, int) {
+        (owner, balance, transactions.len())
+    }
+}
+
+// Example 3: Task Queue with collection manipulation
+private actor TaskQueue {
+    tasks: List<(string, int)> = [];  // (description, priority)
+    max_size: int = 100;
+    processed: int = 0;
+    
+    // Add task with priority
+    private handle enqueue(description: string, priority: int) {
+        if (tasks.len() < max_size) {
+            // Insert sorted by priority
+            let new_task = (description, priority);
+            tasks.append(new_task).sort_by(t => t.1)
+        } else {
+            tasks
+        }
+    }
+    
+    // Process highest priority task
+    private handle dequeue() -> Option<string> {
+        if (!tasks.is_empty()) {
+            let task = tasks.head();
+            Some(task.0)  // Return task description
+        } else {
+            None
+        }
+    }
+    
+    // Get queue statistics
+    private handle stats() -> (int, int, int) {
+        (tasks.len(), max_size - tasks.len(), processed)
+    }
+    
+    // Clear all tasks
+    private handle clear() {
+        []  // Return empty list
+    }
+}
+
+// Example 4: State Machine Actor
+private actor TrafficLight {
+    state: string = "red";
+    timer: int = 0;
+    
+    // Advance to next state
+    private handle tick() -> string {
+        match state {
+            "red" => {
+                if (timer >= 30) {
+                    "green"
+                } else {
+                    state
+                }
+            },
+            "green" => {
+                if (timer >= 25) {
+                    "yellow"
+                } else {
+                    state
+                }
+            },
+            "yellow" => {
+                if (timer >= 5) {
+                    "red"
+                } else {
+                    state
+                }
+            },
+            _ => state
+        }
+    }
+    
+    // Emergency override
+    private handle emergency() {
+        "red"
+    }
+    
+    // Get current state with timer
+    private handle status() -> (string, int) {
+        (state, timer)
+    }
+}
+
+// Example 5: Calculator with error handling
+private actor Calculator {
+    memory: float = 0.0;
+    last_operation: string = "none";
+    
+    // Basic arithmetic operations with type safety
+    private handle add(x: float, y: float) -> float {
+        let result = x + y;
+        result
+    }
+    
+    private handle subtract(x: float, y: float) -> float {
+        x - y
+    }
+    
+    private handle multiply(x: float, y: float) -> float {
+        x * y
+    }
+    
+    private handle divide(x: float, y: float) -> Result<float, string> {
+        if (y != 0) {
+            Ok(x / y)
+        } else {
+            Err("Division by zero")
+        }
+    }
+    
+    // Memory operations
+    private handle store(value: float) {
+        value
+    }
+    
+    private handle recall() -> float {
+        memory
+    }
+    
+    private handle clear() {
+        0.0
+    }
+}
+
+// Example 6: Chat Room Actor with message broadcasting
+private actor ChatRoom {
+    messages: List<(string, string)> = [];  // (username, message)
+    users: Set<string> = #{};
+    max_history: int = 100;
+    
+    // User joins the room
+    private handle join(username: string) -> bool {
+        if (!users.contains(username)) {
+            users.add(username)
+        } else {
+            false
+        }
+    }
+    
+    // User sends a message
+    private handle send_message(username: string, message: string) {
+        if (users.contains(username)) {
+            let new_message = (username, message);
+            if (messages.len() >= max_history) {
+                messages.tail().append(new_message)
+            } else {
+                messages.append(new_message)
+            }
+        } else {
+            messages
+        }
+    }
+    
+    // Get recent messages
+    private handle get_history(count: int) -> List<(string, string)> {
+        let total = messages.len();
+        if (count >= total) {
+            messages
+        } else {
+            messages.slice(total - count, total)
+        }
+    }
+    
+    // User leaves
+    private handle leave(username: string) {
+        users.remove(username)
+    }
+}
+
+// Usage demonstration (conceptual - actual runtime would handle message passing)
+$(
+    "Actor Showcase Examples:
+    1. Counter: increment/decrement with custom step
+    2. BankAccount: typed financial transactions  
+    3. TaskQueue: priority-based task management
+    4. TrafficLight: state machine with timers
+    5. Calculator: arithmetic with error handling
+    6. ChatRoom: multi-user message system
+    
+    All examples demonstrate:
+    - Direct field access in handlers
+    - Multiple typed handler methods
+    - Type-safe message parameters
+    - Complex return types"
+).print()

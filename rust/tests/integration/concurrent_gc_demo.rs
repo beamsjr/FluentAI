@@ -2,7 +2,6 @@
 //! 
 //! Demonstrates the concurrent garbage collector with <10ms pause times
 
-use fluentai_parser::parse;
 use fluentai_vm::{VM, Compiler, VMBuilderLegacy as VMBuilder, GcConfig};
 use std::time::{Duration, Instant};
 use std::thread;

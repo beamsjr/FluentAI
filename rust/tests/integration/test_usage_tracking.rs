@@ -1,6 +1,5 @@
 //! Example demonstrating runtime usage tracking in the VM
 
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM};
 use fluentai_core::ast::NodeId;
 

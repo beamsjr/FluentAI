@@ -2,7 +2,7 @@
 
 use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use rustc_hash::FxHashMap;
 use std::num::NonZeroU32;
 
@@ -10,7 +10,7 @@ use std::num::NonZeroU32;
 fn test_basic_substitution() {
     // Test basic variable substitution
     let code = "((lambda (x) (+ x x)) 5)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let config = OptimizationConfig {
         beta_reduction: true,
@@ -29,7 +29,7 @@ fn test_basic_substitution() {
 fn test_nested_substitution() {
     // Test substitution in nested expressions
     let code = "((lambda (x) ((lambda (y) (+ x y)) x)) 3)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -41,7 +41,7 @@ fn test_nested_substitution() {
 fn test_substitution_with_shadowing() {
     // Test that substitution respects variable shadowing
     let code = "((lambda (x) ((lambda (x) x) 10)) 5)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -54,7 +54,7 @@ fn test_substitution_with_shadowing() {
 fn test_substitution_in_let() {
     // Test substitution within let bindings
     let code = "((lambda (x) (let ((y x)) (+ y x))) 7)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -66,7 +66,7 @@ fn test_substitution_in_let() {
 fn test_substitution_preserves_application_args() {
     // Test that substitution properly handles function applications
     let code = "((lambda (f x) (f x x)) + 5)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -81,7 +81,7 @@ fn test_node_id_mapping_after_substitution() {
         (let ((f (lambda (x) (* x 2))))
           ((lambda (g) (+ (g 3) (g 4))) f))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -105,7 +105,7 @@ fn test_deep_copy_with_substitution() {
             (- a b)))
          10 5)
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -117,7 +117,7 @@ fn test_deep_copy_with_substitution() {
 fn test_multiple_substitutions() {
     // Test multiple simultaneous substitutions
     let code = "((lambda (x y z) (+ x (+ y z))) 1 2 3)";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -135,7 +135,7 @@ fn test_substitution_in_recursive_functions() {
                              (* n (fact (- n 1)))))))
           ((lambda (f) (f 5)) fact))
     "#;
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();
@@ -147,7 +147,7 @@ fn test_substitution_in_recursive_functions() {
 fn test_substitution_edge_case_self_application() {
     // Test edge case: ((lambda (x) (x x)) (lambda (y) y))
     let code = "((lambda (x) (x x)) (lambda (y) y))";
-    let ast = parse(code).unwrap();
+    let ast = parse_flc(code).unwrap();
 
     let mut optimizer = AdvancedOptimizer::new();
     let optimized = optimizer.optimize(&ast).unwrap();

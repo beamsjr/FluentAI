@@ -1,7 +1,6 @@
 //! Tests for parsing handler syntax
 
 use fluentai_core::ast::{EffectType, Node};
-use fluentai_parser::parse;
 
 #[test]
 fn test_parse_simple_handler() {

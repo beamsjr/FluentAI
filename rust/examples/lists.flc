@@ -1,4 +1,10 @@
-; List operations in FluentAI
+// List operations in FluentAI
+// Demonstrates list creation and basic operations
 
-(let ((my-list (list 1 2 3 4 5)))
-  (cons 0 my-list))
+// Create a list using literal syntax
+[1, 2, 3, 4, 5]
+
+// More list examples (for reference):
+// Empty list: []
+// Mixed types: [1, "hello", true]
+// Nested lists: [[1, 2], [3, 4], [5, 6]]

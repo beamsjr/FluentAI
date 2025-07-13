@@ -1,0 +1,71 @@
+// Price fetching service module
+// Simulates fetching stock prices (since we don't have real HTTP yet)
+
+use Types;
+
+// Simulated price data for demo purposes
+private const MOCK_PRICES = {
+    "AAPL": 178.25,
+    "GOOGL": 142.30,
+    "MSFT": 195.96,
+    "AMZN": 175.45,
+    "TSLA": 245.80,
+    "META": 325.10,
+    "NVDA": 455.60,
+    "JPM": 145.25,
+    "V": 255.40,
+    "JNJ": 155.80
+};
+
+// Fetch current price for a stock symbol
+public function fetch_price(symbol: string) -> map {
+    // In a real implementation, this would make an HTTP request
+    // For now, we'll use mock data
+    
+    let price = MOCK_PRICES.get(symbol);
+    if (price != nil) {
+        Types.create_success(price)
+    } else {
+        Types.create_error(f"Unknown symbol: {symbol}")
+    }
+}
+
+// Fetch prices for multiple symbols
+public function fetch_prices(symbols: list) -> map {
+    let prices = {};
+    let errors = [];
+    
+    symbols.for_each(symbol => {
+        let result = fetch_price(symbol);
+        if (Types.is_success(result)) {
+            prices.set(symbol, result.get("data"));
+        } else {
+            errors.push(Types.get_error_message(result));
+        }
+    });
+    
+    if (errors.is_empty()) {
+        Types.create_success(prices)
+    } else {
+        Types.create_error(errors.join(", "))
+    }
+}
+
+// Update a stock with current price
+public function update_stock_price(stock: map) -> map {
+    let symbol = stock.get("symbol");
+    let result = fetch_price(symbol);
+    
+    if (Types.is_success(result)) {
+        let price = result.get("data");
+        let shares = stock.get("shares");
+        {
+            "symbol": symbol,
+            "shares": shares,
+            "current_price": price,
+            "value": shares * price
+        }
+    } else {
+        stock  // Return unchanged if price fetch fails
+    }
+}

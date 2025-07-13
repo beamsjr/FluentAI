@@ -65,11 +65,6 @@ impl OpcodeHandler for ConcurrentHandler {
                 }
             }
             
-            MakeChannel => {
-                let channel_id = vm.create_channel();
-                vm.push(Value::Channel(channel_id.0))?;
-            }
-            
             Send => {
                 let value = vm.pop()?;
                 let channel = vm.pop()?;
@@ -119,13 +114,6 @@ impl OpcodeHandler for ConcurrentHandler {
                 vm.push(Value::Actor(actor_id.0))?;
             }
             
-            MakeActor => {
-                let handler = vm.pop()?;
-                let initial_state = vm.pop()?;
-                let actor_id = vm.create_actor(initial_state, handler)?;
-                vm.push(Value::Actor(actor_id.0))?;
-            }
-            
             ActorSend => {
                 let message = vm.pop()?;
                 let actor = vm.pop()?;
@@ -146,7 +134,6 @@ impl OpcodeHandler for ConcurrentHandler {
                     }
                 }
             }
-            
             
             // Additional async operations
             TrySend => {

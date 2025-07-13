@@ -1,0 +1,219 @@
+// HTTP Standard Library Module
+// Provides convenient HTTP client and server functionality
+
+// === HTTP Client Functions ===
+
+// Perform a GET request
+public async function get(url: string, headers: Map = {}) -> Map {
+    let request = {
+        "method": "GET",
+        "url": url,
+        "headers": headers
+    };
+    perform Network.request(request).await()
+}
+
+// Perform a POST request
+public async function post(url: string, body: string, headers: Map = {}) -> Map {
+    let request = {
+        "method": "POST",
+        "url": url,
+        "headers": headers,
+        "body": body
+    };
+    perform Network.request(request).await()
+}
+
+// Perform a PUT request
+public async function put(url: string, body: string, headers: Map = {}) -> Map {
+    let request = {
+        "method": "PUT",
+        "url": url,
+        "headers": headers,
+        "body": body
+    };
+    perform Network.request(request).await()
+}
+
+// Perform a DELETE request
+public async function delete(url: string, headers: Map = {}) -> Map {
+    let request = {
+        "method": "DELETE",
+        "url": url,
+        "headers": headers
+    };
+    perform Network.request(request).await()
+}
+
+// Perform a PATCH request
+public async function patch(url: string, body: string, headers: Map = {}) -> Map {
+    let request = {
+        "method": "PATCH",
+        "url": url,
+        "headers": headers,
+        "body": body
+    };
+    perform Network.request(request).await()
+}
+
+// Perform a HEAD request
+public async function head(url: string, headers: Map = {}) -> Map {
+    let request = {
+        "method": "HEAD",
+        "url": url,
+        "headers": headers
+    };
+    perform Network.request(request).await()
+}
+
+// Perform an OPTIONS request
+public async function options(url: string, headers: Map = {}) -> Map {
+    let request = {
+        "method": "OPTIONS",
+        "url": url,
+        "headers": headers
+    };
+    perform Network.request(request).await()
+}
+
+// === HTTP Server Functions ===
+
+// Create an HTTP server
+public struct Server {
+    pub id: string,
+    pub port: int,
+    pub address: string,
+}
+
+// Start an HTTP server on the specified port
+public async function serve(port: int, routes: List<Route> = []) -> Server {
+    // Register all routes
+    routes.for_each(route => {
+        perform HttpServer.route(route.method, route.path, route.handler);
+    });
+    
+    // Start the server
+    let server_info = perform HttpServer.listen(port).await();
+    
+    Server {
+        id: server_info.id,
+        port: server_info.port,
+        address: server_info.address
+    }
+}
+
+// Stop an HTTP server
+public async function stop_server(server: Server) {
+    perform HttpServer.stop(server.id).await();
+}
+
+// === Route Building ===
+
+public struct Route {
+    pub method: string,
+    pub path: string,
+    pub handler: string,
+}
+
+// Create a GET route
+public function route_get(path: string, handler: string) -> Route {
+    Route { method: "GET", path: path, handler: handler }
+}
+
+// Create a POST route
+public function route_post(path: string, handler: string) -> Route {
+    Route { method: "POST", path: path, handler: handler }
+}
+
+// Create a PUT route
+public function route_put(path: string, handler: string) -> Route {
+    Route { method: "PUT", path: path, handler: handler }
+}
+
+// Create a DELETE route
+public function route_delete(path: string, handler: string) -> Route {
+    Route { method: "DELETE", path: path, handler: handler }
+}
+
+// Create a route that matches any method
+public function route_any(path: string, handler: string) -> Route {
+    Route { method: "*", path: path, handler: handler }
+}
+
+// === Request/Response Helpers ===
+
+// Parse JSON from a response body
+public function parse_json(response: Map) -> any {
+    response.body.from_json()
+}
+
+// Create a JSON response
+public function json_response(data: any, status: int = 200) -> Map {
+    {
+        "status": status,
+        "headers": {"Content-Type": "application/json"},
+        "body": data.to_json()
+    }
+}
+
+// Create an HTML response
+public function html_response(html: string, status: int = 200) -> Map {
+    {
+        "status": status,
+        "headers": {"Content-Type": "text/html"},
+        "body": html
+    }
+}
+
+// Create a text response
+public function text_response(text: string, status: int = 200) -> Map {
+    {
+        "status": status,
+        "headers": {"Content-Type": "text/plain"},
+        "body": text
+    }
+}
+
+// Create a redirect response
+public function redirect(location: string, status: int = 302) -> Map {
+    {
+        "status": status,
+        "headers": {"Location": location},
+        "body": ""
+    }
+}
+
+// === URL Building ===
+
+// Build a URL with query parameters
+public function build_url(base: string, params: Map) -> string {
+    if params.is_empty() {
+        base
+    } else {
+        let query = params
+            .entries()
+            .map(([k, v]) => f"{k}={v}")
+            .join("&");
+        f"{base}?{query}"
+    }
+}
+
+// === Status Code Constants ===
+public const OK = 200;
+public const CREATED = 201;
+public const ACCEPTED = 202;
+public const NO_CONTENT = 204;
+public const MOVED_PERMANENTLY = 301;
+public const FOUND = 302;
+public const SEE_OTHER = 303;
+public const NOT_MODIFIED = 304;
+public const BAD_REQUEST = 400;
+public const UNAUTHORIZED = 401;
+public const FORBIDDEN = 403;
+public const NOT_FOUND = 404;
+public const METHOD_NOT_ALLOWED = 405;
+public const CONFLICT = 409;
+public const INTERNAL_SERVER_ERROR = 500;
+public const NOT_IMPLEMENTED = 501;
+public const BAD_GATEWAY = 502;
+public const SERVICE_UNAVAILABLE = 503;

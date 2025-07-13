@@ -1,7 +1,6 @@
 //! Test I/O sandboxing with effect system
 
 use anyhow::Result;
-use fluentai_parser::parse;
 use fluentai_vm::{Compiler, VM};
 use fluentai_stdlib::io_effects::{set_io_context, IOEffectContext, LoggingIOHandler};
 use std::sync::Arc;

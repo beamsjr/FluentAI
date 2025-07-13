@@ -3,7 +3,7 @@ mod tests {
     use crate::graph_optimizer::GraphOptimizer;
     use crate::pipeline::{OptimizationConfig, OptimizationLevel, OptimizationPipeline};
     use fluentai_core::ast::{Graph, Literal, Node, NodeId};
-    use fluentai_parser::parse;
+    use fluentai_parser::parse_flc;
     use std::num::NonZeroU32;
 
     // ===== GraphOptimizer Tests =====
@@ -30,7 +30,7 @@ mod tests {
     #[test]
     fn test_optimize_simple_expression() {
         let mut optimizer = GraphOptimizer::new();
-        let graph = parse("1 + 2").unwrap();
+        let graph = parse_flc("1 + 2").unwrap();
 
         let result = optimizer.optimize(&graph);
         assert!(result.is_ok());
@@ -43,7 +43,7 @@ mod tests {
     fn test_optimize_preserves_semantics() {
         let mut optimizer = GraphOptimizer::new();
         let code = "{ let x = 5; x + 3 }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
 
         let result = optimizer.optimize(&graph);
         assert!(result.is_ok());
@@ -72,7 +72,7 @@ mod tests {
         };
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("1 + 2").unwrap();
+        let graph = parse_flc("1 + 2").unwrap();
 
         let result = pipeline.optimize(&graph);
         assert!(result.is_ok());
@@ -83,7 +83,7 @@ mod tests {
         let config = OptimizationConfig::for_level(OptimizationLevel::None);
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("1 + 2").unwrap();
+        let graph = parse_flc("1 + 2").unwrap();
         let original = graph.clone();
 
         let result = pipeline.optimize(&graph);
@@ -101,7 +101,7 @@ mod tests {
         config.constant_folding = false; // Disable constant folding
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("1 + 2").unwrap();
+        let graph = parse_flc("1 + 2").unwrap();
 
         let result = pipeline.optimize(&graph);
         assert!(result.is_ok());
@@ -125,7 +125,7 @@ mod tests {
         };
 
         let mut pipeline = OptimizationPipeline::new(config);
-        let graph = parse("(1 + 2) + (3 + 4)").unwrap();
+        let graph = parse_flc("(1 + 2) + (3 + 4)").unwrap();
 
         let result = pipeline.optimize(&graph);
         assert!(result.is_ok());
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn test_constant_folding() {
         let mut optimizer = GraphOptimizer::new();
-        let graph = parse("(1 + 2) * (5 - 2)").unwrap();
+        let graph = parse_flc("(1 + 2) * (5 - 2)").unwrap();
 
         let result = optimizer.optimize(&graph);
         assert!(result.is_ok());
@@ -154,7 +154,7 @@ mod tests {
     fn test_dead_code_elimination() {
         let mut optimizer = GraphOptimizer::new();
         let code = "{ let x = 1; let y = 2; let z = 3; x }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
         let original_size = graph.nodes.len();
 
         let result = optimizer.optimize(&graph);
@@ -186,8 +186,8 @@ mod tests {
     #[test]
     fn test_preserve_effects() {
         let mut optimizer = GraphOptimizer::new();
-        let code = "{ print(\"hello\"); 42 }";
-        let graph = parse(code).unwrap();
+        let code = "{ perform IO.print(\"hello\"); 42 }";
+        let graph = parse_flc(code).unwrap();
 
         let result = optimizer.optimize(&graph);
         assert!(result.is_ok());
@@ -197,14 +197,14 @@ mod tests {
         let has_print = optimized
             .nodes
             .values()
-            .any(|node| matches!(node, Node::Variable { name } if name == "print"));
-        assert!(has_print, "Print function should be preserved");
+            .any(|node| matches!(node, Node::Effect { .. }));
+        assert!(has_print, "IO.print effect should be preserved");
     }
 
     #[test]
     fn test_optimization_idempotent() {
         let mut optimizer = GraphOptimizer::new();
-        let graph = parse("1 + 2").unwrap();
+        let graph = parse_flc("1 + 2").unwrap();
 
         let result1 = optimizer.optimize(&graph);
         assert!(result1.is_ok());
@@ -254,7 +254,7 @@ mod tests {
             expr = format!("{} + 1", expr);
         }
 
-        let graph = parse(&expr).unwrap();
+        let graph = parse_flc(&expr).unwrap();
         let result = optimizer.optimize(&graph);
 
         // Should handle deep expressions
@@ -265,7 +265,7 @@ mod tests {
     fn test_cyclic_references() {
         let mut optimizer = GraphOptimizer::new();
         let code = "{ let x = () => y(); let y = () => x(); x() }";
-        let graph = parse(code).unwrap();
+        let graph = parse_flc(code).unwrap();
 
         let result = optimizer.optimize(&graph);
         // Should handle cycles gracefully

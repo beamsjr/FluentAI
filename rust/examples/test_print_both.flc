@@ -1,0 +1,15 @@
+// Test both print syntaxes
+
+// Test 1: Direct perform effect
+perform IO.println("Hello from perform IO.println!");
+
+// Test 2: Printable wrapper  
+$("Hello from $().println()!").println();
+
+// Test 3: With string interpolation
+let x = 42;
+perform IO.println(f"The answer from perform is: {x}");
+$(f"The answer from $() is: {x}").println();
+
+// Return value
+x

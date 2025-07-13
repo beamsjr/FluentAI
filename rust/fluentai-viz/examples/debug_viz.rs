@@ -1,7 +1,7 @@
 //! Debug visualization to test AST graph
 
 use anyhow::Result;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 use fluentai_viz::{
     layout::ASTLayouter, serializer::VisualizationMessage, ServerConfig, VisualizationServer,
 };
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
     let source = "(+ 1 2)";
     println!("Simple program: {}", source);
 
-    let ast = parse(source)?;
+    let ast = parse_flc(source)?;
 
     // Layout and send AST graph
     let layouter = ASTLayouter::default();

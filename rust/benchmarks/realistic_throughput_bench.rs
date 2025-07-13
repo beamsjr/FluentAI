@@ -2,7 +2,6 @@
 //! 
 //! Measures actual operation throughput with realistic workloads
 
-use fluentai_parser::parse;
 use fluentai_vm::{VM, Compiler};
 use std::time::Instant;
 

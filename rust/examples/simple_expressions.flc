@@ -1,4 +1,14 @@
-;; Very simple multiple expressions
-1
-2
-3
+// Multiple simple expressions in FluentAI
+// Each expression is evaluated in sequence
+
+// First expression - simple addition
+1 + 2;
+
+// Second expression - multiplication
+3 * 4;
+
+// Third expression - combined operation
+(5 + 6) * 7;
+
+// The last expression is the return value
+42

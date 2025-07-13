@@ -1,0 +1,367 @@
+// REST Client Module
+// Provides high-level REST API client functionality with JSON support
+
+use http;
+
+// === REST Client ===
+
+public struct RestClient {
+    pub base_url: string,
+    pub headers: Map,
+    pub timeout: int,
+    pub retry_config: RetryConfig,
+}
+
+public struct RetryConfig {
+    pub max_retries: int,
+    pub initial_delay: int,  // milliseconds
+    pub max_delay: int,      // milliseconds
+    pub exponential_base: float,
+}
+
+// Default retry configuration
+public function default_retry_config() -> RetryConfig {
+    RetryConfig {
+        max_retries: 3,
+        initial_delay: 100,
+        max_delay: 5000,
+        exponential_base: 2.0
+    }
+}
+
+// Create a new REST client
+public function client(base_url: string) -> RestClient {
+    RestClient {
+        base_url: base_url,
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        timeout: 30000,  // 30 seconds
+        retry_config: default_retry_config()
+    }
+}
+
+// REST Client methods
+private RestClient {
+    // Set a header
+    public function with_header(self, key: string, value: string) -> RestClient {
+        RestClient {
+            base_url: self.base_url,
+            headers: self.headers.insert(key, value),
+            timeout: self.timeout,
+            retry_config: self.retry_config
+        }
+    }
+    
+    // Set authorization header
+    public function with_auth(self, token: string) -> RestClient {
+        self.with_header("Authorization", f"Bearer {token}")
+    }
+    
+    // Set basic auth
+    public function with_basic_auth(self, username: string, password: string) -> RestClient {
+        let credentials = f"{username}:{password}".to_base64();
+        self.with_header("Authorization", f"Basic {credentials}")
+    }
+    
+    // Set timeout
+    public function with_timeout(self, timeout_ms: int) -> RestClient {
+        RestClient {
+            base_url: self.base_url,
+            headers: self.headers,
+            timeout: timeout_ms,
+            retry_config: self.retry_config
+        }
+    }
+    
+    // Set retry configuration
+    public function with_retry(self, config: RetryConfig) -> RestClient {
+        RestClient {
+            base_url: self.base_url,
+            headers: self.headers,
+            timeout: self.timeout,
+            retry_config: config
+        }
+    }
+    
+    // Perform a GET request
+    public async function get(self, path: string, params: Map = {}) -> RestResponse {
+        let url = http.build_url(f"{self.base_url}{path}", params);
+        self.execute_with_retry("GET", url, null).await()
+    }
+    
+    // Perform a POST request
+    public async function post(self, path: string, data: any) -> RestResponse {
+        let url = f"{self.base_url}{path}";
+        let body = if data.is_string() { data } else { data.to_json() };
+        self.execute_with_retry("POST", url, body).await()
+    }
+    
+    // Perform a PUT request
+    public async function put(self, path: string, data: any) -> RestResponse {
+        let url = f"{self.base_url}{path}";
+        let body = if data.is_string() { data } else { data.to_json() };
+        self.execute_with_retry("PUT", url, body).await()
+    }
+    
+    // Perform a PATCH request
+    public async function patch(self, path: string, data: any) -> RestResponse {
+        let url = f"{self.base_url}{path}";
+        let body = if data.is_string() { data } else { data.to_json() };
+        self.execute_with_retry("PATCH", url, body).await()
+    }
+    
+    // Perform a DELETE request
+    public async function delete(self, path: string) -> RestResponse {
+        let url = f"{self.base_url}{path}";
+        self.execute_with_retry("DELETE", url, null).await()
+    }
+    
+    // Execute request with retry logic
+    private async function execute_with_retry(self, method: string, url: string, body: string?) -> RestResponse {
+        let mut attempts = 0;
+        let mut delay = self.retry_config.initial_delay;
+        
+        loop {
+            attempts += 1;
+            
+            let response = self.execute_request(method, url, body).await();
+            
+            // Check if we should retry
+            if response.should_retry() && attempts <= self.retry_config.max_retries {
+                perform Time.sleep(delay).await();
+                
+                // Calculate next delay with exponential backoff
+                delay = (delay.to_float() * self.retry_config.exponential_base).to_int();
+                if delay > self.retry_config.max_delay {
+                    delay = self.retry_config.max_delay;
+                }
+                
+                continue;
+            }
+            
+            return response;
+        }
+    }
+    
+    // Execute a single request
+    private async function execute_request(self, method: string, url: string, body: string?) -> RestResponse {
+        try {
+            let request = {
+                "method": method,
+                "url": url,
+                "headers": self.headers,
+                "timeout": self.timeout
+            };
+            
+            if body != null {
+                request["body"] = body;
+            }
+            
+            let start_time = perform Time.now();
+            let response = perform Network.request(request).await();
+            let duration = perform Time.now() - start_time;
+            
+            RestResponse.from_http_response(response, duration)
+        } catch (e) {
+            RestResponse.from_error(e)
+        }
+    }
+}
+
+// === REST Response ===
+
+public struct RestResponse {
+    pub success: bool,
+    pub status: int,
+    pub headers: Map,
+    pub body: string,
+    pub data: any?,  // Parsed JSON data if applicable
+    pub error: string?,
+    pub duration_ms: int,
+}
+
+private RestResponse {
+    // Create from HTTP response
+    public function from_http_response(response: Map, duration_ms: int) -> RestResponse {
+        let status = response.status;
+        let success = status >= 200 && status < 300;
+        
+        // Try to parse JSON if content type indicates JSON
+        let content_type = response.headers.get("content-type", "");
+        let data = if content_type.contains("application/json") && response.body != "" {
+            try {
+                response.body.from_json()
+            } catch {
+                null
+            }
+        } else {
+            null
+        };
+        
+        RestResponse {
+            success: success,
+            status: status,
+            headers: response.headers,
+            body: response.body,
+            data: data,
+            error: null,
+            duration_ms: duration_ms
+        }
+    }
+    
+    // Create from error
+    public function from_error(error: any) -> RestResponse {
+        RestResponse {
+            success: false,
+            status: 0,
+            headers: {},
+            body: "",
+            data: null,
+            error: error.to_string(),
+            duration_ms: 0
+        }
+    }
+    
+    // Check if request should be retried
+    public function should_retry(self) -> bool {
+        // Retry on network errors or 5xx status codes
+        self.error != null || (self.status >= 500 && self.status < 600)
+    }
+    
+    // Get JSON data or throw if not available
+    public function json(self) -> any {
+        if self.data != null {
+            self.data
+        } else if self.body != "" {
+            self.body.from_json()
+        } else {
+            error("No JSON data available")
+        }
+    }
+    
+    // Get JSON data or default value
+    public function json_or(self, default: any) -> any {
+        try {
+            self.json()
+        } catch {
+            default
+        }
+    }
+}
+
+// === Request/Response Interceptors ===
+
+public struct Interceptor {
+    pub name: string,
+    pub on_request: (Map) -> Map,
+    pub on_response: (RestResponse) -> RestResponse,
+}
+
+// Common interceptors
+
+// Log requests and responses
+public function logging_interceptor(prefix: string = "[REST]") -> Interceptor {
+    Interceptor {
+        name: "logging",
+        on_request: (req) => {
+            $(f"{prefix} {req.method} {req.url}").print();
+            req
+        },
+        on_response: (res) => {
+            $(f"{prefix} Response: {res.status} ({res.duration_ms}ms)").print();
+            res
+        }
+    }
+}
+
+// Add timestamp header
+public function timestamp_interceptor() -> Interceptor {
+    Interceptor {
+        name: "timestamp",
+        on_request: (req) => {
+            req.headers["X-Request-Time"] = perform Time.now().to_string();
+            req
+        },
+        on_response: (res) => res
+    }
+}
+
+// === Pagination Support ===
+
+public struct PagedResponse<T> {
+    pub items: List<T>,
+    pub total: int,
+    pub page: int,
+    pub per_page: int,
+    pub has_next: bool,
+    pub has_prev: bool,
+}
+
+// Parse common pagination formats
+public function parse_pagination<T>(response: RestResponse, items_key: string = "items") -> PagedResponse<T> {
+    let data = response.json();
+    
+    PagedResponse<T> {
+        items: data[items_key] ?? [],
+        total: data["total"] ?? data["total_count"] ?? 0,
+        page: data["page"] ?? data["current_page"] ?? 1,
+        per_page: data["per_page"] ?? data["page_size"] ?? 10,
+        has_next: data["has_next"] ?? false,
+        has_prev: data["has_prev"] ?? false
+    }
+}
+
+// === Common REST Patterns ===
+
+// Create a CRUD client for a resource
+public function crud_client<T>(base_url: string, resource: string) -> CrudClient<T> {
+    CrudClient<T> {
+        client: client(base_url),
+        resource: resource
+    }
+}
+
+public struct CrudClient<T> {
+    pub client: RestClient,
+    pub resource: string,
+}
+
+private CrudClient<T> {
+    // List all resources
+    public async function list(self, params: Map = {}) -> List<T> {
+        let response = self.client.get(f"/{self.resource}", params).await();
+        response.json()
+    }
+    
+    // Get a single resource
+    public async function get(self, id: string) -> T {
+        let response = self.client.get(f"/{self.resource}/{id}").await();
+        response.json()
+    }
+    
+    // Create a new resource
+    public async function create(self, data: T) -> T {
+        let response = self.client.post(f"/{self.resource}", data).await();
+        response.json()
+    }
+    
+    // Update a resource
+    public async function update(self, id: string, data: T) -> T {
+        let response = self.client.put(f"/{self.resource}/{id}", data).await();
+        response.json()
+    }
+    
+    // Partially update a resource
+    public async function patch(self, id: string, data: Map) -> T {
+        let response = self.client.patch(f"/{self.resource}/{id}", data).await();
+        response.json()
+    }
+    
+    // Delete a resource
+    public async function delete(self, id: string) -> bool {
+        let response = self.client.delete(f"/{self.resource}/{id}").await();
+        response.success
+    }
+}

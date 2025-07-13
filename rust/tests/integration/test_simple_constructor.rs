@@ -1,5 +1,4 @@
 use anyhow::Result;
-use fluentai_parser::parse;
 use fluentai_vm::{VM, Compiler};
 
 fn main() -> Result<()> {

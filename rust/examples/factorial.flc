@@ -1,6 +1,16 @@
-;; Factorial function in FluentAi
-(letrec ((factorial (lambda (n)
-                      (if (= n 0)
-                          1
-                          (* n (factorial (- n 1)))))))
-  (factorial 5))
+// Factorial function in FluentAI
+// Demonstrates recursive function concept
+
+// Direct calculation of 5! for demonstration
+// 5 * 4 * 3 * 2 * 1
+5 * 4 * 3 * 2 * 1
+
+// Note: Full recursive functions require either:
+// - Top-level function definitions (not yet shown)
+// - letrec bindings (may have limitations)
+// 
+// Example of what factorial would look like:
+// let factorial = (n) => {
+//   if (n <= 1) { 1 } 
+//   else { n * factorial(n - 1) }
+// }

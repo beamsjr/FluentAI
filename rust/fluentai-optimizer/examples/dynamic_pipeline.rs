@@ -5,7 +5,6 @@ use fluentai_core::ast::{Graph, Literal, Node, NodeId};
 use fluentai_di::prelude::*;
 use fluentai_optimizer::di::*;
 use fluentai_optimizer::*;
-use fluentai_parser::parse;
 use std::sync::Arc;
 
 fn main() -> Result<()> {

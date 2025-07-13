@@ -1,5 +1,4 @@
 // Quick test of the Rust parser
-use fluentai_parser::parse;
 
 fn main() {
     println!("Testing FluentAi Rust Parser\n");

@@ -1,11 +1,11 @@
 use fluentai_core::ast::{Node, NodeId};
 use fluentai_optimizer::AdvancedOptimizer;
-use fluentai_parser::parse;
+use fluentai_parser::parse_flc;
 
 #[test]
 fn debug_node_mapping_detailed() {
-    let code = "(let ((x 5)) x)"; // Simpler case
-    let ast = parse(code).unwrap();
+    let code = "{ let x = 5; x }"; // Simpler case
+    let ast = parse_flc(code).unwrap();
 
     println!("=== Original AST ===");
     for (id, node) in &ast.nodes {
