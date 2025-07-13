@@ -16,52 +16,79 @@ pub enum DocumentationVisibility {
 /// Documentation for a language construct
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Documentation {
+    /// Name of the documented construct
     pub name: String,
+    /// Syntax pattern for the construct
     pub syntax: String,
+    /// Human-readable description
     pub description: String,
+    /// Usage examples
     pub examples: Vec<String>,
+    /// Category for organization
     pub category: DocumentationCategory,
+    /// Related constructs
     pub see_also: Vec<String>,
+    /// Visibility level
     pub visibility: DocumentationVisibility,
 }
 
 /// Category of documented construct
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DocumentationCategory {
+    /// Literal values (numbers, strings, etc.)
     Literal,
+    /// Variable references and bindings
     Variable,
+    /// Functions and function application
     Function,
+    /// Control flow constructs (if, match, etc.)
     ControlFlow,
+    /// Data structures (lists, maps, etc.)
     DataStructure,
+    /// Pattern matching constructs
     PatternMatching,
+    /// Module system constructs
     Module,
+    /// Asynchronous programming constructs
     Async,
+    /// Effect system constructs
     Effect,
+    /// Operators
     Operator,
+    /// Language keywords
     Keyword,
+    /// Verification and contract constructs
     Verification,
 }
 
 /// Trait that all AST nodes must implement for documentation
 pub trait DocumentedNode {
+    /// Returns the name of the construct
     fn name() -> &'static str;
 
+    /// Returns the syntax pattern
     fn syntax() -> &'static str;
 
+    /// Returns a human-readable description
     fn description() -> &'static str;
 
+    /// Returns example usage
     fn examples() -> &'static [&'static str];
 
+    /// Returns the documentation category
     fn category() -> DocumentationCategory;
 
+    /// Returns the visibility level (defaults to Public)
     fn visibility() -> DocumentationVisibility {
         DocumentationVisibility::Public
     }
 
+    /// Returns related constructs (defaults to empty)
     fn see_also() -> &'static [&'static str] {
         &[]
     }
 
+    /// Builds a complete Documentation struct
     fn get_docs() -> Documentation {
         Documentation {
             name: Self::name().to_string(),
@@ -78,27 +105,41 @@ pub trait DocumentedNode {
 /// Documentation for operators
 #[derive(Debug, Clone)]
 pub struct OperatorDoc {
+    /// The operator symbol
     pub symbol: &'static str,
+    /// Human-readable name
     pub name: &'static str,
+    /// Operator precedence (higher binds tighter)
     pub precedence: u8,
+    /// Associativity direction
     pub associativity: Associativity,
+    /// Description of the operator
     pub description: &'static str,
+    /// Usage examples
     pub examples: &'static [&'static str],
 }
 
+/// Operator associativity
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Associativity {
+    /// Left-associative (a + b + c = (a + b) + c)
     Left,
+    /// Right-associative (a ^ b ^ c = a ^ (b ^ c))
     Right,
+    /// Non-associative
     None,
 }
 
 /// Documentation for keywords
 #[derive(Debug, Clone)]
 pub struct KeywordDoc {
+    /// The keyword
     pub keyword: &'static str,
+    /// Description of the keyword
     pub description: &'static str,
+    /// Syntax pattern
     pub syntax: &'static str,
+    /// Usage examples
     pub examples: &'static [&'static str],
 }
 
@@ -132,6 +173,7 @@ impl OperatorDoc {
         }
     }
 
+    /// Converts to a general Documentation struct
     pub fn to_documentation(&self) -> Documentation {
         Documentation {
             name: self.name.to_string(),
@@ -161,6 +203,7 @@ impl KeywordDoc {
         }
     }
 
+    /// Converts to a general Documentation struct
     pub fn to_documentation(&self) -> Documentation {
         Documentation {
             name: self.keyword.to_string(),
@@ -209,6 +252,7 @@ pub trait UserFacingFeature {
 
 /// Helper function to create builtin documentation
 impl BuiltinDoc {
+    /// Creates a new builtin function documentation
     pub const fn new(
         name: &'static str,
         signature: &'static str,
@@ -225,6 +269,7 @@ impl BuiltinDoc {
         }
     }
 
+    /// Converts to a general Documentation struct
     pub fn to_documentation(&self) -> Documentation {
         Documentation {
             name: self.name.to_string(),
