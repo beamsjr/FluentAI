@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Topics - FluentAI Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
+            --secondary: #00d4ff;
+            --bg-dark: #0a0e27;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --code-bg: #1e1e2e;
+            --border: #e9ecef;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: white;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "⚡";
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 5rem 2rem 1rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem 2rem;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 3rem;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 6rem;
+            height: fit-content;
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .sidebar h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 0.5rem 0;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            padding-left: 1rem;
+            margin-left: -1rem;
+        }
+
+        .sidebar a:hover {
+            color: var(--primary);
+            border-left-color: var(--primary);
+            background: rgba(0,102,255,0.05);
+        }
+
+        .sidebar a.active {
+            color: var(--primary);
+            font-weight: 600;
+            border-left-color: var(--primary);
+        }
+
+        /* Content */
+        .content {
+            max-width: 800px;
+        }
+
+        .content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        .content h2 {
+            font-size: 2rem;
+            margin: 3rem 0 1.5rem;
+            color: var(--text-dark);
+        }
+
+        .content h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--text-dark);
+        }
+
+        .content p {
+            margin-bottom: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .content a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .content a:hover {
+            text-decoration: underline;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            color: #f8f8f2;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .code-inline {
+            background: var(--bg-light);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            color: #0d47a1;
+        }
+
+        .alert-warning {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #e65100;
+        }
+
+        /* Next/Previous Navigation */
+        .doc-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .doc-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+        }
+
+        .doc-nav a:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .doc-nav .next {
+            margin-left: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                margin-bottom: 2rem;
+            }
+
+            .doc-nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .doc-nav a {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <a href="index.html" class="logo">FluentAI</a>
+            <ul class="nav-links">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="docs.html" class="active">Documentation</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="https://github.com/beamsjr/FluentAI" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="docs.html">Documentation</a> / Advanced Topics
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h3>On This Page</h3>
+            <ul>
+                <li><a href="#concurrency" class="active">Concurrency Overview</a></li>
+                <li><a href="#channels">Channels</a></li>
+                <li><a href="#async-await">Async/Await</a></li>
+                <li><a href="#actors">Actor Model</a></li>
+                <li><a href="#spawn">Spawn & Tasks</a></li>
+                <li><a href="#contracts">Contracts</a></li>
+                <li><a href="#optimization">Optimization</a></li>
+                <li><a href="#ffi">Foreign Function Interface</a></li>
+            </ul>
+        </aside>
+
+        <!-- Content -->
+        <main class="content">
+            <h1>Advanced Topics</h1>
+            <p>This guide covers FluentAI's advanced features for building high-performance, concurrent applications.</p>
+
+            <h2 id="concurrency">Concurrency Overview</h2>
+            <p>FluentAI provides multiple concurrency primitives inspired by Go and Erlang, designed for safety and performance.</p>
+
+            <h3>Concurrency Models</h3>
+            <ul>
+                <li><strong>Channels</strong> - Go-style CSP (Communicating Sequential Processes)</li>
+                <li><strong>Async/Await</strong> - Asynchronous programming with futures</li>
+                <li><strong>Actors</strong> - Erlang-style isolated state with message passing</li>
+                <li><strong>Spawn</strong> - Lightweight green threads</li>
+            </ul>
+
+            <div class="alert alert-info">
+                <strong>Note:</strong> All concurrency primitives in FluentAI are memory-safe and data-race free by design.
+            </div>
+
+            <h2 id="channels">Channels</h2>
+            <p>Channels provide thread-safe communication between concurrent tasks.</p>
+
+            <h3>Creating and Using Channels</h3>
+            <div class="code-block">
+                <pre><code>// Create a channel with buffer size
+let ch = channel(10);
+
+// Unbuffered channel (synchronous)
+let sync_ch = channel(0);
+
+// Send values
+ch.send(42);
+ch.send(100);
+
+// Receive values
+let value = ch.receive();  // Blocks until value available
+let maybe_value = ch.try_receive();  // Non-blocking, returns Option</code></pre>
+            </div>
+
+            <h3>Producer-Consumer Pattern</h3>
+            <div class="code-block">
+                <pre><code>// Producer
+spawn {
+    for i in range(0, 100) {
+        ch.send(i * i);
+        perform Time.sleep(10);
+    }
+    ch.close();  // Signal completion
+};
+
+// Multiple consumers
+for _ in range(0, 3) {
+    spawn {
+        for value in ch {  // Iterates until channel closed
+            process_value(value);
+        }
+    };
+}</code></pre>
+            </div>
+
+            <h3>Select Statement</h3>
+            <div class="code-block">
+                <pre><code>// Select from multiple channels
+loop {
+    select {
+        case msg = data_ch.receive() => {
+            process_data(msg);
+        },
+        case cmd = control_ch.receive() => {
+            if (cmd == "stop") { break; }
+        },
+        case timeout(1000) => {
+            $(\"No activity for 1 second\").print();
+        }
+    }
+}</code></pre>
+            </div>
+
+            <h2 id="async-await">Async/Await</h2>
+            <p>Async/await provides composable asynchronous programming without callback hell.</p>
+
+            <h3>Async Functions</h3>
+            <div class="code-block">
+                <pre><code>// Define async function
+private async function fetch_user(id: Uuid) -> Result<User, Error> {
+    let response = http.get(f"/api/users/{id}").await();
+    response.json().await()
+}
+
+// Call async function
+async {
+    let user = fetch_user(user_id).await();
+    match user {
+        Ok(u) => update_ui(u),
+        Err(e) => show_error(e)
+    }
+};</code></pre>
+            </div>
+
+            <h3>Concurrent Async Operations</h3>
+            <div class="code-block">
+                <pre><code>// Run multiple async operations concurrently
+let (user, posts, comments) = join!(
+    fetch_user(user_id),
+    fetch_posts(user_id),
+    fetch_comments(user_id)
+).await();
+
+// Process first completed
+let result = race!(
+    fetch_from_primary(),
+    fetch_from_backup(),
+    timeout(5000)
+).await();</code></pre>
+            </div>
+
+            <h3>Async Streams</h3>
+            <div class="code-block">
+                <pre><code>// Create async stream
+private async function* generate_updates() {
+    loop {
+        let update = fetch_update().await();
+        yield update;
+        perform Time.sleep(1000);
+    }
+}
+
+// Consume async stream
+async {
+    for await update in generate_updates() {
+        if (update.is_critical()) {
+            handle_critical_update(update);
+            break;
+        }
+    }
+}</code></pre>
+            </div>
+
+            <h2 id="actors">Actor Model</h2>
+            <p>Actors provide isolated state with message-passing concurrency.</p>
+
+            <h3>Defining Actors</h3>
+            <div class="code-block">
+                <pre><code>// Define an actor
+private actor Counter {
+    // Private state
+    count: int = 0;
+    
+    // Message handlers
+    private handle Increment(amount: int) {
+        self.count += amount;
+    }
+    
+    private handle Decrement(amount: int) {
+        self.count -= amount;
+    }
+    
+    private handle GetCount() -> int {
+        self.count
+    }
+    
+    private handle Reset() {
+        self.count = 0;
+    }
+}</code></pre>
+            </div>
+
+            <h3>Using Actors</h3>
+            <div class="code-block">
+                <pre><code>// Create actor instance
+let counter = Counter.spawn();
+
+// Send messages (async)
+counter.send(Increment(5));
+counter.send(Decrement(2));
+
+// Request-response pattern
+let current = counter.ask(GetCount()).await();
+$(f"Current count: {current}").print();
+
+// Actor supervision
+let supervised = Counter.spawn_supervised({
+    restart_policy: RestartPolicy.Exponential,
+    max_restarts: 3
+});</code></pre>
+            </div>
+
+            <h3>Actor Systems</h3>
+            <div class="code-block">
+                <pre><code>// Complex actor system
+private actor OrderProcessor {
+    orders: Queue<Order> = Queue.new();
+    workers: List<ActorRef<Worker>> = [];
+    
+    private handle Init() {
+        // Spawn worker pool
+        for i in range(0, 10) {
+            self.workers.push(Worker.spawn());
+        }
+    }
+    
+    private handle ProcessOrder(order: Order) {
+        self.orders.enqueue(order);
+        self.distribute_work();
+    }
+    
+    private function distribute_work() {
+        while (!self.orders.is_empty()) {
+            let order = self.orders.dequeue();
+            let worker = self.select_worker();
+            worker.send(Process(order));
+        }
+    }
+}</code></pre>
+            </div>
+
+            <h2 id="spawn">Spawn & Tasks</h2>
+            <p>Spawn creates lightweight tasks that run concurrently.</p>
+
+            <h3>Basic Spawning</h3>
+            <div class="code-block">
+                <pre><code>// Spawn a task
+spawn {
+    perform_long_computation();
+};
+
+// Spawn with result
+let handle = spawn {
+    calculate_result()
+};
+
+// Wait for result
+let result = handle.join().await();
+
+// Spawn detached (fire and forget)
+spawn_detached {
+    background_cleanup();
+};</code></pre>
+            </div>
+
+            <h3>Task Coordination</h3>
+            <div class="code-block">
+                <pre><code>// Barrier synchronization
+let barrier = Barrier.new(3);
+
+for i in range(0, 3) {
+    spawn {
+        prepare_data(i);
+        barrier.wait();  // Wait for all tasks
+        process_synchronized();
+    };
+}
+
+// WaitGroup pattern
+let wg = WaitGroup.new();
+
+for task in tasks {
+    wg.add(1);
+    spawn {
+        process_task(task);
+        wg.done();
+    };
+}
+
+wg.wait();  // Wait for all tasks to complete</code></pre>
+            </div>
+
+            <h2 id="contracts">Contracts</h2>
+            <p>Contracts provide formal verification and runtime assertions.</p>
+
+            <h3>Function Contracts</h3>
+            <div class="code-block">
+                <pre><code>// Define contracts
+#[requires(n >= 0)]
+#[ensures(result >= 1)]
+private function factorial(n: int) -> int {
+    if (n <= 1) { 1 } else { n * factorial(n - 1) }
+}
+
+// Complex contracts
+#[requires(list.len() > 0)]
+#[ensures(result >= list[0] && result <= list[list.len() - 1])]
+private function binary_search<T: Ord>(list: List<T>, target: T) -> Option<int> {
+    // Implementation
+}
+
+// Invariants
+#[invariant(balance >= 0)]
+private struct Account {
+    balance: float,
+    transactions: List<Transaction>
+}</code></pre>
+            </div>
+
+            <h3>Symbolic Verification</h3>
+            <div class="code-block">
+                <pre><code>// Verify contracts with Z3
+#[verify]
+private function safe_divide(a: int, b: int) -> Option<int> {
+    if (b == 0) { None } else { Some(a / b) }
+}
+
+// Property-based testing
+#[property_test]
+private function test_sort_properties(list: List<int>) {
+    let sorted = list.sort();
+    
+    // Length preserved
+    assert_eq(sorted.len(), list.len());
+    
+    // Ordered
+    for i in range(0, sorted.len() - 1) {
+        assert(sorted[i] <= sorted[i + 1]);
+    }
+    
+    // Same elements
+    assert_eq(sorted.sort(), list.sort());
+}</code></pre>
+            </div>
+
+            <h2 id="optimization">Optimization</h2>
+            <p>FluentAI includes advanced optimization techniques for maximum performance.</p>
+
+            <h3>Compiler Optimizations</h3>
+            <div class="code-block">
+                <pre><code>// Inline hints
+#[inline(always)]
+private function hot_path_function(x: int) -> int {
+    x * 2 + 1
+}
+
+// No allocation hints
+#[no_alloc]
+private function process_in_place(data: &mut List<int>) {
+    for i in range(0, data.len()) {
+        data[i] = data[i] * 2;
+    }
+}
+
+// SIMD hints
+#[simd]
+private function vector_add(a: List<float>, b: List<float>) -> List<float> {
+    a.zip(b).map(|(x, y)| x + y)
+}</code></pre>
+            </div>
+
+            <h3>Memory Management</h3>
+            <div class="code-block">
+                <pre><code>// Arena allocation
+let arena = Arena.new();
+let data = arena.alloc_slice(1000);
+
+// Object pooling
+let pool = ObjectPool<Connection>.new(
+    create: || Connection.new(),
+    reset: |conn| conn.clear()
+);
+
+let conn = pool.get();
+// Use connection
+pool.return(conn);
+
+// Custom allocators
+#[allocator(bump)]
+private function build_tree() -> Tree {
+    // All allocations use bump allocator
+}</code></pre>
+            </div>
+
+            <h2 id="ffi">Foreign Function Interface</h2>
+            <p>FFI allows calling code from other languages.</p>
+
+            <h3>C Interop</h3>
+            <div class="code-block">
+                <pre><code>// Import C functions
+extern "C" {
+    private function strlen(s: *const u8) -> usize;
+    private function malloc(size: usize) -> *mut u8;
+    private function free(ptr: *mut u8);
+}
+
+// Export to C
+#[export_c]
+public function fluentai_process(data: *const u8, len: usize) -> i32 {
+    let slice = unsafe { slice_from_raw(data, len) };
+    process_data(slice) as i32
+}</code></pre>
+            </div>
+
+            <h3>WebAssembly</h3>
+            <div class="code-block">
+                <pre><code>// WASM exports
+#[wasm_export]
+public function add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+// WASM imports
+#[wasm_import("env", "log")]
+extern function console_log(msg: *const u8, len: usize);
+
+// WASM memory management
+#[wasm_export]
+public function allocate(size: usize) -> *mut u8 {
+    Box.into_raw(vec![0u8; size])
+}</code></pre>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>Next:</strong> Learn about <a href="continuum.html">Continuum</a>, FluentAI's revolutionary rendering and reactive UI system.
+            </div>
+
+            <!-- Navigation -->
+            <nav class="doc-nav">
+                <a href="language-guide.html" class="prev">
+                    ← Language Guide
+                </a>
+                <a href="continuum.html" class="next">
+                    Continuum →
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <script>
+        // Smooth scrolling for sidebar links
+        document.querySelectorAll('.sidebar a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    // Update active state
+                    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Scroll to target
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section on scroll
+        const sections = document.querySelectorAll('h2[id], h3[id]');
+        const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            sidebarLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

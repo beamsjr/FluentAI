@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuum - FluentAI Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
+            --secondary: #00d4ff;
+            --bg-dark: #0a0e27;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --code-bg: #1e1e2e;
+            --border: #e9ecef;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: white;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "⚡";
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 5rem 2rem 1rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem 2rem;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 3rem;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 6rem;
+            height: fit-content;
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .sidebar h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 0.5rem 0;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            padding-left: 1rem;
+            margin-left: -1rem;
+        }
+
+        .sidebar a:hover {
+            color: var(--primary);
+            border-left-color: var(--primary);
+            background: rgba(0,102,255,0.05);
+        }
+
+        .sidebar a.active {
+            color: var(--primary);
+            font-weight: 600;
+            border-left-color: var(--primary);
+        }
+
+        /* Content */
+        .content {
+            max-width: 800px;
+        }
+
+        .content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        .content h2 {
+            font-size: 2rem;
+            margin: 3rem 0 1.5rem;
+            color: var(--text-dark);
+        }
+
+        .content h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--text-dark);
+        }
+
+        .content p {
+            margin-bottom: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .content a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .content a:hover {
+            text-decoration: underline;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            color: #f8f8f2;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .code-inline {
+            background: var(--bg-light);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            color: #0d47a1;
+        }
+
+        .alert-warning {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #e65100;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: var(--bg-light);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .feature-card h4 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Next/Previous Navigation */
+        .doc-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .doc-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+        }
+
+        .doc-nav a:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .doc-nav .next {
+            margin-left: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                margin-bottom: 2rem;
+            }
+
+            .doc-nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .doc-nav a {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <a href="index.html" class="logo">FluentAI</a>
+            <ul class="nav-links">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="docs.html" class="active">Documentation</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="https://github.com/beamsjr/FluentAI" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="docs.html">Documentation</a> / Continuum
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h3>On This Page</h3>
+            <ul>
+                <li><a href="#overview" class="active">Overview</a></li>
+                <li><a href="#reactive-ui">Reactive UI</a></li>
+                <li><a href="#components">Components</a></li>
+                <li><a href="#rendering">Web Rendering</a></li>
+                <li><a href="#3d-graphics">3D Graphics</a></li>
+                <li><a href="#data-binding">Data Binding</a></li>
+                <li><a href="#animations">Animations</a></li>
+                <li><a href="#deployment">Deployment</a></li>
+            </ul>
+        </aside>
+
+        <!-- Content -->
+        <main class="content">
+            <h1>Continuum: Reactive UI & Rendering</h1>
+            <p>Continuum is FluentAI's revolutionary approach to building reactive user interfaces and real-time visualizations. It seamlessly bridges the gap between functional programming and modern web/3D rendering.</p>
+
+            <h2 id="overview">Overview</h2>
+            <p>Continuum provides a unified framework for building everything from web applications to 3D visualizations, all within FluentAI's functional paradigm.</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Reactive by Default</h4>
+                    <p>Automatic dependency tracking and efficient re-rendering</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Cross-Platform</h4>
+                    <p>Target web (DOM/WebGL), native, and WebAssembly</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Type-Safe</h4>
+                    <p>Full type checking from UI to backend</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Performance First</h4>
+                    <p>Zero-copy rendering and minimal allocations</p>
+                </div>
+            </div>
+
+            <h3>Core Concepts</h3>
+            <ul>
+                <li><strong>Signals</strong> - Reactive state primitives</li>
+                <li><strong>Effects</strong> - Side effects that track dependencies</li>
+                <li><strong>Components</strong> - Composable UI building blocks</li>
+                <li><strong>Render Pipeline</strong> - Efficient rendering system</li>
+            </ul>
+
+            <h2 id="reactive-ui">Reactive UI Basics</h2>
+            <p>Continuum uses signals for reactive state management, inspired by SolidJS but with FluentAI's functional approach.</p>
+
+            <h3>Creating Signals</h3>
+            <div class="code-block">
+                <pre><code>// Create a signal
+let count = signal(0);
+
+// Read signal value
+let current = count.get();
+
+// Update signal
+count.set(1);
+count.update(n => n + 1);
+
+// Derived signals
+let doubled = computed(() => count.get() * 2);
+let message = computed(() => f"Count is {count.get()}");</code></pre>
+            </div>
+
+            <h3>Effects and Reactions</h3>
+            <div class="code-block">
+                <pre><code>// Create effect that runs when dependencies change
+effect(() => {
+    let value = count.get();
+    $(f"Count changed to {value}").print();
+});
+
+// Conditional effects
+effect(() => {
+    if (user.get().is_logged_in) {
+        fetch_user_data();
+    }
+});
+
+// Cleanup in effects
+effect(() => {
+    let timer = setInterval(() => tick(), 1000);
+    
+    // Cleanup function
+    on_cleanup(() => clearInterval(timer));
+});</code></pre>
+            </div>
+
+            <h2 id="components">Components</h2>
+            <p>Components are the building blocks of Continuum applications.</p>
+
+            <h3>Basic Components</h3>
+            <div class="code-block">
+                <pre><code>// Function component
+private function Counter() -> Element {
+    let count = signal(0);
+    
+    div()
+        .class("counter")
+        .children([
+            h1().text(f"Count: {count.get()}"),
+            button()
+                .text("Increment")
+                .on_click(|| count.update(n => n + 1)),
+            button()
+                .text("Reset")
+                .on_click(|| count.set(0))
+        ])
+}
+
+// Component with props
+private function UserCard(props: {name: string, avatar: string}) -> Element {
+    div()
+        .class("user-card")
+        .children([
+            img().src(props.avatar).alt(props.name),
+            h3().text(props.name)
+        ])
+}</code></pre>
+            </div>
+
+            <h3>Component Lifecycle</h3>
+            <div class="code-block">
+                <pre><code>private function DataFetcher() -> Element {
+    let data = signal<Option<Data>>(None);
+    let loading = signal(true);
+    
+    // On mount
+    on_mount(() => {
+        async {
+            let result = fetch_data().await();
+            data.set(Some(result));
+            loading.set(false);
+        }
+    });
+    
+    // On cleanup
+    on_cleanup(() => {
+        cancel_pending_requests();
+    });
+    
+    // Conditional rendering
+    if (loading.get()) {
+        div().text("Loading...")
+    } else {
+        DataView(data.get().unwrap())
+    }
+}</code></pre>
+            </div>
+
+            <h2 id="rendering">Web Rendering</h2>
+            <p>Continuum can render to DOM, Canvas, or WebGL contexts.</p>
+
+            <h3>DOM Rendering</h3>
+            <div class="code-block">
+                <pre><code>// Create app
+let app = App() {
+    router: Router.new([
+        Route("/", HomePage),
+        Route("/users/:id", UserPage),
+        Route("/settings", SettingsPage)
+    ]),
+    theme: Theme.default()
+};
+
+// Mount to DOM
+continuum.mount("#app", app);
+
+// HTML elements
+div()
+    .id("main")
+    .class(["container", "flex"])
+    .style("padding", "20px")
+    .children([
+        header(),
+        main().children(router_outlet()),
+        footer()
+    ])</code></pre>
+            </div>
+
+            <h3>Styling</h3>
+            <div class="code-block">
+                <pre><code>// Inline styles
+div().style({
+    "background": "linear-gradient(45deg, #0066ff, #00d4ff)",
+    "padding": "2rem",
+    "border-radius": "12px"
+})
+
+// CSS-in-FluentAI
+let styles = stylesheet({
+    ".button": {
+        padding: "0.75rem 1.5rem",
+        background: var(--primary),
+        color: "white",
+        border: "none",
+        border_radius: "8px",
+        cursor: "pointer",
+        
+        "&:hover": {
+            background: var(--primary-dark),
+            transform: "translateY(-2px)"
+        }
+    }
+});
+
+// Dynamic styles
+let active = signal(false);
+div()
+    .class(computed(() => 
+        if (active.get()) { "active" } else { "inactive" }
+    ))
+    .style("opacity", computed(() => 
+        if (visible.get()) { "1" } else { "0" }
+    ))</code></pre>
+            </div>
+
+            <h2 id="3d-graphics">3D Graphics</h2>
+            <p>Continuum includes a powerful 3D rendering system built on WebGPU/WebGL.</p>
+
+            <h3>3D Scene Setup</h3>
+            <div class="code-block">
+                <pre><code>// Create 3D scene
+let scene = Scene3D() {
+    camera: PerspectiveCamera {
+        fov: 75,
+        position: vec3(0, 5, 10),
+        look_at: vec3(0, 0, 0)
+    },
+    
+    lighting: [
+        DirectionalLight {
+            direction: vec3(-1, -1, -1),
+            color: Color.white(),
+            intensity: 1.0
+        },
+        AmbientLight {
+            color: Color.rgb(0.2, 0.2, 0.3),
+            intensity: 0.5
+        }
+    ]
+};
+
+// Add objects
+scene.add(
+    Mesh {
+        geometry: BoxGeometry(2, 2, 2),
+        material: StandardMaterial {
+            color: Color.rgb(0, 0.4, 1),
+            metalness: 0.5,
+            roughness: 0.3
+        },
+        position: vec3(0, 1, 0)
+    }
+);</code></pre>
+            </div>
+
+            <h3>3D Animations</h3>
+            <div class="code-block">
+                <pre><code>// Animate 3D objects
+let rotation = signal(0.0);
+
+animate(() => {
+    rotation.update(r => r + 0.01);
+    mesh.rotation.y = rotation.get();
+});
+
+// Physics integration
+let physics_world = PhysicsWorld {
+    gravity: vec3(0, -9.81, 0)
+};
+
+mesh.add_component(
+    RigidBody {
+        mass: 1.0,
+        restitution: 0.7
+    }
+);
+
+// Particle systems
+let particles = ParticleSystem {
+    emitter: PointEmitter {
+        position: vec3(0, 5, 0),
+        rate: 100
+    },
+    particle_config: {
+        lifetime: 2.0,
+        start_size: 0.1,
+        end_size: 0.0,
+        start_color: Color.white(),
+        end_color: Color.transparent()
+    }
+};</code></pre>
+            </div>
+
+            <h2 id="data-binding">Data Binding</h2>
+            <p>Continuum provides powerful two-way data binding capabilities.</p>
+
+            <h3>Form Handling</h3>
+            <div class="code-block">
+                <pre><code>// Form with data binding
+private function ContactForm() -> Element {
+    let form_data = signal({
+        name: "",
+        email: "",
+        message: ""
+    });
+    
+    let errors = signal<Map<string, string>>({});
+    
+    let validate = () => {
+        let mut errs = {};
+        let data = form_data.get();
+        
+        if (data.name.is_empty()) {
+            errs["name"] = "Name is required";
+        }
+        if (!data.email.contains("@")) {
+            errs["email"] = "Invalid email";
+        }
+        
+        errors.set(errs);
+        errs.is_empty()
+    };
+    
+    form()
+        .on_submit(|e| {
+            e.prevent_default();
+            if (validate()) {
+                submit_form(form_data.get());
+            }
+        })
+        .children([
+            input()
+                .type("text")
+                .placeholder("Name")
+                .value(form_data.get().name)
+                .on_input(|e| form_data.update(|f| {
+                    f.name = e.target.value;
+                    f
+                })),
+                
+            show_error(errors.get().get("name")),
+            
+            textarea()
+                .placeholder("Message")
+                .value(form_data.get().message)
+                .on_input(|e| form_data.update(|f| {
+                    f.message = e.target.value;
+                    f
+                })),
+                
+            button()
+                .type("submit")
+                .text("Send")
+        ])
+}</code></pre>
+            </div>
+
+            <h3>List Rendering</h3>
+            <div class="code-block">
+                <pre><code>// Dynamic lists
+let todos = signal<List<Todo>>([]);
+
+div()
+    .children(
+        For(todos, |todo| {
+            TodoItem {
+                todo: todo,
+                on_complete: || mark_complete(todo.id),
+                on_delete: || todos.update(|list| 
+                    list.filter(|t| t.id != todo.id)
+                )
+            }
+        })
+    )
+
+// Keyed lists for optimal updates
+For(users)
+    .key(|user| user.id)
+    .render(|user| UserRow(user))</code></pre>
+            </div>
+
+            <h2 id="animations">Animations</h2>
+            <p>Continuum includes a powerful animation system.</p>
+
+            <h3>Basic Animations</h3>
+            <div class="code-block">
+                <pre><code>// Tween animation
+let opacity = signal(0.0);
+
+tween(opacity)
+    .to(1.0)
+    .duration(300)
+    .easing(Easing.ease_in_out)
+    .start();
+
+// Spring animations
+let position = signal(vec2(0, 0));
+
+spring(position)
+    .to(vec2(100, 100))
+    .stiffness(200)
+    .damping(20)
+    .start();
+
+// Animation sequences
+sequence([
+    tween(scale).to(1.2).duration(200),
+    parallel([
+        tween(rotation).to(360).duration(400),
+        tween(opacity).to(0.5).duration(400)
+    ]),
+    tween(scale).to(1.0).duration(200)
+]).start();</code></pre>
+            </div>
+
+            <h3>Gesture Animations</h3>
+            <div class="code-block">
+                <pre><code>// Drag gesture
+div()
+    .use_gesture(
+        drag()
+            .on_start(|| {
+                initial_pos = position.get();
+            })
+            .on_move(|delta| {
+                position.set(initial_pos + delta);
+            })
+            .on_end(|velocity| {
+                // Momentum animation
+                physics_spring(position)
+                    .velocity(velocity)
+                    .to(snap_position())
+                    .start();
+            })
+    )
+
+// Pinch to zoom
+image()
+    .use_gesture(
+        pinch()
+            .on_scale(|scale| {
+                zoom.update(z => z * scale);
+            })
+    )</code></pre>
+            </div>
+
+            <h2 id="deployment">Deployment</h2>
+            <p>Continuum applications can be deployed to various targets.</p>
+
+            <h3>Web Deployment</h3>
+            <div class="code-block">
+                <pre><code># Build for web
+fluentai build --target web --release
+
+# Output structure
+dist/
+├── index.html
+├── app.wasm          # Main application
+├── app.js            # JS bindings
+└── assets/           # Static assets
+
+# Optimize for production
+fluentai build --target web --release \
+    --features "wasm-opt,compression" \
+    --public-url "https://cdn.example.com"</code></pre>
+            </div>
+
+            <h3>Native Deployment</h3>
+            <div class="code-block">
+                <pre><code># Build native app
+fluentai build --target native --release
+
+# Platform-specific builds
+fluentai build --target macos --release
+fluentai build --target windows --release
+fluentai build --target linux --release
+
+# Mobile targets
+fluentai build --target ios --release
+fluentai build --target android --release</code></pre>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Next Steps:</strong> 
+                <ul>
+                    <li>Explore the <a href="https://github.com/beamsjr/FluentAI/tree/main/rust/examples/continuum" target="_blank">Continuum examples</a></li>
+                    <li>Check out the <a href="api-reference.html#continuum">Continuum API Reference</a></li>
+                    <li>Join the <a href="community.html">community</a> to share your Continuum projects</li>
+                </ul>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="doc-nav">
+                <a href="advanced-topics.html" class="prev">
+                    ← Advanced Topics
+                </a>
+                <a href="api-reference.html" class="next">
+                    API Reference →
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <script>
+        // Smooth scrolling for sidebar links
+        document.querySelectorAll('.sidebar a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    // Update active state
+                    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Scroll to target
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section on scroll
+        const sections = document.querySelectorAll('h2[id], h3[id]');
+        const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            sidebarLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

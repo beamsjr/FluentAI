@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started - FluentAI Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
+            --secondary: #00d4ff;
+            --bg-dark: #0a0e27;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --code-bg: #1e1e2e;
+            --border: #e9ecef;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: white;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "⚡";
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 5rem 2rem 1rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem 2rem;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 3rem;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 6rem;
+            height: fit-content;
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .sidebar h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 0.5rem 0;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            padding-left: 1rem;
+            margin-left: -1rem;
+        }
+
+        .sidebar a:hover {
+            color: var(--primary);
+            border-left-color: var(--primary);
+            background: rgba(0,102,255,0.05);
+        }
+
+        .sidebar a.active {
+            color: var(--primary);
+            font-weight: 600;
+            border-left-color: var(--primary);
+        }
+
+        /* Content */
+        .content {
+            max-width: 800px;
+        }
+
+        .content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        .content h2 {
+            font-size: 2rem;
+            margin: 3rem 0 1.5rem;
+            color: var(--text-dark);
+        }
+
+        .content h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--text-dark);
+        }
+
+        .content p {
+            margin-bottom: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .content a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .content a:hover {
+            text-decoration: underline;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            color: #f8f8f2;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .code-inline {
+            background: var(--bg-light);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            color: #0d47a1;
+        }
+
+        .alert-warning {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #e65100;
+        }
+
+        .alert-success {
+            background: #e8f5e9;
+            border-color: #4caf50;
+            color: #1b5e20;
+        }
+
+        /* Next/Previous Navigation */
+        .doc-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .doc-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+        }
+
+        .doc-nav a:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .doc-nav .next {
+            margin-left: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                margin-bottom: 2rem;
+            }
+
+            .doc-nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .doc-nav a {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <a href="index.html" class="logo">FluentAI</a>
+            <ul class="nav-links">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="docs.html" class="active">Documentation</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="https://github.com/beamsjr/FluentAI" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="docs.html">Documentation</a> / Getting Started
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h3>On This Page</h3>
+            <ul>
+                <li><a href="#installation" class="active">Installation</a></li>
+                <li><a href="#hello-world">Hello World</a></li>
+                <li><a href="#project-structure">Project Structure</a></li>
+                <li><a href="#basic-syntax">Basic Syntax</a></li>
+                <li><a href="#next-steps">Next Steps</a></li>
+            </ul>
+        </aside>
+
+        <!-- Content -->
+        <main class="content">
+            <h1>Getting Started with FluentAI</h1>
+            <p>Welcome to FluentAI! This guide will help you install FluentAI and write your first program.</p>
+
+            <h2 id="installation">Installation</h2>
+            <p>FluentAI can be built from source on Linux, macOS, and Windows. You'll need Rust installed on your system.</p>
+
+            <h3>Prerequisites</h3>
+            <p>Before installing FluentAI, ensure you have:</p>
+            <ul>
+                <li>Rust 1.70 or later (install from <a href="https://rustup.rs" target="_blank">rustup.rs</a>)</li>
+                <li>Git</li>
+                <li>A C compiler (for linking)</li>
+            </ul>
+
+            <h3>Building from Source</h3>
+            <div class="code-block">
+                <pre><code># Clone the repository
+git clone https://github.com/beamsjr/FluentAI
+cd FluentAI/rust
+
+# Build the project
+cargo build --release
+
+# The binary will be available at target/release/fluentai</code></pre>
+            </div>
+
+            <h3>Adding to PATH</h3>
+            <p>To use FluentAI from anywhere, add it to your PATH:</p>
+
+            <div class="code-block">
+                <pre><code># Linux/macOS
+echo 'export PATH="$PATH:/path/to/FluentAI/rust/target/release"' >> ~/.bashrc
+source ~/.bashrc
+
+# Windows (PowerShell)
+$env:Path += ";C:\path\to\FluentAI\rust\target\release"</code></pre>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Note:</strong> Native installers are coming soon. For now, please build from source.
+            </div>
+
+            <h2 id="hello-world">Hello World</h2>
+            <p>Let's write your first FluentAI program!</p>
+
+            <h3>Create a New File</h3>
+            <p>Create a file called <code class="code-inline">hello.fc</code> with the following content:</p>
+
+            <div class="code-block">
+                <pre><code>// hello.fc
+$("Hello, World!").print();</code></pre>
+            </div>
+
+            <h3>Run the Program</h3>
+            <div class="code-block">
+                <pre><code>fluentai run hello.fc</code></pre>
+            </div>
+
+            <p>You should see:</p>
+            <div class="code-block">
+                <pre><code>Hello, World!</code></pre>
+            </div>
+
+            <h3>Understanding the Code</h3>
+            <ul>
+                <li><code class="code-inline">$()</code> - Creates a printable wrapper around a string</li>
+                <li><code class="code-inline">.print()</code> - Method that outputs to the console</li>
+                <li><code class="code-inline">;</code> - Statement terminator</li>
+            </ul>
+
+            <h2 id="project-structure">Project Structure</h2>
+            <p>For larger projects, FluentAI uses a module-based structure:</p>
+
+            <div class="code-block">
+                <pre><code>my-project/
+├── src/
+│   ├── main.fc       # Entry point
+│   ├── lib.fc        # Library code
+│   └── modules/      # Additional modules
+├── tests/            # Test files
+├── examples/         # Example code
+└── fluent.toml       # Project configuration</code></pre>
+            </div>
+
+            <h3>Creating a Project</h3>
+            <div class="code-block">
+                <pre><code># Create project directory
+mkdir my-project
+cd my-project
+
+# Create source directory
+mkdir src
+
+# Create main file
+echo '$("Hello from my project!").print();' > src/main.fc
+
+# Run the project
+fluentai run src/main.fc</code></pre>
+            </div>
+
+            <h2 id="basic-syntax">Basic Syntax Overview</h2>
+            <p>Here's a quick overview of FluentAI's syntax to get you started:</p>
+
+            <h3>Variables</h3>
+            <div class="code-block">
+                <pre><code>// Immutable by default
+let name = "Alice";
+
+// Mutable variable
+let mut count = 0;
+count := count + 1;
+
+// Constants
+const MAX_USERS = 100;</code></pre>
+            </div>
+
+            <h3>Functions</h3>
+            <div class="code-block">
+                <pre><code>// Simple function
+private function greet(name: string) -> string {
+    f"Hello, {name}!"
+}
+
+// Lambda expression
+let double = (x) => x * 2;
+
+// Using functions
+let message = greet("Bob");
+let result = double(21);</code></pre>
+            </div>
+
+            <h3>Collections</h3>
+            <div class="code-block">
+                <pre><code>// Lists
+let numbers = [1, 2, 3, 4, 5];
+
+// Maps
+let user = {
+    "name": "Alice",
+    "age": 30
+};
+
+// Sets
+let unique_items = #{1, 2, 3};</code></pre>
+            </div>
+
+            <h3>Control Flow</h3>
+            <div class="code-block">
+                <pre><code>// If expression
+let status = if (age >= 18) { "adult" } else { "minor" };
+
+// Pattern matching
+result.match()
+    .case(Ok(value), => process(value))
+    .case(Err(error), => handle_error(error))
+    .get();
+
+// Loops
+for item in items {
+    $(item).print();
+}</code></pre>
+            </div>
+
+            <h2 id="next-steps">Next Steps</h2>
+            <p>Now that you have FluentAI installed and understand the basics, here are some suggestions for what to explore next:</p>
+
+            <ul>
+                <li><strong><a href="language-guide.html">Language Guide</a></strong> - Deep dive into FluentAI's features</li>
+                <li><strong><a href="tutorials.html">Tutorials</a></strong> - Step-by-step guides for common tasks</li>
+                <li><strong><a href="api-reference.html">API Reference</a></strong> - Complete documentation of standard library</li>
+                <li><strong>Examples</strong> - Check out the <a href="https://github.com/beamsjr/FluentAI/tree/main/rust/examples" target="_blank">examples directory</a> on GitHub</li>
+            </ul>
+
+            <div class="alert alert-success">
+                <strong>Tip:</strong> Join our <a href="community.html">community</a> on GitHub to ask questions and share your projects!
+            </div>
+
+            <!-- Navigation -->
+            <nav class="doc-nav">
+                <a href="docs.html" class="prev">
+                    ← Documentation Home
+                </a>
+                <a href="language-guide.html" class="next">
+                    Language Guide →
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <script>
+        // Smooth scrolling for sidebar links
+        document.querySelectorAll('.sidebar a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    // Update active state
+                    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Scroll to target
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section on scroll
+        const sections = document.querySelectorAll('h2[id], h3[id]');
+        const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            sidebarLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

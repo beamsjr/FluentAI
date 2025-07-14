@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Language Guide - FluentAI Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
+            --secondary: #00d4ff;
+            --bg-dark: #0a0e27;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --code-bg: #1e1e2e;
+            --border: #e9ecef;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: white;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "⚡";
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 5rem 2rem 1rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem 2rem;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 3rem;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 6rem;
+            height: fit-content;
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .sidebar h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 0.5rem 0;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            padding-left: 1rem;
+            margin-left: -1rem;
+        }
+
+        .sidebar a:hover {
+            color: var(--primary);
+            border-left-color: var(--primary);
+            background: rgba(0,102,255,0.05);
+        }
+
+        .sidebar a.active {
+            color: var(--primary);
+            font-weight: 600;
+            border-left-color: var(--primary);
+        }
+
+        /* Content */
+        .content {
+            max-width: 800px;
+        }
+
+        .content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
+
+        .content h2 {
+            font-size: 2rem;
+            margin: 3rem 0 1.5rem;
+            color: var(--text-dark);
+        }
+
+        .content h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--text-dark);
+        }
+
+        .content p {
+            margin-bottom: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .content a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .content a:hover {
+            text-decoration: underline;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            color: #f8f8f2;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .code-inline {
+            background: var(--bg-light);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            color: #0d47a1;
+        }
+
+        .alert-warning {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #e65100;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-light);
+            font-weight: 600;
+        }
+
+        /* Next/Previous Navigation */
+        .doc-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .doc-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-light);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+        }
+
+        .doc-nav a:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .doc-nav .next {
+            margin-left: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                margin-bottom: 2rem;
+            }
+
+            .doc-nav {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .doc-nav a {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <a href="index.html" class="logo">FluentAI</a>
+            <ul class="nav-links">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="docs.html" class="active">Documentation</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="https://github.com/beamsjr/FluentAI" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="docs.html">Documentation</a> / Language Guide
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h3>On This Page</h3>
+            <ul>
+                <li><a href="#variables-types" class="active">Variables & Types</a></li>
+                <li><a href="#functions">Functions</a></li>
+                <li><a href="#pattern-matching">Pattern Matching</a></li>
+                <li><a href="#method-chaining">Method Chaining</a></li>
+                <li><a href="#modules">Modules</a></li>
+                <li><a href="#effects">Effect System</a></li>
+                <li><a href="#error-handling">Error Handling</a></li>
+                <li><a href="#traits">Traits</a></li>
+            </ul>
+        </aside>
+
+        <!-- Content -->
+        <main class="content">
+            <h1>FluentAI Language Guide</h1>
+            <p>This guide covers the core language features of FluentAI. By the end, you'll understand how to write idiomatic FluentAI code.</p>
+
+            <h2 id="variables-types">Variables & Types</h2>
+            <p>FluentAI is a statically-typed language with type inference. Variables are immutable by default, promoting functional programming practices.</p>
+
+            <h3>Variable Declaration</h3>
+            <div class="code-block">
+                <pre><code>// Immutable variable (default)
+let name = "Alice";
+// name = "Bob";  // Error! Cannot reassign
+
+// Mutable variable
+let mut counter = 0;
+counter := counter + 1;  // OK, using assignment operator
+
+// Type annotations (optional with inference)
+let age: int = 30;
+let price: float = 19.99;
+let active: bool = true;</code></pre>
+            </div>
+
+            <h3>Constants</h3>
+            <p>Constants are compile-time values that never change:</p>
+            <div class="code-block">
+                <pre><code>const PI = 3.14159;
+const MAX_CONNECTIONS = 100;
+const API_URL = "https://api.fluentai.dev";</code></pre>
+            </div>
+
+            <h3>Built-in Types</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>int</code></td>
+                        <td>Integer numbers</td>
+                        <td><code>42, -10, 0</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>float</code></td>
+                        <td>Floating-point numbers</td>
+                        <td><code>3.14, -0.5</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>string</code></td>
+                        <td>Text strings</td>
+                        <td><code>"hello", f"Hi {name}"</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>bool</code></td>
+                        <td>Boolean values</td>
+                        <td><code>true, false</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>List&lt;T&gt;</code></td>
+                        <td>Dynamic arrays</td>
+                        <td><code>[1, 2, 3]</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Map&lt;K, V&gt;</code></td>
+                        <td>Key-value pairs</td>
+                        <td><code>{"a": 1, "b": 2}</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>Set&lt;T&gt;</code></td>
+                        <td>Unique values</td>
+                        <td><code>#{1, 2, 3}</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>String Interpolation</h3>
+            <div class="code-block">
+                <pre><code>let name = "Alice";
+let age = 30;
+
+// F-strings for interpolation
+let message = f"Hello, {name}! You are {age} years old.";
+let calculation = f"Next year you'll be {age + 1}.";</code></pre>
+            </div>
+
+            <h2 id="functions">Functions</h2>
+            <p>Functions are first-class citizens in FluentAI, supporting both traditional and lambda syntax.</p>
+
+            <h3>Function Declaration</h3>
+            <div class="code-block">
+                <pre><code>// Basic function
+private function add(a: int, b: int) -> int {
+    a + b  // Implicit return
+}
+
+// With explicit return
+public function factorial(n: int) -> int {
+    if (n <= 1) {
+        return 1;
+    }
+    n * factorial(n - 1)
+}
+
+// Generic function
+private function identity<T>(value: T) -> T {
+    value
+}</code></pre>
+            </div>
+
+            <h3>Lambda Expressions</h3>
+            <p>Lambdas provide concise syntax for anonymous functions:</p>
+            <div class="code-block">
+                <pre><code>// Single parameter
+let double = (x) => x * 2;
+
+// Multiple parameters
+let add = (a, b) => a + b;
+
+// With type annotations
+let divide = (a: float, b: float) => a / b;
+
+// Block body
+let complex = (x) => {
+    let temp = x * 2;
+    temp + 10
+};</code></pre>
+            </div>
+
+            <h3>Higher-Order Functions</h3>
+            <div class="code-block">
+                <pre><code>// Functions as parameters
+private function apply_twice<T>(f: (T) -> T, value: T) -> T {
+    f(f(value))
+}
+
+let result = apply_twice((x) => x * 2, 5);  // 20
+
+// Functions returning functions
+private function make_adder(n: int) -> (int) -> int {
+    (x) => x + n
+}
+
+let add5 = make_adder(5);
+let result = add5(10);  // 15</code></pre>
+            </div>
+
+            <h2 id="pattern-matching">Pattern Matching</h2>
+            <p>Pattern matching is one of FluentAI's most powerful features, enabling elegant control flow.</p>
+
+            <h3>Basic Pattern Matching</h3>
+            <div class="code-block">
+                <pre><code>// Matching on enums
+result.match()
+    .case(Ok(value), => process(value))
+    .case(Err(error), => handle_error(error))
+    .get();
+
+// Matching with values
+status_code.match()
+    .case(200, => "Success")
+    .case(404, => "Not Found")
+    .case(500, => "Server Error")
+    .default(=> "Unknown")
+    .get();</code></pre>
+            </div>
+
+            <h3>Destructuring Patterns</h3>
+            <div class="code-block">
+                <pre><code>// Struct destructuring
+user.match()
+    .case({name, age, email}, => {
+        $(f"User: {name}, {age} years old").print();
+        send_email(email)
+    })
+    .get();
+
+// List patterns
+list.match()
+    .case([], => "Empty list")
+    .case([x], => f"Single element: {x}")
+    .case([first, ...rest], => f"First: {first}, rest: {rest}")
+    .get();</code></pre>
+            </div>
+
+            <h3>Pattern Guards</h3>
+            <div class="code-block">
+                <pre><code>// Guards add conditions to patterns
+person.match()
+    .case({age}, => age >= 65, => "Senior")
+    .case({age}, => age >= 18, => "Adult")
+    .case({age}, => "Minor")
+    .get();</code></pre>
+            </div>
+
+            <h2 id="method-chaining">Method Chaining</h2>
+            <p>Method chaining is fundamental to FluentAI's design, enabling readable data pipelines.</p>
+
+            <h3>Collection Operations</h3>
+            <div class="code-block">
+                <pre><code>// Chaining transformations
+let result = users
+    .filter(user => user.active)
+    .map(user => user.score)
+    .filter(score => score > 80)
+    .fold(0, (sum, score) => sum + score);
+
+// Complex pipeline
+orders
+    .filter(order => order.status == "completed")
+    .map(order => order.items)
+    .flatten()
+    .group_by(item => item.category)
+    .map_values(items => items.len())
+    .sort_by_value()
+    .take(10);</code></pre>
+            </div>
+
+            <h3>Optional Chaining</h3>
+            <div class="code-block">
+                <pre><code>// Safe navigation with ?
+let email = user.profile?.contact?.email;
+
+// Chaining with optionals
+config
+    .get("database")?
+    .get("connection")?
+    .get("timeout")
+    .unwrap_or(30);</code></pre>
+            </div>
+
+            <h2 id="modules">Modules</h2>
+            <p>Modules provide organization and encapsulation for your code.</p>
+
+            <h3>Module Definition</h3>
+            <div class="code-block">
+                <pre><code>// In user_service.fc
+public struct User {
+    id: Uuid,
+    pub name: string,
+    email: string  // private by default
+}
+
+public function create_user(name: string, email: string) -> User {
+    User {
+        id: Uuid.new(),
+        name: name,
+        email: email
+    }
+}
+
+private function validate_email(email: string) -> bool {
+    email.contains("@")
+}</code></pre>
+            </div>
+
+            <h3>Using Modules</h3>
+            <div class="code-block">
+                <pre><code>// Import entire module
+use my_app::user_service;
+
+let user = user_service.create_user("Alice", "alice@example.com");
+
+// Import specific items
+use my_app::user_service::{User, create_user};
+
+// Import with alias
+use my_app::database::connection as db;</code></pre>
+            </div>
+
+            <h2 id="effects">Effect System</h2>
+            <p>FluentAI's effect system provides controlled side effects with compile-time guarantees.</p>
+
+            <h3>Performing Effects</h3>
+            <div class="code-block">
+                <pre><code>// I/O effects
+perform IO.print("Starting process...");
+let content = perform IO.read_file("data.txt");
+perform IO.write_file("output.txt", processed_data);
+
+// State effects
+perform State.set("counter", 0);
+let count = perform State.get("counter");
+perform State.update("counter", (n) => n + 1);
+
+// Time effects
+let now = perform Time.now();
+perform Time.sleep(1000);  // milliseconds</code></pre>
+            </div>
+
+            <h3>Effect Handlers</h3>
+            <div class="code-block">
+                <pre><code>// Custom effect handling
+handle {
+    let data = process_with_logging();
+    save_results(data)
+} with {
+    Log.debug(msg) => if (DEBUG) { console.log(f"[DEBUG] {msg}") },
+    Log.info(msg) => console.log(f"[INFO] {msg}"),
+    Log.error(msg) => console.error(f"[ERROR] {msg}")
+}
+
+// Mocking effects for testing
+handle {
+    let user = fetch_user_from_api(id);
+    assert_eq(user.name, "Test User")
+} with {
+    Http.get(url) => Ok({name: "Test User", id: 123})
+}</code></pre>
+            </div>
+
+            <h2 id="error-handling">Error Handling</h2>
+            <p>FluentAI uses Result types and pattern matching for robust error handling.</p>
+
+            <h3>Result Type</h3>
+            <div class="code-block">
+                <pre><code>// Functions that can fail return Result
+private function divide(a: float, b: float) -> Result<float, string> {
+    if (b == 0) {
+        Err("Division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+// Chaining with Result
+divide(10, 2)
+    .map(x => x * 2)
+    .and_then(x => divide(x, 3))
+    .unwrap_or(0);</code></pre>
+            </div>
+
+            <h3>Error Propagation</h3>
+            <div class="code-block">
+                <pre><code>// Using ? for early return
+private function calculate(input: string) -> Result<float, Error> {
+    let parsed = parse_float(input)?;  // Returns early if Err
+    let validated = validate_range(parsed)?;
+    let result = complex_calculation(validated)?;
+    Ok(result)
+}
+
+// Combining multiple Results
+let total = result1
+    .and_then(|v1| result2.map(|v2| v1 + v2))
+    .or_else(|_| Ok(default_value));</code></pre>
+            </div>
+
+            <h2 id="traits">Traits</h2>
+            <p>Traits define shared behavior that types can implement.</p>
+
+            <h3>Defining Traits</h3>
+            <div class="code-block">
+                <pre><code>public trait Drawable {
+    private function draw(self) -> unit;
+    private function get_bounds(self) -> Rectangle;
+}
+
+public trait Serializable {
+    private function to_json(self) -> string;
+    private function from_json(json: string) -> Result<Self, Error>;
+}</code></pre>
+            </div>
+
+            <h3>Implementing Traits</h3>
+            <div class="code-block">
+                <pre><code>public struct Circle {
+    center: Point,
+    radius: float
+}
+
+private Circle as Drawable {
+    private function draw(self) -> unit {
+        // Drawing implementation
+        perform Graphics.draw_circle(self.center, self.radius);
+    }
+    
+    private function get_bounds(self) -> Rectangle {
+        Rectangle {
+            x: self.center.x - self.radius,
+            y: self.center.y - self.radius,
+            width: self.radius * 2,
+            height: self.radius * 2
+        }
+    }
+}</code></pre>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Next:</strong> Learn about <a href="advanced-topics.html">advanced topics</a> like concurrency, async programming, and the actor model.
+            </div>
+
+            <!-- Navigation -->
+            <nav class="doc-nav">
+                <a href="getting-started.html" class="prev">
+                    ← Getting Started
+                </a>
+                <a href="advanced-topics.html" class="next">
+                    Advanced Topics →
+                </a>
+            </nav>
+        </main>
+    </div>
+
+    <script>
+        // Smooth scrolling for sidebar links
+        document.querySelectorAll('.sidebar a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    // Update active state
+                    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Scroll to target
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section on scroll
+        const sections = document.querySelectorAll('h2[id], h3[id]');
+        const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (scrollY >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            sidebarLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
