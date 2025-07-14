@@ -1,0 +1,84 @@
+// Continuum Demo - Working with current FluentAI syntax
+// This demonstrates how Continuum UI would work after lowering
+
+// State management using closures (since mutation isn't implemented)
+let create_state = (initial) => {
+    let state = {"value": initial};
+    {
+        "get": () => state.value,
+        "set": (new_value) => {
+            state.value = new_value;
+            state
+        },
+        "update": (fn) => {
+            state.value = fn(state.value);
+            state
+        }
+    }
+};
+
+// Create reactive state
+let count = create_state(0);
+let theme = create_state("light");
+
+// UI Components
+let render_app = () => {
+    let bg_color = if (theme.get() == "light") { "#ffffff" } else { "#1a1a1a" };
+    let text_color = if (theme.get() == "light") { "#000000" } else { "#ffffff" };
+    
+    {
+        "background": bg_color,
+        "foreground": text_color,
+        "elements": [
+            {
+                "type": "text",
+                "content": "Count: " + count.get()
+            },
+            {
+                "type": "button", 
+                "content": "Increment",
+                "action": "increment"
+            },
+            {
+                "type": "button",
+                "content": "Toggle Theme", 
+                "action": "toggle_theme"
+            }
+        ]
+    }
+};
+
+// Event handling
+let handle_action = (action) => {
+    match action {
+        "increment" => count.update(n => n + 1),
+        "toggle_theme" => theme.update(t => if (t == "light") { "dark" } else { "light" }),
+        _ => null
+    }
+};
+
+// Simulate app lifecycle
+let ui1 = render_app();
+perform IO.print("Initial UI state:");
+perform IO.print("  Background: " + ui1.background);
+perform IO.print("  Elements: " + ui1.elements.length());
+
+// Simulate clicking increment 3 times
+perform IO.print("\nSimulating 3 increment clicks:");
+[1, 2, 3].for_each(i => {
+    handle_action("increment");
+    let ui = render_app();
+    perform IO.print("  Click " + i + " - Count element shows: " + ui.elements[0].content);
+});
+
+// Toggle theme
+perform IO.print("\nToggling theme:");
+handle_action("toggle_theme"); 
+let ui2 = render_app();
+perform IO.print("  New background: " + ui2.background);
+perform IO.print("  New foreground: " + ui2.foreground);
+
+// Final state
+perform IO.print("\nFinal state:");
+perform IO.print("  Count: " + count.get());
+perform IO.print("  Theme: " + theme.get());

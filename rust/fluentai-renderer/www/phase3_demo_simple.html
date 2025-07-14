@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Phase 3 Demo - Simplified Reactive UI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2E86AB;
+            text-align: center;
+        }
+        .demo-area {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+        .todo-item {
+            position: absolute;
+            background: #F18F01;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            cursor: move;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: none;
+            font-weight: 500;
+        }
+        .todo-item.dragging {
+            opacity: 0.8;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .add-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .add-button:hover {
+            background: #45a049;
+        }
+        .header {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 24px;
+            color: #2E86AB;
+            font-weight: bold;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .feature {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .feature h3 {
+            color: #F18F01;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Phase 3: Reactive UI with Simulated Physics</h1>
+        
+        <div class="info">
+            <h2>✅ Phase 3 Features Demonstrated:</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <h3>🖱️ Drag & Drop</h3>
+                    <p>Click and drag the todo items around</p>
+                </div>
+                <div class="feature">
+                    <h3>🎱 Spring Physics</h3>
+                    <p>Items spring back with momentum</p>
+                </div>
+                <div class="feature">
+                    <h3>⚛️ Reactive State</h3>
+                    <p>Counter updates automatically</p>
+                </div>
+                <div class="feature">
+                    <h3>🎯 Event Handling</h3>
+                    <p>Click the button to add items</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-area" id="physics-area">
+            <div class="header">Simulated Physics To-Do List</div>
+            <div class="add-button" onclick="addTodo()">Add Todo (Count: <span id="count">3</span>)</div>
+            
+            <!-- Initial todo items -->
+            <div class="todo-item" style="left: 300px; top: 100px;" data-id="1">Todo Item 1</div>
+            <div class="todo-item" style="left: 350px; top: 170px;" data-id="2">Todo Item 2</div>
+            <div class="todo-item" style="left: 400px; top: 240px;" data-id="3">Todo Item 3</div>
+        </div>
+    </div>
+    
+    <script>
+        // Simulated physics state
+        let items = [
+            { id: 1, x: 300, y: 100, vx: 0, vy: 0, targetX: 300, targetY: 100 },
+            { id: 2, x: 350, y: 170, vx: 0, vy: 0, targetX: 350, targetY: 170 },
+            { id: 3, x: 400, y: 240, vx: 0, vy: 0, targetX: 400, targetY: 240 }
+        ];
+        
+        // Reactive state
+        let todoCount = 3;
+        
+        // Drag state
+        let dragging = null;
+        let dragOffset = { x: 0, y: 0 };
+        
+        // Spring physics constants
+        const SPRING_STRENGTH = 0.1;
+        const DAMPING = 0.85;
+        const DRAG_DAMPING = 0.95;
+        
+        // Update reactive counter
+        function updateCount() {
+            document.getElementById('count').textContent = todoCount;
+        }
+        
+        // Add new todo item
+        function addTodo() {
+            todoCount++;
+            const id = Date.now();
+            const x = 100 + Math.random() * 400;
+            const y = 100 + Math.random() * 300;
+            
+            // Add to physics simulation
+            items.push({
+                id: id,
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                targetX: x,
+                targetY: y
+            });
+            
+            // Create DOM element
+            const elem = document.createElement('div');
+            elem.className = 'todo-item';
+            elem.style.left = x + 'px';
+            elem.style.top = y + 'px';
+            elem.setAttribute('data-id', id);
+            elem.textContent = `Todo Item ${todoCount}`;
+            document.getElementById('physics-area').appendChild(elem);
+            
+            // Update reactive state
+            updateCount();
+            
+            console.log('Added todo item with physics!');
+        }
+        
+        // Physics simulation loop
+        function updatePhysics() {
+            items.forEach(item => {
+                if (dragging && dragging.id === item.id) {
+                    // Being dragged - update velocity based on movement
+                    item.vx = (item.x - item.targetX) * 0.5;
+                    item.vy = (item.y - item.targetY) * 0.5;
+                    item.x = item.targetX;
+                    item.y = item.targetY;
+                } else {
+                    // Spring force to target position
+                    const dx = item.targetX - item.x;
+                    const dy = item.targetY - item.y;
+                    
+                    // Apply spring force
+                    item.vx += dx * SPRING_STRENGTH;
+                    item.vy += dy * SPRING_STRENGTH;
+                    
+                    // Apply damping
+                    item.vx *= DAMPING;
+                    item.vy *= DAMPING;
+                    
+                    // Update position
+                    item.x += item.vx;
+                    item.y += item.vy;
+                    
+                    // Constrain to bounds
+                    const area = document.getElementById('physics-area');
+                    const bounds = area.getBoundingClientRect();
+                    if (item.x < 0) { item.x = 0; item.vx *= -0.5; }
+                    if (item.y < 80) { item.y = 80; item.vy *= -0.5; }
+                    if (item.x > bounds.width - 150) { item.x = bounds.width - 150; item.vx *= -0.5; }
+                    if (item.y > bounds.height - 50) { item.y = bounds.height - 50; item.vy *= -0.5; }
+                }
+                
+                // Update DOM element
+                const elem = document.querySelector(`[data-id="${item.id}"]`);
+                if (elem) {
+                    elem.style.left = item.x + 'px';
+                    elem.style.top = item.y + 'px';
+                }
+            });
+            
+            requestAnimationFrame(updatePhysics);
+        }
+        
+        // Event handling
+        document.getElementById('physics-area').addEventListener('mousedown', function(e) {
+            if (e.target.classList.contains('todo-item')) {
+                const rect = e.target.getBoundingClientRect();
+                const parentRect = this.getBoundingClientRect();
+                const id = parseInt(e.target.getAttribute('data-id'));
+                const item = items.find(i => i.id === id);
+                
+                if (item) {
+                    dragging = item;
+                    dragOffset.x = e.clientX - rect.left;
+                    dragOffset.y = e.clientY - rect.top;
+                    e.target.classList.add('dragging');
+                }
+            }
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (dragging) {
+                const area = document.getElementById('physics-area');
+                const rect = area.getBoundingClientRect();
+                dragging.targetX = e.clientX - rect.left - dragOffset.x;
+                dragging.targetY = e.clientY - rect.top - dragOffset.y;
+            }
+        });
+        
+        document.addEventListener('mouseup', function(e) {
+            if (dragging) {
+                const elem = document.querySelector(`[data-id="${dragging.id}"]`);
+                if (elem) {
+                    elem.classList.remove('dragging');
+                }
+                dragging = null;
+            }
+        });
+        
+        // Initialize
+        updateCount();
+        updatePhysics();
+        
+        console.log('Phase 3 Demo: Reactive UI with simulated physics initialized!');
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+// dom_test.flc
+// Test program for Dom effects in FluentAI
+
+// Define a simple scene
+let scene = [
+    {
+        "type": "rect",
+        "position": [100, 100],
+        "size": [100, 100],
+        "color": "#FF0000"
+    },
+    {
+        "type": "circle",
+        "position": [300, 200],
+        "radius": 50,
+        "color": "#00FF00"
+    },
+    {
+        "type": "text",
+        "position": [200, 300],
+        "content": "Hello, Continuum!",
+        "size": 24,
+        "color": "#0000FF"
+    }
+];
+
+// Render the scene using Dom effect
+perform Dom.render(scene);
+
+// Log success
+$("Scene rendered successfully!").print();

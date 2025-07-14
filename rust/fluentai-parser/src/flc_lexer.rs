@@ -33,6 +33,18 @@ pub enum Token<'a> {
     #[token("extern", priority = 10)]
     Extern,
 
+    // Continuum UI keywords
+    #[token("surface", priority = 10)]
+    Surface,
+    #[token("space", priority = 10)]
+    Space,
+    #[token("element", priority = 10)]
+    Element,
+    #[token("state_field", priority = 10)]
+    StateField,
+    #[token("disturb", priority = 10)]
+    Disturb,
+
     // Control flow keywords
     #[token("if", priority = 10)]
     If,
@@ -394,5 +406,16 @@ mod tests {
         assert_eq!(lexer.next_token(), Some(Token::Private));
         assert_eq!(lexer.next_token(), Some(Token::Function));
         assert_eq!(lexer.next_token(), Some(Token::Struct));
+    }
+
+    #[test]
+    fn test_continuum_keywords() {
+        let mut lexer = Lexer::new("surface space element state_field disturb when");
+        assert_eq!(lexer.next_token(), Some(Token::Surface));
+        assert_eq!(lexer.next_token(), Some(Token::Space));
+        assert_eq!(lexer.next_token(), Some(Token::Element));
+        assert_eq!(lexer.next_token(), Some(Token::StateField));
+        assert_eq!(lexer.next_token(), Some(Token::Disturb));
+        assert_eq!(lexer.next_token(), Some(Token::When)); // Already exists
     }
 }

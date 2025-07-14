@@ -3,6 +3,7 @@
 pub mod beta_reduction;
 pub mod constant_folding;
 pub mod context_aware;
+pub mod continuum_lowering;
 pub mod cse;
 pub mod dead_code;
 pub mod effect_aware;

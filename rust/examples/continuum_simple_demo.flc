@@ -1,0 +1,155 @@
+// Simple Continuum UI Demo - Counter Application
+// This demonstrates the core concepts of FluentAI's declarative UI
+
+// Define reactive state
+public state_field count: int = 0
+public state_field is_running: bool = false
+
+// Simple counter surface
+public surface counter_app {
+    size: window_default,
+    background: "#f0f0f0",
+    
+    element container {
+        position: center,
+        padding: 40,
+        background: "#ffffff",
+        radius: 12,
+        shadow: large,
+        
+        element title {
+            content: "FluentAI Counter",
+            font_size: 32,
+            font_weight: bold,
+            color: "#333333",
+            margin_bottom: 20
+        }
+        
+        element count_display {
+            content: count.to_string(),
+            font_size: 72,
+            font_weight: bold,
+            text_align: center,
+            margin: 20,
+            
+            when count < 0 {
+                color: "#dc3545"
+            }
+            when count == 0 {
+                color: "#6c757d"
+            }
+            when count > 0 {
+                color: "#28a745"
+            }
+        }
+        
+        element button_group {
+            layout: horizontal,
+            spacing: 10,
+            justify_content: center,
+            
+            element decrement_btn {
+                content: "-",
+                size: button_standard,
+                background: "#dc3545",
+                color: "#ffffff",
+                font_size: 24,
+                radius: 6,
+                on_click: disturb count
+            }
+            
+            element reset_btn {
+                content: "Reset",
+                size: button_standard,
+                background: "#6c757d",
+                color: "#ffffff",
+                radius: 6,
+                on_click: disturb count
+            }
+            
+            element increment_btn {
+                content: "+",
+                size: button_standard,
+                background: "#28a745",
+                color: "#ffffff",
+                font_size: 24,
+                radius: 6,
+                on_click: disturb count
+            }
+        }
+        
+        element auto_counter {
+            margin_top: 30,
+            
+            element toggle_btn {
+                content: is_running ? "Stop" : "Start",
+                background: is_running ? "#dc3545" : "#007bff",
+                color: "#ffffff",
+                padding: standard,
+                radius: 6,
+                on_click: disturb is_running
+            }
+            
+            when is_running == true {
+                element status {
+                    content: "Auto-incrementing...",
+                    color: "#007bff",
+                    margin_top: 10,
+                    animation: pulse
+                }
+            }
+        }
+    }
+}
+
+// 3D visualization space
+public space counter_3d {
+    size: viewport,
+    background: gradient_sky,
+    
+    element counter_cube {
+        type: cube,
+        size: 2.0,
+        position: origin,
+        color: "#007bff",
+        rotation: animated,
+        
+        when count > 10 {
+            scale: 1.5,
+            color: "#28a745"
+        }
+        when count < -10 {
+            scale: 0.5,
+            color: "#dc3545"
+        }
+    }
+    
+    element count_label_3d {
+        content: count.to_string(),
+        position: above_cube,
+        font_size: 3.0,
+        color: "#ffffff",
+        billboard: true,
+        glow: true
+    }
+}
+
+// Main function demonstrating the integration
+private function main() {
+    $("Starting Continuum UI Counter Demo...").print();
+    
+    // Set up auto-increment logic
+    spawn {
+        loop {
+            if is_running {
+                disturb count;
+                perform Async.sleep(1000);
+            } else {
+                perform Async.sleep(100);
+            }
+        }
+    };
+    
+    // The UI is automatically rendered by the Continuum runtime
+    $("Counter application initialized!").print();
+}

@@ -1,0 +1,61 @@
+// Working FluentAI Demo - showcasing current working features
+// This can be executed with: fluentai run examples/working_flc_demo.flc
+
+// Object-oriented counter using closures
+let Counter = (initial) => {
+    let state = {"count": initial};
+    
+    let self = {
+        "get": () => state.count,
+        "increment": () => {
+            state.count = state.count + 1;
+            self
+        },
+        "decrement": () => {
+            state.count = state.count - 1;
+            self
+        },
+        "reset": () => {
+            state.count = initial;
+            self
+        }
+    };
+    
+    return self;
+};
+
+// Pattern matching demo
+let describe_value = (val) => {
+    match val {
+        0 => "Zero",
+        1..10 => "Small positive",
+        -10..-1 => "Small negative", 
+        n if n > 10 => "Large positive",
+        n if n < -10 => "Large negative",
+        _ => "Unknown"
+    }
+};
+
+// Main demo
+let counter = Counter(0);
+
+// Chain operations
+counter
+    .increment()
+    .increment()
+    .increment();
+
+let final_count = counter.get();
+
+// Test pattern matching
+let description = describe_value(final_count);
+
+// Return results as a map
+{
+    "counter_value": final_count,
+    "description": description,
+    "test_values": [-15, -5, 0, 3, 15].map(n => {
+        "value": n,
+        "desc": describe_value(n)
+    })
+}

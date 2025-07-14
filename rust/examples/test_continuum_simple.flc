@@ -1,0 +1,6 @@
+// Minimal Continuum test
+surface app {
+    element button {
+        content: "Click me"
+    }
+}

@@ -1,6 +1,0 @@
-// Test let binding with body
-let x = 42 in {
-  perform IO.println("Hello from FluentAI!");
-  perform IO.println(f"The value is: {x}");
-  x
-}

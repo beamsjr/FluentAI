@@ -1,0 +1,58 @@
+// Continuum UI Framework Explanation
+// Since we can't run Continuum syntax yet, this explains how it works
+
+// What Continuum provides:
+// 1. Declarative UI syntax
+// 2. Reactive state management  
+// 3. Automatic re-rendering
+// 4. Physics-based layouts
+
+// Example Continuum code (not runnable yet):
+// 
+// public state_field count: int = 0
+// public state_field theme: string = "light"
+//
+// public surface app {
+//     background: theme == "light" ? "#fff" : "#000",
+//     
+//     element counter_display {
+//         content: f"Count: {count}",
+//         color: theme == "light" ? "#000" : "#fff"
+//     }
+//     
+//     element increment_button {
+//         content: "Increment",
+//         on_click: disturb count(count + 1)
+//     }
+//     
+//     element theme_toggle {
+//         content: f"Theme: {theme}",
+//         on_click: disturb theme(theme == "light" ? "dark" : "light")
+//     }
+// }
+
+// This would compile to FluentAI code that:
+// - Creates state containers
+// - Sets up event handlers
+// - Manages DOM updates
+// - Handles re-rendering
+
+// Return info about Continuum
+{
+    "name": "Continuum UI",
+    "status": "Parser complete, compiler in progress",
+    "features": [
+        "Declarative syntax",
+        "Reactive state with state_field",
+        "2D surfaces and 3D spaces", 
+        "Conditional rendering with when",
+        "Event handling with disturb",
+        "Physics-based layouts"
+    ],
+    "next_steps": [
+        "Complete compiler lowering",
+        "Implement Dom effect handlers",
+        "Create WebAssembly runtime",
+        "Build example applications"
+    ]
+}

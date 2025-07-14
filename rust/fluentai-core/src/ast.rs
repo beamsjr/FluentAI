@@ -460,6 +460,47 @@ impl Graph {
                         stack.push(*target);
                         stack.push(*value);
                     }
+                    Node::Surface { properties, children, .. } => {
+                        for (_, prop_value) in properties.iter().rev() {
+                            stack.push(*prop_value);
+                        }
+                        for child in children.iter().rev() {
+                            stack.push(*child);
+                        }
+                    }
+                    Node::Space { properties, children, .. } => {
+                        for (_, prop_value) in properties.iter().rev() {
+                            stack.push(*prop_value);
+                        }
+                        for child in children.iter().rev() {
+                            stack.push(*child);
+                        }
+                    }
+                    Node::Element { properties, handlers, conditionals, .. } => {
+                        for (_, prop_value) in properties.iter().rev() {
+                            stack.push(*prop_value);
+                        }
+                        for (_, handler) in handlers.iter().rev() {
+                            stack.push(*handler);
+                        }
+                        for conditional in conditionals.iter().rev() {
+                            stack.push(*conditional);
+                        }
+                    }
+                    Node::StateField { initial, .. } => {
+                        if let Some(init) = initial {
+                            stack.push(*init);
+                        }
+                    }
+                    Node::When { condition, properties } => {
+                        stack.push(*condition);
+                        for (_, prop_value) in properties.iter().rev() {
+                            stack.push(*prop_value);
+                        }
+                    }
+                    Node::Disturb { .. } => {
+                        // No child nodes
+                    }
                     _ => {} // Leaf nodes
                 }
             }
@@ -542,6 +583,47 @@ impl Graph {
                 Node::Assignment { target, value } => {
                     self.dfs_helper(*target, visited, visitor);
                     self.dfs_helper(*value, visited, visitor);
+                }
+                Node::Surface { properties, children, .. } => {
+                    for (_, prop_value) in properties {
+                        self.dfs_helper(*prop_value, visited, visitor);
+                    }
+                    for child in children {
+                        self.dfs_helper(*child, visited, visitor);
+                    }
+                }
+                Node::Space { properties, children, .. } => {
+                    for (_, prop_value) in properties {
+                        self.dfs_helper(*prop_value, visited, visitor);
+                    }
+                    for child in children {
+                        self.dfs_helper(*child, visited, visitor);
+                    }
+                }
+                Node::Element { properties, handlers, conditionals, .. } => {
+                    for (_, prop_value) in properties {
+                        self.dfs_helper(*prop_value, visited, visitor);
+                    }
+                    for (_, handler) in handlers {
+                        self.dfs_helper(*handler, visited, visitor);
+                    }
+                    for conditional in conditionals {
+                        self.dfs_helper(*conditional, visited, visitor);
+                    }
+                }
+                Node::StateField { initial, .. } => {
+                    if let Some(init) = initial {
+                        self.dfs_helper(*init, visited, visitor);
+                    }
+                }
+                Node::When { condition, properties } => {
+                    self.dfs_helper(*condition, visited, visitor);
+                    for (_, prop_value) in properties {
+                        self.dfs_helper(*prop_value, visited, visitor);
+                    }
+                }
+                Node::Disturb { .. } => {
+                    // No child nodes
                 }
                 _ => {} // Leaf nodes
             }
@@ -672,6 +754,41 @@ impl Graph {
                 Node::Assignment { target, value } => {
                     children.push(*target);
                     children.push(*value);
+                }
+                Node::Surface { properties, children: child_nodes, .. } => {
+                    for (_, prop_value) in properties {
+                        children.push(*prop_value);
+                    }
+                    children.extend(child_nodes);
+                }
+                Node::Space { properties, children: child_nodes, .. } => {
+                    for (_, prop_value) in properties {
+                        children.push(*prop_value);
+                    }
+                    children.extend(child_nodes);
+                }
+                Node::Element { properties, handlers, conditionals, .. } => {
+                    for (_, prop_value) in properties {
+                        children.push(*prop_value);
+                    }
+                    for (_, handler) in handlers {
+                        children.push(*handler);
+                    }
+                    children.extend(conditionals);
+                }
+                Node::StateField { initial, .. } => {
+                    if let Some(init) = initial {
+                        children.push(*init);
+                    }
+                }
+                Node::When { condition, properties } => {
+                    children.push(*condition);
+                    for (_, prop_value) in properties {
+                        children.push(*prop_value);
+                    }
+                }
+                Node::Disturb { .. } => {
+                    // No child nodes
                 }
                 _ => {} // Leaf nodes have no children
             }
@@ -1120,6 +1237,68 @@ pub enum Node {
         complexity: Option<String>,
         /// Whether the function is pure
         pure: bool,
+    },
+
+    // Continuum UI Constructs
+
+    /// Surface - a 2D or 3D rendering context
+    Surface {
+        /// Surface name
+        name: String,
+        /// Surface properties (size, background, etc.)
+        properties: Vec<(String, NodeId)>,
+        /// Child elements
+        children: Vec<NodeId>,
+    },
+
+    /// Space - a 3D container
+    Space {
+        /// Space name
+        name: String,
+        /// Space properties (anchor, size, etc.)
+        properties: Vec<(String, NodeId)>,
+        /// Child elements
+        children: Vec<NodeId>,
+    },
+
+    /// Element - a visual UI component
+    Element {
+        /// Element name
+        name: String,
+        /// Element type (optional)
+        element_type: Option<String>,
+        /// Element properties
+        properties: Vec<(String, NodeId)>,
+        /// Event handlers
+        handlers: Vec<(String, NodeId)>,
+        /// Conditional blocks (when statements)
+        conditionals: Vec<NodeId>,
+    },
+
+    /// State field declaration
+    StateField {
+        /// Field name
+        name: String,
+        /// Field type
+        field_type: Option<String>,
+        /// Initial value
+        initial: Option<NodeId>,
+    },
+
+    /// When block for conditional UI properties
+    When {
+        /// Condition
+        condition: NodeId,
+        /// Properties to apply when condition is true
+        properties: Vec<(String, NodeId)>,
+    },
+
+    /// Disturb statement for state field updates
+    Disturb {
+        /// State field to disturb
+        field: String,
+        /// Optional new value
+        value: Option<NodeId>,
     },
 }
 
@@ -1917,6 +2096,72 @@ impl Node {
                 ],
                 category: DocumentationCategory::ControlFlow,
                 see_also: vec!["Let".to_string(), "Define".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Surface { .. } => Documentation {
+                name: "Surface".to_string(),
+                syntax: "surface <name> { <properties> <elements> }".to_string(),
+                description: "Defines a 2D or 3D rendering surface for UI elements.".to_string(),
+                examples: vec![
+                    "surface app { size: (800, 600), background: \"#f0f0f0\" }".to_string()
+                ],
+                category: DocumentationCategory::Module,
+                see_also: vec!["Space".to_string(), "Element".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Space { .. } => Documentation {
+                name: "Space".to_string(),
+                syntax: "space <name> { <properties> <elements> }".to_string(),
+                description: "Defines a 3D space container for spatial UI elements.".to_string(),
+                examples: vec![
+                    "space ar_scene { anchor: world.floor, size: (2, 2, 2) }".to_string()
+                ],
+                category: DocumentationCategory::Module,
+                see_also: vec!["Surface".to_string(), "Element".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Element { .. } => Documentation {
+                name: "Element".to_string(),
+                syntax: "element <name> { <properties> <handlers> <conditionals> }".to_string(),
+                description: "Defines a visual UI element with properties and event handlers.".to_string(),
+                examples: vec![
+                    "element button { content: \"Click me\", on_click: handle_click }".to_string()
+                ],
+                category: DocumentationCategory::Module,
+                see_also: vec!["Surface".to_string(), "Space".to_string(), "When".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::StateField { .. } => Documentation {
+                name: "StateField".to_string(),
+                syntax: "state_field <name>: <type> = <initial>".to_string(),
+                description: "Defines a reactive state field that drives UI updates.".to_string(),
+                examples: vec![
+                    "state_field menu_open: bool = false".to_string()
+                ],
+                category: DocumentationCategory::Module,
+                see_also: vec!["Disturb".to_string(), "When".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::When { .. } => Documentation {
+                name: "When".to_string(),
+                syntax: "when <condition> { <properties> }".to_string(),
+                description: "Conditional property block that applies when condition is true.".to_string(),
+                examples: vec![
+                    "when menu_open == true { visible: true, opacity: 1.0 }".to_string()
+                ],
+                category: DocumentationCategory::ControlFlow,
+                see_also: vec!["Element".to_string(), "StateField".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Disturb { .. } => Documentation {
+                name: "Disturb".to_string(),
+                syntax: "disturb <state_field>".to_string(),
+                description: "Triggers a state field update, causing reactive UI changes.".to_string(),
+                examples: vec![
+                    "on_click: disturb menu_state".to_string()
+                ],
+                category: DocumentationCategory::ControlFlow,
+                see_also: vec!["StateField".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
         }

@@ -1,0 +1,38 @@
+// Continuum UI Demo - From syntax to visual output
+// This demonstrates the complete Phase 2 milestone
+
+surface demo_app {
+    element title: Text {
+        content: "Phase 2 Complete!",
+        position: [400, 50],
+        size: 32,
+        color: "#2E86AB"
+    }
+    
+    element box1: Rect {
+        position: [100, 100],
+        size: [200, 150],
+        color: "#A23B72",
+        radius: 10
+    }
+    
+    element label1: Text {
+        content: "Continuum UI",
+        position: [200, 175],
+        size: 20,
+        color: "#FFFFFF"
+    }
+    
+    element circle1: Circle {
+        position: [500, 200],
+        radius: 75,
+        color: "#F18F01"
+    }
+    
+    element status: Text {
+        content: "Compiled from .flc to visual output!",
+        position: [400, 400],
+        size: 18,
+        color: "#C73E1D"
+    }
+}

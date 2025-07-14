@@ -188,6 +188,33 @@ impl DeadCodeEliminationPass {
                 Node::Contract { .. } => {
                     // Contract nodes have no child nodes to traverse
                 }
+                // Continuum UI nodes - these will be compiled away
+                Node::Surface { children, .. } | Node::Space { children, .. } => {
+                    for child in children {
+                        self.mark_reachable(graph, *child, reachable);
+                    }
+                }
+                Node::Element { handlers, conditionals, .. } => {
+                    for (_, handler) in handlers {
+                        self.mark_reachable(graph, *handler, reachable);
+                    }
+                    for conditional in conditionals {
+                        self.mark_reachable(graph, *conditional, reachable);
+                    }
+                }
+                Node::StateField { initial, .. } => {
+                    if let Some(init) = initial {
+                        self.mark_reachable(graph, *init, reachable);
+                    }
+                }
+                Node::When { condition, .. } => {
+                    self.mark_reachable(graph, *condition, reachable);
+                }
+                Node::Disturb { value, .. } => {
+                    if let Some(val) = value {
+                        self.mark_reachable(graph, *val, reachable);
+                    }
+                }
                 // Leaf nodes - no children to traverse
                 Node::Literal(_) | Node::Variable { .. } => {}
             }
@@ -363,6 +390,33 @@ impl DeadCodeEliminationPass {
                     // For qualified variables, we track the variable name
                     used.insert(variable_name.clone());
                 }
+                // Continuum UI nodes - these will be compiled away
+                Node::Surface { children, .. } | Node::Space { children, .. } => {
+                    for child in children {
+                        self.collect_vars_from_node(graph, *child, used);
+                    }
+                }
+                Node::Element { handlers, conditionals, .. } => {
+                    for (_, handler) in handlers {
+                        self.collect_vars_from_node(graph, *handler, used);
+                    }
+                    for conditional in conditionals {
+                        self.collect_vars_from_node(graph, *conditional, used);
+                    }
+                }
+                Node::StateField { initial, .. } => {
+                    if let Some(init) = initial {
+                        self.collect_vars_from_node(graph, *init, used);
+                    }
+                }
+                Node::When { condition, .. } => {
+                    self.collect_vars_from_node(graph, *condition, used);
+                }
+                Node::Disturb { value, .. } => {
+                    if let Some(val) = value {
+                        self.collect_vars_from_node(graph, *val, used);
+                    }
+                }
                 // Leaf nodes - no variables to collect
                 Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } => {}
             }
@@ -466,6 +520,15 @@ impl DeadCodeEliminationPass {
             Node::QualifiedVariable { .. } => {
                 // QualifiedVariable has module and name, we should collect the name
                 // But we need to handle it properly based on the actual structure
+            }
+            // Continuum UI nodes - these will be compiled away
+            Node::Surface { .. } | Node::Space { .. } | Node::Element { .. } => {
+                // Continuum nodes contain NodeIds, not inline nodes
+                // This will be handled by the graph traversal in find_used_variables
+            }
+            Node::StateField { .. } | Node::When { .. } | Node::Disturb { .. } => {
+                // Continuum nodes contain NodeIds, not inline nodes
+                // This will be handled by the graph traversal in find_used_variables
             }
             // Leaf nodes - these don't contain variable references
             Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } => {

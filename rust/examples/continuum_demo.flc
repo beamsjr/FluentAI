@@ -1,0 +1,18 @@
+// Continuum UI Demo - What we can parse and compile
+surface main_app {
+    element title: Text {
+        content: "Welcome to Continuum UI",
+        color: "#ffffff",
+        size: 24
+    }
+    
+    element button: Button {
+        content: "Click Me",
+        on_click: () => {
+            perform IO.println("Button clicked!")
+        }
+    }
+}
+
+// This will parse successfully and generate Dom effects,
+// but won't show visual output yet - just console logs

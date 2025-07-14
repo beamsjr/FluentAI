@@ -1,0 +1,15 @@
+// Test Continuum lowering - minimal example
+public state_field count: int = 0
+
+public surface simple_app {
+    background: "#f0f0f0",
+    
+    element text {
+        content: f"Count: {count}"
+    }
+    
+    element button {
+        content: "Increment",
+        on_click: disturb count(count + 1)
+    }
+}

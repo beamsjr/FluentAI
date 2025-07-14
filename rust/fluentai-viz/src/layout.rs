@@ -280,6 +280,18 @@ impl ASTLayouter {
             Node::PromiseRace { .. } => "promise-race".to_string(),
             Node::Timeout { .. } => "with-timeout".to_string(),
             Node::Assignment { .. } => "=".to_string(),
+            Node::Surface { name, .. } => format!("surface {}", name),
+            Node::Space { name, .. } => format!("space {}", name),
+            Node::Element { name, element_type, .. } => {
+                if let Some(elem_type) = element_type {
+                    format!("element {}:{}", name, elem_type)
+                } else {
+                    format!("element {}", name)
+                }
+            }
+            Node::StateField { name, .. } => format!("state {}", name),
+            Node::When { .. } => "when".to_string(),
+            Node::Disturb { field, .. } => format!("disturb {}", field),
         }
     }
 
@@ -324,6 +336,12 @@ impl ASTLayouter {
             Node::PromiseRace { .. } => "promise-race",
             Node::Timeout { .. } => "timeout",
             Node::Assignment { .. } => "assignment",
+            Node::Surface { .. } => "surface",
+            Node::Space { .. } => "space",
+            Node::Element { .. } => "element",
+            Node::StateField { .. } => "state-field",
+            Node::When { .. } => "when",
+            Node::Disturb { .. } => "disturb",
         }
         .to_string()
     }

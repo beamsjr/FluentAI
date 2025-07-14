@@ -35,6 +35,8 @@ pub mod vm;
 pub mod vm_builder;
 pub mod async_vm;
 pub mod cow_globals;
+pub mod continuation;
+pub mod promise_executor;
 
 pub use builder::{VMBuilder as VMBuilderLegacy, VMConfig};
 pub use fluentai_bytecode::{Bytecode, BytecodeChunk, Instruction, Opcode};

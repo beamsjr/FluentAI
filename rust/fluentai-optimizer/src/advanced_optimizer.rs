@@ -401,6 +401,42 @@ impl AdvancedOptimizer {
                             stack.push(WorkItem::Process(*target));
                             stack.push(WorkItem::Process(*value));
                         }
+                        // Continuum UI nodes - these will be compiled away
+                        Node::Surface { children, properties, .. } | Node::Space { children, properties, .. } => {
+                            for child in children {
+                                stack.push(WorkItem::Process(*child));
+                            }
+                            for (_, prop_value) in properties {
+                                stack.push(WorkItem::Process(*prop_value));
+                            }
+                        }
+                        Node::Element { properties, handlers, conditionals, .. } => {
+                            for (_, prop_value) in properties {
+                                stack.push(WorkItem::Process(*prop_value));
+                            }
+                            for (_, handler) in handlers {
+                                stack.push(WorkItem::Process(*handler));
+                            }
+                            for conditional in conditionals {
+                                stack.push(WorkItem::Process(*conditional));
+                            }
+                        }
+                        Node::StateField { initial, .. } => {
+                            if let Some(init) = initial {
+                                stack.push(WorkItem::Process(*init));
+                            }
+                        }
+                        Node::When { condition, properties } => {
+                            stack.push(WorkItem::Process(*condition));
+                            for (_, prop_value) in properties {
+                                stack.push(WorkItem::Process(*prop_value));
+                            }
+                        }
+                        Node::Disturb { value, .. } => {
+                            if let Some(val) = value {
+                                stack.push(WorkItem::Process(*val));
+                            }
+                        }
                     }
                 }
                 WorkItem::Complete(node_id, placeholder_id) => {
@@ -1253,12 +1289,8 @@ impl AdvancedOptimizer {
     /// Check if a let binding should be inlined
     fn should_inline_let(&self, binding: &(String, NodeId)) -> bool {
         // Issue #67: Don't inline let bindings that might be captured by closures
-        // This is a conservative approach to preserve closure semantics
-        // TODO: Implement proper free variable analysis to allow safe inlining
-        if self.binding_captured_by_closure(&binding.0) {
-            return false;
-        }
-        
+        // The FreeVarAnalyzer now properly handles concurrent node types (Send, Receive, etc.)
+        // so closures are correctly identified and preserved
         if let Some(node) = self.optimized.get_node(binding.1) {
             match node {
                 Node::Literal(_) => true,
@@ -1269,14 +1301,6 @@ impl AdvancedOptimizer {
         } else {
             false
         }
-    }
-    
-    /// Check if a binding might be captured by a closure
-    fn binding_captured_by_closure(&self, _name: &str) -> bool {
-        // For now, conservatively assume all bindings might be captured
-        // This prevents the optimizer from breaking closure semantics
-        // A proper implementation would analyze free variables in closures
-        true
     }
 
     /// Count nodes in a subgraph

@@ -1,2 +1,0 @@
-// Very simple print test with print method
-$("Hello, World!").print()

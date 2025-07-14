@@ -300,11 +300,6 @@ impl PyNode {
                     );
                     "Begin"
                 }
-                Node::Select { branches, default } => {
-                    data.insert("branch_count".to_string(), branches.len().to_object(py));
-                    data.insert("has_default".to_string(), default.is_some().to_object(py));
-                    "Select"
-                }
                 Node::Actor { initial_state, handler } => {
                     data.insert("initial_state".to_string(), initial_state.to_string().to_object(py));
                     data.insert("handler".to_string(), handler.to_string().to_object(py));
@@ -356,6 +351,48 @@ impl PyNode {
                     data.insert("target".to_string(), target.get().to_object(py));
                     data.insert("value".to_string(), value.get().to_object(py));
                     "Assignment"
+                }
+                Node::Surface { name, properties, children } => {
+                    data.insert("name".to_string(), name.to_object(py));
+                    data.insert("property_count".to_string(), properties.len().to_object(py));
+                    data.insert("child_count".to_string(), children.len().to_object(py));
+                    "Surface"
+                }
+                Node::Space { name, properties, children } => {
+                    data.insert("name".to_string(), name.to_object(py));
+                    data.insert("property_count".to_string(), properties.len().to_object(py));
+                    data.insert("child_count".to_string(), children.len().to_object(py));
+                    "Space"
+                }
+                Node::Element { name, element_type, properties, handlers, conditionals } => {
+                    data.insert("name".to_string(), name.to_object(py));
+                    if let Some(elem_type) = element_type {
+                        data.insert("element_type".to_string(), elem_type.to_object(py));
+                    }
+                    data.insert("property_count".to_string(), properties.len().to_object(py));
+                    data.insert("handler_count".to_string(), handlers.len().to_object(py));
+                    data.insert("conditional_count".to_string(), conditionals.len().to_object(py));
+                    "Element"
+                }
+                Node::StateField { name, field_type, initial } => {
+                    data.insert("name".to_string(), name.to_object(py));
+                    if let Some(f_type) = field_type {
+                        data.insert("field_type".to_string(), f_type.to_object(py));
+                    }
+                    data.insert("has_initial".to_string(), initial.is_some().to_object(py));
+                    "StateField"
+                }
+                Node::When { condition, properties } => {
+                    data.insert("condition".to_string(), condition.to_string().to_object(py));
+                    data.insert("property_count".to_string(), properties.len().to_object(py));
+                    "When"
+                }
+                Node::Disturb { field, value } => {
+                    data.insert("field".to_string(), field.to_object(py));
+                    if let Some(val) = value {
+                        data.insert("value".to_string(), val.to_string().to_object(py));
+                    }
+                    "Disturb"
                 }
             };
 

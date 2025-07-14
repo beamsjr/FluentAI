@@ -6,18 +6,21 @@
 
 use fluentai_bytecode::Instruction;
 use crate::error::{VMError, VMResult};
+use crate::promise_executor::{PromiseExecutor, PromiseExecution};
 use crate::vm::{VM, VMState};
 use fluentai_core::value::Value;
 use tokio::sync::oneshot;
 use tokio::time::{timeout, Duration};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use crate::safety::PromiseId;
 
 /// Async VM executor that wraps the synchronous VM
 pub struct AsyncVM {
     vm: VM,
+    promise_executor: PromiseExecutor,
 }
 
 /// Represents a pending async operation in the VM
@@ -34,7 +37,11 @@ pub enum AsyncOperation {
 impl AsyncVM {
     /// Create a new async VM from a regular VM
     pub fn new(vm: VM) -> Self {
-        Self { vm }
+        let bytecode = Arc::new(vm.bytecode().clone());
+        Self { 
+            vm,
+            promise_executor: PromiseExecutor::new(bytecode),
+        }
     }
     
     /// Run the VM asynchronously
@@ -101,6 +108,12 @@ impl AsyncVM {
             if self.is_async_operation(&instruction) {
                 // Increment IP before handling async operation
                 self.vm.call_stack_mut().last_mut().unwrap().ip += 1;
+                
+                // For await operations, we need to spawn pending promises first
+                if matches!(instruction.opcode, fluentai_bytecode::Opcode::Await) {
+                    self.spawn_pending_promises();
+                }
+                
                 // Return the async operation to be handled
                 return Ok(ExecutionResult::AsyncOperation(
                     self.prepare_async_operation(&instruction)?
@@ -164,6 +177,7 @@ impl AsyncVM {
                     Value::Promise(promise_id) => {
                         let promise_id = crate::safety::PromiseId(promise_id);
                         
+                        
                         // Get the receiver for this promise
                         if let Some(receiver) = self.vm.take_promise(&promise_id) {
                             Ok(AsyncOperation::AwaitPromise { promise_id, receiver })
@@ -206,7 +220,9 @@ impl AsyncVM {
                     Ok(Ok(Ok(value))) => {
                         self.vm.push(value)?;
                     }
-                    Ok(Ok(Err(e))) => return Err(e),
+                    Ok(Ok(Err(e))) => {
+                        return Err(e);
+                    }
                     Ok(Err(_)) => {
                         return Err(VMError::AsyncError {
                             message: format!("Promise {:?} channel closed", promise_id),
@@ -230,26 +246,11 @@ impl AsyncVM {
     
     /// Spawn execution for any pending promise bodies
     fn spawn_pending_promises(&mut self) {
-        // For now, we'll just process promises synchronously
-        // A full implementation would require either:
-        // 1. Making VM cloneable (complex due to all the state)
-        // 2. Using Arc<Mutex<VM>> (performance implications)
-        // 3. Creating a separate promise execution context
+        // Use the promise executor to run promise bodies in separate tasks
+        self.vm.execute_pending_promises(&mut self.promise_executor);
         
-        // This is a placeholder that at least creates the promise IDs
-        let pending = std::mem::take(self.vm.pending_promise_bodies());
-        
-        for (promise_id, _body) in pending {
-            // Create a channel for the promise result
-            let (sender, receiver) = oneshot::channel();
-            
-            // Store the receiver in the VM
-            self.vm.promises_mut().insert(promise_id, receiver);
-            
-            // For now, immediately resolve with a placeholder
-            // TODO: Implement actual promise execution
-            let _ = sender.send(Ok(Value::Nil));
-        }
+        // Clean up any completed tasks
+        self.promise_executor.cleanup_completed();
     }
 }
 

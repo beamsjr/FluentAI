@@ -1,7 +1,7 @@
 //! Effect and handler operations
 
 use fluentai_bytecode::{Instruction, Opcode};
-use crate::error::{VMError, VMResult};
+use crate::error::{VMError, VMResult, value_type_name};
 use crate::vm::{VM, VMState};
 use fluentai_core::value::Value;
 use super::OpcodeHandler;
@@ -15,19 +15,74 @@ impl OpcodeHandler for EffectsHandler {
         match instruction.opcode {
             // Perform an effect
             Effect => {
-                let operation_idx = instruction.arg as usize;
-                let operation = vm.get_constant_string_at(chunk_id, operation_idx)?;
+                let arg_count = instruction.arg as usize;
+                
+                // Collect arguments
+                let mut args = Vec::with_capacity(arg_count);
+                for _ in 0..arg_count {
+                    args.push(vm.pop()?);
+                }
+                args.reverse();
+                
+                // Pop operation and effect type
+                let operation = vm.pop()?;
+                let operation = operation.as_string()
+                    .map_err(|_| VMError::TypeError {
+                        operation: "Effect".to_string(),
+                        expected: "String".to_string(),
+                        got: value_type_name(&operation).to_string(),
+                        location: None,
+                        stack_trace: None,
+                    })?;
+                
+                let effect_type = vm.pop()?;
+                let effect_type = effect_type.as_string()
+                    .map_err(|_| VMError::TypeError {
+                        operation: "Effect".to_string(),
+                        expected: "String".to_string(),
+                        got: value_type_name(&effect_type).to_string(),
+                        location: None,
+                        stack_trace: None,
+                    })?;
                 
                 // Handle the effect
-                vm.perform_effect(operation)?;
+                vm.perform_effect(effect_type.to_string(), operation.to_string(), args)?;
             }
             
             EffectAsync => {
-                let operation_idx = instruction.arg as usize;
-                let operation = vm.get_constant_string_at(chunk_id, operation_idx)?;
+                // For now, handle async effects the same as sync
+                let arg_count = instruction.arg as usize;
                 
-                // Handle the async effect (simplified for now)
-                vm.perform_effect(operation)?;
+                // Collect arguments
+                let mut args = Vec::with_capacity(arg_count);
+                for _ in 0..arg_count {
+                    args.push(vm.pop()?);
+                }
+                args.reverse();
+                
+                // Pop operation and effect type
+                let operation = vm.pop()?;
+                let operation = operation.as_string()
+                    .map_err(|_| VMError::TypeError {
+                        operation: "EffectAsync".to_string(),
+                        expected: "String".to_string(),
+                        got: value_type_name(&operation).to_string(),
+                        location: None,
+                        stack_trace: None,
+                    })?;
+                
+                let effect_type = vm.pop()?;
+                let effect_type = effect_type.as_string()
+                    .map_err(|_| VMError::TypeError {
+                        operation: "EffectAsync".to_string(),
+                        expected: "String".to_string(),
+                        got: value_type_name(&effect_type).to_string(),
+                        location: None,
+                        stack_trace: None,
+                    })?;
+                
+                // Handle the effect (async handling to be implemented)
+                vm.perform_effect(effect_type.to_string(), operation.to_string(), args)?;
             }
             
             // Create effect handler

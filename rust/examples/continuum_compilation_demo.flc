@@ -1,0 +1,278 @@
+// Continuum Compilation Demo
+// This shows how declarative Continuum UI compiles to imperative FluentAI code
+
+// ============================================
+// CONTINUUM SOURCE (What the developer writes)
+// ============================================
+
+/*
+public surface hello_world {
+    background: "#f0f0f0",
+    
+    element greeting {
+        content: "Hello, Continuum!",
+        position: center,
+        font_size: 48,
+        color: "#007bff"
+    }
+}
+*/
+
+// ============================================
+// COMPILED OUTPUT (What Continuum generates)
+// ============================================
+
+// Auto-generated render function
+private function __continuum_render_hello_world() {
+    // Create the surface
+    let surface_data = {
+        "type": "surface",
+        "id": "hello_world",
+        "properties": {
+            "background": "#f0f0f0"
+        },
+        "children": []
+    };
+    
+    // Create the greeting element
+    let greeting_element = {
+        "type": "element",
+        "id": "greeting",
+        "properties": {
+            "content": "Hello, Continuum!",
+            "position": "center",
+            "font_size": 48,
+            "color": "#007bff"
+        }
+    };
+    
+    // Add to surface children
+    surface_data["children"].push(greeting_element);
+    
+    // Render using Dom effect
+    perform Dom.render(surface_data);
+}
+
+// ============================================
+// REACTIVE STATE COMPILATION
+// ============================================
+
+// Continuum source:
+// public state_field theme: string = "light"
+
+// Compiles to:
+private let __state_theme = {
+    let value = "light";
+    let subscribers = [];
+    
+    {
+        "get": () => value,
+        "set": (new_value) => {
+            value = new_value;
+            subscribers.for_each(callback => callback(new_value));
+            __continuum_rerender();
+        },
+        "subscribe": (callback) => {
+            subscribers.push(callback);
+        }
+    }
+};
+
+// Disturb compilation
+// disturb theme("dark") compiles to:
+// __state_theme.set("dark")
+
+// ============================================
+// CONDITIONAL RENDERING COMPILATION
+// ============================================
+
+// Continuum source:
+/*
+element button {
+    content: "Click me",
+    
+    when is_active == true {
+        background: "#007bff",
+        color: "#ffffff"
+    }
+    when is_active == false {
+        background: "#cccccc",
+        color: "#666666"
+    }
+}
+*/
+
+// Compiles to:
+private function __continuum_render_button(is_active) {
+    let button_props = {
+        "content": "Click me"
+    };
+    
+    // Conditional property application
+    if is_active == true {
+        button_props["background"] = "#007bff";
+        button_props["color"] = "#ffffff";
+    } else if is_active == false {
+        button_props["background"] = "#cccccc";
+        button_props["color"] = "#666666";
+    }
+    
+    return {
+        "type": "element",
+        "id": "button",
+        "properties": button_props
+    };
+}
+
+// ============================================
+// EVENT HANDLER COMPILATION
+// ============================================
+
+// Continuum source:
+// on_click: disturb count(count + 1)
+
+// Compiles to:
+let click_handler = () => {
+    let current = __state_count.get();
+    __state_count.set(current + 1);
+};
+
+// ============================================
+// FULL EXAMPLE: Interactive Counter
+// ============================================
+
+// State management
+private let __state_count = {
+    let value = 0;
+    let subscribers = [];
+    
+    {
+        "get": () => value,
+        "set": (new_value) => {
+            value = new_value;
+            subscribers.for_each(callback => callback(new_value));
+            __continuum_rerender();
+        },
+        "subscribe": (callback) => {
+            subscribers.push(callback);
+        }
+    }
+};
+
+// Render function
+private function __continuum_rerender() {
+    let app_surface = {
+        "type": "surface",
+        "id": "counter_app",
+        "properties": {
+            "background": "#f5f5f5"
+        },
+        "children": []
+    };
+    
+    // Counter display
+    let counter_display = {
+        "type": "element",
+        "id": "counter_display",
+        "properties": {
+            "content": __state_count.get().to_string(),
+            "font_size": 48,
+            "color": __state_count.get() >= 0 ? "#28a745" : "#dc3545",
+            "text_align": "center"
+        }
+    };
+    
+    // Increment button
+    let increment_btn = {
+        "type": "element",
+        "id": "increment_btn",
+        "properties": {
+            "content": "+",
+            "background": "#28a745",
+            "color": "#ffffff",
+            "padding": "10px 20px",
+            "cursor": "pointer"
+        },
+        "handlers": {
+            "click": () => {
+                __state_count.set(__state_count.get() + 1);
+            }
+        }
+    };
+    
+    // Decrement button
+    let decrement_btn = {
+        "type": "element",
+        "id": "decrement_btn",
+        "properties": {
+            "content": "-",
+            "background": "#dc3545",
+            "color": "#ffffff",
+            "padding": "10px 20px",
+            "cursor": "pointer"
+        },
+        "handlers": {
+            "click": () => {
+                __state_count.set(__state_count.get() - 1);
+            }
+        }
+    };
+    
+    // Button container
+    let button_container = {
+        "type": "element",
+        "id": "button_container",
+        "properties": {
+            "layout": "horizontal",
+            "gap": "10px",
+            "justify_content": "center"
+        },
+        "children": [decrement_btn, increment_btn]
+    };
+    
+    // Add all elements to surface
+    app_surface["children"] = [counter_display, button_container];
+    
+    // Render the entire UI tree
+    perform Dom.clear();
+    perform Dom.render(app_surface);
+}
+
+// ============================================
+// RUNTIME DEMONSTRATION
+// ============================================
+
+private function main() {
+    $("=== Continuum Compilation Demo ===").print();
+    $("").print();
+    $("This demo shows how Continuum UI compiles to FluentAI code").print();
+    $("").print();
+    
+    // Initial render
+    $("Rendering initial UI...").print();
+    __continuum_rerender();
+    
+    // Simulate some interactions
+    $("Simulating button clicks...").print();
+    
+    // Increment 3 times
+    (1..3).for_each(i => {
+        $(f"Click {i}: Incrementing counter").print();
+        __state_count.set(__state_count.get() + 1);
+        perform Async.sleep(1000);
+    });
+    
+    // Decrement 5 times
+    (1..5).for_each(i => {
+        $(f"Click {i}: Decrementing counter").print();
+        __state_count.set(__state_count.get() - 1);
+        perform Async.sleep(1000);
+    });
+    
+    $(f"Final count: {__state_count.get()}").print();
+    $("").print();
+    $("Demo complete! This is how Continuum UI works under the hood.").print();
+}
+
+// Run the demo
+main()

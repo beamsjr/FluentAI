@@ -239,6 +239,13 @@ impl TypeInferencer {
                 self.infer_node(graph, *value)?;
                 TypedValue::primitive(PrimitiveType::unit())
             }
+            // Continuum UI nodes - these will be compiled away
+            Node::Surface { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::Space { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::Element { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::StateField { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::When { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::Disturb { .. } => TypedValue::primitive(PrimitiveType::unit()),
         };
 
         // Store the inferred type

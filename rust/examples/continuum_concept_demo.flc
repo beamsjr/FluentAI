@@ -1,0 +1,37 @@
+// Continuum Concept Demo - Shows the idea without full implementation
+
+// This is what you would write in Continuum:
+// public state_field count: int = 0
+// public surface app {
+//     element button {
+//         content: "Click me",
+//         on_click: disturb count(count + 1)
+//     }
+// }
+
+// This is what it compiles to (simplified):
+let render_count = (n) => {
+    perform IO.print("=== Continuum UI Demo ===");
+    perform IO.print("Count: " + n);
+    perform IO.print("[Click Me Button]");
+    perform IO.print("");
+    n
+};
+
+// Simulate UI interaction
+let initial_count = 0;
+perform IO.print("Initial render:");
+render_count(initial_count);
+
+perform IO.print("After clicking button 3 times:");
+let count1 = render_count(initial_count + 1);
+let count2 = render_count(count1 + 1); 
+let count3 = render_count(count2 + 1);
+
+perform IO.print("Continuum would handle:");
+perform IO.print("- Reactive state updates");
+perform IO.print("- Automatic re-rendering");
+perform IO.print("- Event binding");
+perform IO.print("- DOM manipulation");
+
+"Demo complete - count would be: " + count3

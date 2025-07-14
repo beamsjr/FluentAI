@@ -1,0 +1,63 @@
+[package]
+name = "fluentai-renderer"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "High-performance 3D rendering engine for Continuum UI"
+
+[dependencies]
+wgpu = "0.19"
+winit = "0.29"
+bytemuck = { version = "1.14", features = ["derive"] }
+cgmath = "0.18"
+image = "0.24"
+log = "0.4"
+env_logger = "0.10"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# For text rendering
+wgpu_glyph = "0.23"
+
+# Physics engine for reactive layouts
+rapier2d = { version = "0.17", features = ["wasm-bindgen", "serde-serialize"] }
+
+# 3D support
+gltf = { version = "1.4", features = ["KHR_lights_punctual"] }
+nalgebra = "0.32"
+glam = { version = "0.25", features = ["serde"] }  # Fast math library for 3D transforms
+
+# For channels in physics module
+crossbeam = "0.8"
+
+# For WebAssembly support
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Element",
+    "HtmlCanvasElement",
+    "WebGlRenderingContext",
+    "WebGl2RenderingContext",
+    "WebGlProgram",
+    "WebGlShader",
+    "WebGlBuffer",
+    "WebGlUniformLocation",
+    "Window",
+    "CanvasRenderingContext2d",
+    "MouseEvent",
+    "DomRect",
+]}
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+
+[dev-dependencies]
+pollster = "0.3"
+
+[lib]
+crate-type = ["cdylib", "rlib"]

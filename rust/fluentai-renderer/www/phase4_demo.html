@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Phase 4 Demo - 3D Holographic Globe</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            color: #fff;
+            overflow: hidden;
+        }
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid #2E86AB;
+        }
+        h1 {
+            margin: 0;
+            color: #2E86AB;
+            font-size: 2em;
+            text-shadow: 0 0 20px rgba(46, 134, 171, 0.5);
+        }
+        .subtitle {
+            color: #F18F01;
+            margin: 5px 0 0 0;
+            font-size: 1.2em;
+        }
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 100%);
+        }
+        #continuum-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #2E86AB;
+            min-width: 200px;
+        }
+        .controls h3 {
+            margin: 0 0 15px 0;
+            color: #2E86AB;
+        }
+        .control-item {
+            margin: 10px 0;
+            color: #ccc;
+        }
+        .control-item button {
+            background: #F18F01;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 5px;
+        }
+        .control-item button:hover {
+            background: #e17f00;
+            box-shadow: 0 0 10px rgba(241, 143, 1, 0.5);
+        }
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #2E86AB;
+            max-width: 400px;
+        }
+        .info-panel h3 {
+            margin: 0 0 10px 0;
+            color: #F18F01;
+        }
+        .info-panel p {
+            margin: 5px 0;
+            color: #ccc;
+            font-size: 0.9em;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #2E86AB;
+            font-size: 1.5em;
+            text-align: center;
+        }
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        .ar-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(76, 175, 80, 0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: none;
+        }
+        .ar-indicator.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 Phase 4: Holographic To-Do Globe</h1>
+            <p class="subtitle">3D Rendering • glTF Support • Spatial Interaction • AR Ready</p>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="continuum-canvas"></canvas>
+            <div class="loading" id="loading">Initializing 3D Engine</div>
+            
+            <div class="ar-indicator" id="ar-indicator">
+                🥽 AR Mode Active
+            </div>
+            
+            <div class="controls">
+                <h3>🎮 Controls</h3>
+                <div class="control-item">
+                    <strong>🖱️ Orbit:</strong> Click & Drag
+                </div>
+                <div class="control-item">
+                    <strong>🔍 Zoom:</strong> Scroll
+                </div>
+                <div class="control-item">
+                    <button onclick="addTodoPin()">📍 Add Todo Pin</button>
+                </div>
+                <div class="control-item">
+                    <button onclick="toggleAR()">🥽 Toggle AR Mode</button>
+                </div>
+                <div class="control-item">
+                    <button onclick="loadModel()">📦 Load glTF Model</button>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <h3>✅ Phase 4 Features</h3>
+                <p>• WebGL2 3D rendering with PBR materials</p>
+                <p>• Holographic globe with todo pins</p>
+                <p>• Camera orbit and zoom controls</p>
+                <p>• glTF model loading support</p>
+                <p>• AR-ready architecture</p>
+                <p>• Spatial interaction system</p>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import init, { Continuum3D } from './pkg/fluentai_renderer.js';
+        
+        let continuum = null;
+        let animationId = null;
+        let lastTime = performance.now();
+        let isMouseDown = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let arMode = false;
+        
+        // Animation loop
+        function animate(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 1000.0;
+            lastTime = currentTime;
+            
+            if (continuum) {
+                continuum.update(deltaTime);
+                continuum.render();
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Initialize
+        async function initDemo() {
+            try {
+                await init();
+                
+                continuum = new Continuum3D('continuum-canvas');
+                continuum.init_globe_demo();
+                
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                
+                // Set up mouse controls
+                const canvas = document.getElementById('continuum-canvas');
+                
+                canvas.addEventListener('mousedown', (e) => {
+                    isMouseDown = true;
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                });
+                
+                canvas.addEventListener('mousemove', (e) => {
+                    if (isMouseDown && continuum) {
+                        const deltaX = e.clientX - lastMouseX;
+                        const deltaY = e.clientY - lastMouseY;
+                        continuum.on_mouse_move(deltaX, deltaY, true);
+                        lastMouseX = e.clientX;
+                        lastMouseY = e.clientY;
+                    }
+                });
+                
+                canvas.addEventListener('mouseup', () => {
+                    isMouseDown = false;
+                });
+                
+                canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    if (continuum) {
+                        continuum.on_scroll(-e.deltaY * 0.01);
+                    }
+                });
+                
+                // Start animation
+                animate(performance.now());
+                
+                console.log('✅ Phase 4 3D Demo initialized!');
+                
+            } catch (err) {
+                console.error('Failed to initialize:', err);
+                document.getElementById('loading').textContent = '❌ Error: ' + err.message;
+            }
+        }
+        
+        // Global functions
+        window.addTodoPin = function() {
+            console.log('📍 Adding todo pin to globe...');
+            // In a real implementation, this would add a new pin at clicked location
+        };
+        
+        window.toggleAR = function() {
+            arMode = !arMode;
+            const indicator = document.getElementById('ar-indicator');
+            indicator.classList.toggle('active', arMode);
+            
+            if (arMode) {
+                console.log('🥽 Entering AR mode...');
+                // In a real implementation, this would:
+                // 1. Request camera permission
+                // 2. Start AR session using WebXR
+                // 3. Overlay 3D content on camera feed
+            } else {
+                console.log('🖥️ Exiting AR mode...');
+            }
+        };
+        
+        window.loadModel = function() {
+            if (continuum) {
+                // Example glTF model URL
+                const modelUrl = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF/Box.gltf';
+                continuum.load_gltf_url(modelUrl);
+                console.log('📦 Loading glTF model...');
+            }
+        };
+        
+        // Start the demo
+        initDemo();
+    </script>
+</body>
+</html>

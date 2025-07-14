@@ -98,6 +98,9 @@ impl<'a> Parser<'a> {
             Some(Token::Mod) => self.parse_module(),
             Some(Token::Export) => self.parse_export_statement(),
             Some(Token::At) | Some(Token::Private) | Some(Token::Public) => self.parse_definition(),
+            // Continuum UI constructs (can appear without visibility modifiers)
+            Some(Token::Surface) => self.parse_surface_definition().map(|(node, _)| node),
+            Some(Token::Space) => self.parse_space_definition().map(|(node, _)| node),
             Some(Token::UpperIdent(_)) => {
                 // Check if this is a trait implementation (Type as Trait)
                 if self.peek_ahead_for_as() {
@@ -165,6 +168,18 @@ impl<'a> Parser<'a> {
             }
             Some(Token::Type) => {
                 let (node, name) = self.parse_type_alias(is_public)?;
+                (node, Some(name))
+            }
+            Some(Token::StateField) => {
+                let (node, name) = self.parse_state_field_definition()?;
+                (node, Some(name))
+            }
+            Some(Token::Surface) => {
+                let (node, name) = self.parse_surface_definition()?;
+                (node, Some(name))
+            }
+            Some(Token::Space) => {
+                let (node, name) = self.parse_space_definition()?;
                 (node, Some(name))
             }
             Some(Token::Actor) => {
@@ -1307,10 +1322,12 @@ impl<'a> Parser<'a> {
             Some(Token::Try) => self.parse_try_expression(),
             Some(Token::Spawn) => self.parse_spawn_expression(),
             Some(Token::Promise) => self.parse_promise_expression(),
+            Some(Token::Async) => self.parse_async_block(),
             Some(Token::Perform) => self.parse_perform_expression(),
             Some(Token::Handle) => self.parse_handle_expression(),
             Some(Token::Receive) => self.parse_receive_expression(),
             Some(Token::Become) => self.parse_become_expression(),
+            Some(Token::Disturb) => self.parse_disturb(),
             Some(Token::Dollar) => self.parse_printable(),
             _ => Err(anyhow!(
                 "Unexpected token in expression: {:?}",
@@ -3274,6 +3291,17 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_async_block(&mut self) -> Result<NodeId> {
+        // async { expr }
+        self.consume(Token::Async)?;
+        self.consume(Token::LBrace)?;
+        let body = self.parse_expression()?;
+        self.consume(Token::RBrace)?;
+
+        // async blocks are represented as Node::Async
+        self.add_node(Node::Async { body })
+    }
+
     // Helper methods
 
     fn advance(&mut self) {
@@ -3717,6 +3745,263 @@ impl<'a> Parser<'a> {
             Err(anyhow!("Invalid node in subgraph"))
         }
     }
+
+    // Continuum UI parsing methods
+    fn parse_surface_definition(&mut self) -> Result<(NodeId, String)> {
+        self.consume(Token::Surface)?;
+        
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected surface name")),
+        };
+        
+        self.consume(Token::LBrace)?;
+        
+        let mut properties = Vec::new();
+        let mut children = Vec::new();
+        
+        while !matches!(self.current, Some(Token::RBrace)) {
+            // Parse property or child element
+            if matches!(self.current, Some(Token::Element)) {
+                children.push(self.parse_element_inline()?);
+            } else if matches!(self.current, Some(Token::LowerIdent(_))) {
+                // Property assignment
+                let prop_name = match self.current {
+                    Some(Token::LowerIdent(n)) => n.to_string(),
+                    _ => unreachable!(),
+                };
+                self.advance();
+                self.consume(Token::Colon)?;
+                let value = self.parse_expression()?;
+                properties.push((prop_name, value));
+                
+                if matches!(self.current, Some(Token::Comma)) {
+                    self.advance();
+                }
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        let node = self.add_node(Node::Surface {
+            name: name.clone(),
+            properties,
+            children,
+        })?;
+        
+        Ok((node, name))
+    }
+    
+    fn parse_space_definition(&mut self) -> Result<(NodeId, String)> {
+        self.consume(Token::Space)?;
+        
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected space name")),
+        };
+        
+        self.consume(Token::LBrace)?;
+        
+        let mut properties = Vec::new();
+        let mut children = Vec::new();
+        
+        while !matches!(self.current, Some(Token::RBrace)) {
+            // Parse property or child element
+            if matches!(self.current, Some(Token::Element)) {
+                children.push(self.parse_element_inline()?);
+            } else if matches!(self.current, Some(Token::LowerIdent(_))) {
+                // Property assignment
+                let prop_name = match self.current {
+                    Some(Token::LowerIdent(n)) => n.to_string(),
+                    _ => unreachable!(),
+                };
+                self.advance();
+                self.consume(Token::Colon)?;
+                let value = self.parse_expression()?;
+                properties.push((prop_name, value));
+                
+                if matches!(self.current, Some(Token::Comma)) {
+                    self.advance();
+                }
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        let node = self.add_node(Node::Space {
+            name: name.clone(),
+            properties,
+            children,
+        })?;
+        
+        Ok((node, name))
+    }
+    
+    fn parse_element_inline(&mut self) -> Result<NodeId> {
+        self.consume(Token::Element)?;
+        
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected element name")),
+        };
+        
+        // Optional element type
+        let element_type = if matches!(self.current, Some(Token::Colon)) {
+            self.advance();
+            match self.current {
+                Some(Token::UpperIdent(t)) => {
+                    let t = t.to_string();
+                    self.advance();
+                    Some(t)
+                }
+                _ => return Err(anyhow!("Expected element type after ':'")),
+            }
+        } else {
+            None
+        };
+        
+        self.consume(Token::LBrace)?;
+        
+        let mut properties = Vec::new();
+        let mut handlers = Vec::new();
+        let mut conditionals = Vec::new();
+        
+        while !matches!(self.current, Some(Token::RBrace)) {
+            match self.current {
+                Some(Token::When) => {
+                    conditionals.push(self.parse_when_clause()?);
+                }
+                Some(Token::LowerIdent(prop)) => {
+                    let prop_name = prop.to_string();
+                    self.advance();
+                    
+                    // Check if it's an event handler (on_*)
+                    if prop_name.starts_with("on_") {
+                        self.consume(Token::Colon)?;
+                        let handler = self.parse_expression()?;
+                        handlers.push((prop_name, handler));
+                    } else {
+                        self.consume(Token::Colon)?;
+                        let value = self.parse_expression()?;
+                        properties.push((prop_name, value));
+                    }
+                    
+                    if matches!(self.current, Some(Token::Comma)) {
+                        self.advance();
+                    }
+                }
+                _ => return Err(anyhow!("Unexpected token in element body")),
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        self.add_node(Node::Element {
+            name,
+            element_type,
+            properties,
+            handlers,
+            conditionals,
+        })
+    }
+    
+    fn parse_state_field_definition(&mut self) -> Result<(NodeId, String)> {
+        self.consume(Token::StateField)?;
+        
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected state field name")),
+        };
+        
+        self.consume(Token::Colon)?;
+        
+        // Parse type
+        let field_type = match self.current {
+            Some(Token::UpperIdent(t)) | Some(Token::LowerIdent(t)) => {
+                let t = t.to_string();
+                self.advance();
+                Some(t)
+            }
+            _ => return Err(anyhow!("Expected type for state field")),
+        };
+        
+        // Optional initial value
+        let initial = if matches!(self.current, Some(Token::Eq)) {
+            self.advance();
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+        
+        let node = self.add_node(Node::StateField {
+            name: name.clone(),
+            field_type,
+            initial,
+        })?;
+        
+        Ok((node, name))
+    }
+    
+    fn parse_when_clause(&mut self) -> Result<NodeId> {
+        self.consume(Token::When)?;
+        
+        let condition = self.parse_expression()?;
+        
+        self.consume(Token::LBrace)?;
+        
+        let mut properties = Vec::new();
+        
+        while !matches!(self.current, Some(Token::RBrace)) {
+            let prop_name = match self.current {
+                Some(Token::LowerIdent(n)) => n.to_string(),
+                _ => return Err(anyhow!("Expected property name in when block")),
+            };
+            self.advance();
+            
+            self.consume(Token::Colon)?;
+            let value = self.parse_expression()?;
+            properties.push((prop_name, value));
+            
+            if matches!(self.current, Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        self.add_node(Node::When {
+            condition,
+            properties,
+        })
+    }
+
+    fn parse_disturb(&mut self) -> Result<NodeId> {
+        self.consume(Token::Disturb)?;
+        
+        let state_field = match self.current {
+            Some(Token::LowerIdent(n)) => n.to_string(),
+            _ => return Err(anyhow!("Expected state field name after 'disturb'")),
+        };
+        self.advance();
+        
+        self.add_node(Node::Disturb { field: state_field, value: None })
+    }
 }
 
 #[cfg(test)]
@@ -3772,7 +4057,6 @@ mod tests {
         assert!(graph.root_id.is_some());
     }
 }
-
 impl<'a> Parser<'a> {
     fn parse_module_declaration(&mut self) -> Result<()> {
         // module ModuleName;

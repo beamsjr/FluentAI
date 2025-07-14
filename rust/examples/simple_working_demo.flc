@@ -1,0 +1,8 @@
+// Simple working demo
+// Basic arithmetic and function calls
+
+let add = (a, b) => a + b;
+let multiply = (a, b) => a * b;
+
+// Calculate (10 + 20) * 3
+multiply(add(10, 20), 3)

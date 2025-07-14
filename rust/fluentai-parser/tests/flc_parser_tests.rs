@@ -128,13 +128,18 @@ mod tests {
     #[test]
     fn test_parse_async_await() {
         let cases = vec![
-            // Async is used with function definitions, not blocks
+            // Async function definitions
             (
                 "private async function fetch_data() { http.get(\"/api\") }",
                 "async function",
             ),
+            // Async blocks
+            ("async { 42 }", "simple async block"),
+            ("async { fetch_data().await() }", "async block with await"),
+            // Await expressions
             ("fetch(url).await()", "await expression"),
             ("data.fetch().await().process()", "await in chain"),
+            ("async { 42 }.await()", "await async block"),
         ];
 
         for (input, desc) in cases {

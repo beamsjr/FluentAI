@@ -1,0 +1,41 @@
+// Manually transpiled Continuum example
+// This shows what the compiler lowering would generate
+
+// State management (from: public state_field count: int = 0)
+let count = {"value": 0};
+
+// Helper to trigger re-render
+let needs_render = {"value": true};
+
+// Render function (from: public surface simple_app {...})
+let render_simple_app = () => {
+    perform IO.print("=== Simple Continuum App ===");
+    perform IO.print("Background: #f0f0f0");
+    perform IO.print("");
+    
+    // Text element showing count
+    perform IO.print("Count: " + count.value);
+    
+    // Button element
+    perform IO.print("[Increment Button] (click simulation below)");
+    perform IO.print("");
+};
+
+// Event handlers
+let handle_click = () => {
+    // From: on_click: disturb count(count + 1)
+    count.value = count.value + 1;
+    needs_render.value = true;
+};
+
+// Main app logic
+perform IO.print("Initial render:");
+render_simple_app();
+
+perform IO.print("Simulating 3 button clicks:");
+[1, 2, 3].for_each(_ => {
+    handle_click();
+    render_simple_app();
+});
+
+perform IO.print("Final count: " + count.value);

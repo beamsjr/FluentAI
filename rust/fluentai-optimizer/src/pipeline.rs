@@ -205,6 +205,14 @@ impl OptimizationPipeline {
         self.stats.nodes_before = graph.nodes.len();
 
         let mut optimized = graph.clone();
+        
+        // Always run Continuum lowering first if there are any Continuum nodes
+        if self.has_continuum_nodes(&optimized) {
+            use crate::passes::continuum_lowering::ContinuumLowering;
+            let mut lowering = ContinuumLowering::new();
+            optimized = lowering.run(&optimized)?;
+            println!("Continuum lowering: {}", lowering.stats());
+        }
 
         match self.config.level {
             OptimizationLevel::None => {
@@ -314,6 +322,21 @@ impl OptimizationPipeline {
     /// Remove all passes
     pub fn clear_passes(&mut self) {
         self.passes.clear();
+    }
+    
+    /// Check if graph contains Continuum UI nodes
+    fn has_continuum_nodes(&self, graph: &Graph) -> bool {
+        use fluentai_core::ast::Node;
+        
+        graph.nodes.values().any(|node| matches!(
+            node,
+            Node::Surface { .. } | 
+            Node::Space { .. } | 
+            Node::Element { .. } | 
+            Node::StateField { .. } | 
+            Node::When { .. } | 
+            Node::Disturb { .. }
+        ))
     }
 }
 

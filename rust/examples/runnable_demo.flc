@@ -1,0 +1,154 @@
+// Runnable FluentAI Demo - showcasing current working features
+// This can be executed with: fluentai run examples/runnable_demo.flc
+
+// Object-oriented counter using closures
+private function Counter(initial: int) {
+    let state = {"count": initial};
+    
+    let self = {
+        "get": () => state.count,
+        "increment": () => {
+            state.count = state.count + 1;
+            self
+        },
+        "decrement": () => {
+            state.count = state.count - 1;
+            self
+        },
+        "reset": () => {
+            state.count = initial;
+            self
+        }
+    };
+    
+    return self;
+}
+
+// Async task runner
+private async function fetch_data_simulation() {
+    $("🔄 Fetching data...").print();
+    // Simulate network delay
+    let delay = Promise { 
+        spawn {
+            // In real implementation, this would be:
+            // perform Async.sleep(1000);
+            $(f"  ⏳ Waiting 1 second...").print();
+        };
+        "Data loaded!"
+    };
+    return delay;
+}
+
+// Pattern matching demo
+private function describe_value(val) {
+    match val {
+        0 => "Zero",
+        1..10 => "Small positive",
+        -10..-1 => "Small negative", 
+        n if n > 10 => "Large positive",
+        n if n < -10 => "Large negative",
+        _ => "Unknown"
+    }
+}
+
+// Main demo
+private function main() {
+    $("🚀 FluentAI Feature Demo").print();
+    $("========================").print();
+    
+    // 1. Object-oriented programming
+    $("\n1️⃣ Object-Oriented Counter:").print();
+    let counter = Counter(0);
+    
+    $(f"Initial: {counter.get()}").print();
+    
+    counter
+        .increment()
+        .increment()
+        .increment();
+    
+    $(f"After 3 increments: {counter.get()}").print();
+    
+    counter.decrement();
+    $(f"After 1 decrement: {counter.get()}").print();
+    
+    // 2. Functional programming with chaining
+    $("\n2️⃣ Functional Chaining:").print();
+    let result = [1, 2, 3, 4, 5]
+        .map(x => x * 2)
+        .filter(x => x > 5)
+        .reduce(0, (acc, x) => acc + x);
+    
+    $(f"Sum of doubled values > 5: {result}").print();
+    
+    // 3. Pattern matching
+    $("\n3️⃣ Pattern Matching:").print();
+    [-15, -5, 0, 3, 15].for_each(n => {
+        $(f"{n} is: {describe_value(n)}").print();
+    });
+    
+    // 4. Error handling
+    $("\n4️⃣ Error Handling:").print();
+    try {
+        let safe_divide = (a, b) => {
+            if (b == 0) {
+                throw "Division by zero!";
+            }
+            a / b
+        };
+        
+        $(f"10 / 2 = {safe_divide(10, 2)}").print();
+        $(f"10 / 0 = {safe_divide(10, 0)}").print(); // This will throw
+    } catch (e) {
+        $(f"❌ Error caught: {e}").print();
+    }
+    
+    // 5. Async operations (simulated)
+    $("\n5️⃣ Async Operations:").print();
+    let data = fetch_data_simulation();
+    $(f"✅ Result: {data}").print();
+    
+    // 6. Collections and transformations
+    $("\n6️⃣ Advanced Collections:").print();
+    let users = [
+        {"name": "Alice", "age": 30},
+        {"name": "Bob", "age": 25},
+        {"name": "Charlie", "age": 35}
+    ];
+    
+    let avg_age = users
+        .map(u => u.age)
+        .reduce(0, (sum, age) => sum + age) / users.length();
+    
+    $(f"Average age: {avg_age}").print();
+    
+    // Find oldest user
+    let oldest = users.reduce(users[0], (oldest, user) => 
+        user.age > oldest.age ? user : oldest
+    );
+    
+    $(f"Oldest user: {oldest.name} ({oldest.age})").print();
+    
+    // 7. String formatting
+    $("\n7️⃣ String Formatting:").print();
+    let name = "FluentAI";
+    let version = "1.0";
+    $(f"Welcome to {name} v{version}!").print();
+    
+    // 8. Higher-order functions
+    $("\n8️⃣ Higher-Order Functions:").print();
+    let make_multiplier = (factor) => {
+        (x) => x * factor
+    };
+    
+    let double = make_multiplier(2);
+    let triple = make_multiplier(3);
+    
+    $(f"Double 5: {double(5)}").print();
+    $(f"Triple 5: {triple(5)}").print();
+    
+    $("\n✨ Demo complete!").print();
+}
+
+// Run the demo
+main()

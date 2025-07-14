@@ -420,6 +420,14 @@ impl Compiler {
             Node::Assignment { target, value } => {
                 self.compile_assignment(graph, *target, *value)?;
             }
+            // Continuum UI nodes - these will be compiled away in Phase 3
+            // For now, just emit a nil value as placeholder
+            Node::Surface { .. } | Node::Space { .. } | Node::Element { .. } 
+            | Node::StateField { .. } | Node::When { .. } | Node::Disturb { .. } => {
+                // These nodes will be transformed into regular FluentAI code
+                // during the lowering phase. For now, just push nil.
+                self.emit(Instruction::new(Opcode::PushNil));
+            }
         }
 
         // Restore previous node
@@ -1224,8 +1232,8 @@ impl Compiler {
         // Emit MakeFunc instruction with the chunk ID as argument
         self.emit(Instruction::with_arg(Opcode::MakeFunc, chunk_id as u32));
         
-        // Convert the function to a future
-        self.emit(Instruction::new(Opcode::MakeFuture));
+        // Convert the function to a promise using PromiseNew
+        self.emit(Instruction::new(Opcode::PromiseNew));
         
         Ok(())
     }

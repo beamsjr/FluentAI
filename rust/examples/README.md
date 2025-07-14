@@ -1,190 +1,217 @@
 # FluentAI Examples
 
-This directory contains example programs written in FluentAI (`.ai` files) that demonstrate various language features and capabilities.
+This directory contains example programs demonstrating FluentAI language features and the new Continuum UI framework.
 
-## Getting Started
+## 🚀 Running Examples
 
-To run these examples, navigate to the `rust` directory and use the FluentAI CLI:
+### Prerequisites
+1. Build the FluentAI CLI:
+   ```bash
+   cargo build --release -p fluentai-cli
+   ```
 
+2. The CLI binary will be at: `./target/release/fluentai`
+
+### Running FluentAI Examples
+
+#### Currently Runnable Examples:
+
+1. **runnable_demo.flc** - Demonstrates current FluentAI features
+   ```bash
+   ./target/release/fluentai run examples/runnable_demo.flc
+   ```
+   
+   Or use the helper script:
+   ```bash
+   ./run_example.sh runnable_demo
+   ```
+
+   This example shows:
+   - Object-oriented programming with closures
+   - Functional programming and method chaining
+   - Pattern matching
+   - Error handling
+   - Collections and transformations
+   - String formatting (f-strings)
+
+2. **Legacy .ai examples** - Original syntax examples
+   ```bash
+   cargo run -p fluentai-cli -- run examples/hello.ai
+   cargo run -p fluentai-cli -- run examples/arithmetic.ai
+   cargo run -p fluentai-cli -- run examples/lists.ai
+   ```
+
+#### Continuum UI Examples (Not Yet Runnable):
+
+These examples demonstrate the Continuum UI syntax but cannot run until Phase 3 (compiler lowering) is implemented:
+
+1. **continuum_showcase.flc** - Full task management application with:
+   - Multiple views (Dashboard, Tasks, Analytics)
+   - Theme switching (light/dark)
+   - 3D analytics visualization
+   - Reactive state management
+
+2. **continuum_simple_demo.flc** - Simple counter with:
+   - Basic state reactivity
+   - Conditional rendering
+   - 2D and 3D UI elements
+
+3. **continuum_compilation_demo.flc** - Shows how Continuum compiles to FluentAI:
+   - Declarative → Imperative transformation
+   - State management implementation
+   - Dom effect integration
+
+## 📝 FluentAI Syntax (FLC)
+
+### Basic Program Structure
+```flc
+// Define functions
+private function greet(name: string) {
+    $(f"Hello, {name}!").print();
+}
+
+// Main entry point
+private function main() {
+    greet("World");
+}
+
+// Run the program
+main()
+```
+
+### Object-Oriented Programming
+```flc
+public function Counter(initial: int) {
+    let state = {"count": initial};
+    
+    let self = {
+        "get": () => state.count,
+        "increment": () => {
+            state.count = state.count + 1;
+            self
+        }
+    };
+    
+    return self;
+}
+```
+
+### Pattern Matching
+```flc
+match value {
+    0 => "zero",
+    1..10 => "small",
+    n if n > 10 => "large",
+    _ => "other"
+}
+```
+
+## 🎨 Continuum UI Syntax (Future)
+
+### Reactive State
+```flc
+public state_field count: int = 0
+public state_field theme: string = "light"
+```
+
+### Declarative UI
+```flc
+public surface app {
+    background: theme == "light" ? "#fff" : "#000",
+    
+    element button {
+        content: "Click me",
+        on_click: disturb count(count + 1)
+    }
+    
+    element display {
+        content: f"Count: {count}",
+        
+        when count > 0 {
+            color: "#28a745"
+        }
+        when count < 0 {
+            color: "#dc3545"
+        }
+    }
+}
+```
+
+### 3D UI
+```flc
+public space visualization {
+    element data_cube {
+        type: cube,
+        size: 2.0,
+        rotation: animated,
+        color: data > threshold ? "#28a745" : "#dc3545"
+    }
+}
+```
+
+## 🛠️ Current Implementation Status
+
+### ✅ Working Features:
+- FLC syntax parsing
+- Object-oriented patterns via closures
+- Pattern matching
+- Method chaining
+- String interpolation (f-strings)
+- Collections (lists, maps)
+- Error handling (try/catch)
+- Basic async/promises
+- Lexer support for Continuum UI keywords
+- AST nodes for UI constructs
+
+### 🚧 In Progress:
+- Continuum UI compiler (Phase 3)
+- Dom effect runtime
+- Full async/await support
+- Module imports/exports
+
+### ❌ Not Yet Implemented:
+- Continuum UI rendering
+- Reactive state runtime
+- 3D rendering backend
+- Hot reloading
+
+## 🔍 Debugging
+
+Add the `--debug` flag for verbose output:
 ```bash
-cd rust
+./target/release/fluentai run examples/runnable_demo.flc --debug
+```
+
+## 📚 Documentation
+
+- **continuum_features_showcase.md** - Complete overview of Continuum UI features
+- **Legacy README content below** - Information about .ai file examples
+
+---
+
+## Legacy .ai Examples
+
+The following examples use the original Lisp-like syntax (`.ai` files):
+
+### Working Examples:
+- `hello.ai` - Simple arithmetic
+- `arithmetic.ai` - Basic operations
+- `let_binding.ai` - Variable bindings
+- `lambda.ai` - Function definitions
+- `lists.ai` - List operations
+- `match_example.ai` - Pattern matching
+- `effects.ai` - Effect system demo
+
+### Run legacy examples:
+```bash
 cargo run -p fluentai-cli -- run examples/hello.ai
-```
-
-## Current Implementation Status
-
-**Working Features:**
-- Basic arithmetic (`+`, `-`, `*`, `/`, `%`)
-- Let bindings (`let`)
-- Lambda functions (`lambda`)
-- Recursive functions (`letrec`) - has bugs with recursion
-- Lists (`list`, `cons`, `head`, `tail`)
-- Pattern matching (`match`)
-- Conditionals (`if`)
-- Comparisons (`=`, `<`, `>`, `<=`, `>=`)
-- Print function for output
-- Effects (`effect`) - All default effect handlers work!
-  - IO: `print`
-  - Error: `raise`
-  - State: `get`, `set`
-  - Time: `now`
-  - Random: `float`, `int`
-
-**Not Yet Implemented:**
-- Module system (`module`, `import`, `export`)
-- Custom effect handlers (`handler` form has runtime bug)
-- Async/await operations
-- Channel operations (`channel`, `send`, `receive`)
-- Define syntax (`define`)
-- Begin blocks (`begin`)
-- Many advanced features shown in the main README
-
-## Working Examples
-
-### hello.ai
-Simple arithmetic expression.
-```bash
-cargo run -p fluentai-cli -- run examples/hello.ai
-# Output: 42
-```
-
-### arithmetic.ai  
-Basic arithmetic operations.
-```bash
-cargo run -p fluentai-cli -- run examples/arithmetic.ai
-# Output: 30
-```
-
-### let_binding.ai
-Demonstrates let bindings with multiple variables.
-```bash
-cargo run -p fluentai-cli -- run examples/let_binding.ai
-# Output: 30
-```
-
-### lambda.ai
-Lambda function definition and application.
-```bash
-cargo run -p fluentai-cli -- run examples/lambda.ai
-# Output: 49
-```
-
-### lists.ai
-Basic list creation and manipulation.
-```bash
-cargo run -p fluentai-cli -- run examples/lists.ai  
-# Output: [0, 1, 2, 3, 4, 5]
-```
-
-### match_example.ai
-Pattern matching on literal values.
-```bash
-cargo run -p fluentai-cli -- run examples/match_example.ai
-# Output: "the answer"
-```
-
-### recursion.ai
-Recursive function using letrec (note: factorial has a bug returning 1).
-```bash
-cargo run -p fluentai-cli -- run examples/recursion.ai
-# Output: 1 (should be 720)
-```
-
-### higher_order.ai
-Functions that return functions.
-```bash
-cargo run -p fluentai-cli -- run examples/higher_order.ai
-# Output: 15
-```
-
-### pattern_match.ai
-Pattern matching with a function.
-```bash
-cargo run -p fluentai-cli -- run examples/pattern_match.ai
-# Output: "zero" "one" "other" "done"
-```
-
-### effects.ai
-Demonstrates working effect system with default handlers.
-```bash
-cargo run -p fluentai-cli -- run examples/effects.ai
-# Output: Prints "Hello, World!" and demonstrates various effects
-```
-
-### simple_list_ops.ai
-Nested let expressions for list operations.
-```bash
-cargo run -p fluentai-cli -- run examples/simple_list_ops.ai
-# Output: [0, 1, 2, 3, 4, 5]
-```
-
-### modules.ai
-Module system examples including define, module declarations, imports, and exports.
-```bash
-cargo run -p fluentai-cli -- run examples/modules.ai
-# Note: Module features parse but may not execute in VM yet
-```
-
-## Examples from Original Files
-
-The following files demonstrate syntax that is used in the codebase but may have limitations:
-
-### factorial.ai / factorial_simple.ai
-Factorial implementations using letrec - currently has a bug where it returns 1 instead of the correct result.
-
-### effects_simple.ai
-Contains examples using features not yet implemented (define, begin, etc.)
-
-### pattern_matching_simple.ai  
-Uses conditional-based pattern matching rather than the match expression.
-
-## Performance Benchmarks
-
-For performance benchmarks and tests, see the `rust/benchmarks/` directory:
-- `throughput_benchmark.rs` - Measures operations per second (19.2M ops/sec average)
-- `parser_benchmark.rs` - Parser performance tests (0.8-5.2 µs)
-- `simd_benchmark.rs` - SIMD operations benchmarks (4-8x speedup)
-- `vm_performance.rs` - Detailed VM performance analysis
-
-To run benchmarks:
-```bash
-cd ../benchmarks
-cargo run --release --bin throughput_benchmark
-```
-
-## Additional Resources
-
-### IoT Pipeline Example
-The `iot_pipeline/` subdirectory contains a more complex example of an IoT data processing pipeline written in FluentAI, demonstrating:
-- Type definitions
-- Stream processing
-- Contract-based design
-- Performance optimization
-
-## Running All Examples
-
-To run all FluentAI examples in sequence:
-
-```bash
-for example in *.ai; do
-    echo "Running $example..."
-    cargo run -p fluentai-cli -- run "$example"
-    echo "---"
-done
 ```
 
 ## Contributing
 
 When adding new examples:
-1. Use the `.ai` file extension
-2. Include a header comment explaining what the example demonstrates
-3. Keep examples focused on specific features
-4. Add an entry to this README
-5. Ensure the example actually runs without errors
-
-## Notes
-
-- These examples assume a working FluentAI implementation
-- Some advanced features may not be fully implemented yet
-- Error messages and exact syntax may vary with language evolution
-- For Rust integration tests, see `rust/tests/integration/`
+1. Use `.flc` extension for new FLC syntax
+2. Use `.ai` extension for legacy Lisp syntax
+3. Include header comments explaining the example
+4. Update this README
+5. Test that the example runs (if applicable)
