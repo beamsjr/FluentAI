@@ -82,174 +82,224 @@
             color: var(--primary);
         }
 
-        /* Hero Section */
-        .hero {
-            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f3a 100%);
-            color: white;
-            padding: 8rem 2rem 4rem;
-            margin-top: 4rem;
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 6rem 2rem 4rem;
+        }
+
+        /* Page Title */
+        .page-header {
             text-align: center;
+            margin-bottom: 4rem;
         }
 
-        .hero h1 {
-            font-size: 3rem;
+        .page-header h1 {
+            font-size: 2.5rem;
+            color: var(--text-dark);
             margin-bottom: 1rem;
-            background: linear-gradient(135deg, #fff 0%, var(--secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
-        .hero p {
-            font-size: 1.25rem;
-            opacity: 0.9;
+        .page-header p {
+            font-size: 1.1rem;
+            color: var(--text-light);
             max-width: 600px;
             margin: 0 auto;
         }
 
-        /* Documentation Grid */
+        /* Documentation Cards */
         .docs-grid {
-            max-width: 1200px;
-            margin: 4rem auto;
-            padding: 0 2rem;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2rem;
+            margin-bottom: 4rem;
         }
 
-        .doc-section {
+        .doc-card {
             background: white;
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            border: 1px solid var(--border);
-            transition: all 0.3s ease;
             text-decoration: none;
-            color: var(--text-dark);
-            display: block;
+            color: inherit;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .doc-section:hover {
+        .doc-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .doc-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .doc-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            border-color: var(--primary);
         }
 
-        .doc-section h2 {
+        .doc-card h3 {
             font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-dark);
+        }
+
+        .doc-card p {
+            color: var(--text-light);
             margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .doc-card .arrow {
             color: var(--primary);
-            display: flex;
+            font-weight: 600;
+            display: inline-flex;
             align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .doc-card:hover .arrow {
             gap: 0.75rem;
         }
 
-        .doc-section h2::before {
-            font-size: 1.75rem;
-        }
-
-        .doc-section p {
-            color: var(--text-light);
-            margin-bottom: 1.5rem;
-            line-height: 1.6;
-        }
-
-        .doc-links {
-            list-style: none;
-        }
-
-        .doc-links li {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--bg-light);
-        }
-
-        .doc-links li:last-child {
-            border-bottom: none;
-        }
-
-        .doc-links a {
-            color: var(--text-dark);
-            text-decoration: none;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: color 0.3s ease;
-        }
-
-        .doc-links a:hover {
-            color: var(--primary);
-        }
-
-        .doc-links a::after {
-            content: "→";
-            opacity: 0;
-            transform: translateX(-10px);
-            transition: all 0.3s ease;
-        }
-
-        .doc-links a:hover::after {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        /* Quick Links */
-        .quick-links {
+        /* Resources Section */
+        .resources {
             background: var(--bg-light);
             padding: 3rem 2rem;
+            border-radius: 16px;
+            margin-bottom: 4rem;
+        }
+
+        .resources h2 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
             text-align: center;
         }
 
-        .quick-links h2 {
-            font-size: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .links-grid {
-            max-width: 1200px;
-            margin: 0 auto;
+        .resource-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 1.5rem;
         }
 
-        .quick-link {
+        .resource-link {
             background: white;
             padding: 1.5rem;
             border-radius: 8px;
             text-decoration: none;
             color: var(--text-dark);
-            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
             transition: all 0.3s ease;
+            border: 1px solid transparent;
         }
 
-        .quick-link:hover {
+        .resource-link:hover {
             border-color: var(--primary);
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transform: translateX(5px);
         }
 
-        .quick-link h3 {
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
-            color: var(--primary);
+        .resource-icon {
+            font-size: 1.5rem;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .quick-link p {
-            font-size: 0.9rem;
+        .resource-link h4 {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .resource-link p {
+            font-size: 0.875rem;
             color: var(--text-light);
         }
 
-        /* Icons for sections */
-        .icon-start::before { content: "🚀"; }
-        .icon-guide::before { content: "📖"; }
-        .icon-advanced::before { content: "⚡"; }
-        .icon-continuum::before { content: "🎨"; }
-        .icon-api::before { content: "📚"; }
-        .icon-tutorials::before { content: "💡"; }
+        /* Quick Start */
+        .quick-start {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 3rem;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .quick-start h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .quick-start p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .quick-start-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-white {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-white:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-outline:hover {
+            background: white;
+            color: var(--primary);
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
-            .hero h1 {
+            .nav-links {
+                display: none;
+            }
+
+            .page-header h1 {
                 font-size: 2rem;
             }
 
@@ -257,8 +307,14 @@
                 grid-template-columns: 1fr;
             }
 
-            .nav-links {
-                display: none;
+            .quick-start-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -277,102 +333,106 @@
         </nav>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <h1>FluentAI Documentation</h1>
-        <p>Everything you need to know to build amazing applications with FluentAI</p>
-    </section>
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Documentation</h1>
+            <p>Learn how to build amazing applications with FluentAI, from getting started to advanced topics.</p>
+        </div>
 
-    <!-- Documentation Grid -->
-    <div class="docs-grid">
-        <a href="getting-started.html" class="doc-section">
-            <h2 class="icon-start">Getting Started</h2>
-            <p>New to FluentAI? Start here with installation instructions and your first program.</p>
-            <ul class="doc-links">
-                <li><a href="getting-started.html#installation">Installation</a></li>
-                <li><a href="getting-started.html#hello-world">Hello World</a></li>
-                <li><a href="getting-started.html#project-structure">Project Structure</a></li>
-                <li><a href="getting-started.html#basic-syntax">Basic Syntax</a></li>
-            </ul>
-        </a>
+        <!-- Quick Start -->
+        <div class="quick-start">
+            <h2>Ready to dive in?</h2>
+            <p>Get up and running with FluentAI in minutes</p>
+            <div class="quick-start-buttons">
+                <a href="getting-started.html" class="btn btn-white">
+                    Get Started
+                    <span>→</span>
+                </a>
+                <a href="tutorials.html" class="btn btn-outline">
+                    View Tutorials
+                    <span>↗</span>
+                </a>
+            </div>
+        </div>
 
-        <a href="language-guide.html" class="doc-section">
-            <h2 class="icon-guide">Language Guide</h2>
-            <p>Learn the core language features including variables, functions, pattern matching, and more.</p>
-            <ul class="doc-links">
-                <li><a href="language-guide.html#variables-types">Variables & Types</a></li>
-                <li><a href="language-guide.html#functions">Functions</a></li>
-                <li><a href="language-guide.html#pattern-matching">Pattern Matching</a></li>
-                <li><a href="language-guide.html#method-chaining">Method Chaining</a></li>
-            </ul>
-        </a>
-
-        <a href="advanced-topics.html" class="doc-section">
-            <h2 class="icon-advanced">Advanced Topics</h2>
-            <p>Master concurrency, async programming, actors, and performance optimization.</p>
-            <ul class="doc-links">
-                <li><a href="advanced-topics.html#channels">Channels</a></li>
-                <li><a href="advanced-topics.html#async-await">Async/Await</a></li>
-                <li><a href="advanced-topics.html#actors">Actor Model</a></li>
-                <li><a href="advanced-topics.html#contracts">Contracts</a></li>
-            </ul>
-        </a>
-
-        <a href="continuum.html" class="doc-section">
-            <h2 class="icon-continuum">Continuum</h2>
-            <p>Build reactive UIs and stunning visualizations with FluentAI's rendering framework.</p>
-            <ul class="doc-links">
-                <li><a href="continuum.html#reactive-ui">Reactive UI</a></li>
-                <li><a href="continuum.html#components">Components</a></li>
-                <li><a href="continuum.html#3d-graphics">3D Graphics</a></li>
-                <li><a href="continuum.html#animations">Animations</a></li>
-            </ul>
-        </a>
-
-        <a href="api-reference.html" class="doc-section">
-            <h2 class="icon-api">API Reference</h2>
-            <p>Complete reference documentation for the FluentAI standard library and built-in functions.</p>
-            <ul class="doc-links">
-                <li><a href="api-reference.html#core-functions">Core Functions</a></li>
-                <li><a href="api-reference.html#collections">Collections</a></li>
-                <li><a href="api-reference.html#io-operations">I/O Operations</a></li>
-                <li><a href="api-reference.html#channels">Concurrency</a></li>
-            </ul>
-        </a>
-
-        <a href="tutorials.html" class="doc-section">
-            <h2 class="icon-tutorials">Tutorials</h2>
-            <p>Step-by-step tutorials to build real-world applications with FluentAI.</p>
-            <ul class="doc-links">
-                <li><a href="tutorials.html">Building a REST API</a></li>
-                <li><a href="tutorials.html">Real-time Chat App</a></li>
-                <li><a href="tutorials.html">Data Processing Pipeline</a></li>
-                <li><a href="tutorials.html">3D Visualization</a></li>
-            </ul>
-        </a>
-    </div>
-
-    <!-- Quick Links -->
-    <section class="quick-links">
-        <h2>Additional Resources</h2>
-        <div class="links-grid">
-            <a href="https://github.com/beamsjr/FluentAI/tree/main/rust/examples" class="quick-link">
-                <h3>Examples</h3>
-                <p>Browse code examples on GitHub</p>
+        <!-- Documentation Cards -->
+        <div class="docs-grid">
+            <a href="getting-started.html" class="doc-card">
+                <h3>🚀 Getting Started</h3>
+                <p>Install FluentAI, write your first program, and learn the basics of the language syntax.</p>
+                <span class="arrow">Start learning <span>→</span></span>
             </a>
-            <a href="https://github.com/beamsjr/FluentAI/blob/main/CHANGELOG.md" class="quick-link">
-                <h3>Changelog</h3>
-                <p>See what's new in each release</p>
+
+            <a href="language-guide.html" class="doc-card">
+                <h3>📖 Language Guide</h3>
+                <p>Deep dive into FluentAI's features: variables, functions, pattern matching, and method chaining.</p>
+                <span class="arrow">Explore features <span>→</span></span>
             </a>
-            <a href="https://github.com/beamsjr/FluentAI/blob/main/CONTRIBUTING.md" class="quick-link">
-                <h3>Contributing</h3>
-                <p>Help improve FluentAI</p>
+
+            <a href="advanced-topics.html" class="doc-card">
+                <h3>⚡ Advanced Topics</h3>
+                <p>Master concurrency with channels, async/await, actors, and performance optimization techniques.</p>
+                <span class="arrow">Level up <span>→</span></span>
             </a>
-            <a href="community.html" class="quick-link">
-                <h3>Community</h3>
-                <p>Get help and connect with others</p>
+
+            <a href="continuum.html" class="doc-card">
+                <h3>🎨 Continuum</h3>
+                <p>Build reactive UIs and 3D visualizations with FluentAI's revolutionary rendering framework.</p>
+                <span class="arrow">Create UIs <span>→</span></span>
+            </a>
+
+            <a href="api-reference.html" class="doc-card">
+                <h3>📚 API Reference</h3>
+                <p>Complete reference for the standard library, built-in functions, and all available modules.</p>
+                <span class="arrow">Browse APIs <span>→</span></span>
+            </a>
+
+            <a href="tutorials.html" class="doc-card">
+                <h3>💡 Tutorials</h3>
+                <p>Step-by-step guides to build real-world applications, from REST APIs to 3D games.</p>
+                <span class="arrow">Start building <span>→</span></span>
             </a>
         </div>
-    </section>
+
+        <!-- Resources Section -->
+        <div class="resources">
+            <h2>Additional Resources</h2>
+            <div class="resource-grid">
+                <a href="https://github.com/beamsjr/FluentAI/tree/main/rust/examples" class="resource-link">
+                    <div class="resource-icon">📂</div>
+                    <div>
+                        <h4>Examples</h4>
+                        <p>Browse code examples</p>
+                    </div>
+                </a>
+
+                <a href="https://github.com/beamsjr/FluentAI/blob/main/CHANGELOG.md" class="resource-link">
+                    <div class="resource-icon">📋</div>
+                    <div>
+                        <h4>Changelog</h4>
+                        <p>Latest updates</p>
+                    </div>
+                </a>
+
+                <a href="https://github.com/beamsjr/FluentAI/blob/main/CONTRIBUTING.md" class="resource-link">
+                    <div class="resource-icon">🤝</div>
+                    <div>
+                        <h4>Contributing</h4>
+                        <p>Help improve FluentAI</p>
+                    </div>
+                </a>
+
+                <a href="community.html" class="resource-link">
+                    <div class="resource-icon">👥</div>
+                    <div>
+                        <h4>Community</h4>
+                        <p>Get help & connect</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
