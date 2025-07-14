@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community - FluentAI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
+            --secondary: #00d4ff;
+            --bg-dark: #0a0e27;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --code-bg: #1e1e2e;
+            --border: #e9ecef;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: white;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "⚡";
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f3a 100%);
+            color: white;
+            padding: 8rem 2rem 4rem;
+            margin-top: 4rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Community Channels */
+        .channels {
+            padding: 4rem 2rem;
+            background: var(--bg-light);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .channels h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .channel-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: var(--text-dark);
+            display: block;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .channel-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .channel-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .channel-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .channel-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .channel-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .channel-card p {
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .channel-stats {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Contributing Section */
+        .contributing {
+            padding: 4rem 2rem;
+            background: white;
+        }
+
+        .contributing h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .contribute-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .contribute-card {
+            text-align: center;
+            padding: 2rem;
+            border-radius: 12px;
+            background: var(--bg-light);
+            transition: all 0.3s ease;
+        }
+
+        .contribute-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .contribute-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .contribute-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .contribute-card p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        /* Events Section */
+        .events {
+            padding: 4rem 2rem;
+            background: var(--bg-light);
+        }
+
+        .events h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .event-list {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .event-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .event-card:hover {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .event-date {
+            background: var(--primary);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .event-date .day {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .event-date .month {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+
+        .event-details h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .event-details p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .event-type {
+            display: inline-block;
+            background: var(--bg-light);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Team Section */
+        .team {
+            padding: 4rem 2rem;
+            background: white;
+        }
+
+        .team h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .team-member {
+            text-align: center;
+        }
+
+        .member-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+        }
+
+        .team-member h4 {
+            margin-bottom: 0.25rem;
+        }
+
+        .team-member p {
+            color: var(--text-light);
+            font-size: 0.875rem;
+        }
+
+        /* CTA Section */
+        .cta {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .cta p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-white {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-white:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* Footer */
+        footer {
+            background: #0a0a0a;
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        footer p {
+            opacity: 0.7;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .event-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .event-date {
+                margin: 0 auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <a href="index.html" class="logo">FluentAI</a>
+            <ul class="nav-links">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="index.html#performance">Performance</a></li>
+                <li><a href="docs.html">Documentation</a></li>
+                <li><a href="community.html" class="active">Community</a></li>
+                <li><a href="https://github.com/beamsjr/FluentAI" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Join the FluentAI Community</h1>
+        <p>Connect with developers, contribute to the project, and help shape the future of AI-first programming.</p>
+    </section>
+
+    <!-- Community Channels -->
+    <section class="channels">
+        <div class="container">
+            <h2>Connect With Us</h2>
+            <div class="channel-grid">
+                <a href="https://discord.gg/fluentai" class="channel-card">
+                    <span class="channel-icon">💬</span>
+                    <h3>Discord</h3>
+                    <p>Join our Discord server for real-time chat, help, and discussions.</p>
+                    <div class="channel-stats">
+                        <span class="stat">👥 2,500+ members</span>
+                        <span class="stat">🟢 Active now</span>
+                    </div>
+                </a>
+
+                <a href="https://github.com/beamsjr/FluentAI" class="channel-card">
+                    <span class="channel-icon">🐙</span>
+                    <h3>GitHub</h3>
+                    <p>Star the project, report issues, and contribute to the codebase.</p>
+                    <div class="channel-stats">
+                        <span class="stat">⭐ 5.2k stars</span>
+                        <span class="stat">🍴 320 forks</span>
+                    </div>
+                </a>
+
+                <a href="https://forum.fluentai.dev" class="channel-card">
+                    <span class="channel-icon">💭</span>
+                    <h3>Forum</h3>
+                    <p>Deep discussions, RFCs, and long-form technical conversations.</p>
+                    <div class="channel-stats">
+                        <span class="stat">📝 1,200+ topics</span>
+                        <span class="stat">💡 Active daily</span>
+                    </div>
+                </a>
+
+                <a href="https://stackoverflow.com/questions/tagged/fluentai" class="channel-card">
+                    <span class="channel-icon">🔍</span>
+                    <h3>Stack Overflow</h3>
+                    <p>Ask technical questions and find solutions to common problems.</p>
+                    <div class="channel-stats">
+                        <span class="stat">❓ 500+ questions</span>
+                        <span class="stat">✅ 95% answered</span>
+                    </div>
+                </a>
+
+                <a href="https://twitter.com/fluentai_lang" class="channel-card">
+                    <span class="channel-icon">🐦</span>
+                    <h3>Twitter/X</h3>
+                    <p>Follow for updates, announcements, and community highlights.</p>
+                    <div class="channel-stats">
+                        <span class="stat">📢 Daily updates</span>
+                        <span class="stat">🔔 12k followers</span>
+                    </div>
+                </a>
+
+                <a href="https://reddit.com/r/fluentai" class="channel-card">
+                    <span class="channel-icon">🎯</span>
+                    <h3>Reddit</h3>
+                    <p>Share projects, discuss features, and engage with the community.</p>
+                    <div class="channel-stats">
+                        <span class="stat">🏆 8k members</span>
+                        <span class="stat">📈 Growing fast</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contributing -->
+    <section class="contributing">
+        <div class="container">
+            <h2>Ways to Contribute</h2>
+            <div class="contribute-grid">
+                <div class="contribute-card">
+                    <span class="contribute-icon">🐛</span>
+                    <h3>Report Bugs</h3>
+                    <p>Found an issue? Report it on GitHub to help us improve.</p>
+                </div>
+
+                <div class="contribute-card">
+                    <span class="contribute-icon">💡</span>
+                    <h3>Suggest Features</h3>
+                    <p>Have ideas? Share them in our forum or GitHub discussions.</p>
+                </div>
+
+                <div class="contribute-card">
+                    <span class="contribute-icon">📖</span>
+                    <h3>Improve Docs</h3>
+                    <p>Help make our documentation clearer and more comprehensive.</p>
+                </div>
+
+                <div class="contribute-card">
+                    <span class="contribute-icon">🔧</span>
+                    <h3>Write Code</h3>
+                    <p>Pick an issue and submit a PR. All skill levels welcome!</p>
+                </div>
+
+                <div class="contribute-card">
+                    <span class="contribute-icon">🎨</span>
+                    <h3>Create Examples</h3>
+                    <p>Build cool projects and share them with the community.</p>
+                </div>
+
+                <div class="contribute-card">
+                    <span class="contribute-icon">🌍</span>
+                    <h3>Translate</h3>
+                    <p>Help make FluentAI accessible to developers worldwide.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Events -->
+    <section class="events">
+        <div class="container">
+            <h2>Upcoming Events</h2>
+            <div class="event-list">
+                <div class="event-card">
+                    <div class="event-date">
+                        <div class="day">15</div>
+                        <div class="month">JAN</div>
+                    </div>
+                    <div class="event-details">
+                        <h3>FluentAI Monthly Meetup</h3>
+                        <p>Join us for demos, talks, and Q&A with the core team.</p>
+                        <span class="event-type">🎥 Online Event</span>
+                    </div>
+                </div>
+
+                <div class="event-card">
+                    <div class="event-date">
+                        <div class="day">02</div>
+                        <div class="month">FEB</div>
+                    </div>
+                    <div class="event-details">
+                        <h3>Hackathon: Build with FluentAI</h3>
+                        <p>48-hour online hackathon with prizes for the best projects.</p>
+                        <span class="event-type">🏆 Competition</span>
+                    </div>
+                </div>
+
+                <div class="event-card">
+                    <div class="event-date">
+                        <div class="day">20</div>
+                        <div class="month">FEB</div>
+                    </div>
+                    <div class="event-details">
+                        <h3>Workshop: Advanced Pattern Matching</h3>
+                        <p>Deep dive into FluentAI's pattern matching capabilities.</p>
+                        <span class="event-type">📚 Workshop</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Core Team -->
+    <section class="team">
+        <div class="container">
+            <h2>Core Team</h2>
+            <div class="team-grid">
+                <div class="team-member">
+                    <div class="member-avatar">👨‍💻</div>
+                    <h4>Lead Developer</h4>
+                    <p>Rust & Language Design</p>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-avatar">👩‍🔬</div>
+                    <h4>AI Research Lead</h4>
+                    <p>Effect Systems & Verification</p>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-avatar">👨‍🎨</div>
+                    <h4>Developer Experience</h4>
+                    <p>Tools & Documentation</p>
+                </div>
+
+                <div class="team-member">
+                    <div class="member-avatar">👩‍💻</div>
+                    <h4>Community Manager</h4>
+                    <p>Events & Outreach</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <h2>Ready to Get Involved?</h2>
+        <p>Join thousands of developers building the future with FluentAI.</p>
+        <a href="https://discord.gg/fluentai" class="btn btn-white">
+            Join Discord
+            <span>→</span>
+        </a>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 FluentAI. Built with ❤️ by the FluentAI community.</p>
+    </footer>
+</body>
+</html>

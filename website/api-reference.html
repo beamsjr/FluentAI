@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Reference - FluentAI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
+            --secondary: #00d4ff;
+            --bg-dark: #0a0e27;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --code-bg: #1e1e2e;
+            --border: #e9ecef;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: white;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "⚡";
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Search Bar */
+        .search-container {
+            position: fixed;
+            top: 5rem;
+            left: 0;
+            right: 0;
+            background: var(--bg-light);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem;
+            z-index: 999;
+        }
+
+        .search-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0,102,255,0.1);
+        }
+
+        .filter-select {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 9rem 2rem 2rem;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 3rem;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 9rem;
+            height: fit-content;
+            max-height: calc(100vh - 10rem);
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            margin-bottom: 2rem;
+        }
+
+        .sidebar h3 {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-light);
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        .sidebar a:hover {
+            background: var(--bg-light);
+            color: var(--primary);
+        }
+
+        .sidebar a.active {
+            background: rgba(0,102,255,0.1);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Content */
+        .content {
+            max-width: 900px;
+        }
+
+        .api-header {
+            margin-bottom: 3rem;
+        }
+
+        .api-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .api-header p {
+            font-size: 1.1rem;
+            color: var(--text-light);
+        }
+
+        /* API Section */
+        .api-section {
+            margin-bottom: 4rem;
+        }
+
+        .api-section h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        /* Function Documentation */
+        .api-function {
+            background: var(--bg-light);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .function-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .function-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            font-family: monospace;
+            color: var(--primary);
+        }
+
+        .function-tags {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tag-pure {
+            background: rgba(40,167,69,0.1);
+            color: var(--success);
+        }
+
+        .tag-effect {
+            background: rgba(255,193,7,0.1);
+            color: var(--warning);
+        }
+
+        .tag-async {
+            background: rgba(0,102,255,0.1);
+            color: var(--primary);
+        }
+
+        .function-signature {
+            background: var(--code-bg);
+            color: #f8f8f2;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.95rem;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+
+        .function-description {
+            margin-bottom: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .function-details h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .parameter-list {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .parameter {
+            padding: 0.75rem;
+            border-left: 3px solid var(--border);
+            margin-bottom: 0.5rem;
+            background: white;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .parameter-name {
+            font-family: monospace;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .parameter-type {
+            font-family: monospace;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .parameter-description {
+            margin-top: 0.25rem;
+            font-size: 0.95rem;
+            color: var(--text-light);
+        }
+
+        .code-example {
+            background: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+            color: #f8f8f2;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-example pre {
+            margin: 0;
+        }
+
+        /* Type definitions */
+        .type-definition {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .type-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .type-name {
+            font-family: monospace;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .type-kind {
+            padding: 0.25rem 0.75rem;
+            background: var(--bg-light);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-light);
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        td code {
+            background: var(--bg-light);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                max-height: none;
+                margin-bottom: 2rem;
+                padding: 1rem;
+                background: var(--bg-light);
+                border-radius: 12px;
+            }
+
+            .search-container {
+                position: static;
+                margin-top: 4rem;
+            }
+
+            .container {
+                padding-top: 2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .function-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .function-tags {
+                margin-top: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <a href="index.html" class="logo">FluentAI</a>
+            <ul class="nav-links">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="index.html#performance">Performance</a></li>
+                <li><a href="docs.html">Documentation</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="https://github.com/beamsjr/FluentAI" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" class="search-input" placeholder="Search API documentation..." id="searchInput">
+            <select class="filter-select" id="filterSelect">
+                <option value="all">All APIs</option>
+                <option value="core">Core</option>
+                <option value="collections">Collections</option>
+                <option value="io">I/O</option>
+                <option value="network">Network</option>
+                <option value="concurrency">Concurrency</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Core APIs</h3>
+                <ul>
+                    <li><a href="#core-functions" class="active">Core Functions</a></li>
+                    <li><a href="#type-system">Type System</a></li>
+                    <li><a href="#error-handling">Error Handling</a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Collections</h3>
+                <ul>
+                    <li><a href="#list-api">List</a></li>
+                    <li><a href="#map-api">Map</a></li>
+                    <li><a href="#set-api">Set</a></li>
+                    <li><a href="#iterators">Iterators</a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>I/O & Effects</h3>
+                <ul>
+                    <li><a href="#io-operations">I/O Operations</a></li>
+                    <li><a href="#file-system">File System</a></li>
+                    <li><a href="#console">Console</a></li>
+                    <li><a href="#effect-handlers">Effect Handlers</a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Network</h3>
+                <ul>
+                    <li><a href="#http-client">HTTP Client</a></li>
+                    <li><a href="#http-server">HTTP Server</a></li>
+                    <li><a href="#websocket">WebSocket</a></li>
+                    <li><a href="#tcp-udp">TCP/UDP</a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Concurrency</h3>
+                <ul>
+                    <li><a href="#channels">Channels</a></li>
+                    <li><a href="#async-await">Async/Await</a></li>
+                    <li><a href="#actors">Actors</a></li>
+                    <li><a href="#spawn">Spawn</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- API Content -->
+        <main class="content">
+            <div class="api-header">
+                <h1>FluentAI API Reference</h1>
+                <p>Complete reference documentation for the FluentAI standard library and built-in functions.</p>
+            </div>
+
+            <!-- Core Functions -->
+            <section class="api-section" id="core-functions">
+                <h2>Core Functions</h2>
+
+                <!-- print function -->
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">print</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-effect">Effect: IO</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>print(value: any) -> unit</code>
+                    </div>
+
+                    <p class="function-description">
+                        Prints a value to the console without a trailing newline. This function performs an IO effect.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Parameters</h4>
+                        <ul class="parameter-list">
+                            <li class="parameter">
+                                <span class="parameter-name">value</span>
+                                <span class="parameter-type">: any</span>
+                                <p class="parameter-description">The value to print. Can be any type - it will be converted to a string representation.</p>
+                            </li>
+                        </ul>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>// Direct printing
+$("Hello, World!").print();
+
+// Printing variables
+let name = "Alice";
+$(f"Hello, {name}!").print();
+
+// Using with effect handlers
+perform IO.print("Processing...");</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- map function -->
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">map</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>map&lt;T, U&gt;(list: List&lt;T&gt;, f: (T) -&gt; U) -&gt; List&lt;U&gt;</code>
+                    </div>
+
+                    <p class="function-description">
+                        Transforms each element of a list by applying a function, returning a new list with the transformed elements.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Parameters</h4>
+                        <ul class="parameter-list">
+                            <li class="parameter">
+                                <span class="parameter-name">list</span>
+                                <span class="parameter-type">: List&lt;T&gt;</span>
+                                <p class="parameter-description">The input list to transform.</p>
+                            </li>
+                            <li class="parameter">
+                                <span class="parameter-name">f</span>
+                                <span class="parameter-type">: (T) -&gt; U</span>
+                                <p class="parameter-description">A function that transforms each element from type T to type U.</p>
+                            </li>
+                        </ul>
+
+                        <h4>Returns</h4>
+                        <p>A new list containing the transformed elements.</p>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>let numbers = [1, 2, 3, 4, 5];
+let doubled = numbers.map(x => x * 2);
+// doubled = [2, 4, 6, 8, 10]
+
+let users = [
+    {name: "Alice", age: 30},
+    {name: "Bob", age: 25}
+];
+let names = users.map(user => user.name);
+// names = ["Alice", "Bob"]</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- filter function -->
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">filter</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>filter&lt;T&gt;(list: List&lt;T&gt;, predicate: (T) -&gt; bool) -&gt; List&lt;T&gt;</code>
+                    </div>
+
+                    <p class="function-description">
+                        Returns a new list containing only the elements that satisfy the given predicate function.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Parameters</h4>
+                        <ul class="parameter-list">
+                            <li class="parameter">
+                                <span class="parameter-name">list</span>
+                                <span class="parameter-type">: List&lt;T&gt;</span>
+                                <p class="parameter-description">The input list to filter.</p>
+                            </li>
+                            <li class="parameter">
+                                <span class="parameter-name">predicate</span>
+                                <span class="parameter-type">: (T) -&gt; bool</span>
+                                <p class="parameter-description">A function that returns true for elements to keep.</p>
+                            </li>
+                        </ul>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>let numbers = [1, 2, 3, 4, 5, 6];
+let evens = numbers.filter(x => x % 2 == 0);
+// evens = [2, 4, 6]
+
+let users = getUserList();
+let activeUsers = users
+    .filter(user => user.active)
+    .filter(user => user.lastLogin > yesterday);</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Type System -->
+            <section class="api-section" id="type-system">
+                <h2>Type System</h2>
+
+                <div class="type-definition">
+                    <div class="type-header">
+                        <h3 class="type-name">Result&lt;T, E&gt;</h3>
+                        <span class="type-kind">Enum</span>
+                    </div>
+
+                    <p class="function-description">
+                        Represents the result of an operation that can either succeed with a value of type T or fail with an error of type E.
+                    </p>
+
+                    <h4>Variants</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Variant</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>Ok(T)</code></td>
+                                <td>The operation succeeded with value T</td>
+                            </tr>
+                            <tr>
+                                <td><code>Err(E)</code></td>
+                                <td>The operation failed with error E</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h4>Example</h4>
+                    <div class="code-example">
+                        <pre><code>private function divide(a: float, b: float) -> Result<float, string> {
+    if (b == 0) {
+        Err("Division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+// Using pattern matching
+divide(10, 2).match()
+    .case(Ok(result), => $(f"Result: {result}").print())
+    .case(Err(error), => $(f"Error: {error}").print())
+    .get();</code></pre>
+                    </div>
+                </div>
+
+                <div class="type-definition">
+                    <div class="type-header">
+                        <h3 class="type-name">Option&lt;T&gt;</h3>
+                        <span class="type-kind">Enum</span>
+                    </div>
+
+                    <p class="function-description">
+                        Represents an optional value that may or may not be present.
+                    </p>
+
+                    <h4>Variants</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Variant</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>Some(T)</code></td>
+                                <td>A value is present</td>
+                            </tr>
+                            <tr>
+                                <td><code>None</code></td>
+                                <td>No value is present</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- I/O Operations -->
+            <section class="api-section" id="io-operations">
+                <h2>I/O Operations</h2>
+
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">IO.read_file</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-effect">Effect: IO</span>
+                            <span class="tag tag-async">Async</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>IO.read_file(path: string) -&gt; Result&lt;string, IOError&gt;</code>
+                    </div>
+
+                    <p class="function-description">
+                        Reads the contents of a file as a string. This is an asynchronous operation that performs an IO effect.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Parameters</h4>
+                        <ul class="parameter-list">
+                            <li class="parameter">
+                                <span class="parameter-name">path</span>
+                                <span class="parameter-type">: string</span>
+                                <p class="parameter-description">The path to the file to read.</p>
+                            </li>
+                        </ul>
+
+                        <h4>Returns</h4>
+                        <p>A Result containing either the file contents as a string or an IOError.</p>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>// Reading a file with error handling
+let contents = perform IO.read_file("config.json");
+contents.match()
+    .case(Ok(data), => parse_json(data))
+    .case(Err(error), => {
+        $(f"Failed to read file: {error}").print();
+        use_default_config()
+    })
+    .get();</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Channels -->
+            <section class="api-section" id="channels">
+                <h2>Channels</h2>
+
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">channel</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>channel&lt;T&gt;(capacity: int) -&gt; Channel&lt;T&gt;</code>
+                    </div>
+
+                    <p class="function-description">
+                        Creates a new channel for communication between concurrent tasks. Channels are the primary mechanism for safe data sharing in FluentAI.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Parameters</h4>
+                        <ul class="parameter-list">
+                            <li class="parameter">
+                                <span class="parameter-name">capacity</span>
+                                <span class="parameter-type">: int</span>
+                                <p class="parameter-description">The buffer size of the channel. Use 0 for unbuffered (synchronous) channels.</p>
+                            </li>
+                        </ul>
+
+                        <h4>Channel Methods</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>send(value: T)</code></td>
+                                    <td>Send a value to the channel</td>
+                                </tr>
+                                <tr>
+                                    <td><code>receive() -> T</code></td>
+                                    <td>Receive a value from the channel</td>
+                                </tr>
+                                <tr>
+                                    <td><code>try_send(value: T) -> bool</code></td>
+                                    <td>Try to send without blocking</td>
+                                </tr>
+                                <tr>
+                                    <td><code>try_receive() -> Option&lt;T&gt;</code></td>
+                                    <td>Try to receive without blocking</td>
+                                </tr>
+                                <tr>
+                                    <td><code>close()</code></td>
+                                    <td>Close the channel</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>// Producer-consumer pattern
+let ch = channel(10);
+
+// Producer
+spawn {
+    for i in range(0, 100) {
+        ch.send(i * i);
+    }
+    ch.close();
+};
+
+// Consumer
+spawn {
+    for value in ch {
+        $(f"Received: {value}").print();
+    }
+};</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const filterSelect = document.getElementById('filterSelect');
+        const apiFunctions = document.querySelectorAll('.api-function');
+
+        function filterAPIs() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filterCategory = filterSelect.value;
+
+            apiFunctions.forEach(func => {
+                const funcText = func.textContent.toLowerCase();
+                const funcName = func.querySelector('.function-name').textContent.toLowerCase();
+                const section = func.closest('.api-section');
+                const sectionId = section ? section.id : '';
+
+                const matchesSearch = funcName.includes(searchTerm) || funcText.includes(searchTerm);
+                const matchesFilter = filterCategory === 'all' || sectionId.includes(filterCategory);
+
+                func.style.display = matchesSearch && matchesFilter ? 'block' : 'none';
+            });
+        }
+
+        searchInput.addEventListener('input', filterAPIs);
+        filterSelect.addEventListener('change', filterAPIs);
+
+        // Sidebar navigation
+        document.querySelectorAll('.sidebar a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    // Update active state
+                    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Scroll to target
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section on scroll
+        const sections = document.querySelectorAll('.api-section');
+        const sidebarLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (scrollY >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            sidebarLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

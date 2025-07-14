@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorials - FluentAI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0066ff;
+            --primary-dark: #0052cc;
+            --secondary: #00d4ff;
+            --bg-dark: #0a0e27;
+            --bg-light: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --code-bg: #1e1e2e;
+            --border: #e9ecef;
+            --success: #28a745;
+            --warning: #ffc107;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: white;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: "⚡";
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f3a 100%);
+            color: white;
+            padding: 8rem 2rem 4rem;
+            margin-top: 4rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        /* Tutorial Categories */
+        .categories {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 3rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .category-btn {
+            padding: 0.5rem 1.5rem;
+            border: 2px solid var(--border);
+            border-radius: 25px;
+            background: white;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .category-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .category-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Tutorial Grid */
+        .tutorial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .tutorial-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tutorial-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .tutorial-header {
+            background: var(--bg-light);
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tutorial-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .tutorial-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .tutorial-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+            align-items: center;
+        }
+
+        .difficulty {
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .difficulty-beginner {
+            background: rgba(40,167,69,0.1);
+            color: var(--success);
+        }
+
+        .difficulty-intermediate {
+            background: rgba(255,193,7,0.1);
+            color: var(--warning);
+        }
+
+        .difficulty-advanced {
+            background: rgba(220,53,69,0.1);
+            color: #dc3545;
+        }
+
+        .tutorial-content {
+            padding: 1.5rem;
+            flex: 1;
+        }
+
+        .tutorial-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .tutorial-card p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .tutorial-topics {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: auto;
+        }
+
+        .topic-tag {
+            background: var(--bg-light);
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            color: var(--text-dark);
+        }
+
+        /* Featured Tutorial */
+        .featured-section {
+            margin-bottom: 4rem;
+        }
+
+        .featured-section h2 {
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .featured-tutorial {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 3rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .featured-tutorial::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -25%;
+            width: 50%;
+            height: 200%;
+            background: rgba(255,255,255,0.1);
+            transform: rotate(45deg);
+        }
+
+        .featured-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .featured-content h3 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .featured-content p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-white {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-white:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .featured-code {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .featured-code pre {
+            margin: 0;
+        }
+
+        /* Tutorial Series */
+        .series-section {
+            background: var(--bg-light);
+            padding: 4rem 2rem;
+            margin: 0 -2rem;
+        }
+
+        .series-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .series-section h2 {
+            font-size: 2rem;
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        .series-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .series-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .series-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .series-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .series-card p {
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .series-progress {
+            background: var(--bg-light);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .series-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .featured-tutorial {
+                grid-template-columns: 1fr;
+            }
+
+            .featured-code {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .tutorial-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <a href="index.html" class="logo">FluentAI</a>
+            <ul class="nav-links">
+                <li><a href="index.html#features">Features</a></li>
+                <li><a href="index.html#performance">Performance</a></li>
+                <li><a href="docs.html">Documentation</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="https://github.com/beamsjr/FluentAI" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>FluentAI Tutorials</h1>
+        <p>Learn FluentAI through hands-on tutorials, from beginner basics to advanced techniques.</p>
+    </section>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Featured Tutorial -->
+        <section class="featured-section">
+            <h2>Featured Tutorial</h2>
+            <div class="featured-tutorial">
+                <div class="featured-content">
+                    <h3>Building a Real-Time Chat Application</h3>
+                    <p>Learn how to build a scalable real-time chat application using FluentAI's actor model, channels, and WebSocket support.</p>
+                    <a href="#" class="btn btn-white">Start Tutorial →</a>
+                </div>
+                <div class="featured-code">
+                    <pre><code>// Chat server actor
+private actor ChatServer {
+    users: Map<string, User> = {},
+    
+    private handle Join(user: User) {
+        self.users[user.id] = user;
+        broadcast(f"{user.name} joined");
+    }
+    
+    private handle Message(from: string, text: string) {
+        broadcast(f"{from}: {text}");
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Categories -->
+        <div class="categories">
+            <button class="category-btn active">All</button>
+            <button class="category-btn">Getting Started</button>
+            <button class="category-btn">Web Development</button>
+            <button class="category-btn">Concurrency</button>
+            <button class="category-btn">Data Processing</button>
+            <button class="category-btn">AI Integration</button>
+        </div>
+
+        <!-- Tutorial Grid -->
+        <div class="tutorial-grid">
+            <!-- Tutorial 1 -->
+            <a href="#" class="tutorial-card">
+                <div class="tutorial-header">
+                    <span class="tutorial-icon">🚀</span>
+                    <div class="tutorial-meta">
+                        <span class="difficulty difficulty-beginner">Beginner</span>
+                        <span>15 min</span>
+                    </div>
+                </div>
+                <div class="tutorial-content">
+                    <h3>Your First FluentAI Program</h3>
+                    <p>Get started with FluentAI by building a simple command-line application that demonstrates core language features.</p>
+                    <div class="tutorial-topics">
+                        <span class="topic-tag">basics</span>
+                        <span class="topic-tag">functions</span>
+                        <span class="topic-tag">pattern matching</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial 2 -->
+            <a href="#" class="tutorial-card">
+                <div class="tutorial-header">
+                    <span class="tutorial-icon">🌐</span>
+                    <div class="tutorial-meta">
+                        <span class="difficulty difficulty-intermediate">Intermediate</span>
+                        <span>30 min</span>
+                    </div>
+                </div>
+                <div class="tutorial-content">
+                    <h3>Building a REST API</h3>
+                    <p>Create a fully-featured REST API with routing, middleware, and database integration using FluentAI's effect system.</p>
+                    <div class="tutorial-topics">
+                        <span class="topic-tag">web</span>
+                        <span class="topic-tag">http</span>
+                        <span class="topic-tag">effects</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial 3 -->
+            <a href="#" class="tutorial-card">
+                <div class="tutorial-header">
+                    <span class="tutorial-icon">⚡</span>
+                    <div class="tutorial-meta">
+                        <span class="difficulty difficulty-intermediate">Intermediate</span>
+                        <span>25 min</span>
+                    </div>
+                </div>
+                <div class="tutorial-content">
+                    <h3>Concurrent Data Processing</h3>
+                    <p>Learn to process large datasets efficiently using channels, parallel map-reduce, and FluentAI's concurrency primitives.</p>
+                    <div class="tutorial-topics">
+                        <span class="topic-tag">concurrency</span>
+                        <span class="topic-tag">channels</span>
+                        <span class="topic-tag">performance</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial 4 -->
+            <a href="#" class="tutorial-card">
+                <div class="tutorial-header">
+                    <span class="tutorial-icon">🎭</span>
+                    <div class="tutorial-meta">
+                        <span class="difficulty difficulty-advanced">Advanced</span>
+                        <span>45 min</span>
+                    </div>
+                </div>
+                <div class="tutorial-content">
+                    <h3>Actor-Based Game Engine</h3>
+                    <p>Build a simple game engine using the actor model for entity management, physics, and event handling.</p>
+                    <div class="tutorial-topics">
+                        <span class="topic-tag">actors</span>
+                        <span class="topic-tag">game dev</span>
+                        <span class="topic-tag">real-time</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial 5 -->
+            <a href="#" class="tutorial-card">
+                <div class="tutorial-header">
+                    <span class="tutorial-icon">🔍</span>
+                    <div class="tutorial-meta">
+                        <span class="difficulty difficulty-beginner">Beginner</span>
+                        <span>20 min</span>
+                    </div>
+                </div>
+                <div class="tutorial-content">
+                    <h3>Pattern Matching Mastery</h3>
+                    <p>Deep dive into FluentAI's powerful pattern matching system with practical examples and best practices.</p>
+                    <div class="tutorial-topics">
+                        <span class="topic-tag">patterns</span>
+                        <span class="topic-tag">functional</span>
+                        <span class="topic-tag">best practices</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Tutorial 6 -->
+            <a href="#" class="tutorial-card">
+                <div class="tutorial-header">
+                    <span class="tutorial-icon">🤖</span>
+                    <div class="tutorial-meta">
+                        <span class="difficulty difficulty-advanced">Advanced</span>
+                        <span>60 min</span>
+                    </div>
+                </div>
+                <div class="tutorial-content">
+                    <h3>AI-Powered Code Analysis</h3>
+                    <p>Leverage FluentAI's graph-based AST to build tools that analyze and transform code using AI techniques.</p>
+                    <div class="tutorial-topics">
+                        <span class="topic-tag">AI</span>
+                        <span class="topic-tag">AST</span>
+                        <span class="topic-tag">metaprogramming</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Tutorial Series -->
+    <section class="series-section">
+        <div class="series-container">
+            <h2>Tutorial Series</h2>
+            <div class="series-grid">
+                <!-- Series 1 -->
+                <div class="series-card">
+                    <h3>FluentAI Fundamentals</h3>
+                    <p>A comprehensive introduction to FluentAI covering all core concepts from variables to advanced pattern matching.</p>
+                    <div class="series-progress">
+                        <div class="progress-bar" style="width: 60%"></div>
+                    </div>
+                    <div class="series-meta">
+                        <span>6/10 completed</span>
+                        <span>~5 hours</span>
+                    </div>
+                </div>
+
+                <!-- Series 2 -->
+                <div class="series-card">
+                    <h3>Building Web Applications</h3>
+                    <p>Learn to build modern web applications with FluentAI, from simple APIs to full-stack applications with real-time features.</p>
+                    <div class="series-progress">
+                        <div class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="series-meta">
+                        <span>0/8 completed</span>
+                        <span>~8 hours</span>
+                    </div>
+                </div>
+
+                <!-- Series 3 -->
+                <div class="series-card">
+                    <h3>Concurrency & Performance</h3>
+                    <p>Master FluentAI's concurrency model and learn to write high-performance, scalable applications.</p>
+                    <div class="series-progress">
+                        <div class="progress-bar" style="width: 25%"></div>
+                    </div>
+                    <div class="series-meta">
+                        <span>2/8 completed</span>
+                        <span>~6 hours</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Category filtering
+        const categoryBtns = document.querySelectorAll('.category-btn');
+        const tutorialCards = document.querySelectorAll('.tutorial-card');
+
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update active state
+                categoryBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Filter logic would go here
+                // For now, just show all tutorials
+                tutorialCards.forEach(card => {
+                    card.style.display = 'block';
+                });
+            });
+        });
+
+        // Add click tracking for tutorials
+        tutorialCards.forEach(card => {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                // In a real app, this would navigate to the tutorial
+                console.log('Tutorial clicked:', card.querySelector('h3').textContent);
+            });
+        });
+    </script>
+</body>
+</html>
