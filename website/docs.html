@@ -321,22 +321,21 @@
             </div>
 
             <h2 id="installation">Installation</h2>
-            <p>FluentAI can be installed on Linux, macOS, and Windows. The recommended way is through our official installer:</p>
+            <p>FluentAI can be built from source on Linux, macOS, and Windows. You'll need Rust installed on your system.</p>
 
             <div class="code-block">
-                <pre><code># Linux/macOS
-curl -sSL https://get.fluentai.dev | sh
+                <pre><code># Clone the repository
+git clone https://github.com/beamsjr/FluentAI
+cd FluentAI/rust
 
-# Windows (PowerShell)
-iwr -useb https://get.fluentai.dev/windows | iex</code></pre>
+# Build the project
+cargo build --release
+
+# The binary will be available at target/release/fluentai</code></pre>
             </div>
 
-            <p>Alternatively, you can build from source:</p>
-
-            <div class="code-block">
-                <pre><code>git clone https://github.com/beamsjr/FluentAI
-cd FluentAI/rust
-cargo build --release</code></pre>
+            <div class="alert alert-info">
+                <strong>Note:</strong> Native installers are coming soon. For now, please build from source.
             </div>
 
             <h2 id="hello-world">Hello World</h2>
