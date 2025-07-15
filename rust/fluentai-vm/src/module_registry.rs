@@ -20,6 +20,8 @@ pub struct ModuleInfo {
     pub exports: Vec<ExportItem>,
     /// Cached export values (populated lazily)
     pub export_values: FxHashMap<String, Value>,
+    /// Whether the module has been executed to populate exports
+    pub executed: bool,
 }
 
 /// Registry for managing loaded modules
@@ -90,6 +92,7 @@ impl ModuleRegistry {
             bytecode,
             exports,
             export_values: FxHashMap::default(),
+            executed: false,
         };
         
         // Register the module
@@ -137,13 +140,31 @@ impl ModuleRegistry {
             return Ok(value.clone());
         }
         
-        // TODO: Value needs to be computed by running the module
-        // For now, return a placeholder
+        // Module needs to be executed to compute export values
+        // Return a special error that the VM can handle
         Err(anyhow!(
-            "Export '{}' from module '{}' has not been computed yet",
-            export_name,
-            module_name
+            "Module '{}' needs execution to compute export '{}'",
+            module_name,
+            export_name
         ))
+    }
+    
+    /// Check if a module has been executed
+    pub fn is_module_executed(&self, module_name: &str) -> bool {
+        self.modules
+            .get(module_name)
+            .map(|m| m.executed)
+            .unwrap_or(false)
+    }
+    
+    /// Mark a module as executed
+    pub fn mark_module_executed(&mut self, module_name: &str) -> Result<()> {
+        let module = self.modules
+            .get_mut(module_name)
+            .ok_or_else(|| anyhow!("Module '{}' not found", module_name))?;
+        
+        module.executed = true;
+        Ok(())
     }
     
     /// Set an exported value for a module (called by VM after execution)

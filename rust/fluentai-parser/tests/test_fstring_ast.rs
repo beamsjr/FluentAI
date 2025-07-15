@@ -1,7 +1,5 @@
-#[cfg(test)]
-mod test_fstring_ast {
-    use fluentai_core::ast::{Literal, Node};
-    use fluentai_parser::flc_parser::Parser;
+use fluentai_core::ast::{Literal, Node};
+use fluentai_parser::flc_parser::Parser;
 
     #[test]
     fn test_fstring_produces_correct_ast() {
@@ -92,4 +90,3 @@ mod test_fstring_ast {
             }
         }
     }
-}

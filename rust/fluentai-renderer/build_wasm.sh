@@ -1,19 +1,47 @@
 #!/bin/bash
 
-# Build the WASM module
-echo "Building FluentAI Renderer for WebAssembly..."
+# Build script for AR Living Cards WASM demo
 
-# Install wasm-pack if not already installed
+echo "Building AR Living Cards WASM module..."
+
+# Ensure wasm-pack is installed
 if ! command -v wasm-pack &> /dev/null; then
-    echo "Installing wasm-pack..."
+    echo "wasm-pack not found. Installing..."
     curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 fi
 
-# Build the WASM module
-wasm-pack build --target web --out-dir www/pkg
+# Build the WASM module with compiler feature
+wasm-pack build --target web --out-dir www/pkg --features compiler
 
-echo "Build complete! Output in www/pkg/"
-echo "To run the demo:"
-echo "  1. cd www"
-echo "  2. python3 -m http.server 8000"
-echo "  3. Open http://localhost:8000 in your browser"
+# Create a simple server script
+cat > serve.py << 'EOF'
+#!/usr/bin/env python3
+import http.server
+import socketserver
+import os
+
+PORT = 8080
+
+class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        super().end_headers()
+
+    def guess_type(self, path):
+        mimetype = super().guess_type(path)
+        if path.endswith('.wasm'):
+            return 'application/wasm'
+        return mimetype
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+with socketserver.TCPServer(("", PORT), MyHTTPRequestHandler) as httpd:
+    print(f"Server running at http://localhost:{PORT}/")
+    print(f"Open http://localhost:{PORT}/examples/ar_demo.html to see the demo")
+    httpd.serve_forever()
+EOF
+
+chmod +x serve.py
+
+echo "Build complete! Run ./serve.py to start the demo server."

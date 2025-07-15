@@ -8,11 +8,15 @@ repository.workspace = true
 
 [dependencies]
 fluentai-core = { path = "../fluentai-core" }
-fluentai-effects = { path = "../fluentai-effects" }
+fluentai-effects = { path = "../fluentai-effects", optional = true }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 rustc-hash.workspace = true
+
+[features]
+default = ["effects"]
+effects = ["fluentai-effects"]
 
 [dev-dependencies]
 fluentai-parser = { path = "../fluentai-parser" }

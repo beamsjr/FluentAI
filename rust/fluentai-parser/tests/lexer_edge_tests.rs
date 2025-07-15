@@ -1,8 +1,6 @@
 //! Edge case tests for lexer to improve coverage
 
-#[cfg(test)]
-mod lexer_edge_tests {
-    use fluentai_parser::flc_lexer::{Lexer, Token};
+use fluentai_parser::flc_lexer::{Lexer, Token};
 
     // ===== Phase 1: slice() method tests =====
 
@@ -230,4 +228,3 @@ mod lexer_edge_tests {
         // End of input
         assert_eq!(lexer.next_token(), None);
     }
-}

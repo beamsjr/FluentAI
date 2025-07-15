@@ -13,7 +13,10 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
+#[cfg(target_arch = "wasm32")]
+use std::time::Duration;
 
 /// Concurrent garbage collector with generational support
 pub struct ConcurrentGc {
@@ -272,6 +275,7 @@ impl ConcurrentGc {
 
     /// Trigger a minor (young generation) collection
     fn trigger_minor_gc(&self) -> Result<()> {
+        #[cfg(not(target_arch = "wasm32"))]
         let start = Instant::now();
         self.stats.minor_collections.fetch_add(1, Ordering::Relaxed);
 
@@ -294,16 +298,20 @@ impl ConcurrentGc {
 
         self.phase.store(GcPhase::Idle as usize, Ordering::SeqCst);
 
-        let elapsed = start.elapsed();
-        self.stats
-            .total_pause_ns
-            .fetch_add(elapsed.as_nanos() as usize, Ordering::Relaxed);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let elapsed = start.elapsed();
+            self.stats
+                .total_pause_ns
+                .fetch_add(elapsed.as_nanos() as usize, Ordering::Relaxed);
+        }
 
         Ok(())
     }
 
     /// Trigger a major (full) collection
     fn trigger_major_gc(&self) -> Result<()> {
+        #[cfg(not(target_arch = "wasm32"))]
         let start = Instant::now();
         self.stats.major_collections.fetch_add(1, Ordering::Relaxed);
 
@@ -334,10 +342,13 @@ impl ConcurrentGc {
 
         self.phase.store(GcPhase::Idle as usize, Ordering::SeqCst);
 
-        let elapsed = start.elapsed();
-        self.stats
-            .total_pause_ns
-            .fetch_add(elapsed.as_nanos() as usize, Ordering::Relaxed);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let elapsed = start.elapsed();
+            self.stats
+                .total_pause_ns
+                .fetch_add(elapsed.as_nanos() as usize, Ordering::Relaxed);
+        }
 
         Ok(())
     }

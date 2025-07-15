@@ -1,0 +1,453 @@
+// Cross-platform FluentAI application demonstrating platform integration
+
+use UI;
+use Platform;
+use Storage;
+use Notification;
+
+// Platform-aware image editor application
+effect AppState {
+    current_image: Option<Image> = None,
+    recent_files: List<string> = Storage.load("recent_files") || [],
+    theme: Theme = Platform.system_theme(),
+    is_modified: bool = false,
+}
+
+// Main application component
+@UI.component
+public function ImageEditor() -> UI.Element {
+    // Subscribe to platform events
+    handle_platform_events();
+    
+    UI.Stack {
+        direction: .vertical,
+        
+        children: [
+            // Platform-specific menu/toolbar
+            match Platform.type() {
+                case .Desktop => DesktopMenuBar(),
+                case .Mobile => MobileToolbar(),
+                case .Web => WebHeader(),
+            },
+            
+            // Main content area
+            UI.Row {
+                flex: 1,
+                
+                children: [
+                    // Tools panel (responsive)
+                    if Platform.screen_width() > 768 {
+                        ToolsPanel()
+                    },
+                    
+                    // Canvas area
+                    UI.Stack {
+                        flex: 1,
+                        align: .center,
+                        justify: .center,
+                        background: perform AppState.get().theme.canvas_background(),
+                        
+                        children: [
+                            if let Some(image) = perform AppState.get().current_image {
+                                ImageCanvas(image)
+                            } else {
+                                EmptyState()
+                            },
+                        ],
+                    },
+                    
+                    // Properties panel (desktop only)
+                    if Platform.is_desktop() {
+                        PropertiesPanel()
+                    },
+                ],
+            },
+            
+            // Status bar
+            StatusBar(),
+        ],
+    }
+}
+
+// Desktop menu bar
+@UI.component
+private function DesktopMenuBar() -> UI.Element {
+    UI.MenuBar {
+        menus: [
+            UI.Menu("File") {
+                items: [
+                    UI.MenuItem("New", accelerator: "Ctrl+N", on_click: new_image),
+                    UI.MenuItem("Open...", accelerator: "Ctrl+O", on_click: open_image),
+                    UI.MenuSeparator(),
+                    UI.MenuItem("Save", accelerator: "Ctrl+S", on_click: save_image),
+                    UI.MenuItem("Save As...", accelerator: "Ctrl+Shift+S", on_click: save_image_as),
+                    UI.MenuSeparator(),
+                    UI.MenuSubmenu("Recent Files") {
+                        items: perform AppState.get().recent_files
+                            .take(10)
+                            .map(path => UI.MenuItem(
+                                path.file_name(),
+                                on_click: () => open_file(path)
+                            ))
+                    },
+                    UI.MenuSeparator(),
+                    UI.MenuItem("Exit", accelerator: "Alt+F4", on_click: quit_app),
+                ],
+            },
+            UI.Menu("Edit") {
+                items: [
+                    UI.MenuItem("Undo", accelerator: "Ctrl+Z", on_click: undo),
+                    UI.MenuItem("Redo", accelerator: "Ctrl+Y", on_click: redo),
+                    UI.MenuSeparator(),
+                    UI.MenuItem("Cut", accelerator: "Ctrl+X", on_click: cut),
+                    UI.MenuItem("Copy", accelerator: "Ctrl+C", on_click: copy),
+                    UI.MenuItem("Paste", accelerator: "Ctrl+V", on_click: paste),
+                ],
+            },
+            UI.Menu("View") {
+                items: [
+                    UI.MenuItem("Zoom In", accelerator: "Ctrl++", on_click: zoom_in),
+                    UI.MenuItem("Zoom Out", accelerator: "Ctrl+-", on_click: zoom_out),
+                    UI.MenuItem("Fit to Window", accelerator: "Ctrl+0", on_click: fit_to_window),
+                    UI.MenuSeparator(),
+                    UI.MenuCheckbox("Dark Mode", 
+                        checked: perform AppState.get().theme.is_dark(),
+                        on_change: toggle_theme
+                    ),
+                ],
+            },
+        ],
+    }
+}
+
+// Mobile toolbar
+@UI.component
+private function MobileToolbar() -> UI.Element {
+    UI.Row {
+        padding: 10,
+        spacing: 10,
+        background: UI.theme.toolbar_background,
+        
+        children: [
+            UI.IconButton("menu", on_click: show_mobile_menu),
+            UI.Spacer(),
+            UI.IconButton("folder_open", on_click: open_image),
+            UI.IconButton("save", 
+                on_click: save_image,
+                disabled: !perform AppState.get().is_modified
+            ),
+            UI.IconButton("share", on_click: share_image),
+            UI.IconButton("more_vert", on_click: show_options),
+        ],
+    }
+}
+
+// Web header
+@UI.component
+private function WebHeader() -> UI.Element {
+    UI.Row {
+        padding: 16,
+        background: UI.theme.header_background,
+        shadow: UI.Shadow.small(),
+        
+        children: [
+            UI.Text("FluentAI Image Editor")
+                .font_size(20)
+                .bold(),
+            
+            UI.Spacer(),
+            
+            // PWA install button
+            if Platform.can_install_pwa() {
+                UI.Button("Install App") {
+                    on_click: Platform.prompt_pwa_install,
+                    variant: .primary,
+                }
+            },
+            
+            UI.IconButton("upload", on_click: open_image),
+            UI.IconButton("download", on_click: save_image),
+            UI.IconButton("settings", on_click: show_settings),
+        ],
+    }
+}
+
+// Platform event handlers
+private function handle_platform_events() {
+    // File drop support
+    Platform.on_files_dropped((files) => {
+        if files.length() > 0 {
+            open_file(files[0]);
+        }
+    });
+    
+    // Theme changes
+    Platform.on_theme_changed((theme) => {
+        perform AppState.update(state => {
+            state.theme = theme;
+            state
+        });
+    });
+    
+    // App lifecycle (mobile)
+    Platform.on_app_background(() => {
+        // Save state
+        save_app_state();
+    });
+    
+    Platform.on_app_foreground(() => {
+        // Restore state
+        restore_app_state();
+    });
+    
+    // Memory warnings
+    Platform.on_memory_warning(() => {
+        // Clear caches
+        clear_image_cache();
+    });
+}
+
+// File operations
+private async function open_image() {
+    let options = Platform.FilePickerOptions {
+        title: "Open Image",
+        filters: [
+            Platform.FileFilter("Images", ["png", "jpg", "jpeg", "gif", "webp"]),
+            Platform.FileFilter("All Files", ["*"]),
+        ],
+        multiple: false,
+    };
+    
+    if let Some(path) = perform Platform.show_file_picker(options).await() {
+        open_file(path);
+    }
+}
+
+private async function save_image() {
+    if let Some(image) = perform AppState.get().current_image {
+        if let Some(path) = image.file_path {
+            // Save to existing path
+            let data = image.to_bytes("png");
+            perform Storage.write_file(path, data).await();
+            
+            perform AppState.update(state => {
+                state.is_modified = false;
+                state
+            });
+            
+            show_notification("Image saved", NotificationType.Success);
+        } else {
+            save_image_as().await();
+        }
+    }
+}
+
+private async function save_image_as() {
+    let options = Platform.SaveDialogOptions {
+        title: "Save Image As",
+        default_name: "image.png",
+        filters: [
+            Platform.FileFilter("PNG Image", ["png"]),
+            Platform.FileFilter("JPEG Image", ["jpg", "jpeg"]),
+        ],
+    };
+    
+    if let Some(path) = perform Platform.show_save_dialog(options).await() {
+        if let Some(image) = perform AppState.get().current_image {
+            let format = path.extension().unwrap_or("png");
+            let data = image.to_bytes(format);
+            
+            perform Storage.write_file(path, data).await();
+            
+            // Update state
+            perform AppState.update(state => {
+                state.current_image = Some(image.with_path(path));
+                state.is_modified = false;
+                state.recent_files.insert(0, path.to_string());
+                state
+            });
+            
+            save_recent_files();
+            show_notification("Image saved", NotificationType.Success);
+        }
+    }
+}
+
+// Platform-specific sharing
+private async function share_image() {
+    if let Some(image) = perform AppState.get().current_image {
+        match Platform.type() {
+            case .Mobile => {
+                // Use native share sheet
+                let data = image.to_bytes("png");
+                perform Platform.share(
+                    title: "Share Image",
+                    data: data,
+                    mime_type: "image/png"
+                ).await();
+            },
+            case .Web => {
+                // Use Web Share API if available
+                if Platform.can_share() {
+                    let blob = image.to_blob("png");
+                    perform Platform.web_share(
+                        title: "Check out my image",
+                        files: [blob]
+                    ).await();
+                } else {
+                    // Fallback to download
+                    download_image();
+                }
+            },
+            case .Desktop => {
+                // Copy to clipboard
+                copy_image_to_clipboard();
+            },
+        }
+    }
+}
+
+// Clipboard operations
+private function copy_image_to_clipboard() {
+    if let Some(image) = perform AppState.get().current_image {
+        let data = image.to_bytes("png");
+        
+        match perform Platform.clipboard_write_image(data) {
+            case Ok(_) => show_notification("Image copied", NotificationType.Success),
+            case Err(e) => show_notification(f"Copy failed: {e}", NotificationType.Error),
+        }
+    }
+}
+
+private async function paste_from_clipboard() {
+    match perform Platform.clipboard_read_image() {
+        case Some(data) => {
+            let image = Image.from_bytes(data);
+            perform AppState.update(state => {
+                state.current_image = Some(image);
+                state.is_modified = true;
+                state
+            });
+        },
+        case None => {
+            // Try text paste for URLs
+            if let Some(text) = perform Platform.clipboard_read_text() {
+                if text.starts_with("http") && is_image_url(text) {
+                    load_image_from_url(text).await();
+                }
+            }
+        },
+    }
+}
+
+// Notifications
+private function show_notification(message: string, type: NotificationType) {
+    let notification = Platform.Notification {
+        title: "Image Editor",
+        body: message,
+        icon: match type {
+            case .Success => Platform.NotificationIcon.Success,
+            case .Error => Platform.NotificationIcon.Error,
+            case .Info => Platform.NotificationIcon.Info,
+        },
+        actions: if type == .Error {
+            [Platform.NotificationAction("Retry", "retry")]
+        } else {
+            []
+        },
+    };
+    
+    perform Platform.show_notification(notification);
+}
+
+// Platform-specific optimizations
+private function optimize_for_platform() {
+    match Platform.type() {
+        case .Mobile => {
+            // Reduce quality for mobile
+            set_render_quality(0.8);
+            
+            // Enable touch gestures
+            enable_touch_controls();
+            
+            // Battery optimization
+            if Platform.battery_level() < 0.2 {
+                reduce_background_processing();
+            }
+        },
+        case .Web => {
+            // Use WebGL when available
+            if Platform.has_webgl() {
+                use_hardware_acceleration();
+            }
+            
+            // Optimize for bandwidth
+            enable_progressive_loading();
+        },
+        case .Desktop => {
+            // Use all CPU cores
+            set_thread_count(Platform.cpu_cores());
+            
+            // Enable advanced features
+            enable_gpu_filters();
+        },
+    }
+}
+
+// App lifecycle
+private function quit_app() {
+    if perform AppState.get().is_modified {
+        let result = perform Platform.show_dialog(
+            title: "Unsaved Changes",
+            message: "Do you want to save your changes before closing?",
+            buttons: ["Save", "Don't Save", "Cancel"]
+        );
+        
+        match result {
+            case 0 => {
+                save_image().await();
+                Platform.quit();
+            },
+            case 1 => Platform.quit(),
+            case _ => {}, // Cancel
+        }
+    } else {
+        Platform.quit();
+    }
+}
+
+// Main entry point
+public function main() {
+    // Initialize platform
+    Platform.init();
+    
+    // Set up platform-specific features
+    optimize_for_platform();
+    
+    // Create window with platform-appropriate settings
+    let window = Platform.create_window(
+        title: "FluentAI Image Editor",
+        size: if Platform.is_mobile() { 
+            Platform.screen_size() 
+        } else { 
+            (1280, 800) 
+        },
+        resizable: !Platform.is_mobile(),
+        fullscreen: Platform.is_mobile(),
+    );
+    
+    // Mount the app
+    window.mount(ImageEditor);
+    
+    // Run the app
+    Platform.run();
+}
+
+// Handle platform integration
+handle {
+    main()
+} with {
+    Platform.* => platform_bridge.*,
+    Storage.* => storage_bridge.*,
+    Notification.* => notification_bridge.*,
+}

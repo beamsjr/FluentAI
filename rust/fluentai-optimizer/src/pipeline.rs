@@ -44,6 +44,14 @@ pub struct OptimizationConfig {
     pub beta_reduction: bool,
     /// Enable partial evaluation
     pub partial_evaluation: bool,
+    /// Enable strength reduction
+    pub strength_reduction: bool,
+    /// Enable algebraic simplification
+    pub algebraic_simplification: bool,
+    /// Enable loop-invariant code motion
+    pub loop_invariant_code_motion: bool,
+    /// Enable function specialization
+    pub function_specialization: bool,
     /// Maximum optimization iterations
     pub max_iterations: usize,
     /// Debug mode (preserve more information)
@@ -65,6 +73,10 @@ impl OptimizationConfig {
                 loop_optimization: false,
                 beta_reduction: false,
                 partial_evaluation: false,
+                strength_reduction: false,
+                algebraic_simplification: false,
+                loop_invariant_code_motion: false,
+                function_specialization: false,
                 max_iterations: 0,
                 debug_mode: true,
             },
@@ -79,6 +91,10 @@ impl OptimizationConfig {
                 loop_optimization: false,
                 beta_reduction: false,
                 partial_evaluation: false,
+                strength_reduction: false,
+                algebraic_simplification: false,
+                loop_invariant_code_motion: false,
+                function_specialization: false,
                 max_iterations: 1,
                 debug_mode: false,
             },
@@ -93,6 +109,10 @@ impl OptimizationConfig {
                 loop_optimization: false,
                 beta_reduction: true,
                 partial_evaluation: false,
+                strength_reduction: true,
+                algebraic_simplification: true,
+                loop_invariant_code_motion: false,
+                function_specialization: false,
                 max_iterations: 2,
                 debug_mode: false,
             },
@@ -107,6 +127,10 @@ impl OptimizationConfig {
                 loop_optimization: true,
                 beta_reduction: true,
                 partial_evaluation: true,
+                strength_reduction: true,
+                algebraic_simplification: true,
+                loop_invariant_code_motion: true,
+                function_specialization: true,
                 max_iterations: 3,
                 debug_mode: false,
             },
@@ -187,6 +211,26 @@ impl OptimizationPipeline {
         if self.config.partial_evaluation {
             self.passes
                 .push(Box::new(partial_eval::PartialEvaluationPass::new()));
+        }
+
+        if self.config.strength_reduction {
+            self.passes
+                .push(Box::new(strength_reduction::StrengthReductionPass::new()));
+        }
+
+        if self.config.algebraic_simplification {
+            self.passes
+                .push(Box::new(algebraic_simplification::AlgebraicSimplificationPass::new()));
+        }
+
+        if self.config.loop_invariant_code_motion {
+            self.passes
+                .push(Box::new(loop_invariant_code_motion::LoopInvariantCodeMotion::new()));
+        }
+
+        if self.config.function_specialization {
+            self.passes
+                .push(Box::new(function_specialization::FunctionSpecializationPass::new()));
         }
 
         // Add effect-aware optimization for Standard and Aggressive levels

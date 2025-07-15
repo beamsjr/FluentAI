@@ -51,6 +51,9 @@ pub enum PackageError {
     #[error("Lock file error: {message}")]
     LockfileError { message: String },
 
+    #[error("Build error: {message}")]
+    BuildError { message: String },
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

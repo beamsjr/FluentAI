@@ -21,6 +21,7 @@ pub mod codegen;
 pub mod value;
 pub mod function_registry;
 pub mod runtime;
+pub mod runtime_extended;
 
 use value::TaggedValue;
 use function_registry::FunctionRegistry;
@@ -84,18 +85,7 @@ impl JitCompiler {
         };
         
         // Register runtime functions
-        builder.symbol("jit_runtime_call", runtime::jit_runtime_call as *const u8);
-        builder.symbol("jit_runtime_add_checked", runtime::jit_runtime_add_checked as *const u8);
-        builder.symbol("jit_runtime_string_concat", runtime::jit_runtime_string_concat as *const u8);
-        builder.symbol("jit_runtime_string_len", runtime::jit_runtime_string_len as *const u8);
-        builder.symbol("jit_runtime_string_upper", runtime::jit_runtime_string_upper as *const u8);
-        builder.symbol("jit_runtime_string_lower", runtime::jit_runtime_string_lower as *const u8);
-        builder.symbol("jit_runtime_make_list", runtime::jit_runtime_make_list as *const u8);
-        builder.symbol("jit_runtime_list_len", runtime::jit_runtime_list_len as *const u8);
-        builder.symbol("jit_runtime_list_empty", runtime::jit_runtime_list_empty as *const u8);
-        builder.symbol("jit_runtime_list_head", runtime::jit_runtime_list_head as *const u8);
-        builder.symbol("jit_runtime_list_tail", runtime::jit_runtime_list_tail as *const u8);
-        builder.symbol("jit_runtime_list_cons", runtime::jit_runtime_list_cons as *const u8);
+        Self::register_runtime_functions(&mut builder);
         
         let module = JITModule::new(builder);
 
@@ -212,5 +202,65 @@ impl JitCompiler {
     /// Clears the function cache, forcing recompilation on the next call.
     pub fn clear_cache(&mut self) {
         self.function_cache.clear();
+    }
+    
+    /// Register all runtime functions with the JIT builder
+    fn register_runtime_functions(builder: &mut JITBuilder) {
+        // Core runtime functions
+        builder.symbol("jit_runtime_call", runtime::jit_runtime_call as *const u8);
+        builder.symbol("jit_runtime_add_checked", runtime::jit_runtime_add_checked as *const u8);
+        builder.symbol("jit_runtime_string_concat", runtime::jit_runtime_string_concat as *const u8);
+        builder.symbol("jit_runtime_string_len", runtime::jit_runtime_string_len as *const u8);
+        builder.symbol("jit_runtime_string_upper", runtime::jit_runtime_string_upper as *const u8);
+        builder.symbol("jit_runtime_string_lower", runtime::jit_runtime_string_lower as *const u8);
+        builder.symbol("jit_runtime_make_list", runtime::jit_runtime_make_list as *const u8);
+        builder.symbol("jit_runtime_list_len", runtime::jit_runtime_list_len as *const u8);
+        builder.symbol("jit_runtime_list_empty", runtime::jit_runtime_list_empty as *const u8);
+        builder.symbol("jit_runtime_list_head", runtime::jit_runtime_list_head as *const u8);
+        builder.symbol("jit_runtime_list_tail", runtime::jit_runtime_list_tail as *const u8);
+        builder.symbol("jit_runtime_list_cons", runtime::jit_runtime_list_cons as *const u8);
+        
+        // Extended runtime functions
+        use runtime_extended::*;
+        
+        // Map operations
+        builder.symbol("jit_runtime_make_map", jit_runtime_make_map as *const u8);
+        builder.symbol("jit_runtime_map_get", jit_runtime_map_get as *const u8);
+        builder.symbol("jit_runtime_map_set", jit_runtime_map_set as *const u8);
+        builder.symbol("jit_runtime_map_contains", jit_runtime_map_contains as *const u8);
+        builder.symbol("jit_runtime_map_size", jit_runtime_map_size as *const u8);
+        
+        // Vector operations
+        builder.symbol("jit_runtime_make_vector", jit_runtime_make_vector as *const u8);
+        builder.symbol("jit_runtime_vector_push", jit_runtime_vector_push as *const u8);
+        builder.symbol("jit_runtime_vector_get", jit_runtime_vector_get as *const u8);
+        builder.symbol("jit_runtime_vector_len", jit_runtime_vector_len as *const u8);
+        
+        // Type checking
+        builder.symbol("jit_runtime_is_type", jit_runtime_is_type as *const u8);
+        builder.symbol("jit_runtime_type_name", jit_runtime_type_name as *const u8);
+        
+        // Error handling
+        builder.symbol("jit_runtime_make_error", jit_runtime_make_error as *const u8);
+        builder.symbol("jit_runtime_is_error", jit_runtime_is_error as *const u8);
+        
+        // Closure support
+        builder.symbol("jit_runtime_make_closure", jit_runtime_make_closure as *const u8);
+        builder.symbol("jit_runtime_closure_get_env", jit_runtime_closure_get_env as *const u8);
+        
+        // Channel operations
+        builder.symbol("jit_runtime_make_channel", jit_runtime_make_channel as *const u8);
+        builder.symbol("jit_runtime_channel_send", jit_runtime_channel_send as *const u8);
+        builder.symbol("jit_runtime_channel_recv", jit_runtime_channel_recv as *const u8);
+        
+        // Promise operations
+        builder.symbol("jit_runtime_make_promise", jit_runtime_make_promise as *const u8);
+        builder.symbol("jit_runtime_promise_await", jit_runtime_promise_await as *const u8);
+        
+        // Float operations
+        builder.symbol("jit_runtime_float_add", jit_runtime_float_add as *const u8);
+        builder.symbol("jit_runtime_float_sub", jit_runtime_float_sub as *const u8);
+        builder.symbol("jit_runtime_float_mul", jit_runtime_float_mul as *const u8);
+        builder.symbol("jit_runtime_float_div", jit_runtime_float_div as *const u8);
     }
 }

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Living Cards - FluentAI Continuum Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+        }
+        
+        #ar-canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            touch-action: none;
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(45deg, #4CAF50, #2196F3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .columns {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .column-indicator {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .todo { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .progress { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
+        .done { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        
+        .key {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .status {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 12px;
+            font-family: monospace;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="ar-canvas"></canvas>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading FluentAI Continuum...</div>
+    </div>
+    
+    <div class="overlay" id="overlay" style="display: none;">
+        <h1>AR Living Cards</h1>
+        <div class="subtitle">FluentAI Continuum UI Demo</div>
+        
+        <div class="columns">
+            <div class="column-indicator todo">TODO</div>
+            <div class="column-indicator progress">IN PROGRESS</div>
+            <div class="column-indicator done">DONE</div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-item">
+                <span>Drag cards between columns</span>
+            </div>
+            <div class="control-item">
+                <span>Flick cards for physics</span>
+            </div>
+            <div class="control-item">
+                <span class="key">D</span>
+                <span>Toggle debug view</span>
+            </div>
+            <div class="control-item">
+                <span class="key">Space</span>
+                <span>Add new card</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status" id="status">
+        <span id="fps">0</span> FPS | <span id="cards">4</span> cards
+    </div>
+    
+    <script type="module">
+        // Import FluentAI runtime and Continuum modules
+        import { FluentAI } from './fluentai-runtime.js';
+        import { Continuum } from './continuum.js';
+        
+        // Initialize FluentAI with Continuum
+        async function init() {
+            try {
+                console.log('Initializing FluentAI Continuum...');
+                
+                // Load FluentAI runtime
+                const runtime = await FluentAI.initialize({
+                    modules: ['continuum', 'webgl', 'ar'],
+                    wasm: './fluentai-runtime.wasm'
+                });
+                
+                // Load and compile the AR Living Cards FLC code
+                const response = await fetch('./ar_living_cards.flc');
+                const flcCode = await response.text();
+                
+                // Compile and run
+                const module = await runtime.compile(flcCode);
+                await module.run();
+                
+                // Hide loading, show overlay
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('overlay').style.display = 'block';
+                
+                // Set up FPS counter
+                let frameCount = 0;
+                let lastTime = performance.now();
+                
+                function updateFPS() {
+                    frameCount++;
+                    const currentTime = performance.now();
+                    if (currentTime >= lastTime + 1000) {
+                        const fps = Math.round(frameCount * 1000 / (currentTime - lastTime));
+                        document.getElementById('fps').textContent = fps;
+                        frameCount = 0;
+                        lastTime = currentTime;
+                    }
+                    requestAnimationFrame(updateFPS);
+                }
+                updateFPS();
+                
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.body.innerHTML += `
+                    <div class="error">
+                        <h2>Initialization Error</h2>
+                        <p>${error.message}</p>
+                        <p style="font-size: 12px; margin-top: 10px;">
+                            Check console for details
+                        </p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'd' || e.key === 'D') {
+                // Toggle debug view - would send message to FLC runtime
+                console.log('Toggle debug view');
+            } else if (e.key === ' ') {
+                // Add new card - would send message to FLC runtime
+                console.log('Add new card');
+                e.preventDefault();
+            }
+        });
+    </script>
+    
+    <!-- For demo purposes, show what it would look like -->
+    <script>
+        // This is a mock to show the visual result
+        // In reality, the FLC code would render to the canvas
+        
+        window.addEventListener('load', () => {
+            const canvas = document.getElementById('ar-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Mock render function
+            function render() {
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw mock Kanban columns
+                const columnWidth = 250;
+                const columnHeight = 400;
+                const startY = canvas.height / 2 - columnHeight / 2;
+                const spacing = 300;
+                const startX = canvas.width / 2 - spacing;
+                
+                // Column backgrounds
+                ctx.globalAlpha = 0.1;
+                
+                // Todo column
+                ctx.fillStyle = '#f44336';
+                ctx.fillRect(startX - columnWidth/2, startY, columnWidth, columnHeight);
+                
+                // In Progress column
+                ctx.fillStyle = '#ff9800';
+                ctx.fillRect(startX + spacing - columnWidth/2, startY, columnWidth, columnHeight);
+                
+                // Done column
+                ctx.fillStyle = '#4CAF50';
+                ctx.fillRect(startX + spacing*2 - columnWidth/2, startY, columnWidth, columnHeight);
+                
+                ctx.globalAlpha = 1;
+                
+                // Draw mock cards
+                const cards = [
+                    { x: startX, y: startY + 50, color: '#f44336', title: 'Setup project' },
+                    { x: startX, y: startY + 150, color: '#f44336', title: 'Design UI' },
+                    { x: startX + spacing, y: startY + 100, color: '#ff9800', title: 'Implement gestures' },
+                    { x: startX + spacing*2, y: startY + 100, color: '#4CAF50', title: 'Research WebXR' }
+                ];
+                
+                cards.forEach(card => {
+                    // Card shadow
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.fillRect(card.x - 95, card.y + 5, 190, 70);
+                    
+                    // Card body
+                    ctx.fillStyle = card.color;
+                    ctx.fillRect(card.x - 100, card.y, 200, 70);
+                    
+                    // Card text
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px -apple-system, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(card.title, card.x, card.y + 40);
+                });
+                
+                requestAnimationFrame(render);
+            }
+            
+            // Show UI after delay
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('overlay').style.display = 'block';
+                render();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

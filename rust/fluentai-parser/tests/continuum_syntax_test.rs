@@ -8,12 +8,14 @@ use fluentai_parser::parse_flc;
 fn test_parse_surface() -> Result<()> {
     let source = r##"
 public surface main_window {
-    size: (800, 600),
+    width: 800,
+    height: 600,
     background: "#f0f0f0",
     
     element title {
         content: "Hello Continuum",
-        position: (100, 50),
+        position_x: 100,
+        position_y: 50,
         color: "#000000"
     }
 }
@@ -40,8 +42,10 @@ public surface main_window {
 fn test_parse_space() -> Result<()> {
     let source = r#"
 private space ar_scene {
-    anchor: world_floor,
-    size: (2, 2, 2)
+    anchor: "world_floor",
+    size_x: 2,
+    size_y: 2,
+    size_z: 2
 }
     "#;
     

@@ -155,6 +155,8 @@ pub enum Token<'a> {
     Slash,
     #[token("%", priority = 8)]
     Percent,
+    #[token("**", priority = 9)]
+    StarStar,
 
     // Operators - Comparison
     #[token("==", priority = 8)]

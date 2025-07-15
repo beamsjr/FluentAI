@@ -394,6 +394,25 @@ impl PyNode {
                     }
                     "Disturb"
                 }
+                Node::Map(pairs) => {
+                    data.insert("pair_count".to_string(), pairs.len().to_object(py));
+                    let keys_and_values: Vec<(String, String)> = pairs
+                        .iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect();
+                    data.insert("pairs".to_string(), keys_and_values.to_object(py));
+                    "Map"
+                }
+                Node::Extern { abi, functions } => {
+                    data.insert("abi".to_string(), abi.to_object(py));
+                    data.insert("function_count".to_string(), functions.len().to_object(py));
+                    let func_names: Vec<String> = functions
+                        .iter()
+                        .map(|f| f.name.clone())
+                        .collect();
+                    data.insert("function_names".to_string(), func_names.to_object(py));
+                    "Extern"
+                }
             };
 
             Self {

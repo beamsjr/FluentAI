@@ -1044,6 +1044,9 @@ pub enum Node {
     /// List data structure
     List(Vec<NodeId>),
 
+    /// Map/dictionary data structure  
+    Map(Vec<(NodeId, NodeId)>),
+
     /// Pattern matching expression
     Match {
         /// Expression to match against
@@ -1239,7 +1242,10 @@ pub enum Node {
         pure: bool,
     },
 
-    // Continuum UI Constructs
+    // ===== Continuum UI Constructs (Future/Experimental) =====
+    // Note: These AST nodes are placeholders for a potential future UI framework.
+    // They are parsed but currently compile to nil values. See docs/future/continuum-ui.md
+    // for the design specification. These may be removed or fully implemented in the future.
 
     /// Surface - a 2D or 3D rendering context
     Surface {
@@ -1300,6 +1306,27 @@ pub enum Node {
         /// Optional new value
         value: Option<NodeId>,
     },
+
+    /// External function declaration (FFI)
+    Extern {
+        /// ABI specification (e.g., "C", "stdcall", "system")
+        abi: String,
+        /// Function declarations
+        functions: Vec<ExternFunction>,
+    },
+}
+
+/// External function declaration for FFI
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExternFunction {
+    /// Function name
+    pub name: String,
+    /// Parameter types
+    pub param_types: Vec<String>,
+    /// Return type
+    pub return_type: Option<String>,
+    /// Visibility (public/private)
+    pub is_public: bool,
 }
 
 /// Literal values in the AST
@@ -1330,6 +1357,42 @@ impl fmt::Display for Literal {
             Literal::Nil => write!(f, "nil"),
         }
     }
+}
+
+impl std::hash::Hash for Literal {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Literal::Integer(i) => {
+                0u8.hash(state);
+                i.hash(state);
+            }
+            Literal::Float(f) => {
+                1u8.hash(state);
+                // Hash the bits of the float to handle NaN properly
+                f.to_bits().hash(state);
+            }
+            Literal::String(s) => {
+                2u8.hash(state);
+                s.hash(state);
+            }
+            Literal::Symbol(s) => {
+                3u8.hash(state);
+                s.hash(state);
+            }
+            Literal::Boolean(b) => {
+                4u8.hash(state);
+                b.hash(state);
+            }
+            Literal::Nil => {
+                5u8.hash(state);
+            }
+        }
+    }
+}
+
+impl Eq for Literal {
+    // PartialEq is already implemented, and we consider that
+    // NaN != NaN is fine for our use case
 }
 
 /// Range pattern for pattern matching
@@ -2162,6 +2225,30 @@ impl Node {
                 ],
                 category: DocumentationCategory::ControlFlow,
                 see_also: vec!["StateField".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Extern { abi, .. } => Documentation {
+                name: "Extern".to_string(),
+                syntax: format!("extern \"{}\" {{ function_declarations }}", abi),
+                description: "Foreign Function Interface (FFI) block for declaring external functions from other languages.".to_string(),
+                examples: vec![
+                    "extern \"C\" { private function printf(format: string, value: int) -> int; }".to_string(),
+                    "extern \"C\" { public function malloc(size: size_t) -> pointer; }".to_string(),
+                ],
+                category: DocumentationCategory::Module,
+                see_also: vec![],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Map(_) => Documentation {
+                name: "Map".to_string(),
+                syntax: "{key1: value1, key2: value2, ...}".to_string(),
+                description: "Map (dictionary/hash table) literal for key-value associations.".to_string(),
+                examples: vec![
+                    "{\"name\": \"Alice\", \"age\": 25}".to_string(),
+                    "{key1: val1, key2: val2}".to_string(),
+                ],
+                category: DocumentationCategory::DataStructure,
+                see_also: vec!["List".to_string()],
                 visibility: DocumentationVisibility::Public,
             },
         }

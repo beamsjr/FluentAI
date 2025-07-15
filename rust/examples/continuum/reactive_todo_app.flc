@@ -1,0 +1,289 @@
+// Reactive Todo App in FluentAI with Continuum UI
+// This demonstrates the integration of FluentAI language features with reactive UI
+
+use UI;
+use Color;
+use Storage;
+
+// Define the Todo type
+struct Todo {
+    id: int,
+    text: string,
+    completed: bool,
+}
+
+// Define filter enum
+enum Filter {
+    All,
+    Active,
+    Completed,
+}
+
+// Create reactive state using FluentAI's effect system
+effect TodoState {
+    todos: List<Todo> = Storage.load("todos") || [],
+    new_todo_text: string = "",
+    filter: Filter = Filter.All,
+}
+
+// Computed properties that automatically update
+private function visible_todos() -> List<Todo> {
+    perform TodoState.get().todos
+        |> match perform TodoState.get().filter {
+            case Filter.All => identity,
+            case Filter.Active => filter(todo => !todo.completed),
+            case Filter.Completed => filter(todo => todo.completed),
+        }
+}
+
+private function active_count() -> int {
+    perform TodoState.get().todos
+        |> filter(todo => !todo.completed)
+        |> length()
+}
+
+private function completed_count() -> int {
+    perform TodoState.get().todos
+        |> length()
+        |> subtract(active_count())
+}
+
+// Add a new todo
+private function add_todo() {
+    let text = perform TodoState.get().new_todo_text;
+    
+    if !text.is_empty() {
+        let new_todo = Todo {
+            id: generate_id(),
+            text: text,
+            completed: false,
+        };
+        
+        perform TodoState.update(state => {
+            state.todos.push(new_todo);
+            state.new_todo_text = "";
+            state
+        });
+        
+        save_todos();
+    }
+}
+
+// Toggle todo completion
+private function toggle_todo(id: int) {
+    perform TodoState.update(state => {
+        state.todos = state.todos.map(todo => {
+            if todo.id == id {
+                Todo { ...todo, completed: !todo.completed }
+            } else {
+                todo
+            }
+        });
+        state
+    });
+    
+    save_todos();
+}
+
+// Delete a todo
+private function delete_todo(id: int) {
+    perform TodoState.update(state => {
+        state.todos = state.todos.filter(todo => todo.id != id);
+        state
+    });
+    
+    save_todos();
+}
+
+// Clear completed todos
+private function clear_completed() {
+    perform TodoState.update(state => {
+        state.todos = state.todos.filter(todo => !todo.completed);
+        state
+    });
+    
+    save_todos();
+}
+
+// Set filter
+private function set_filter(new_filter: Filter) {
+    perform TodoState.update(state => {
+        state.filter = new_filter;
+        state
+    });
+}
+
+// Save todos to storage
+private function save_todos() {
+    let todos = perform TodoState.get().todos;
+    perform Storage.save("todos", todos);
+}
+
+// Generate unique ID
+private function generate_id() -> int {
+    perform Time.now().as_millis() as int
+}
+
+// Main UI component
+@UI.component
+public function TodoApp() -> UI.Element {
+    UI.Stack {
+        direction: .vertical,
+        padding: 20,
+        max_width: 600,
+        align: .center,
+        
+        children: [
+            // Header
+            UI.Text("todos") {
+                font_size: 48,
+                color: Color.rgb(0.7, 0.3, 0.3),
+                align: .center,
+            },
+            
+            // Input section
+            UI.Row {
+                spacing: 10,
+                children: [
+                    UI.TextInput {
+                        placeholder: "What needs to be done?",
+                        value: perform TodoState.get().new_todo_text,
+                        on_change: (text) => perform TodoState.update(s => { s.new_todo_text = text; s }),
+                        on_enter: add_todo,
+                        flex: 1,
+                    },
+                    
+                    UI.Button("Add") {
+                        on_click: add_todo,
+                        disabled: perform TodoState.get().new_todo_text.is_empty(),
+                        variant: .primary,
+                    },
+                ],
+            },
+            
+            // Todo list
+            if visible_todos().length() > 0 {
+                UI.Stack {
+                    spacing: 0,
+                    children: [
+                        // List items
+                        ...visible_todos().map(todo => 
+                            TodoItem(todo)
+                        ),
+                        
+                        // Footer
+                        UI.Row {
+                            padding: 10,
+                            justify: .space_between,
+                            align: .center,
+                            background: Color.gray(0.95),
+                            
+                            children: [
+                                // Items left
+                                UI.Text(f"{active_count()} items left") {
+                                    color: Color.gray(0.6),
+                                },
+                                
+                                // Filters
+                                UI.Row {
+                                    spacing: 10,
+                                    children: [
+                                        FilterButton("All", Filter.All),
+                                        FilterButton("Active", Filter.Active),
+                                        FilterButton("Completed", Filter.Completed),
+                                    ],
+                                },
+                                
+                                // Clear completed
+                                if completed_count() > 0 {
+                                    UI.Button("Clear completed") {
+                                        on_click: clear_completed,
+                                        color: Color.red(0.6),
+                                        variant: .text,
+                                    }
+                                },
+                            ],
+                        },
+                    ],
+                }
+            } else {
+                UI.Text("No todos yet. Add one above!") {
+                    color: Color.gray(0.6),
+                    font_style: .italic,
+                    margin: 40,
+                }
+            },
+        ],
+    }
+}
+
+// Todo item component
+@UI.component
+private function TodoItem(todo: Todo) -> UI.Element {
+    UI.Row {
+        padding: 10,
+        align: .center,
+        hover_background: Color.gray(0.98),
+        
+        children: [
+            UI.Checkbox {
+                checked: todo.completed,
+                on_change: (_) => toggle_todo(todo.id),
+            },
+            
+            UI.Text(todo.text) {
+                flex: 1,
+                text_decoration: if todo.completed { .strikethrough } else { .none },
+                color: if todo.completed { Color.gray(0.6) } else { Color.black() },
+                margin_left: 10,
+            },
+            
+            UI.Button("×") {
+                on_click: () => delete_todo(todo.id),
+                color: Color.red(0.6),
+                font_size: 20,
+                variant: .text,
+                hover_color: Color.red(0.8),
+            },
+        ],
+    }
+}
+
+// Filter button component
+@UI.component
+private function FilterButton(label: string, filter_type: Filter) -> UI.Element {
+    let current_filter = perform TodoState.get().filter;
+    
+    UI.Button(label) {
+        on_click: () => set_filter(filter_type),
+        variant: if current_filter == filter_type { .primary } else { .text },
+        size: .small,
+    }
+}
+
+// Initialize and run the app
+public function main() {
+    // Create the app window
+    let window = UI.Window {
+        title: "FluentAI Todo App",
+        width: 800,
+        height: 600,
+        resizable: true,
+    };
+    
+    // Mount the TodoApp component
+    window.mount(TodoApp);
+    
+    // Start the UI event loop
+    UI.run(window);
+}
+
+// Handle effects
+handle {
+    main()
+} with {
+    Time.now() => system_time(),
+    Storage.load(key) => local_storage.get(key),
+    Storage.save(key, value) => local_storage.set(key, value),
+    UI.run(window) => ui_runtime.start(window),
+}

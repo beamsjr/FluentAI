@@ -4,7 +4,7 @@ use fluentai_bytecode::{Instruction, Opcode};
 use crate::error::{VMError, VMResult};
 use crate::vm::{VM, VMState, CallFrame};
 use fluentai_core::value::Value;
-use std::time::Instant;
+use web_time::Instant;
 use super::OpcodeHandler;
 
 pub struct ControlFlowHandler;

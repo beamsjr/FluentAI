@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluentAI WASM Parser Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            margin: 0 0 20px 0;
+            color: #333;
+            text-align: center;
+        }
+        
+        h2 {
+            margin: 0 0 15px 0;
+            color: #555;
+            font-size: 18px;
+        }
+        
+        #editor {
+            width: 100%;
+            height: 400px;
+            font-family: "Monaco", "Menlo", "Consolas", monospace;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            resize: vertical;
+        }
+        
+        #output {
+            width: 100%;
+            height: 400px;
+            font-family: "Monaco", "Menlo", "Consolas", monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: #f8f8f8;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .examples {
+            margin-top: 15px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>FluentAI WASM Parser Demo</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>FluentAI Code Editor</h2>
+            <textarea id="editor" placeholder="Enter FluentAI code here...">// FluentAI Parser Demo
+// This demonstrates parsing FluentAI code in the browser
+
+private function fibonacci(n: int) -> int {
+    if (n <= 1) {
+        n
+    } else {
+        fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+private function main() {
+    let numbers = [1, 2, 3, 4, 5];
+    
+    // Map over the numbers
+    let results = numbers.map(n => {
+        let fib = fibonacci(n);
+        {"n": n, "fibonacci": fib}
+    });
+    
+    // Print results
+    results.for_each(r => {
+        perform IO.println(f"fibonacci({r.n}) = {r.fibonacci}");
+    });
+    
+    results
+}
+
+main()</textarea>
+            
+            <div class="controls">
+                <button id="parseBtn">Parse</button>
+                <button id="validateBtn">Validate</button>
+                <button id="clearBtn">Clear</button>
+            </div>
+            
+            <div class="examples">
+                <h2>Load Example:</h2>
+                <select id="exampleSelect">
+                    <option value="">Select an example...</option>
+                    <option value="hello">Hello World</option>
+                    <option value="functions">Functions</option>
+                    <option value="effects">Effects</option>
+                    <option value="actor">Actor Model</option>
+                    <option value="pattern">Pattern Matching</option>
+                </select>
+            </div>
+            
+            <div id="status" class="status" style="display: none;"></div>
+        </div>
+        
+        <div class="panel">
+            <h2>Parser Output</h2>
+            <div id="output"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import init, { greet, parse_fluentai, validate_fluentai } from './pkg/fluentai_wasm.js';
+        
+        let wasm = null;
+        const editor = document.getElementById('editor');
+        const output = document.getElementById('output');
+        const status = document.getElementById('status');
+        const parseBtn = document.getElementById('parseBtn');
+        const validateBtn = document.getElementById('validateBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exampleSelect = document.getElementById('exampleSelect');
+        
+        // Example code snippets
+        const examples = {
+            hello: `// Hello World example
+private function main() {
+    perform IO.println("Hello, FluentAI!");
+    "Success"
+}
+
+main()`,
+            
+            functions: `// Function examples
+private function add(a: int, b: int) -> int {
+    a + b
+}
+
+private function greet(name: string) -> string {
+    f"Hello, {name}!"
+}
+
+private function main() {
+    let sum = add(10, 20);
+    let message = greet("FluentAI");
+    
+    perform IO.println(f"Sum: {sum}");
+    perform IO.println(message);
+    
+    sum
+}
+
+main()`,
+            
+            effects: `// Effects example
+private function read_config() {
+    perform IO.read_file("config.json")
+}
+
+private function write_log(message: string) {
+    perform IO.write_file("app.log", message)
+}
+
+private function main() {
+    perform IO.println("Starting application...");
+    
+    let config = read_config();
+    perform IO.println("Config loaded");
+    
+    write_log("Application started");
+    
+    "Done"
+}
+
+main()`,
+            
+            actor: `// Actor model example
+private actor Counter {
+    count: int = 0;
+    
+    private handle Inc(amount: int) {
+        self.count += amount;
+        perform IO.println(f"Count: {self.count}");
+    }
+    
+    private handle Get() -> int {
+        self.count
+    }
+}
+
+private function main() {
+    let counter = spawn Counter;
+    
+    send!(counter, Inc(5));
+    send!(counter, Inc(3));
+    
+    let total = send!(counter, Get());
+    perform IO.println(f"Total: {total}");
+    
+    total
+}
+
+main()`,
+            
+            pattern: `// Pattern matching example
+private enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+private function divide(a: float, b: float) -> Result<float, string> {
+    if (b == 0.0) {
+        Result.Err("Division by zero")
+    } else {
+        Result.Ok(a / b)
+    }
+}
+
+private function main() {
+    let results = [
+        divide(10.0, 2.0),
+        divide(5.0, 0.0),
+        divide(20.0, 4.0)
+    ];
+    
+    results.for_each(r => {
+        match r {
+            Result.Ok(value) => perform IO.println(f"Result: {value}"),
+            Result.Err(msg) => perform IO.println(f"Error: {msg}")
+        }
+    });
+    
+    "Done"
+}
+
+main()`
+        };
+        
+        function showStatus(message, isError = false) {
+            status.textContent = message;
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+        
+        function clearOutput() {
+            output.textContent = '';
+        }
+        
+        async function parseCode() {
+            const code = editor.value;
+            if (!code.trim()) {
+                showStatus('Please enter some FluentAI code', true);
+                return;
+            }
+            
+            try {
+                const result = await parse_fluentai(code);
+                const parsed = JSON.parse(result);
+                
+                output.textContent = JSON.stringify(parsed, null, 2);
+                showStatus(`Parse successful! Found ${parsed.node_count} AST nodes.`);
+            } catch (error) {
+                output.textContent = `Parse Error:\n${error}`;
+                showStatus('Parse failed - see output for details', true);
+            }
+        }
+        
+        async function validateCode() {
+            const code = editor.value;
+            if (!code.trim()) {
+                showStatus('Please enter some FluentAI code', true);
+                return;
+            }
+            
+            try {
+                const isValid = await validate_fluentai(code);
+                
+                if (isValid) {
+                    output.textContent = 'Valid FluentAI code! ✓\n\nThe code parses successfully.';
+                    showStatus('Code is valid!');
+                } else {
+                    output.textContent = 'Invalid FluentAI code ✗\n\nThe code contains syntax errors.';
+                    showStatus('Code is invalid', true);
+                }
+            } catch (error) {
+                output.textContent = `Validation Error:\n${error}`;
+                showStatus('Validation failed', true);
+            }
+        }
+        
+        // Event handlers
+        parseBtn.addEventListener('click', parseCode);
+        validateBtn.addEventListener('click', validateCode);
+        clearBtn.addEventListener('click', () => {
+            clearOutput();
+            showStatus('Output cleared');
+        });
+        
+        exampleSelect.addEventListener('change', (e) => {
+            const example = examples[e.target.value];
+            if (example) {
+                editor.value = example;
+                clearOutput();
+                showStatus('Example loaded');
+            }
+        });
+        
+        // Initialize WASM
+        async function initialize() {
+            try {
+                await init();
+                
+                // Test that WASM is working
+                const greeting = greet('User');
+                console.log(greeting);
+                
+                output.textContent = 'FluentAI WASM Parser Ready!\n\nClick "Parse" to parse the code or "Validate" to check syntax.';
+                showStatus('WASM module loaded successfully!');
+                
+                parseBtn.disabled = false;
+                validateBtn.disabled = false;
+            } catch (error) {
+                output.textContent = `Failed to initialize WASM:\n${error}`;
+                showStatus('Failed to load WASM module', true);
+            }
+        }
+        
+        // Disable buttons until WASM loads
+        parseBtn.disabled = true;
+        validateBtn.disabled = true;
+        
+        // Start initialization
+        initialize();
+    </script>
+</body>
+</html>

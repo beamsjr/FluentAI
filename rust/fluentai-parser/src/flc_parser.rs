@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Result};
 use fluentai_core::ast::{
-    EffectType, ExportItem, Graph, ImportItem, Literal, Node, NodeId, Pattern, RangePattern,
+    EffectType, ExportItem, ExternFunction, Graph, ImportItem, Literal, Node, NodeId, Pattern, RangePattern,
 };
 use std::collections::HashSet;
 
@@ -57,7 +57,9 @@ impl<'a> Parser<'a> {
 
         // Check for optional module declaration at the start
         if matches!(self.current, Some(Token::Mod)) {
-            self.parse_module_declaration()?;
+            // Use parse_module which now handles both declaration and definition
+            let module_node = self.parse_module()?;
+            items.push(module_node);
         }
 
         while self.current.is_some() {
@@ -109,6 +111,10 @@ impl<'a> Parser<'a> {
                     self.parse_expression()
                 }
             }
+            Some(Token::Extern) => {
+                // Extern blocks can appear at top level without visibility modifiers
+                self.parse_extern_block()
+            }
             _ => self.parse_statement(),
         }?;
 
@@ -139,8 +145,59 @@ impl<'a> Parser<'a> {
         let (node_id, export_name) = match self.current {
             Some(Token::Async) => {
                 self.advance();
-                let (node, name) = self.parse_function_definition(is_public, contract_info)?;
-                (node, Some(name))
+                let (define_node, name) = self.parse_function_definition(is_public, contract_info)?;
+                
+                // Extract info we need before mutable borrow
+                let (fn_name, lambda_id, is_contract_wrapped) = if let Some(node) = self.graph.nodes.get(&define_node) {
+                    match node {
+                        Node::Define { name, value } => (name.clone(), *value, false),
+                        Node::Begin { exprs } if exprs.len() == 2 => {
+                            // Contract-wrapped definition
+                            if let Some(Node::Define { name, value }) = self.graph.nodes.get(&exprs[1]) {
+                                (name.clone(), *value, true)
+                            } else {
+                                // Return early with original node if structure is unexpected
+                                (String::new(), define_node, false)
+                            }
+                        }
+                        _ => {
+                            // Return early with original node if structure is unexpected
+                            (String::new(), define_node, false)
+                        }
+                    }
+                } else {
+                    // Return early with original node if not found
+                    (String::new(), define_node, false)
+                };
+                
+                // If we couldn't extract the info, return the original node
+                if fn_name.is_empty() {
+                    (define_node, Some(name))
+                } else {
+                    // Now we can mutate - create an Async node that wraps the lambda
+                    let async_node = self.add_node(Node::Async { body: lambda_id })?;
+                    
+                    // Create a new Define node with the async-wrapped function
+                    let new_define = self.add_node(Node::Define {
+                        name: fn_name,
+                        value: async_node,
+                    })?;
+                    
+                    // Handle contract wrapping if needed
+                    if is_contract_wrapped {
+                        if let Some(Node::Begin { exprs }) = self.graph.nodes.get(&define_node) {
+                            let contract_node = exprs[0];
+                            let new_begin = self.add_node(Node::Begin {
+                                exprs: vec![contract_node, new_define],
+                            })?;
+                            (new_begin, Some(name))
+                        } else {
+                            (new_define, Some(name))
+                        }
+                    } else {
+                        (new_define, Some(name))
+                    }
+                }
             }
             Some(Token::Function) => {
                 let (node, name) = self.parse_function_definition(is_public, contract_info)?;
@@ -190,12 +247,41 @@ impl<'a> Parser<'a> {
                 let (node, name) = self.parse_effect_definition(is_public)?;
                 (node, Some(name))
             }
+            Some(Token::Extern) => {
+                let node = self.parse_extern_block()?;
+                (node, None) // Extern blocks are handled differently
+            }
             Some(Token::UpperIdent(_)) => {
                 let node = self.parse_trait_impl(is_public)?;
                 (node, None) // Trait impls don't have names to export
             }
             Some(Token::LowerIdent(_)) => {
-                let (node, name) = self.parse_value_definition(is_public)?;
+                // Check if this is a let binding
+                let saved_pos = self.position;
+                let saved_token = self.current.clone();
+                let ident = if let Some(Token::LowerIdent(n)) = self.current {
+                    n.to_string()
+                } else {
+                    unreachable!()
+                };
+                
+                self.advance();
+                
+                // If it's followed by =, it's a simple value definition
+                if matches!(self.current, Some(Token::Eq)) {
+                    self.position = saved_pos;
+                    self.current = saved_token;
+                    let (node, name) = self.parse_value_definition(is_public)?;
+                    (node, Some(name))
+                } else {
+                    // Otherwise it's an error
+                    return Err(anyhow!("Expected '=' after identifier in definition"));
+                }
+            }
+            Some(Token::Let) => {
+                // Handle public/private let
+                self.advance(); // consume 'let'
+                let (node, name) = self.parse_let_definition(is_public)?;
                 (node, Some(name))
             }
             _ => return Err(anyhow!("Expected definition after visibility modifier")),
@@ -204,7 +290,14 @@ impl<'a> Parser<'a> {
         // If public and has a name, add to exports
         if is_public {
             if let Some(name) = export_name {
-                self.exports.push(ExportItem { name, alias: None });
+                self.exports.push(ExportItem { name: name.clone(), alias: None });
+                
+                // Update exports metadata immediately
+                let exports_json =
+                    serde_json::to_string(&self.exports).unwrap_or_else(|_| "[]".to_string());
+                self.graph
+                    .graph_metadata
+                    .insert("exports".to_string(), exports_json);
             }
         }
 
@@ -424,6 +517,37 @@ impl<'a> Parser<'a> {
         Ok((node, name))
     }
 
+    fn parse_let_definition(&mut self, _is_public: bool) -> Result<(NodeId, String)> {
+        // let name = value;
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            Some(Token::UpperIdent(n)) | Some(Token::ConstIdent(n)) => {
+                // Allow uppercase for constants like PI
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!(
+                "Expected variable name after 'let' at position {} (around: {})",
+                self.position,
+                self.lexer.slice()
+            )),
+        };
+
+        self.consume(Token::Eq)?;
+        let value = self.parse_expression()?;
+
+        if matches!(self.current, Some(Token::Semicolon)) {
+            self.advance();
+        }
+
+        Ok((self.add_node(Node::Define { name: name.clone(), value })?, name))
+    }
+
     fn parse_const_definition(&mut self, _is_public: bool) -> Result<(NodeId, String)> {
         self.consume(Token::Const)?;
 
@@ -616,7 +740,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_multiplicative_expression(&mut self) -> Result<NodeId> {
-        let mut left = self.parse_unary_expression()?;
+        let mut left = self.parse_power_expression()?;
 
         loop {
             let op_name = match self.current {
@@ -627,9 +751,28 @@ impl<'a> Parser<'a> {
             };
 
             self.advance();
-            let right = self.parse_unary_expression()?;
+            let right = self.parse_power_expression()?;
             let op = self.add_node(Node::Variable {
                 name: op_name.to_string(),
+            })?;
+            left = self.add_node(Node::Application {
+                function: op,
+                args: vec![left, right],
+            })?;
+        }
+
+        Ok(left)
+    }
+
+    fn parse_power_expression(&mut self) -> Result<NodeId> {
+        let mut left = self.parse_unary_expression()?;
+
+        // Right-associative power operator
+        if matches!(self.current, Some(Token::StarStar)) {
+            self.advance();
+            let right = self.parse_power_expression()?; // Right-associative recursion
+            let op = self.add_node(Node::Variable {
+                name: "**".to_string(),
             })?;
             left = self.add_node(Node::Application {
                 function: op,
@@ -1330,8 +1473,10 @@ impl<'a> Parser<'a> {
             Some(Token::Disturb) => self.parse_disturb(),
             Some(Token::Dollar) => self.parse_printable(),
             _ => Err(anyhow!(
-                "Unexpected token in expression: {:?}",
-                self.current
+                "Unexpected token in expression: {:?} at position {} (around: {})",
+                self.current,
+                self.position,
+                self.lexer.slice()
             )),
         }
     }
@@ -1343,13 +1488,15 @@ impl<'a> Parser<'a> {
         self.consume(Token::RParen)?;
 
         self.consume(Token::LBrace)?;
-        let then_branch = self.parse_expression()?;
+        // Changed to parse_block to support multiple statements without semicolons between them
+        // This fixes the issue reported in test_if_statement_semicolons.rs
+        let then_branch = self.parse_block()?;
         self.consume(Token::RBrace)?;
 
         let else_branch = if matches!(self.current, Some(Token::Else)) {
             self.advance();
             self.consume(Token::LBrace)?;
-            let else_expr = self.parse_expression()?;
+            let else_expr = self.parse_block()?;
             self.consume(Token::RBrace)?;
             else_expr
         } else {
@@ -1463,6 +1610,7 @@ impl<'a> Parser<'a> {
 
     fn parse_let_expression(&mut self) -> Result<NodeId> {
         self.consume(Token::Let)?;
+        
 
         let mut bindings = vec![];
 
@@ -1524,7 +1672,11 @@ impl<'a> Parser<'a> {
                     self.advance();
                     n.to_string()
                 }
-                _ => return Err(anyhow!("Expected variable name after 'let'")),
+                _ => return Err(anyhow!(
+                "Expected variable name after 'let' at position {} (around: {})",
+                self.position,
+                self.lexer.slice()
+            )),
             };
             
             bound_names.push(name.clone());
@@ -1545,7 +1697,11 @@ impl<'a> Parser<'a> {
                     self.advance();
                     n.to_string()
                 }
-                _ => return Err(anyhow!("Expected variable name after 'let'")),
+                _ => return Err(anyhow!(
+                "Expected variable name after 'let' at position {} (around: {})",
+                self.position,
+                self.lexer.slice()
+            )),
             };
 
             bound_names.push(name.clone());
@@ -1605,7 +1761,11 @@ impl<'a> Parser<'a> {
                         self.advance();
                         n.to_string()
                     }
-                    _ => return Err(anyhow!("Expected variable name after 'let'")),
+                    _ => return Err(anyhow!(
+                "Expected variable name after 'let' at position {} (around: {})",
+                self.position,
+                self.lexer.slice()
+            )),
                 };
 
                 self.consume(Token::Eq)?;
@@ -1677,7 +1837,11 @@ impl<'a> Parser<'a> {
                 self.advance();
                 n.to_string()
             }
-            _ => return Err(anyhow!("Expected variable name after 'let'")),
+            _ => return Err(anyhow!(
+                "Expected variable name after 'let' at position {} (around: {})",
+                self.position,
+                self.lexer.slice()
+            )),
         };
 
         self.consume(Token::Eq)?;
@@ -1840,17 +2004,34 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_module(&mut self) -> Result<NodeId> {
-        // mod module_name { ... }
+        // Handle both:
+        // - module module_name; (FLC-style module declaration)
+        // - mod module_name { ... } (old-style module definition)
         self.consume(Token::Mod)?;
         let name = match self.current {
-            Some(Token::LowerIdent(n)) => {
+            Some(Token::LowerIdent(n)) | Some(Token::UpperIdent(n)) => {
                 let name = n.to_string();
                 self.advance();
                 name
             }
-            _ => return Err(anyhow!("Expected module name after 'mod'")),
+            _ => return Err(anyhow!("Expected module name after 'mod' or 'module'")),
         };
 
+        // Check if this is a module declaration (ends with semicolon)
+        if matches!(self.current, Some(Token::Semicolon)) {
+            self.advance(); // consume semicolon
+            self.module_name = Some(name.clone());
+            
+            // Store module name in metadata immediately
+            self.graph
+                .graph_metadata
+                .insert("module_name".to_string(), name);
+            
+            // Return a nil node for module declaration
+            return self.add_node(Node::Literal(Literal::Nil));
+        }
+
+        // Otherwise, it's the old-style module definition with braces
         self.consume(Token::LBrace)?;
 
         let mut definitions = vec![];
@@ -3316,7 +3497,13 @@ impl<'a> Parser<'a> {
             self.advance();
             Ok(())
         } else {
-            Err(anyhow!("Expected {:?}, found {:?}", expected, self.current))
+            Err(anyhow!(
+                "Expected {:?}, found {:?} at position {} (around: {})",
+                expected,
+                self.current,
+                self.position,
+                self.lexer.slice()
+            ))
         }
     }
 
@@ -4057,22 +4244,125 @@ mod tests {
         assert!(graph.root_id.is_some());
     }
 }
-impl<'a> Parser<'a> {
-    fn parse_module_declaration(&mut self) -> Result<()> {
-        // module ModuleName;
-        self.consume(Token::Mod)?;
 
-        let name = match self.current {
-            Some(Token::UpperIdent(n)) | Some(Token::LowerIdent(n)) => {
+impl<'a> Parser<'a> {
+    fn parse_extern_block(&mut self) -> Result<NodeId> {
+        // extern "C" { ... }
+        self.consume(Token::Extern)?;
+        
+        // Parse ABI string
+        let abi = match &self.current {
+            Some(Token::String(s)) => {
+                let abi = s.to_string();
+                self.advance();
+                abi
+            }
+            _ => return Err(anyhow!("Expected ABI string after 'extern' (e.g., \"C\")")),
+        };
+        
+        self.consume(Token::LBrace)?;
+        
+        let mut functions = Vec::new();
+        
+        // Parse function declarations
+        while !matches!(self.current, Some(Token::RBrace)) {
+            // Parse visibility (optional, defaults to private)
+            let is_public = if matches!(self.current, Some(Token::Public)) {
+                self.advance();
+                true
+            } else if matches!(self.current, Some(Token::Private)) {
+                self.advance();
+                false
+            } else {
+                false // Default to private
+            };
+            
+            // Parse function declaration
+            self.consume(Token::Function)?;
+            
+            let name = match self.current {
+                Some(Token::LowerIdent(n)) => {
+                    let name = n.to_string();
+                    self.advance();
+                    name
+                }
+                _ => return Err(anyhow!("Expected function name after 'function'")),
+            };
+            
+            self.consume(Token::LParen)?;
+            
+            let mut param_types = Vec::new();
+            
+            // Parse parameters
+            while !matches!(self.current, Some(Token::RParen)) {
+                // Parse parameter name (we'll discard it, only keeping the type)
+                match self.current {
+                    Some(Token::LowerIdent(_)) => {
+                        self.advance();
+                    }
+                    _ => return Err(anyhow!("Expected parameter name")),
+                }
+                
+                self.consume(Token::Colon)?;
+                
+                // Parse parameter type
+                let param_type = self.parse_type_name()?;
+                param_types.push(param_type);
+                
+                if matches!(self.current, Some(Token::Comma)) {
+                    self.advance();
+                }
+            }
+            
+            self.consume(Token::RParen)?;
+            
+            // Parse return type (optional)
+            let return_type = if matches!(self.current, Some(Token::Arrow)) {
+                self.advance();
+                Some(self.parse_type_name()?)
+            } else {
+                None
+            };
+            
+            self.consume(Token::Semicolon)?;
+            
+            // Add to exports if public
+            if is_public {
+                self.exports.push(ExportItem { name: name.clone(), alias: None });
+            }
+            
+            functions.push(ExternFunction {
+                name,
+                param_types,
+                return_type,
+                is_public,
+            });
+        }
+        
+        self.consume(Token::RBrace)?;
+        
+        // Update exports metadata if any public functions
+        if self.exports.iter().any(|e| functions.iter().any(|f| f.name == e.name && f.is_public)) {
+            let exports_json =
+                serde_json::to_string(&self.exports).unwrap_or_else(|_| "[]".to_string());
+            self.graph
+                .graph_metadata
+                .insert("exports".to_string(), exports_json);
+        }
+        
+        self.add_node(Node::Extern { abi, functions })
+    }
+    
+    fn parse_type_name(&mut self) -> Result<String> {
+        // For now, just parse simple type names
+        // In the future, this should handle complex types
+        match self.current {
+            Some(Token::LowerIdent(n)) | Some(Token::UpperIdent(n)) => {
                 let name = n.to_string();
                 self.advance();
-                name
+                Ok(name)
             }
-            _ => return Err(anyhow!("Expected module name after 'module'")),
-        };
-
-        self.consume(Token::Semicolon)?;
-        self.module_name = Some(name);
-        Ok(())
+            _ => Err(anyhow!("Expected type name")),
+        }
     }
 }

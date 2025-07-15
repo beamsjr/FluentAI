@@ -121,6 +121,15 @@ enum Commands {
         #[arg(long)]
         viz_open: bool,
 
+        /// Path to visualization static files directory
+        #[cfg(feature = "visualization")]
+        #[arg(long)]
+        viz_static_dir: Option<PathBuf>,
+
+        /// Watch for file changes and re-run
+        #[arg(short = 'w', long)]
+        watch: bool,
+
         /// Program arguments
         #[arg(trailing_var_arg = true)]
         args: Vec<String>,
@@ -235,6 +244,10 @@ enum Commands {
         /// Automatically open browser
         #[arg(long)]
         open: bool,
+
+        /// Path to visualization static files directory
+        #[arg(long)]
+        viz_static_dir: Option<PathBuf>,
 
         /// Program arguments
         #[arg(trailing_var_arg = true)]
@@ -394,6 +407,9 @@ async fn main() -> Result<()> {
             viz_delay,
             #[cfg(feature = "visualization")]
             viz_open,
+            #[cfg(feature = "visualization")]
+            viz_static_dir,
+            watch,
             args,
         }) => {
             #[cfg(feature = "visualization")]
@@ -402,6 +418,7 @@ async fn main() -> Result<()> {
                     port: viz_port,
                     delay_ms: viz_delay,
                     auto_open: viz_open,
+                    static_dir: viz_static_dir,
                 })
             } else {
                 None
@@ -410,7 +427,7 @@ async fn main() -> Result<()> {
             #[cfg(not(feature = "visualization"))]
             let viz_config = None;
 
-            run::run_file(&file, args, viz_config, optimization, &config).await?;
+            run::run_file(&file, args, viz_config, optimization, watch, &config).await?;
         }
 
         #[cfg(feature = "visualization")]
@@ -418,14 +435,16 @@ async fn main() -> Result<()> {
             file,
             port,
             open,
+            viz_static_dir,
             args,
         }) => {
             let viz_config = Some(run::VisualizationConfig {
                 port,
                 delay_ms: 0,
                 auto_open: open,
+                static_dir: viz_static_dir,
             });
-            run::run_file(&file, args, viz_config, 2, &config).await?; // Default to standard optimization
+            run::run_file(&file, args, viz_config, 2, false, &config).await?; // Default to standard optimization, no watch
         }
 
         Some(Commands::Test {

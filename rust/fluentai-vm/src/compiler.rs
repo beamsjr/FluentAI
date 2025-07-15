@@ -428,6 +428,14 @@ impl Compiler {
                 // during the lowering phase. For now, just push nil.
                 self.emit(Instruction::new(Opcode::PushNil));
             }
+            Node::Map(pairs) => {
+                self.compile_map(graph, pairs)?;
+            }
+            Node::Extern { .. } => {
+                // FFI extern blocks are metadata, not runtime values
+                // They should be processed during compilation but don't generate bytecode
+                self.emit(Instruction::new(Opcode::PushNil));
+            }
         }
 
         // Restore previous node
@@ -1106,6 +1114,20 @@ impl Compiler {
         // Create list
         self.emit(Instruction::with_arg(Opcode::MakeList, items.len() as u32));
 
+        Ok(())
+    }
+
+    fn compile_map(&mut self, graph: &ASTGraph, pairs: &[(NodeId, NodeId)]) -> Result<()> {
+        // Compile all key-value pairs
+        for &(key, value) in pairs {
+            self.compile_node(graph, key)?;
+            self.compile_node(graph, value)?;
+        }
+        
+        // Create map - using MakeList for now as there's no MakeMap opcode
+        // The VM will interpret pairs as a map when needed
+        self.emit(Instruction::with_arg(Opcode::MakeList, (pairs.len() * 2) as u32));
+        
         Ok(())
     }
 
@@ -2005,6 +2027,12 @@ impl Compiler {
                 self.collect_free_variables(graph, *promise, free_vars, bound_vars)?;
                 if let Some(def) = default {
                     self.collect_free_variables(graph, *def, free_vars, bound_vars)?;
+                }
+            }
+            Node::Map(pairs) => {
+                for (key, value) in pairs {
+                    self.collect_free_variables(graph, *key, free_vars, bound_vars)?;
+                    self.collect_free_variables(graph, *value, free_vars, bound_vars)?;
                 }
             }
             _ => {} // Literals, Channel, etc. have no variables

@@ -73,7 +73,12 @@ impl OpcodeHandler for MemoryHandler {
                     // Special handling for Printable constructor
                     // We'll treat it as a special builtin that creates Tagged values
                     Value::String("__builtin__Printable".to_string())
-                } else if vm.is_stdlib_function(&name) {
+                } else if {
+                    #[cfg(feature = "std")]
+                    { vm.is_stdlib_function(&name) }
+                    #[cfg(not(feature = "std"))]
+                    { false }
+                } {
                     // Standard library function
                     Value::String(format!("__stdlib__{}", name))
                 } else if vm.is_builtin(&name) {

@@ -35,7 +35,6 @@ fn test_stdlib_registry() {
     drop(stdlib);
 }
 
-#[cfg(test)]
 mod transport_tests {
     
     
@@ -67,7 +66,6 @@ mod transport_tests {
     }
 }
 
-#[cfg(test)]
 mod http_api_tests {
     use super::*;
 

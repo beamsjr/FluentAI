@@ -6,33 +6,39 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = []
+default = ["std"]
+std = ["tokio", "fluentai-effects", "fluentai-stdlib"]
 jit = ["fluentai-jit"]
-renderer = ["fluentai-renderer"]
+wasm = []
+# renderer = ["fluentai-renderer"] # Removed to avoid circular dependency
 
 [dependencies]
 fluentai-core = { path = "../fluentai-core" }
 fluentai-bytecode = { path = "../fluentai-bytecode" }
-fluentai-effects = { path = "../fluentai-effects" }
-fluentai-stdlib = { path = "../fluentai-stdlib" }
+fluentai-effects = { path = "../fluentai-effects", optional = true }
+fluentai-stdlib = { path = "../fluentai-stdlib", optional = true }
 fluentai-modules = { path = "../fluentai-modules" }
 fluentai-di = { path = "../fluentai-di" }
 fluentai-optimizer = { path = "../fluentai-optimizer" }
 fluentai-jit = { path = "../fluentai-jit", optional = true }
 fluentai-parser = { path = "../fluentai-parser" }
-fluentai-renderer = { path = "../fluentai-renderer", optional = true }
+# fluentai-renderer = { path = "../fluentai-renderer", optional = true } # Removed to avoid circular dependency
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 byteorder.workspace = true
 rustc-hash.workspace = true
-tokio = { workspace = true, features = ["rt", "sync"] }
+tokio = { workspace = true, features = ["rt", "sync"], optional = true }
 parking_lot.workspace = true
 crossbeam-epoch = "0.9"
 crossbeam-utils = "0.8"
 crossbeam-queue = "0.3"
 futures = "0.3"
+web-time = "1.1.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 criterion.workspace = true

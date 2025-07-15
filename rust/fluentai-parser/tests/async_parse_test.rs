@@ -1,7 +1,5 @@
-#[cfg(test)]
-mod tests {
-    use fluentai_parser::parse_flc;
-    use fluentai_core::ast::Node;
+use fluentai_parser::parse_flc;
+use fluentai_core::ast::Node;
 
     #[test]
     fn test_async_block_parsing() {
@@ -58,4 +56,3 @@ mod tests {
             }
         }
     }
-}

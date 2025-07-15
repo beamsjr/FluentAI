@@ -10,8 +10,7 @@ use fluentai_core::{
     ast::{Graph, Literal, Node, NodeId},
     value::Value as CoreValue,
 };
-// TODO: Use proper stdlib registry when exported
-// use fluentai_stdlib::registry::STDLIB_REGISTRY;
+use fluentai_stdlib::{init_stdlib, registry::StdlibRegistry};
 use fluentai_effects::EffectContext;
 // TODO: Use contract verifier when available
 // use fluentai_contracts::{ContractVerifier, ContractViolation};
@@ -23,7 +22,7 @@ use crate::{
     environment::Environment,
     error::{InterpreterError, InterpreterResult},
     provenance::ExecutionTrace,
-    value::{Closure, Value, ValueData},
+    value::{ChannelState, Closure, Value, ValueData},
 };
 
 /// Execution mode for the interpreter
@@ -98,6 +97,8 @@ pub struct Interpreter {
     start_time: Instant,
     /// Cache for evaluated nodes
     node_cache: RefCell<FxHashMap<NodeId, Value>>,
+    /// Standard library registry
+    stdlib_registry: StdlibRegistry,
 }
 
 impl Interpreter {
@@ -130,6 +131,7 @@ impl Interpreter {
             recursion_depth: RefCell::new(0),
             start_time: Instant::now(),
             node_cache: RefCell::new(FxHashMap::default()),
+            stdlib_registry: init_stdlib(),
         };
 
         // Initialize standard library
@@ -140,38 +142,24 @@ impl Interpreter {
 
     /// Initialize standard library functions
     fn init_stdlib(&mut self) {
-        // TODO: Register all stdlib functions when registry is available
-        // for (name, func) in STDLIB_REGISTRY.functions() {
-        //     let value = Value::new(ValueData::BuiltinFunction {
-        //         name: name.clone(),
-        //         arity: func.arity(),
-        //         variadic: func.is_variadic(),
-        //     });
-        //     self.global_env.bind(name, value).ok();
-        // }
-
-        // Register basic built-in functions for now
-        let builtins = vec![
-            ("+", 2, true),
-            ("-", 2, true),
-            ("*", 2, true),
-            ("/", 2, false),
-            (">", 2, false),
-            ("<", 2, false),
-            ("=", 2, false),
-            ("list", 0, true),
-            ("cons", 2, false),
-            ("car", 1, false),
-            ("cdr", 1, false),
-        ];
-
-        for (name, arity, variadic) in builtins {
+        // Register all stdlib functions from the registry
+        for func in self.stdlib_registry.all_functions() {
+            let arity = if func.max_args.is_none() && func.min_args == 0 {
+                0  // Variadic with no required args
+            } else if func.max_args == Some(func.min_args) {
+                func.min_args  // Fixed arity
+            } else {
+                func.min_args  // Use min_args for variadic functions
+            };
+            
+            let variadic = func.max_args.is_none() || func.max_args != Some(func.min_args);
+            
             let value = Value::new(ValueData::BuiltinFunction {
-                name: name.to_string(),
+                name: func.name.clone(),
                 arity,
                 variadic,
             });
-            self.global_env.bind(name.to_string(), value).ok();
+            self.global_env.bind(func.name, value).ok();
         }
 
         // Register contract predicates if contracts are enabled
@@ -285,8 +273,7 @@ impl Interpreter {
                 else_branch,
             } => self.eval_if(*condition, *then_branch, *else_branch, graph, env),
             Node::List(elements) => self.eval_list(elements, graph, env),
-            // TODO: Handle map nodes when available
-            // Node::Map(pairs) => self.eval_map(pairs, graph, env),
+            Node::Map(pairs) => self.eval_map(pairs, graph, env),
             Node::Async { body } => self.eval_async(*body, graph, env),
             Node::Await { expr } => self.eval_await(*expr, graph, env),
             Node::Spawn { expr } => self.eval_spawn(*expr, graph, env),
@@ -395,8 +382,18 @@ impl Interpreter {
 
     /// Call a builtin function
     fn call_builtin(&mut self, name: &str, args: Vec<Value>) -> InterpreterResult<Value> {
-        // TODO: Use stdlib registry when available
-        // For now, implement basic builtins directly
+        // Try to find the function in the stdlib registry first
+        if let Some(func) = self.stdlib_registry.get(name) {
+            // Validate argument count
+            if let Err(e) = func.validate_args(args.len()) {
+                return Err(InterpreterError::RuntimeError(e.to_string()));
+            }
+            
+            // TODO: Convert between interpreter Value and core Value types
+            // For now, fall through to the basic builtin implementation
+        }
+        
+        // Fall back to basic builtins
         match name {
             "+" => {
                 let mut sum = 0i64;
@@ -694,26 +691,25 @@ impl Interpreter {
         Ok(Value::new(ValueData::List(values)))
     }
 
-    // TODO: Implement eval_map when Map node type is available
-    // /// Evaluate a map expression
-    // fn eval_map(
-    //     &mut self,
-    //     pairs: &[(NodeId, NodeId)],
-    //     graph: &Graph,
-    //     env: &Environment,
-    // ) -> InterpreterResult<Value> {
-    //     let mut map = HashMap::new();
-    //     for (key_id, val_id) in pairs {
-    //         let key_val = self.eval_node(*key_id, graph, env)?;
-    //         let key = match &key_val.data {
-    //             ValueData::String(s) => s.clone(),
-    //             _ => key_val.to_string(),
-    //         };
-    //         let val = self.eval_node(*val_id, graph, env)?;
-    //         map.insert(key, val);
-    //     }
-    //     Ok(Value::new(ValueData::Map(map)))
-    // }
+    /// Evaluate a map expression
+    fn eval_map(
+        &mut self,
+        pairs: &[(NodeId, NodeId)],
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
+        let mut map = FxHashMap::default();
+        for (key_id, val_id) in pairs {
+            let key_val = self.eval_node(*key_id, graph, env)?;
+            let key = match &key_val.data {
+                ValueData::String(s) => s.clone(),
+                _ => key_val.to_string(),
+            };
+            let val = self.eval_node(*val_id, graph, env)?;
+            map.insert(key, val);
+        }
+        Ok(Value::new(ValueData::Map(map)))
+    }
 
     /// Get the current environment (for debugging)
     pub fn environment(&self) -> &Environment {
@@ -777,14 +773,13 @@ impl Interpreter {
 
     /// Create a new channel
     fn eval_channel(&self) -> InterpreterResult<Value> {
-        if let Some(_runtime) = &self.async_runtime {
-            // TODO: Implement proper channel value type
-            Ok(Value::new(ValueData::String("channel".to_string())))
-        } else {
-            Err(InterpreterError::RuntimeError(
-                "Async runtime not available".to_string(),
-            ))
-        }
+        // Create a new unbuffered channel
+        let channel_state = ChannelState {
+            buffer: Vec::new(),
+            capacity: 0,  // unbuffered
+            closed: false,
+        };
+        Ok(Value::new(ValueData::Channel(Rc::new(RefCell::new(channel_state)))))
     }
 
     /// Send a value to a channel
@@ -795,11 +790,21 @@ impl Interpreter {
         graph: &Graph,
         env: &Environment,
     ) -> InterpreterResult<Value> {
-        let _channel_val = self.eval_node(channel, graph, env)?;
+        let channel_val = self.eval_node(channel, graph, env)?;
         let value_val = self.eval_node(value, graph, env)?;
 
-        // TODO: Implement proper channel send
-        Ok(value_val)
+        match &channel_val.data {
+            ValueData::Channel(ch) => {
+                let mut ch_state = ch.borrow_mut();
+                if ch_state.closed {
+                    Err(InterpreterError::RuntimeError("Channel is closed".to_string()))
+                } else {
+                    ch_state.buffer.push(value_val);
+                    Ok(Value::new(ValueData::Nil))
+                }
+            }
+            _ => Err(InterpreterError::TypeError("Expected channel".to_string()))
+        }
     }
 
     /// Receive a value from a channel
@@ -809,10 +814,26 @@ impl Interpreter {
         graph: &Graph,
         env: &Environment,
     ) -> InterpreterResult<Value> {
-        let _channel_val = self.eval_node(channel, graph, env)?;
+        let channel_val = self.eval_node(channel, graph, env)?;
 
-        // TODO: Implement proper channel receive
-        Ok(Value::new(ValueData::Nil))
+        match &channel_val.data {
+            ValueData::Channel(ch) => {
+                let mut ch_state = ch.borrow_mut();
+                if ch_state.buffer.is_empty() {
+                    if ch_state.closed {
+                        Err(InterpreterError::RuntimeError("Channel is closed and empty".to_string()))
+                    } else {
+                        // In a real implementation, this would block
+                        // For now, return nil to indicate no value available
+                        Ok(Value::new(ValueData::Nil))
+                    }
+                } else {
+                    // Remove and return the first value
+                    Ok(ch_state.buffer.remove(0))
+                }
+            }
+            _ => Err(InterpreterError::TypeError("Expected channel".to_string()))
+        }
     }
 
     /// Try to send a value to a channel non-blocking
@@ -823,12 +844,27 @@ impl Interpreter {
         graph: &Graph,
         env: &Environment,
     ) -> InterpreterResult<Value> {
-        let _channel_val = self.eval_node(channel, graph, env)?;
-        let _value_val = self.eval_node(value, graph, env)?;
+        let channel_val = self.eval_node(channel, graph, env)?;
+        let value_val = self.eval_node(value, graph, env)?;
 
-        // TODO: Implement proper non-blocking channel send
-        // For now, return true (success)
-        Ok(Value::new(ValueData::Boolean(true)))
+        match &channel_val.data {
+            ValueData::Channel(ch) => {
+                let mut ch_state = ch.borrow_mut();
+                if ch_state.closed {
+                    Ok(Value::new(ValueData::Boolean(false)))
+                } else {
+                    // For unbuffered channels, we can't send without a receiver
+                    // For buffered channels, check if there's space
+                    if ch_state.capacity == 0 || ch_state.buffer.len() < ch_state.capacity {
+                        ch_state.buffer.push(value_val);
+                        Ok(Value::new(ValueData::Boolean(true)))
+                    } else {
+                        Ok(Value::new(ValueData::Boolean(false)))
+                    }
+                }
+            }
+            _ => Err(InterpreterError::TypeError("Expected channel".to_string()))
+        }
     }
 
     /// Try to receive a value from a channel non-blocking
@@ -838,14 +874,28 @@ impl Interpreter {
         graph: &Graph,
         env: &Environment,
     ) -> InterpreterResult<Value> {
-        let _channel_val = self.eval_node(channel, graph, env)?;
+        let channel_val = self.eval_node(channel, graph, env)?;
 
-        // TODO: Implement proper non-blocking channel receive
-        // For now, return a list with [false, nil] (no value available)
-        Ok(Value::new(ValueData::List(vec![
-            Value::new(ValueData::Boolean(false)),
-            Value::new(ValueData::Nil),
-        ])))
+        match &channel_val.data {
+            ValueData::Channel(ch) => {
+                let mut ch_state = ch.borrow_mut();
+                if ch_state.buffer.is_empty() {
+                    // No value available
+                    Ok(Value::new(ValueData::List(vec![
+                        Value::new(ValueData::Boolean(false)),
+                        Value::new(ValueData::Nil),
+                    ])))
+                } else {
+                    // Return [true, value]
+                    let value = ch_state.buffer.remove(0);
+                    Ok(Value::new(ValueData::List(vec![
+                        Value::new(ValueData::Boolean(true)),
+                        value,
+                    ])))
+                }
+            }
+            _ => Err(InterpreterError::TypeError("Expected channel".to_string()))
+        }
     }
 }
 

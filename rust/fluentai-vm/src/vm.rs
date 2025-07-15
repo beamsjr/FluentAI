@@ -1,7 +1,7 @@
 //! High-performance stack-based virtual machine
 
 use fluentai_bytecode::{Bytecode, Instruction, Opcode};
-use crate::continuation::{Continuation, ContinuationId, ContinuationManager, ContinuationSupport, ErrorHandlerFrame};
+use crate::continuation::{ContinuationId, ContinuationManager, ContinuationSupport, ErrorHandlerFrame};
 use crate::cow_globals::CowGlobals;
 use crate::debug::{DebugConfig, StepMode, VMDebugEvent};
 use crate::error::{value_type_name, StackFrame, StackTrace, VMError, VMResult};
@@ -9,17 +9,23 @@ use crate::gc::{GarbageCollector, GcConfig, GcScope};
 #[cfg(feature = "jit")]
 use crate::jit_integration::{JitConfig, JitManager};
 use crate::module_registry::ModuleRegistry;
-use crate::safety::{checked_ops, ActorId, ChannelId, IdGenerator, PromiseId, ResourceLimits};
+use crate::safety::{ActorId, IdGenerator, ResourceLimits};
+#[cfg(feature = "std")]
+use crate::safety::{ChannelId, PromiseId};
 use crate::security::{SecurityManager, SecurityPolicy};
 use fluentai_core::ast::{NodeId, UsageStatistics};
 use fluentai_core::value::Value;
+#[cfg(feature = "std")]
 use fluentai_effects::{runtime::EffectRuntime, EffectContext};
 use fluentai_modules::{ModuleLoader, ModuleResolver};
+#[cfg(feature = "std")]
 use fluentai_stdlib::value::Value as StdlibValue;
+#[cfg(feature = "std")]
 use fluentai_stdlib::{init_stdlib, StdlibRegistry};
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
-use std::time::Instant;
+use web_time::Instant;
+#[cfg(feature = "std")]
 use tokio::sync::{mpsc, oneshot};
 
 const STACK_SIZE: usize = 10_000;
@@ -32,6 +38,7 @@ const MAKECLOSURE_CHUNK_ID_SHIFT: u32 = 16;
 const MAKECLOSURE_CAPTURE_COUNT_MASK: u32 = 0xFFFF;
 
 /// Actor state and message handling
+#[cfg(feature = "std")]
 pub struct Actor {
     /// Current state of the actor
     state: Value,
@@ -132,18 +139,25 @@ pub struct VM {
     call_stack: Vec<CallFrame>,
     globals: CowGlobals,
     trace: bool,
+    #[cfg(feature = "std")]
     effect_context: Arc<EffectContext>,
+    #[cfg(feature = "std")]
     effect_runtime: Arc<EffectRuntime>,
     // Async support with typed IDs
     id_generator: IdGenerator,
+    #[cfg(feature = "std")]
     promises: FxHashMap<PromiseId, oneshot::Receiver<VMResult<Value>>>,
+    #[cfg(feature = "std")]
     pending_promise_bodies: FxHashMap<PromiseId, Value>,
+    #[cfg(feature = "std")]
     channels: FxHashMap<ChannelId, (mpsc::Sender<Value>, mpsc::Receiver<Value>)>,
     // Actor support
+    #[cfg(feature = "std")]
     actors: FxHashMap<ActorId, Actor>,
     // Mutable cells
     cells: Vec<Value>,
     // Standard library
+    #[cfg(feature = "std")]
     stdlib: StdlibRegistry,
     // Module system
     module_loader: ModuleLoader,
@@ -174,8 +188,8 @@ pub struct VM {
     #[cfg(feature = "jit")]
     jit_manager: JitManager,
     // Renderer bridge for Dom effects
-    #[cfg(feature = "renderer")]
-    renderer_bridge: Option<fluentai_renderer::RendererBridge>,
+    // #[cfg(feature = "renderer")]
+    // renderer_bridge: Option<fluentai_renderer::RendererBridge>,
     // Continuation support for async/await
     continuation_manager: ContinuationManager,
     // Local variables storage
@@ -233,14 +247,21 @@ impl VM {
             call_stack: Vec::new(),
             globals: CowGlobals::new(),
             trace: false,
+            #[cfg(feature = "std")]
             effect_context: Arc::new(EffectContext::default()),
+            #[cfg(feature = "std")]
             effect_runtime: Arc::new(EffectRuntime::default()),
             id_generator: IdGenerator::new(),
+            #[cfg(feature = "std")]
             promises: FxHashMap::default(),
+            #[cfg(feature = "std")]
             pending_promise_bodies: FxHashMap::default(),
+            #[cfg(feature = "std")]
             channels: FxHashMap::default(),
+            #[cfg(feature = "std")]
             actors: FxHashMap::default(),
             cells: Vec::new(),
+            #[cfg(feature = "std")]
             stdlib: init_stdlib(),
             module_loader: ModuleLoader::new(fluentai_modules::ModuleConfig::default()),
             module_resolver: ModuleResolver::new(ModuleLoader::new(
@@ -261,8 +282,8 @@ impl VM {
             finally_states: Vec::new(),
             #[cfg(feature = "jit")]
             jit_manager: JitManager::new(JitConfig::default()),
-            #[cfg(feature = "renderer")]
-            renderer_bridge: None,
+            // #[cfg(feature = "renderer")]
+            // renderer_bridge: None,
             continuation_manager: ContinuationManager::new(),
             locals: Vec::with_capacity(256),
             current_actor_id: None,
@@ -274,11 +295,11 @@ impl VM {
         self.trace = true;
     }
     
-    /// Set the renderer bridge for Dom effects
-    #[cfg(feature = "renderer")]
-    pub fn set_renderer_bridge(&mut self, bridge: fluentai_renderer::RendererBridge) {
-        self.renderer_bridge = Some(bridge);
-    }
+    // /// Set the renderer bridge for Dom effects
+    // #[cfg(feature = "renderer")]
+    // pub fn set_renderer_bridge(&mut self, bridge: fluentai_renderer::RendererBridge) {
+    //     self.renderer_bridge = Some(bridge);
+    // }
 
     /// Reset VM state for reuse while keeping expensive initializations
     pub fn reset(&mut self) {
@@ -286,7 +307,9 @@ impl VM {
         self.stack.clear();
         self.call_stack.clear();
         self.globals.clear();
+        #[cfg(feature = "std")]
         self.promises.clear();
+        #[cfg(feature = "std")]
         self.channels.clear();
         self.cells.clear();
         self.instruction_count = 0;
@@ -335,26 +358,32 @@ impl VM {
         }
     }
 
+    #[cfg(feature = "std")]
     pub fn set_effect_runtime(&mut self, runtime: Arc<EffectRuntime>) {
         self.effect_runtime = runtime;
     }
 
+    #[cfg(feature = "std")]
     pub fn get_effect_runtime(&self) -> Arc<EffectRuntime> {
         self.effect_runtime.clone()
     }
 
+    #[cfg(feature = "std")]
     pub fn get_effect_context(&self) -> Arc<EffectContext> {
         self.effect_context.clone()
     }
 
+    #[cfg(feature = "std")]
     pub fn set_effect_context(&mut self, context: Arc<EffectContext>) {
         self.effect_context = context;
     }
 
+    #[cfg(feature = "std")]
     pub fn set_stdlib_registry(&mut self, registry: StdlibRegistry) {
         self.stdlib = registry;
     }
 
+    #[cfg(feature = "std")]
     pub fn get_stdlib_registry(&self) -> &StdlibRegistry {
         &self.stdlib
     }
@@ -600,6 +629,7 @@ impl VM {
                         })?;
 
                         // Track main function execution time
+                        #[cfg(not(target_arch = "wasm32"))]
                         if let Some(tracker) = &self.usage_tracker {
                             if let Some(frame) = self.call_stack.last() {
                                 if let Some(start_time) = frame.start_time {
@@ -993,11 +1023,13 @@ impl VM {
         }
     }
 
+    #[cfg(feature = "std")]
     pub fn vm_value_to_stdlib_value(&self, value: &Value) -> StdlibValue {
         // Since StdlibValue is just a re-export of Value, we can clone directly
         value.clone()
     }
 
+    #[cfg(feature = "std")]
     pub fn stdlib_value_to_vm_value(&self, value: &StdlibValue) -> Value {
         // Since StdlibValue is just a re-export of Value, we can clone directly
         value.clone()
@@ -1057,11 +1089,14 @@ impl VM {
                     ip: 0,
                     stack_base,
                     env,
+                    #[cfg(not(target_arch = "wasm32"))]
                     start_time: if self.usage_tracker.is_some() {
                         Some(Instant::now())
                     } else {
                         None
                     },
+                    #[cfg(target_arch = "wasm32")]
+                    start_time: None,
                 });
 
                 // Continue execution until this call returns
@@ -1466,10 +1501,8 @@ impl VM {
                 })?;
 
         // Compile the module
-        // Disable optimization to work around optimizer node ID remapping bug
-        // TODO: Fix optimizer to properly remap node IDs in Module nodes
         let options = crate::compiler::CompilerOptions {
-            optimization_level: fluentai_optimizer::OptimizationLevel::None,
+            optimization_level: fluentai_optimizer::OptimizationLevel::Basic,
             debug_info: false,
         };
         let compiler = crate::compiler::Compiler::with_options(options);
@@ -1492,7 +1525,10 @@ impl VM {
 
         // Create a new VM instance for module execution
         let mut module_vm = VM::new(module_bytecode);
-        module_vm.stdlib = self.stdlib.clone();
+        #[cfg(feature = "std")]
+        {
+            module_vm.stdlib = self.stdlib.clone();
+        }
         module_vm.globals = self.globals.clone();
         module_vm.current_module = Some(module_name.to_string());
 
@@ -1720,6 +1756,7 @@ impl VM {
     pub fn pop_call_frame_with_return(&mut self, return_val: Value) -> VMResult<()> {
         if let Some(frame) = self.call_stack.pop() {
             // Track execution time if usage tracking is enabled
+            #[cfg(not(target_arch = "wasm32"))]
             if let Some(tracker) = &self.usage_tracker {
                 if let Some(start_time) = frame.start_time {
                     let elapsed = start_time.elapsed().as_nanos() as u64;
@@ -1812,6 +1849,7 @@ impl VM {
     
     // ===== Async support methods =====
     
+    #[cfg(feature = "std")]
     pub fn create_channel(&mut self) -> ChannelId {
         let channel_id = self.id_generator.next_channel_id();
         let (tx, rx) = mpsc::channel(100); // Default capacity
@@ -1819,6 +1857,7 @@ impl VM {
         channel_id
     }
     
+    #[cfg(feature = "std")]
     pub fn send_to_channel(&mut self, channel_id: ChannelId, value: Value) -> VMResult<()> {
         if let Some((tx, _)) = self.channels.get(&channel_id) {
             tx.try_send(value).map_err(|e| match e {
@@ -1840,6 +1879,7 @@ impl VM {
         }
     }
     
+    #[cfg(feature = "std")]
     pub fn receive_from_channel(&mut self, channel_id: ChannelId) -> VMResult<Value> {
         if let Some((_, rx)) = self.channels.get_mut(&channel_id) {
             match rx.try_recv() {
@@ -1864,10 +1904,12 @@ impl VM {
         }
     }
     
+    #[cfg(feature = "std")]
     pub fn get_channel_receiver_mut(&mut self, channel_id: &ChannelId) -> Option<&mut mpsc::Receiver<Value>> {
         self.channels.get_mut(channel_id).map(|(_, rx)| rx)
     }
     
+    #[cfg(feature = "std")]
     pub fn await_promise(&mut self, promise_id: PromiseId) -> VMResult<Value> {
         if let Some(mut receiver) = self.promises.remove(&promise_id) {
             // Blocking receive for synchronous execution
@@ -1887,6 +1929,7 @@ impl VM {
         }
     }
     
+    #[cfg(feature = "std")]
     pub fn spawn_task(&mut self, func: Value) -> VMResult<()> {
         match func {
             Value::Function { chunk_id, env } => {
@@ -1943,6 +1986,7 @@ impl VM {
         }
     }
     
+    #[cfg(feature = "std")]
     pub fn create_actor(&mut self, initial_state: Value, handler: Value) -> VMResult<ActorId> {
         // Validate handler is a function
         match &handler {
@@ -1976,6 +2020,7 @@ impl VM {
         Ok(actor_id)
     }
     
+    #[cfg(feature = "std")]
     pub fn send_to_actor(&mut self, actor_id: ActorId, message: Value) -> VMResult<()> {
         if let Some(actor) = self.actors.get(&actor_id) {
             // Send message (non-blocking)
@@ -2020,6 +2065,7 @@ impl VM {
         Ok(())
     }
     
+    #[cfg(feature = "std")]
     pub fn take_promise(&mut self, promise_id: &PromiseId) -> Option<oneshot::Receiver<VMResult<Value>>> {
         self.promises.remove(promise_id)
     }
@@ -2030,11 +2076,13 @@ impl VM {
     }
     
     /// Get the pending promise bodies map
+    #[cfg(feature = "std")]
     pub fn pending_promise_bodies(&mut self) -> &mut FxHashMap<PromiseId, Value> {
         &mut self.pending_promise_bodies
     }
     
     /// Get mutable access to promises map
+    #[cfg(feature = "std")]
     pub fn promises_mut(&mut self) -> &mut FxHashMap<PromiseId, oneshot::Receiver<VMResult<Value>>> {
         &mut self.promises
     }
@@ -2081,6 +2129,7 @@ impl VM {
         Ok(())
     }
     
+    #[cfg(feature = "std")]
     pub fn is_stdlib_function(&self, name: &str) -> bool {
         self.stdlib.contains(name)
     }
@@ -2152,6 +2201,7 @@ impl VM {
     // Native function calls
     pub fn call_native_function(&mut self, native_func: &str, args: Vec<Value>) -> VMResult<()> {
         // Check if it's a stdlib function with __stdlib__ prefix
+        #[cfg(feature = "std")]
         if let Some(func_name) = native_func.strip_prefix("__stdlib__") {
             // Handle stdlib function calls
             if let Some(stdlib_func) = self.stdlib.get(func_name) {
@@ -2280,28 +2330,9 @@ impl VM {
             }
             "Dom" => {
                 // Handle Dom effects
-                #[cfg(feature = "renderer")]
-                if let Some(bridge) = &self.renderer_bridge {
-                    // Convert Value arguments to JSON
-                    let mut json_args = Vec::new();
-                    for arg in args {
-                        let json_value = self.value_to_json(arg)?;
-                        json_args.push(json_value);
-                    }
-                    
-                    // Handle the Dom effect
-                    let result = bridge.handle_dom_effect(effect_op, json_args)
-                        .map_err(|e| VMError::RuntimeError {
-                            message: format!("Dom effect error: {}", e),
-                            stack_trace: None,
-                        })?;
-                    
-                    // Convert result back to Value
-                    let value = self.json_to_value(result)?;
-                    self.push(value)?;
-                } else {
-                    // Fallback Dom implementation for testing
-                    match effect_op {
+                // Note: Renderer integration is now done externally via WASM bindings
+                // The VM provides a simple mock implementation for testing
+                match effect_op {
                         "create_element" => {
                             // Dom.create_element(type, props) -> element_id
                             if args.len() < 2 {
@@ -2347,57 +2378,6 @@ impl VM {
                             });
                         }
                     }
-                }
-                #[cfg(not(feature = "renderer"))]
-                {
-                    // Fallback Dom implementation for testing
-                    match effect_op {
-                        "create_element" => {
-                            // Dom.create_element(type, props) -> element_id
-                            if args.len() < 2 {
-                                return Err(VMError::RuntimeError {
-                                    message: "Dom.create_element requires type and props".to_string(),
-                                    stack_trace: None,
-                                });
-                            }
-                            // For now, just print what would be created
-                            println!("DOM: Creating {} element", args[0]);
-                            if let Value::List(props) = &args[1] {
-                                println!("     Properties: {:?}", props);
-                            }
-                            // Return a mock element ID
-                            self.push(Value::String(format!("element_{}", self.stack.len())))?;
-                        }
-                        "create_surface" => {
-                            // Dom.create_surface(name, props) -> surface_id
-                            if args.len() < 2 {
-                                return Err(VMError::RuntimeError {
-                                    message: "Dom.create_surface requires name and props".to_string(),
-                                    stack_trace: None,
-                                });
-                            }
-                            println!("DOM: Creating surface '{}'", args[0]);
-                            self.push(Value::String(format!("surface_{}", args[0])))?;
-                        }
-                        "update_element" => {
-                            // Dom.update_element(id, props) -> unit
-                            if args.len() < 2 {
-                                return Err(VMError::RuntimeError {
-                                    message: "Dom.update_element requires id and props".to_string(),
-                                    stack_trace: None,
-                                });
-                            }
-                            println!("DOM: Updating element {}", args[0]);
-                            self.push(Value::Nil)?;
-                        }
-                        _ => {
-                            return Err(VMError::RuntimeError {
-                                message: format!("Unknown Dom operation: {}", effect_op),
-                                stack_trace: None,
-                            });
-                        }
-                    }
-                }
             }
             _ => {
                 // For other effects, try the effect context
@@ -2587,11 +2567,13 @@ impl VM {
     
     
     /// Get a reference to a channel
+    #[cfg(feature = "std")]
     pub fn get_channel(&self, channel_id: &crate::safety::ChannelId) -> Option<&(mpsc::Sender<Value>, mpsc::Receiver<Value>)> {
         self.channels.get(channel_id)
     }
     
     /// Get a mutable reference to a channel
+    #[cfg(feature = "std")]
     pub fn get_channel_mut(&mut self, channel_id: &crate::safety::ChannelId) -> Option<&mut (mpsc::Sender<Value>, mpsc::Receiver<Value>)> {
         self.channels.get_mut(channel_id)
     }
@@ -2614,13 +2596,55 @@ impl VM {
     }
     
     /// Get an exported value from a module
-    pub fn get_module_export(&self, module_name: &str, export_name: &str) -> VMResult<Value> {
-        self.module_registry
-            .get_export(module_name, export_name)
-            .map_err(|e| VMError::RuntimeError {
-                message: e.to_string(),
-                stack_trace: None,
-            })
+    pub fn get_module_export(&mut self, module_name: &str, export_name: &str) -> VMResult<Value> {
+        // First try to get the export directly
+        match self.module_registry.get_export(module_name, export_name) {
+            Ok(value) => Ok(value),
+            Err(e) => {
+                // Check if the module needs execution
+                if !self.module_registry.is_module_executed(module_name) {
+                    // Execute the module to populate exports
+                    if let Some(module_info) = self.module_registry.get_module(module_name) {
+                        let bytecode = module_info.bytecode.clone();
+                        let exports = module_info.exports.clone();
+                        
+                        // Create a new VM instance for module execution
+                        let mut module_vm = VM::with_shared_bytecode(bytecode);
+                        
+                        // Run the module's main chunk
+                        if let Ok(result) = module_vm.run() {
+                            // Extract exported values
+                            for export in &exports {
+                                if let Some(value) = module_vm.get_global(&export.name) {
+                                    let _ = self.module_registry.set_export_value(
+                                        module_name,
+                                        &export.name,
+                                        value.clone(),
+                                    );
+                                }
+                            }
+                            
+                            // Mark module as executed
+                            let _ = self.module_registry.mark_module_executed(module_name);
+                            
+                            // Try again to get the export
+                            return self.module_registry
+                                .get_export(module_name, export_name)
+                                .map_err(|e| VMError::RuntimeError {
+                                    message: e.to_string(),
+                                    stack_trace: None,
+                                });
+                        }
+                    }
+                }
+                
+                // If we get here, return the original error
+                Err(VMError::RuntimeError {
+                    message: e.to_string(),
+                    stack_trace: None,
+                })
+            }
+        }
     }
     
     /// Set a module export value (called after module execution)
@@ -2804,7 +2828,10 @@ mod inline_tests {
             ip: 0,
             stack_base: 0,
             env: vec![],
+            #[cfg(not(target_arch = "wasm32"))]
             start_time: Some(Instant::now()),
+            #[cfg(target_arch = "wasm32")]
+            start_time: None,
         };
 
         assert_eq!(frame.chunk_id, 0);
@@ -2863,6 +2890,7 @@ mod inline_tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_value_conversions() {
         let mut bytecode = Bytecode::new();
         let mut chunk = BytecodeChunk::new(Some("test".to_string()));

@@ -8,19 +8,23 @@ repository.workspace = true
 description = "High-performance 3D rendering engine for Continuum UI"
 
 [dependencies]
-wgpu = "0.19"
-winit = "0.29"
+# FluentAI dependencies
+fluentai-vm = { path = "../fluentai-vm", default-features = false }
+fluentai-core = { path = "../fluentai-core" }
+fluentai-parser = { path = "../fluentai-parser" }
+# fluentai-effects = { path = "../fluentai-effects" } # TODO: Make WASM-compatible
+fluentai-modules = { path = "../fluentai-modules" }
+
+# Common dependencies
 bytemuck = { version = "1.14", features = ["derive"] }
 cgmath = "0.18"
 image = "0.24"
 log = "0.4"
-env_logger = "0.10"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-
-# For text rendering
-wgpu_glyph = "0.23"
+rustc-hash = "1.1"
+uuid = { version = "1.0", features = ["v4", "js"] }
 
 # Physics engine for reactive layouts
 rapier2d = { version = "0.17", features = ["wasm-bindgen", "serde-serialize"] }
@@ -32,6 +36,34 @@ glam = { version = "0.25", features = ["serde"] }  # Fast math library for 3D tr
 
 # For channels in physics module
 crossbeam = "0.8"
+
+# For reactive system
+lazy_static = "1.4"
+parking_lot = "0.12"
+
+# For platform integration
+thiserror = "1.0"
+
+# Native-only dependencies
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wgpu = "0.19"
+winit = "0.29"
+env_logger = "0.10"
+# wgpu_glyph = "0.20" # Temporarily disabled due to version mismatch
+dirs = "5.0"
+open = "5.0"
+num_cpus = "1.16"
+rfd = "0.13"
+notify-rust = "4.9"
+notify = "6.1"
+
+# Font rendering dependencies
+fontdue = "0.8"
+glyph_brush_layout = "0.2"
+
+# Windows-specific clipboard
+[target.'cfg(target_os = "windows")'.dependencies]
+clipboard-win = "5.0"
 
 # For WebAssembly support
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -51,6 +83,20 @@ web-sys = { version = "0.3", features = [
     "CanvasRenderingContext2d",
     "MouseEvent",
     "DomRect",
+    "KeyboardEvent",
+    "TouchEvent",
+    "Event",
+    "EventTarget",
+    "HtmlElement",
+    "Navigator",
+    "Screen",
+    "MediaQueryList",
+    "Notification",
+    "NotificationOptions",
+    "Storage",
+    "Clipboard",
+    "RtcPeerConnection",
+    "Gamepad",
 ]}
 js-sys = "0.3"
 console_error_panic_hook = "0.1"
@@ -58,6 +104,13 @@ console_log = "1.0"
 
 [dev-dependencies]
 pollster = "0.3"
+wasm-bindgen-test = "0.3"
+tempfile = "3.8"
+criterion = "0.5"
+
+[features]
+default = []
+vm-integration = ["fluentai-vm/wasm"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

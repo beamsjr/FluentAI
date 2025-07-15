@@ -324,6 +324,16 @@ impl FreeVarAnalyzer {
                 self.merge_analysis(&mut analysis, channel_analysis);
             }
             
+            Node::Map(pairs) => {
+                // Analyze all keys and values
+                for &(key_id, value_id) in pairs {
+                    let key_analysis = self.analyze_node(graph, key_id, scope_id, bound_vars)?;
+                    let value_analysis = self.analyze_node(graph, value_id, scope_id, bound_vars)?;
+                    self.merge_analysis(&mut analysis, key_analysis);
+                    self.merge_analysis(&mut analysis, value_analysis);
+                }
+            }
+            
             // Literals and other leaf nodes have no variables
             Node::Literal(_) | Node::Channel { .. } => {}
             

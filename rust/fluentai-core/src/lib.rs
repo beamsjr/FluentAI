@@ -15,6 +15,7 @@ pub mod error;
 pub mod thread_pool;
 pub mod traits;
 pub mod value;
+pub mod work_stealing_scheduler;
 
 pub use ast::{AstHashMap, AstHashSet};
 pub use error::{Error, Result};

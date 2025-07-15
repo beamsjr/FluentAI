@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluentAI Compiler Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        
+        .editor-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .panel h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 300px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+        
+        .output {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 300px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #1b5e20;
+            color: #4CAF50;
+            display: block;
+        }
+        
+        .status.error {
+            background: #b71c1c;
+            color: #ff5252;
+            display: block;
+        }
+        
+        .status.info {
+            background: #1565c0;
+            color: #64b5f6;
+            display: block;
+        }
+        
+        .loading {
+            display: none;
+            color: #ff9800;
+        }
+        
+        .examples {
+            margin-top: 30px;
+        }
+        
+        .example-btn {
+            background: #2196F3;
+            font-size: 12px;
+            padding: 5px 10px;
+        }
+        
+        pre {
+            margin: 0;
+        }
+        
+        .metadata {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FluentAI Compiler Demo</h1>
+        <p class="subtitle">Real FluentAI compiler running in WebAssembly</p>
+        
+        <div id="status" class="status"></div>
+        
+        <div class="controls">
+            <button onclick="parseCode()">Parse</button>
+            <button onclick="compileCode()">Compile</button>
+            <button onclick="runCode()">Run</button>
+            <button onclick="clearOutput()">Clear Output</button>
+            <span class="loading" id="loading">Loading...</span>
+        </div>
+        
+        <div class="editor-container">
+            <div class="panel">
+                <h3>FluentAI Code</h3>
+                <textarea id="code-input">// FluentAI Demo Code
+let greeting = "Hello from FluentAI!";
+let numbers = [1, 2, 3, 4, 5];
+
+// Calculate sum using reduce
+let sum = numbers.reduce(0, (acc, n) => acc + n);
+
+// Create result object
+{
+    "greeting": greeting,
+    "numbers": numbers,
+    "sum": sum,
+    "average": sum / numbers.length(),
+    "doubled": numbers.map(n => n * 2)
+}</textarea>
+            </div>
+            
+            <div class="panel">
+                <h3>Output</h3>
+                <div id="output" class="output">Initializing FluentAI compiler...</div>
+                <div id="metadata" class="metadata" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="examples">
+            <h3>Example Programs</h3>
+            <button class="example-btn" onclick="loadExample('basic')">Basic Math</button>
+            <button class="example-btn" onclick="loadExample('functions')">Functions</button>
+            <button class="example-btn" onclick="loadExample('collections')">Collections</button>
+            <button class="example-btn" onclick="loadExample('io')">I/O Effects</button>
+            <button class="example-btn" onclick="loadExample('error')">Parse Error</button>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { FluentAI } from './fluentai-runtime-wasm.js';
+        
+        let fluentai = null;
+        
+        // Initialize FluentAI
+        async function init() {
+            const loading = document.getElementById('loading');
+            const status = document.getElementById('status');
+            const output = document.getElementById('output');
+            
+            try {
+                loading.style.display = 'inline';
+                status.className = 'status info';
+                status.textContent = 'Initializing FluentAI compiler...';
+                
+                fluentai = await FluentAI.initialize({
+                    optimization: 'standard',
+                    debug: true
+                });
+                
+                status.className = 'status success';
+                status.textContent = 'FluentAI compiler ready!';
+                output.textContent = 'Ready to compile FluentAI code.\n\nTry clicking "Parse", "Compile", or "Run" to see the compiler in action.';
+                
+                // Run a quick test
+                const result = await fluentai.runDemo();
+                console.log('Demo result:', result);
+                
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = 'Failed to initialize: ' + error.message;
+                output.textContent = 'Error: ' + error.message + '\n\n' + error.stack;
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+        
+        // Parse code
+        window.parseCode = async function() {
+            if (!fluentai) return;
+            
+            const code = document.getElementById('code-input').value;
+            const output = document.getElementById('output');
+            const status = document.getElementById('status');
+            
+            try {
+                const result = await fluentai.parse(code);
+                status.className = 'status success';
+                status.textContent = 'Parse successful!';
+                output.textContent = 'AST Info:\n' + JSON.stringify(result, null, 2);
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = 'Parse error';
+                output.textContent = formatError(error);
+            }
+        };
+        
+        // Compile code
+        window.compileCode = async function() {
+            if (!fluentai) return;
+            
+            const code = document.getElementById('code-input').value;
+            const output = document.getElementById('output');
+            const status = document.getElementById('status');
+            const metadata = document.getElementById('metadata');
+            
+            try {
+                const bytecode = await fluentai.compile(code);
+                const metadataInfo = await fluentai.compileWithMetadata(code);
+                
+                status.className = 'status success';
+                status.textContent = 'Compilation successful!';
+                output.textContent = `Bytecode compiled successfully!\n\nBytecode size: ${bytecode.length} bytes\n\nBytecode (hex):\n${formatBytecode(bytecode)}`;
+                
+                metadata.style.display = 'block';
+                metadata.innerHTML = '<strong>Compilation Metadata:</strong><br>' + JSON.stringify(metadataInfo, null, 2);
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = 'Compilation error';
+                output.textContent = formatError(error);
+                metadata.style.display = 'none';
+            }
+        };
+        
+        // Run code
+        window.runCode = async function() {
+            if (!fluentai) return;
+            
+            const code = document.getElementById('code-input').value;
+            const output = document.getElementById('output');
+            const status = document.getElementById('status');
+            
+            try {
+                const result = await fluentai.run(code);
+                status.className = 'status success';
+                status.textContent = 'Execution successful!';
+                output.textContent = 'Result:\n' + JSON.stringify(result, null, 2);
+                
+                // Show VM stats
+                const stats = await fluentai.getStats();
+                output.textContent += '\n\nVM Stats:\n' + JSON.stringify(stats, null, 2);
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = 'Runtime error';
+                output.textContent = formatError(error);
+            }
+        };
+        
+        // Clear output
+        window.clearOutput = function() {
+            document.getElementById('output').textContent = '';
+            document.getElementById('metadata').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+        };
+        
+        // Load example
+        window.loadExample = function(example) {
+            const codeInput = document.getElementById('code-input');
+            const examples = {
+                basic: `// Basic arithmetic
+let a = 10;
+let b = 20;
+let sum = a + b;
+let product = a * b;
+
+{
+    "a": a,
+    "b": b,
+    "sum": sum,
+    "product": product,
+    "expression": (a + b) * 2
+}`,
+                functions: `// Function definitions
+let add = (x, y) => x + y;
+let multiply = (x, y) => x * y;
+
+// Higher-order function
+let apply_twice = (f, x) => f(f(x));
+
+let double = (x) => x * 2;
+let result = apply_twice(double, 5);
+
+{
+    "simple": add(3, 4),
+    "nested": multiply(add(2, 3), 4),
+    "higher_order": result
+}`,
+                collections: `// Working with collections
+let numbers = [1, 2, 3, 4, 5];
+let names = ["Alice", "Bob", "Charlie"];
+
+// Map, filter, reduce
+let doubled = numbers.map(n => n * 2);
+let evens = numbers.filter(n => n % 2 == 0);
+let sum = numbers.reduce(0, (acc, n) => acc + n);
+
+// Object/Map operations
+let person = {
+    "name": "Alice",
+    "age": 30,
+    "city": "New York"
+};
+
+{
+    "doubled": doubled,
+    "evens": evens,
+    "sum": sum,
+    "first_name": names[0],
+    "person": person
+}`,
+                io: `// I/O Effects (browser console)
+perform IO.println("Hello from FluentAI!");
+perform IO.println("This will appear in the browser console");
+
+let message = "FluentAI effects are working!";
+perform IO.log(message);
+
+{
+    "status": "Check the browser console for output",
+    "message": message
+}`,
+                error: `// This code has intentional errors
+let x = 10;
+let y = // missing value
+
+function broken {
+    return x +
+}
+
+// Missing closing brace
+{ "result": broken()`
+            };
+            
+            codeInput.value = examples[example] || '';
+        };
+        
+        // Helper functions
+        function formatBytecode(bytecode) {
+            const hex = Array.from(bytecode)
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join(' ');
+            
+            // Format in rows of 16 bytes
+            const rows = [];
+            for (let i = 0; i < hex.length; i += 48) {
+                rows.push(hex.substr(i, 48));
+            }
+            return rows.join('\n');
+        }
+        
+        function formatError(error) {
+            if (error && typeof error === 'object') {
+                if (error.error) {
+                    return `${error.type || 'Error'}: ${error.error}`;
+                }
+            }
+            return String(error);
+        }
+        
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

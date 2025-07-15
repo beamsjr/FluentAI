@@ -11,7 +11,7 @@ members = [
     "fluentai-core-lib",
     "fluentai-cli",
     "fluentai-tools",
-    "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-interpreter", "fluentai-repl", "fluentai-ui-compiler", "fluentai-lint", "fluentai-metaprogramming", "fluentai-actors", "fluentai-embeddings", "fluentai-doc-macros", "examples", "fluentai-renderer",
+    "benchmarks", "fluentai-effects", "fluentai-types", "fluentai-modules", "fluentai-package", "fluentai-mcp", "fluentai-contracts", "fluentai-optimizer", "fluentai-di", "fluentai-db", "fluentai-viz", "fluentai-interpreter", "fluentai-repl", "fluentai-ui-compiler", "fluentai-lint", "fluentai-metaprogramming", "fluentai-actors", "fluentai-embeddings", "fluentai-doc-macros", "examples", "fluentai-renderer", "fluentai-codegen", "fluentai-wasm", "fluentai-ui-macros",
 ]
 resolver = "2"
 
@@ -75,3 +75,7 @@ panic = "abort"
 [profile.bench]
 inherits = "release"
 debug = true
+
+# [patch.crates-io]
+# # Ensure instant uses wasm-bindgen for WASM builds
+# instant = { version = "0.1", features = ["wasm-bindgen"] }

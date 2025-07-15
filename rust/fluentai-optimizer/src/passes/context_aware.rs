@@ -246,6 +246,11 @@ impl ContextAwarePass {
                     .collect(),
                 body: mapping.get(body).copied().unwrap_or(*body),
             },
+            Node::Module { name, exports, body } => Node::Module {
+                name: name.clone(),
+                exports: exports.clone(),
+                body: mapping.get(body).copied().unwrap_or(*body),
+            },
             _ => node.clone(), // For literals, variables, etc. that don't contain NodeIds
         }
     }

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple FluentAI VM Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+        }
+        
+        #editor {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        #output {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: #f5f5f5;
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        
+        .error {
+            color: red;
+        }
+        
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple FluentAI VM Demo</h1>
+    <p>This is a minimal demo showing how to compile and run FluentAI code in the browser.</p>
+    
+    <h2>FluentAI Code:</h2>
+    <textarea id="editor">// Simple FluentAI example
+private function add(a: int, b: int) -> int {
+    a + b
+}
+
+private function main() {
+    let x = 10;
+    let y = 20;
+    let result = add(x, y);
+    
+    // For now, just return the result
+    result
+}
+
+main()</textarea>
+    
+    <div>
+        <button id="runBtn">Run</button>
+        <button id="clearBtn">Clear</button>
+    </div>
+    
+    <h2>Output:</h2>
+    <div id="output"></div>
+    
+    <script type="module">
+        // For now, we'll simulate the VM behavior until WASM compilation works
+        const output = document.getElementById('output');
+        const editor = document.getElementById('editor');
+        const runBtn = document.getElementById('runBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        
+        function log(message, type = 'info') {
+            const span = document.createElement('span');
+            span.className = type;
+            span.textContent = message + '\n';
+            output.appendChild(span);
+        }
+        
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+        
+        async function runCode() {
+            clearOutput();
+            const code = editor.value;
+            
+            log('Compiling FluentAI code...');
+            
+            // Simulate compilation and execution
+            try {
+                // Simple parser to extract the result
+                if (code.includes('result = add(x, y)')) {
+                    log('Compilation successful!', 'success');
+                    log('Executing...');
+                    log('Result: 30', 'success');
+                } else {
+                    log('Code compiled successfully', 'success');
+                    log('Note: This is a simulation. Full VM support coming soon!');
+                }
+            } catch (error) {
+                log('Error: ' + error.message, 'error');
+            }
+        }
+        
+        runBtn.addEventListener('click', runCode);
+        clearBtn.addEventListener('click', clearOutput);
+        
+        // Initial message
+        log('FluentAI VM Demo (Simulation Mode)');
+        log('Click "Run" to execute the code above.');
+    </script>
+</body>
+</html>

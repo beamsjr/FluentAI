@@ -221,6 +221,15 @@ impl ASTLayouter {
                 children.extend(invariants);
                 children
             }
+            Node::Map(pairs) => {
+                let mut children = Vec::new();
+                for (key, value) in pairs {
+                    children.push(*key);
+                    children.push(*value);
+                }
+                children
+            }
+            Node::Extern { .. } => vec![], // Extern nodes have no child nodes
             _ => vec![],
         }
     }
@@ -292,6 +301,8 @@ impl ASTLayouter {
             Node::StateField { name, .. } => format!("state {}", name),
             Node::When { .. } => "when".to_string(),
             Node::Disturb { field, .. } => format!("disturb {}", field),
+            Node::Map(_) => "map".to_string(),
+            Node::Extern { .. } => "extern".to_string(),
         }
     }
 
@@ -342,6 +353,8 @@ impl ASTLayouter {
             Node::StateField { .. } => "state-field",
             Node::When { .. } => "when",
             Node::Disturb { .. } => "disturb",
+            Node::Map(_) => "map",
+            Node::Extern { .. } => "extern",
         }
         .to_string()
     }

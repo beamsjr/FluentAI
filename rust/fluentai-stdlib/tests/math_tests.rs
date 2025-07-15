@@ -87,6 +87,21 @@ fn test_power_functions() {
         Value::Float(0.1)
     );
 
+    // Test ** operator (alias for pow)
+    let exp_op = stdlib.get("**").unwrap();
+    assert_eq!(
+        exp_op.call(&[Value::Integer(2), Value::Integer(8)]).unwrap(),
+        Value::Integer(256)
+    );
+    assert_eq!(
+        exp_op.call(&[Value::Float(2.0), Value::Float(8.0)]).unwrap(),
+        Value::Float(256.0)
+    );
+    assert_eq!(
+        exp_op.call(&[Value::Integer(3), Value::Integer(3)]).unwrap(),
+        Value::Integer(27)
+    );
+
     // Test sqrt
     let sqrt = stdlib.get("sqrt").unwrap();
     assert_eq!(sqrt.call(&[Value::Integer(16)]).unwrap(), Value::Float(4.0));

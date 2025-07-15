@@ -142,6 +142,9 @@ fn di_integration_demo() -> Result<()> {
         loop_optimization: true,
         beta_reduction: true,
         partial_evaluation: false, // Disable partial eval for this example
+        strength_reduction: true,
+        algebraic_simplification: false,
+        loop_invariant_code_motion: false,
         max_iterations: 3,
         debug_mode: true,
     };

@@ -1,0 +1,4232 @@
+Found 282 methods over 50 lines:
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_let_expression (lines 1584-3795, 2212 lines)
+Preview:
+    fn parse_let_expression(&mut self) -> Result<NodeId> {
+        self.consume(Token::Let)?;
+        
+
+        let mut bindings = vec![];
+
+        // Check for 'rec' keyword
+        let is_rec = matches!(self.current, Some(Token::Rec));
+        if is_rec {
+            self.advance();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/advanced_optimizer.rs
+Method: copy_node_optimized_internal (lines 767-1296, 530 lines)
+Preview:
+    fn copy_node_optimized_internal(&mut self, node_id: NodeId) -> Result<Option<Node>> {
+        let node = match self.graph.as_ref().unwrap().get_node(node_id) {
+            Some(n) => n.clone(),
+            None => return Ok(None),
+        };
+        let optimized_node = match node {
+            Node::Application { function, args } => {
+                let opt_func = self.optimize_node(function)?;
+                let mut opt_args = Vec::new();
+                for arg in args {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast.rs
+Method: get_node_docs (lines 1698-2219, 522 lines)
+Preview:
+    pub fn get_node_docs(&self) -> Documentation {
+        match self {
+            Node::Literal(lit) => match lit {
+                Literal::Integer(_) => Documentation {
+                    name: "Integer".to_string(),
+                    syntax: "<integer>".to_string(),
+                    description: "Integer literals represent whole numbers. FluentAi supports 64-bit signed integers.".to_string(),
+                    examples: vec!["42".to_string(), "-17".to_string(), "0".to_string()],
+                    category: DocumentationCategory::Literal,
+                    see_also: vec![],
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/advanced_optimizer.rs
+Method: optimize_node_iterative (lines 165-620, 456 lines)
+Preview:
+    fn optimize_node_iterative(&mut self, start_node_id: NodeId) -> Result<Option<NodeId>> {
+        #[derive(Debug)]
+        enum WorkItem {
+            Process(NodeId),
+            Complete(NodeId, NodeId),
+        }
+
+        let mut stack = vec![WorkItem::Process(start_node_id)];
+        let mut results: FxHashMap<NodeId, Option<NodeId>> = FxHashMap::default();
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/concurrent.rs
+Method: execute (lines 12-459, 448 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, _chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // Spawn a new concurrent task
+            Spawn => {
+                let func = vm.pop()?;
+                vm.spawn_task(func)?;
+            }
+            
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/tests/flc_parser_tests.rs
+Method: test_parse_error_cases (lines 246-638, 393 lines)
+Preview:
+    fn test_parse_error_cases() {
+        let error_cases = vec![
+            ("private function", "incomplete function"),
+            ("let x =", "incomplete let"),
+            ("if (x)", "incomplete if"),
+            ("{", "unclosed brace"),
+            ("1 +", "incomplete expression"),
+            ("private 123", "invalid definition"),
+        ];
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_primary_expression (lines 1010-1389, 380 lines)
+Preview:
+    fn parse_primary_expression(&mut self) -> Result<NodeId> {
+        #[cfg(test)]
+        eprintln!(
+            "parse_primary_expression: current token: {:?}",
+            self.current
+        );
+
+        match self.current.clone() {
+            Some(Token::Integer(n)) => {
+                self.advance();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_pattern_test (lines 2281-2653, 373 lines)
+Preview:
+    fn compile_pattern_test(
+        &mut self,
+        graph: &ASTGraph,
+        pattern: &Pattern,
+    ) -> Result<(Vec<(String, usize)>, bool)> {
+        let mut bindings = Vec::new();
+
+        match pattern {
+            Pattern::Wildcard => {
+                // Always matches, no test needed
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/memory.rs
+Method: execute (lines 12-318, 307 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // Local variable operations
+            Load => {
+                let local_idx = instruction.arg as usize;
+                let value = vm.get_local(local_idx)?.clone();
+                vm.push(value)?;
+            }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/free_var_analysis.rs
+Method: analyze_node (lines 126-348, 223 lines)
+Preview:
+    fn analyze_node(
+        &mut self,
+        graph: &ASTGraph,
+        node_id: NodeId,
+        scope_id: ScopeId,
+        bound_vars: &FxHashSet<String>,
+    ) -> Result<NodeAnalysis> {
+        let node = graph.nodes.get(&node_id)
+            .ok_or_else(|| anyhow!("Invalid node ID: {:?}", node_id))?;
+        
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/stack_effect.rs
+Method: stack_effect (lines 38-258, 221 lines)
+Preview:
+pub fn stack_effect(instruction: &Instruction) -> StackEffect {
+    use Opcode::*;
+    
+    match instruction.opcode {
+        // Stack manipulation
+        Pop => StackEffect::new(1, 0),
+        PopN => {
+            // PopN pops N values beneath the top value, keeping the top
+            // So it needs N+1 values initially, and leaves 1 value
+            if instruction.arg > 0 {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_postfix_expression (lines 791-1008, 218 lines)
+Preview:
+    fn parse_postfix_expression(&mut self) -> Result<NodeId> {
+        let mut expr = self.parse_primary_expression()?;
+
+        loop {
+            match self.current {
+                Some(Token::OptionalChain) => {
+                    // Optional chaining: obj.?method()
+                    self.advance();
+
+                    // Get method/property name
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/dead_code.rs
+Method: mark_reachable (lines 25-231, 207 lines)
+Preview:
+    fn mark_reachable(&self, graph: &Graph, node_id: NodeId, reachable: &mut FxHashSet<NodeId>) {
+        if !reachable.insert(node_id) {
+            return; // Already visited
+        }
+
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Application { function, args } => {
+                    self.mark_reachable(graph, *function, reachable);
+                    for arg in args {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast.rs
+Method: dfs_iterative (lines 307-508, 202 lines)
+Preview:
+    pub fn dfs_iterative(&self, start: NodeId, visitor: &mut impl FnMut(NodeId, &Node)) {
+        let mut visited = AstHashSet::default();
+        let mut stack = vec![start];
+
+        while let Some(node_id) = stack.pop() {
+            if !visited.insert(node_id) {
+                continue; // Already visited
+            }
+
+            if let Some(node) = self.get_node(node_id) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/error.rs
+Method: fmt (lines 185-383, 199 lines)
+Preview:
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VMError::StackOverflow {
+                current_depth,
+                max_depth,
+                stack_trace,
+            } => {
+                write!(
+                    f,
+                    "Stack overflow: depth {} exceeds maximum {}",
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_match (lines 2083-2279, 197 lines)
+Preview:
+    fn compile_match(
+        &mut self,
+        graph: &ASTGraph,
+        expr: NodeId,
+        branches: &[(Pattern, NodeId)],
+    ) -> Result<()> {
+        // Validate that we have at least one branch
+        if branches.is_empty() {
+            return Err(anyhow!("Match expression must have at least one branch"));
+        }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests_extended.rs
+Method: test_compile_letrec_mutual_recursion (lines 554-746, 193 lines)
+Preview:
+fn test_compile_letrec_mutual_recursion() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (letrec ((even? (lambda (n) (if (= n 0) true (odd? (- n 1)))))
+    //                 (odd? (lambda (n) (if (= n 0) false (even? (- n 1))))))
+    //         (even? 4))
+
+    // even? function
+    let n_var_even1 = graph
+        .add_node(Node::Variable {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/arithmetic.rs
+Method: execute (lines 13-203, 191 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, _chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // Basic arithmetic
+            Add => vm.binary_op(|a, b| match (a, b) {
+                (Value::Integer(x), Value::Integer(y)) => checked_ops::add_i64(x, y)
+                    .map(Value::Integer)
+                    .map_err(|_| VMError::IntegerOverflow {
+                        operation: "add".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/substitution_tests.rs
+Method: verify_node_references_recursive (lines 171-361, 191 lines)
+Preview:
+fn verify_node_references_recursive(graph: &Graph, node_id: NodeId, node: &Node) {
+    match node {
+        Node::Application { function, args } => {
+            assert!(
+                graph.get_node(*function).is_some(),
+                "Node {:?} has dangling function reference {:?}",
+                node_id,
+                function
+            );
+            for arg in args {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/dead_code.rs
+Method: collect_vars_from_node (lines 250-439, 190 lines)
+Preview:
+    fn collect_vars_from_node(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        used: &mut FxHashSet<String>,
+    ) {
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Variable { name } => {
+                    used.insert(name.clone());
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_definition (lines 129-305, 177 lines)
+Preview:
+    fn parse_definition(&mut self) -> Result<NodeId> {
+        // Check for contract annotations
+        let mut contract_info = None;
+        if matches!(self.current, Some(Token::At)) {
+            contract_info = Some(self.parse_contract_annotations()?);
+        }
+
+        // Determine visibility
+        let is_public = matches!(self.current, Some(Token::Public));
+        if is_public {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-interpreter/src/interpreter.rs
+Method: call_builtin (lines 384-558, 175 lines)
+Preview:
+    fn call_builtin(&mut self, name: &str, args: Vec<Value>) -> InterpreterResult<Value> {
+        // Try to find the function in the stdlib registry first
+        if let Some(func) = self.stdlib_registry.get(name) {
+            // Validate argument count
+            if let Err(e) = func.validate_args(args.len()) {
+                return Err(InterpreterError::RuntimeError(e.to_string()));
+            }
+            
+            // TODO: Convert between interpreter Value and core Value types
+            // For now, fall through to the basic builtin implementation
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/effect_aware.rs
+Method: run (lines 53-227, 175 lines)
+Preview:
+    fn run(&mut self, graph: &Graph) -> Result<Graph> {
+        self.pure_hoisted = 0;
+        self.effects_reordered = 0;
+        self.duplicates_removed = 0;
+
+        let mut optimized = Graph::new();
+        let mut node_mapping = FxHashMap::default();
+
+        // Perform effect analysis
+        let effect_analysis = EffectAnalysis::analyze(graph);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/advanced_optimizer.rs
+Method: mark_reachable (lines 1918-2090, 173 lines)
+Preview:
+    fn mark_reachable(&self, start_node_id: NodeId, reachable: &mut FxHashSet<NodeId>) {
+        let mut stack = vec![start_node_id];
+
+        while let Some(node_id) = stack.pop() {
+            if !reachable.insert(node_id) {
+                continue;
+            }
+
+            if let Some(node) = self.optimized.get_node(node_id) {
+                match node {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: perform_effect (lines 2244-2411, 168 lines)
+Preview:
+    pub fn perform_effect(&mut self, effect_type: String, operation: String, args: Vec<Value>) -> VMResult<()> {
+        let effect_type = effect_type.as_str();
+        let effect_op = operation.as_str();
+        
+        // The effect type might come as "IO" or "Dom" from debug format
+        let effect_type = effect_type.trim_matches('"');
+        
+        match effect_type {
+            "IO" => {
+                // Handle IO effects through stdlib
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: collect_free_variables (lines 1878-2042, 165 lines)
+Preview:
+    fn collect_free_variables(
+        &self,
+        graph: &ASTGraph,
+        node_id: NodeId,
+        free_vars: &mut HashSet<String>,
+        bound_vars: &mut HashSet<String>,
+    ) -> Result<()> {
+        let node = graph
+            .nodes
+            .get(&node_id)
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/comparison.rs
+Method: execute (lines 12-176, 165 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, _chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            Eq => {
+                let b = vm.pop()?;
+                let a = vm.pop()?;
+                let equal = match (&a, &b) {
+                    (Value::Integer(x), Value::Integer(y)) => x == y,
+                    (Value::Float(x), Value::Float(y)) => x == y,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast.rs
+Method: children (lines 634-797, 164 lines)
+Preview:
+    pub fn children(&self, node_id: NodeId) -> Vec<NodeId> {
+        let mut children = Vec::new();
+        if let Some(node) = self.get_node(node_id) {
+            match node {
+                Node::Lambda { body, .. } => {
+                    children.push(*body);
+                }
+                Node::Application { function, args } => {
+                    children.push(*function);
+                    children.extend(args);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/optimization_demo.rs
+Method: main (lines 7-169, 163 lines)
+Preview:
+fn main() {
+    println!("FluentAi Optimization Demo\n");
+
+    // Example programs to optimize
+    let examples = vec![
+        (
+            "constant_folding",
+            "(+ (* 3 4) (- 10 5) (* 2 (+ 1 2)))",
+            "Demonstrates constant folding optimization",
+        ),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/control_flow.rs
+Method: execute (lines 13-169, 157 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, _chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // Unconditional jump
+            Jump => {
+                vm.set_ip(instruction.arg as usize);
+            }
+            
+            // Conditional jumps
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/effects.rs
+Method: execute (lines 12-168, 157 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // Perform an effect
+            Effect => {
+                let arg_count = instruction.arg as usize;
+                
+                // Collect arguments
+                let mut args = Vec::with_capacity(arg_count);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_effects_tests.rs
+Method: test_compile_tail_call_optimization (lines 208-360, 153 lines)
+Preview:
+fn test_compile_tail_call_optimization() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a self-recursive function that should use tail calls
+    // (letrec ((loop (lambda (n acc)
+    //                  (if (= n 0)
+    //                      acc
+    //                      (loop (- n 1) (+ acc n))))))
+    //   (loop 10 0))
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: run_inner (lines 513-663, 151 lines)
+Preview:
+    fn run_inner(&mut self) -> VMResult<Value> {
+        loop {
+            let frame = self
+                .call_stack
+                .last()
+                .ok_or_else(|| VMError::StackUnderflow {
+                    operation: "get_current_frame".to_string(),
+                    stack_size: self.call_stack.len(),
+                    stack_trace: None,
+                })?;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests_extended.rs
+Method: test_compile_pattern_matching_with_optimization (lines 1250-1399, 150 lines)
+Preview:
+fn test_compile_pattern_matching_with_optimization() -> Result<()> {
+    // For now, just test that pattern matching works without optimization
+    // The optimizer has issues with forward references that need deeper investigation
+
+    // Test basic cons pattern matching
+    let mut graph = Graph::new();
+
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/inline.rs
+Method: copy_with_substitution (lines 146-295, 150 lines)
+Preview:
+    fn copy_with_substitution(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        substitutions: &FxHashMap<String, NodeId>,
+        node_mapping: &mut FxHashMap<NodeId, NodeId>,
+        optimized: &mut Graph,
+    ) -> Result<NodeId> {
+        // Check if already mapped
+        if let Some(&mapped_id) = node_mapping.get(&node_id) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/analysis.rs
+Method: analyze_node_effects_with_cache (lines 363-510, 148 lines)
+Preview:
+    fn analyze_node_effects_with_cache(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        node: &Node,
+        visited: &mut FxHashSet<NodeId>,
+        cache: &mut FxHashMap<NodeId, FxHashSet<EffectType>>,
+    ) -> FxHashSet<EffectType> {
+        // Check for cycles
+        if !visited.insert(node_id) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_complex_await_chains (lines 524-670, 147 lines)
+Preview:
+fn test_complex_await_chains() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (async
+    //          (let* ((a (await (fetch "url1")))
+    //                 (b (await (process a)))
+    //                 (c (await (transform b)))
+    //                 (d (await (finalize c))))
+    //            d))
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: copy_with_mapping (lines 870-1015, 146 lines)
+Preview:
+    fn copy_with_mapping(&self, node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
+        match node {
+            Node::Application { function, args } => Node::Application {
+                function: mapping.get(function).copied().unwrap_or(*function),
+                args: args
+                    .iter()
+                    .map(|id| mapping.get(id).copied().unwrap_or(*id))
+                    .collect(),
+            },
+            Node::Lambda { params, body } => Node::Lambda {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/advanced_optimizer.rs
+Method: deep_copy_with_substitution_internal (lines 1437-1581, 145 lines)
+Preview:
+    fn deep_copy_with_substitution_internal(
+        &mut self,
+        node_id: NodeId,
+        substitutions: &FxHashMap<String, NodeId>,
+    ) -> Option<NodeId> {
+        // Check if this node is already in the optimized graph
+        if let Some(node) = self.optimized.get_node(node_id).cloned() {
+            match node {
+                Node::Variable { ref name } => {
+                    if let Some(subst_id) = substitutions.get(name) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_application (lines 570-712, 143 lines)
+Preview:
+    fn compile_application(
+        &mut self,
+        graph: &ASTGraph,
+        func: NodeId,
+        args: &[NodeId],
+    ) -> Result<()> {
+        // Check if it's a built-in function
+        if let Some(node) = graph.nodes.get(&func) {
+            if let Node::Variable { name } = node {
+                // Try to compile as builtin first
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests_extended.rs
+Method: test_compile_letrec_simple (lines 412-551, 140 lines)
+Preview:
+fn test_compile_letrec_simple() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (letrec ((fact (lambda (n) (if (= n 0) 1 (* n (fact (- n 1))))))) (fact 5))
+    let n_var1 = graph
+        .add_node(Node::Variable {
+            name: "n".to_string(),
+        })
+        .expect("Failed to add node");
+    let n_var2 = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: execute_instruction (lines 665-801, 137 lines)
+Preview:
+    pub fn execute_instruction(
+        &mut self,
+        instruction: &Instruction,
+        chunk_id: usize,
+    ) -> VMResult<VMState> {
+        use crate::opcode_handlers::{
+            ArithmeticHandler, StackHandler, ControlFlowHandler,
+            MemoryHandler, CollectionsHandler, ConcurrentHandler,
+            EffectsHandler, LogicalHandler, ComparisonHandler, 
+            StringHandler, ModuleHandler, OpcodeHandler
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/documentation/builtins.rs
+Method: all_builtins (lines 39-172, 134 lines)
+Preview:
+    pub fn all_builtins() -> Vec<crate::documentation::BuiltinDoc> {
+        vec![
+            // Core list operations
+            define_builtin!(
+                name: "cons",
+                signature: "<list>.cons(<item>)",
+                description: "Constructs a new list by prepending an item to an existing list.",
+                examples: ["[2, 3].cons(1)", "[].cons(\"a\")", "xs.cons(x)"],
+                module: "core"
+            ),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_function_definition (lines 307-439, 133 lines)
+Preview:
+    fn parse_function_definition(
+        &mut self,
+        _is_public: bool,
+        contract_info: Option<ContractInfo>,
+    ) -> Result<(NodeId, String)> {
+        self.consume(Token::Function)?;
+
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                self.advance();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/bytecode_tests.rs
+Method: test_all_opcodes (lines 33-164, 132 lines)
+Preview:
+        fn test_all_opcodes() {
+            // Test that we can create instructions for all opcodes
+            let opcodes = vec![
+                // Stack manipulation
+                Opcode::Push,
+                Opcode::Pop,
+                Opcode::Dup,
+                Opcode::Swap,
+                // Arithmetic
+                Opcode::Add,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/module.rs
+Method: execute (lines 30-160, 131 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // Load a module by name
+            LoadModule => {
+                let name_idx = instruction.arg as usize;
+                let module_name = vm.get_constant_string_at(chunk_id, name_idx)?;
+                
+                // Load the module using the module loader
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: copy_with_mapping_safe (lines 737-867, 131 lines)
+Preview:
+    fn copy_with_mapping_safe(
+        &self,
+        node: &Node,
+        mapping: &FxHashMap<NodeId, NodeId>,
+        _reachable: &FxHashSet<NodeId>,
+    ) -> Result<Node> {
+        let map_node_id = |id: &NodeId| -> Result<NodeId> {
+            mapping.get(id).copied().ok_or_else(|| {
+                anyhow!(
+                    "Invalid node reference: NodeId({}) is not in the reachable set",
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_gc_let_with_complex_expressions (lines 1061-1190, 130 lines)
+Preview:
+fn test_gc_let_with_complex_expressions() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (gc:let ((fn (lambda (x) (* x x)))
+    //                  (data (map fn (list 1 2 3))))
+    //          (reduce + 0 data))
+
+    let gc_let = graph
+        .add_node(Node::Variable {
+            name: "gc:let".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/collections.rs
+Method: execute (lines 12-138, 127 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, _chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // List operations
+            MakeList => {
+                let count = instruction.arg as usize;
+                let mut items = Vec::with_capacity(count);
+                for _ in 0..count {
+                    items.push(vm.pop()?);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast_tests.rs
+Method: test_all_nodes_have_documentation (lines 2241-2366, 126 lines)
+Preview:
+    fn test_all_nodes_have_documentation() {
+        // This test ensures that all Node variants have documentation.
+        // The get_node_docs() method must handle all variants exhaustively.
+        // If a new Node variant is added without updating get_node_docs(),
+        // this will cause a compile-time error due to non-exhaustive patterns.
+
+        let mut graph = Graph::new();
+
+        // Test literals
+        let _int_node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/effect_aware_tests.rs
+Method: test_mixed_pure_and_effectful (lines 285-408, 124 lines)
+Preview:
+fn test_mixed_pure_and_effectful() {
+    let mut graph = Graph::new();
+
+    // Mixed pure and effectful computations
+    // (let ((pure1 (+ 1 2))
+    //       (effect1 (io-read))
+    //       (pure2 (* 3 4))
+    //       (effect2 (state-get))
+    //       (pure3 (- 5 6)))
+    //   (+ pure1 effect1 pure2 effect2 pure3))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_lambda (lines 714-836, 123 lines)
+Preview:
+    fn compile_lambda(&mut self, graph: &ASTGraph, params: &[String], body: NodeId) -> Result<()> {
+        // Find free variables - variables used in body but not defined as parameters
+        let free_vars = self.find_free_variables(graph, body, params)?;
+
+        // Emit code to push captured values onto stack
+        for var in &free_vars {
+            self.compile_captured_variable(var)?;
+        }
+
+        // Create a new chunk for the lambda
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/cse.rs
+Method: run (lines 269-391, 123 lines)
+Preview:
+    fn run(&mut self, graph: &Graph) -> Result<Graph> {
+        self.eliminated_count = 0;
+
+        // Perform effect analysis
+        let effect_analysis = EffectAnalysis::analyze(graph);
+
+        let mut optimized = Graph::new();
+        let mut node_mapping = FxHashMap::default();
+        let mut expr_cache: FxHashMap<u64, Vec<NodeId>> = FxHashMap::default();
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: call_handler_function (lines 1150-1271, 122 lines)
+Preview:
+    fn call_handler_function(&mut self, handler: Value, args: Vec<Value>) -> VMResult<Value> {
+        // Call a handler function with the given arguments
+        match handler {
+            Value::Function { chunk_id, env } => {
+                // Save current call frame state
+                let call_frame = CallFrame {
+                    chunk_id,
+                    ip: 0,
+                    stack_base: self.stack.len(),
+                    env,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/module_system_integration_test.rs
+Method: test_module_import_and_use (lines 29-146, 118 lines)
+Preview:
+fn test_module_import_and_use() -> Result<()> {
+    // Create a temporary directory for our test modules
+    let temp_dir = TempDir::new()?;
+    let module_path = temp_dir.path();
+    
+    // Create a math module
+    let math_module = r#"
+module Math;
+
+public function add(a: int, b: int) -> int {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: mark_reachable (lines 472-588, 117 lines)
+Preview:
+    fn mark_reachable(&self, graph: &Graph, node_id: NodeId, reachable: &mut FxHashSet<NodeId>) {
+        if !reachable.insert(node_id) {
+            return; // Already visited
+        }
+
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Application { function, args } => {
+                    self.mark_reachable(graph, *function, reachable);
+                    for arg in args {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_gc_let_multiple_bindings (lines 943-1058, 116 lines)
+Preview:
+fn test_gc_let_multiple_bindings() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (gc:let ((a (list 1 2 3))
+    //                  (b (list 4 5 6))
+    //                  (c (list 7 8 9)))
+    //          (list a b c))
+
+    let gc_let = graph
+        .add_node(Node::Variable {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: call_value (lines 1033-1148, 116 lines)
+Preview:
+    pub fn call_value(&mut self, arg_count: usize) -> VMResult<()> {
+        // Pop arguments
+        let mut args = Vec::with_capacity(arg_count);
+        for _ in 0..arg_count {
+            args.push(self.pop()?);
+        }
+        args.reverse();
+
+        // Pop function
+        let func = self.pop()?;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/cse.rs
+Method: nodes_equal_with_visited (lines 146-261, 116 lines)
+Preview:
+    fn nodes_equal_with_visited(
+        &self,
+        node1: &Node,
+        node2: &Node,
+        graph1: &Graph,
+        graph2: &Graph,
+        mapping1: &FxHashMap<NodeId, NodeId>,
+        mapping2: &FxHashMap<NodeId, NodeId>,
+        visited: &mut FxHashSet<(NodeId, NodeId)>,
+    ) -> bool {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/effect_aware_tests.rs
+Method: test_hoist_pure_computations (lines 7-121, 115 lines)
+Preview:
+fn test_hoist_pure_computations() {
+    let mut graph = Graph::new();
+
+    // Create a pure computation inside an effectful context
+    // (let ((x (+ 1 2))      ; pure
+    //       (y (io-read))    ; effectful
+    //       (z (* 3 4)))     ; pure
+    //   (+ x y z))
+
+    let one = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/dead_code.rs
+Method: collect_used_vars (lines 442-556, 115 lines)
+Preview:
+    fn collect_used_vars(&self, node: &Node, used: &mut FxHashSet<String>) {
+        match node {
+            Node::Variable { name } => {
+                used.insert(name.clone());
+            }
+            Node::Application { .. } => {
+                // Application nodes contain NodeIds, not inline nodes
+                // This will be handled by the graph traversal in find_used_variables
+            }
+            Node::Lambda { .. } => {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast_tests.rs
+Method: test_dfs_traversal_all_node_types (lines 273-387, 115 lines)
+Preview:
+    fn test_dfs_traversal_all_node_types() {
+        let mut graph = Graph::new();
+
+        // Test Lambda traversal
+        let body = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+        let lambda = graph
+            .add_node(Node::Lambda {
+                params: vec!["x".to_string()],
+                body,
+            })
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast.rs
+Method: dfs_helper (lines 517-631, 115 lines)
+Preview:
+    fn dfs_helper(
+        &self,
+        node_id: NodeId,
+        visited: &mut AstHashSet<NodeId>,
+        visitor: &mut impl FnMut(NodeId, &Node),
+    ) {
+        if !visited.insert(node_id) {
+            return; // Already visited
+        }
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: collect_used_variables (lines 359-469, 111 lines)
+Preview:
+    fn collect_used_variables(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        used: &mut FxHashSet<String>,
+        visited: &mut FxHashSet<NodeId>,
+    ) {
+        if !visited.insert(node_id) {
+            return; // Already visited
+        }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/documentation/registry.rs
+Method: register_operators (lines 94-204, 111 lines)
+Preview:
+    fn register_operators(&mut self) {
+        self.operators.extend(vec![
+            // Arithmetic operators
+            OperatorDoc::new(
+                "+",
+                "Addition",
+                60,
+                Associativity::Left,
+                "Adds two or more numbers together.",
+                &["1 + 2", "1 + 2 + 3 + 4", "5.5 + 2.5"],
+--------------------------------------------------------------------------------
+
+File: ./fluentai-interpreter/src/interpreter.rs
+Method: eval_node (lines 207-316, 110 lines)
+Preview:
+    pub fn eval_node(
+        &mut self,
+        node_id: NodeId,
+        graph: &Graph,
+        env: &Environment,
+    ) -> InterpreterResult<Value> {
+        // Check recursion depth
+        {
+            let mut depth = self.recursion_depth.borrow_mut();
+            if *depth >= self.options.max_recursion_depth {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_pattern (lines 1409-1517, 109 lines)
+Preview:
+    fn compile_pattern(&mut self, pattern: &Pattern) -> Result<()> {
+        // For now, compile patterns as values
+        // TODO: Implement proper pattern compilation with matching instructions
+        match pattern {
+            Pattern::Literal(lit) => {
+                self.compile_literal(lit)?;
+            }
+            Pattern::Variable(name) => {
+                // Push variable name as string for binding (use constant pool)
+                let const_idx = self.add_constant(Value::String(name.clone()));
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/dead_code_effect_analysis_tests.rs
+Method: test_dead_code_preserves_all_effect_types (lines 8-115, 108 lines)
+Preview:
+fn test_dead_code_preserves_all_effect_types() {
+    // Create a graph with all effect types
+    let mut graph = Graph::new();
+    
+    // Create effect nodes for each effect type
+    let io_effect = graph.add_node(Node::Effect {
+        effect_type: EffectType::IO,
+        operation: "print".to_string(),
+        args: vec![],
+    }).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_extern_block (lines 4200-4305, 106 lines)
+Preview:
+    fn parse_extern_block(&mut self) -> Result<NodeId> {
+        // extern "C" { ... }
+        self.consume(Token::Extern)?;
+        
+        // Parse ABI string
+        let abi = match &self.current {
+            Some(Token::String(s)) => {
+                let abi = s.to_string();
+                self.advance();
+                abi
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/di/mod.rs
+Method: with_default_passes (lines 128-233, 106 lines)
+Preview:
+    pub fn with_default_passes(mut self) -> Self {
+        use crate::passes::{
+            beta_reduction::BetaReductionPass, constant_folding::ConstantFoldingPass,
+            cse::CommonSubexpressionEliminationPass, dead_code::DeadCodeEliminationPass,
+            inline::InlinePass, loop_opts::LoopOptimizationPass,
+            partial_eval::PartialEvaluationPass, tail_call::TailCallOptimizationPass,
+        };
+
+        // Constant folding - high priority, runs early
+        self = self.register_pass_with(
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/optimization.rs
+Method: try_match_pattern (lines 62-165, 104 lines)
+Preview:
+    fn try_match_pattern(&self, instructions: &[Instruction]) -> Option<(FusedOpcode, usize)> {
+        if instructions.len() < 2 {
+            return None;
+        }
+
+        // Pattern: Load + Load + Add
+        if instructions.len() >= 3 {
+            if let (
+                Instruction {
+                    opcode: Opcode::Load,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/ml_hints_demo.rs
+Method: main (lines 8-111, 104 lines)
+Preview:
+fn main() -> Result<()> {
+    println!("=== ML Optimization Hints Demo ===\n");
+    
+    // Create ML hints generator
+    let ml_hints = MLOptimizationHints::new();
+    
+    // Test 1: Simple arithmetic operations
+    println!("Test 1: Simple arithmetic operations");
+    let code1 = "2 + 3 * 4 - 5";
+    let ast1 = parse_flc(code1)?;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/partial_eval.rs
+Method: try_partial_eval (lines 21-123, 103 lines)
+Preview:
+    fn try_partial_eval(
+        &self,
+        graph: &Graph,
+        node: &Node,
+        known_values: &FxHashMap<String, Literal>,
+        effect_analysis: &EffectAnalysis,
+    ) -> Option<Node> {
+        match node {
+            Node::Variable { name } => {
+                // If we know the value of this variable, replace it with a literal
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/test_direct_fix.rs
+Method: test_direct_fix (lines 6-106, 101 lines)
+Preview:
+fn test_direct_fix() {
+    // Test the exact failing case
+    let code = "(let ((x 5) (y (+ x 2))) (* y 3))";
+    let ast = parse_flc(code).unwrap();
+
+    let mut optimizer = AdvancedOptimizer::new();
+    let optimized = optimizer.optimize(&ast).unwrap();
+
+    // Validate all node references
+    let mut errors = Vec::new();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_edge_cases.rs
+Method: test_match_multiple_variable_bindings (lines 338-437, 100 lines)
+Preview:
+fn test_match_multiple_variable_bindings() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create list [10, 20, 30]
+    let ten = graph
+        .add_node(Node::Literal(Literal::Integer(10)))
+        .expect("Failed to add node");
+    let twenty = graph
+        .add_node(Node::Literal(Literal::Integer(20)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/stdlib_bridge.rs
+Method: call_higher_order_stdlib (lines 65-164, 100 lines)
+Preview:
+    fn call_higher_order_stdlib(&mut self, func_name: &str, args: &[Value]) -> Result<Value>;
+}
+
+impl VMStdlibExt for VM {
+    fn call_higher_order_stdlib(&mut self, func_name: &str, args: &[Value]) -> Result<Value> {
+        match func_name {
+            "map" => {
+                if args.len() != 2 {
+                    return Err(anyhow::anyhow!("map: expected 2 arguments"));
+                }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_nested_gc_let (lines 1363-1461, 99 lines)
+Preview:
+fn test_nested_gc_let() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (gc:let ((outer (list 1 2)))
+    //          (gc:let ((inner (cons 3 outer)))
+    //            inner))
+
+    let gc_let = graph
+        .add_node(Node::Variable {
+            name: "gc:let".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/optimization_tests.rs
+Method: test_performance_improvement (lines 95-193, 99 lines)
+Preview:
+fn test_performance_improvement() {
+    // Test complex expression with multiple optimization opportunities
+    let code = r#"{
+        let add = (x, y) => x + y;
+        let mul = (x, y) => x * y;
+        add(2, 3) + mul(4, 5)
+    }"#;
+
+    let ast = parse_flc(code).unwrap();
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/test_manual_graph_construction_bug.rs
+Method: verify_node_references (lines 134-231, 98 lines)
+Preview:
+fn verify_node_references(graph: &Graph, node: &Node) {
+    match node {
+        Node::Application { function, args } => {
+            assert!(
+                graph.get_node(*function).is_some(),
+                "Function node {:?} doesn't exist",
+                function
+            );
+            for arg in args {
+                assert!(
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/module_loading_test.rs
+Method: test_module_loading_and_execution (lines 16-110, 95 lines)
+Preview:
+fn test_module_loading_and_execution() {
+    // Create a temporary directory for test modules
+    let temp_dir = TempDir::new().unwrap();
+    let temp_path = temp_dir.path();
+
+    // Create a math module
+    // The module loader sets the module context, so we can use export directly
+    let math_file = create_test_module(
+        temp_path,
+        "math",
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/stdlib_integration_test.rs
+Method: test_stdlib_map_function (lines 9-102, 94 lines)
+Preview:
+fn test_stdlib_map_function() -> Result<()> {
+    // Create AST directly instead of parsing
+    let mut graph = Graph::new();
+
+    // Create lambda: fn x -> x * 2
+    let x_var = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+        })
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_module_tests.rs
+Method: test_compile_module_declaration (lines 27-119, 93 lines)
+Preview:
+fn test_compile_module_declaration() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (module math
+    //          (export (add sub))
+    //          (define add (lambda (x y) (+ x y)))
+    //          (define sub (lambda (x y) (- x y))))
+
+    // Define add function
+    let x_var1 = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_coverage_tests.rs
+Method: test_compile_all_effect_types (lines 203-294, 92 lines)
+Preview:
+fn test_compile_all_effect_types() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Test IO effect
+    let msg = graph
+        .add_node(Node::Literal(Literal::String("test".to_string())))
+        .expect("Failed to add node");
+    let io_effect = graph
+        .add_node(Node::Effect {
+            effect_type: EffectType::IO,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/effect_aware_tests.rs
+Method: test_remove_duplicate_pure_expressions (lines 124-215, 92 lines)
+Preview:
+fn test_remove_duplicate_pure_expressions() {
+    let mut graph = Graph::new();
+
+    // Create duplicate pure expressions
+    // (let ((a (* 2 3))
+    //       (b (* 2 3))     ; duplicate
+    //       (c (+ a b)))
+    //   c)
+
+    let two = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_edge_cases.rs
+Method: test_match_nil_before_cons (lines 245-335, 91 lines)
+Preview:
+fn test_match_nil_before_cons() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Test both empty and non-empty lists with nil pattern first
+
+    // Test 1: Empty list
+    let empty = graph
+        .add_node(Node::List(vec![]))
+        .expect("Failed to add node");
+    let nil_result = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/tail_call.rs
+Method: run (lines 138-228, 91 lines)
+Preview:
+    fn run(&mut self, graph: &Graph) -> Result<Graph> {
+        self.optimized_count = 0;
+        self.tail_calls_count = 0;
+        self.optimized_functions.clear();
+        self.function_params.clear();
+
+        let mut optimized = graph.clone();
+
+        // Collect all function definitions first
+        for (_node_id, node) in &graph.nodes {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_coverage_tests.rs
+Method: test_module_function_exports (lines 545-634, 90 lines)
+Preview:
+fn test_module_function_exports() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a module that exports functions
+    let x_var = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+        })
+        .expect("Failed to add node");
+    let times = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/test_dead_code_node_reference_fix.rs
+Method: test_dead_code_elimination_invalid_node_reference (lines 5-94, 90 lines)
+Preview:
+fn test_dead_code_elimination_invalid_node_reference() {
+    // This test reproduces the bug where dead code elimination creates invalid node references
+    // The issue: When a Let node has a body that references a non-reachable node,
+    // copy_with_mapping returns the original NodeId which doesn't exist in the optimized graph
+
+    let mut graph = Graph::new();
+
+    // Create nodes that won't be reachable
+    let unused_var1 = graph
+        .add_node(Node::Variable {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/dynamic_pipeline.rs
+Method: runtime_composition_demo (lines 188-277, 90 lines)
+Preview:
+fn runtime_composition_demo() -> Result<()> {
+    println!("4. Runtime Pipeline Composition Demo");
+    println!("-----------------------------------");
+
+    // Create a monitoring pass that logs what it sees
+    struct MonitoringPass {
+        pass_name: String,
+        nodes_seen: usize,
+    }
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/work_stealing_scheduler.rs
+Method: worker_loop (lines 219-308, 90 lines)
+Preview:
+fn worker_loop(
+    id: usize,
+    worker: WorkerDeque<Job>,
+    injector: Arc<Injector<Job>>,
+    stealers: Arc<Vec<Stealer<Job>>>,
+    shutdown: Arc<AtomicBool>,
+    active_count: Arc<AtomicUsize>,
+    completed_count: Arc<AtomicUsize>,
+    _keep_alive: Duration,
+) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: load_module (lines 1452-1540, 89 lines)
+Preview:
+    fn load_module(&mut self, module_name: &str) -> VMResult<()> {
+        // Check if already loaded
+        if self.loaded_modules.contains_key(module_name) {
+            return Ok(());
+        }
+
+        // Load the module file
+        let module_info =
+            self.module_loader
+                .load_module(module_name)
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/tests/test_fstring_ast.rs
+Method: test_fstring_produces_correct_ast (lines 7-94, 88 lines)
+Preview:
+    fn test_fstring_produces_correct_ast() {
+        let input = r#"f"Hello, {name}!""#;
+
+        let mut parser = Parser::new(input);
+        let graph = parser.parse().unwrap();
+
+        // Print the root node
+        if let Some(root_id) = graph.root_id {
+            if let Some(node) = graph.get_node(root_id) {
+                match node {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/error_handling_tests.rs
+Method: test_call_stack_overflow (lines 105-192, 88 lines)
+Preview:
+fn test_call_stack_overflow() {
+    // Create a recursive function that's not in tail position
+    // (letrec ((f (lambda (n) (+ 1 (f n))))) (f 0))
+    let mut graph = Graph::new();
+
+    let n_var = graph
+        .add_node(Node::Variable {
+            name: "n".to_string(),
+        })
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/let_binding_closure_test.rs
+Method: test_optimizer_preserves_let_bindings_with_closures (lines 5-90, 86 lines)
+Preview:
+fn test_optimizer_preserves_let_bindings_with_closures() {
+    // Create the same graph as in the spawn test
+    let mut graph = Graph::new();
+
+    // Create channel: (chan)
+    let channel = graph.add_node(Node::Channel { capacity: None }).unwrap();
+
+    // Create lambda: (lambda () (send! ch 42))
+    let ch_var = graph.add_node(Node::Variable { name: "ch".to_string() }).unwrap();
+    let value = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/optimize_program.rs
+Method: main (lines 8-93, 86 lines)
+Preview:
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let code = if args.len() > 1 {
+        args[1].clone()
+    } else {
+        // Default example program
+        r#"
+        (let ((x 5) (y 10) (unused 20))
+            (+ (* x 2) (* y 3) (if #t 7 (error "unreachable"))))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/visitor.rs
+Method: visit_variable (lines 43-128, 86 lines)
+Preview:
+    fn visit_variable(&mut self, graph: &Graph, node_id: NodeId, name: &str) -> Self::Result;
+
+    /// Visit a literal node
+    fn visit_literal(&mut self, graph: &Graph, node_id: NodeId, literal: &Literal) -> Self::Result;
+
+    /// Visit an application node
+    fn visit_application(
+        &mut self,
+        graph: &Graph,
+        node_id: NodeId,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/cse.rs
+Method: hash_node_with_visited (lines 38-122, 85 lines)
+Preview:
+    fn hash_node_with_visited<H: Hasher>(
+        &self,
+        node: &Node,
+        graph: &Graph,
+        node_mapping: &FxHashMap<NodeId, NodeId>,
+        hasher: &mut H,
+        visited: &mut FxHashSet<NodeId>,
+    ) {
+        // Helper to hash a node reference
+        let hash_node_ref = |node_id: NodeId, hasher: &mut H, visited: &mut FxHashSet<NodeId>| {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/effect_aware.rs
+Method: map_node_refs (lines 241-325, 85 lines)
+Preview:
+fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
+    match node {
+        Node::Application { function, args } => {
+            let new_func = mapping.get(function).copied().unwrap_or(*function);
+            let new_args: Vec<_> = args
+                .iter()
+                .map(|&arg| mapping.get(&arg).copied().unwrap_or(arg))
+                .collect();
+            Node::Application {
+                function: new_func,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/value/mod.rs
+Method: eq (lines 567-650, 84 lines)
+Preview:
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Nil, Value::Nil) => true,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::Integer(a), Value::Integer(b)) => a == b,
+            (Value::Float(a), Value::Float(b)) => (a - b).abs() < f64::EPSILON,
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::Symbol(a), Value::Symbol(b)) => a == b,
+            (Value::List(a), Value::List(b)) => a == b,
+            (Value::Vector(a), Value::Vector(b)) => a == b,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/tests/test_actor_comprehensive.rs
+Method: test_actor_with_all_features (lines 5-87, 83 lines)
+Preview:
+fn test_actor_with_all_features() {
+    let source = r#"
+        private actor BankAccount {
+            balance: float = 0.0;
+            overdraft_limit: float = 100.0;
+            status: string = "active";
+            
+            // Multiple typed handlers
+            private handle deposit(amount: float) {
+                if (amount > 0.0) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast.rs
+Method: validate (lines 807-889, 83 lines)
+Preview:
+    pub fn validate(&self) -> crate::error::Result<()> {
+        // Check if root exists when specified
+        if let Some(root) = self.root_id {
+            if !self.nodes.contains_key(&root) {
+                return Err(crate::error::Error::Other(anyhow::anyhow!(
+                    "Root node {} does not exist in graph",
+                    root
+                )));
+            }
+        }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/documentation/registry.rs
+Method: register_keywords (lines 207-289, 83 lines)
+Preview:
+    fn register_keywords(&mut self) {
+        self.keywords.extend(vec![
+            KeywordDoc::new("lambda", 
+                "Creates an anonymous function.",
+                "(<params>) => <body> | <param> => <body>",
+                &["x => x + 1", "(x, y) => x * y"]),
+
+            KeywordDoc::new("let",
+                "Creates local variable bindings.",
+                "let <var> = <expr>; <body>",
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_coverage_tests.rs
+Method: test_compile_async_complex (lines 298-379, 82 lines)
+Preview:
+fn test_compile_async_complex() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (async
+    //          (let ((x (await (fetch "url")))
+    //                (y (await (process x))))
+    //            (+ x y)))
+    let fetch = graph
+        .add_node(Node::Variable {
+            name: "fetch".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/module_loading_test.rs
+Method: test_module_import_all (lines 113-194, 82 lines)
+Preview:
+fn test_module_import_all() {
+    // Create a temporary directory for test modules
+    let temp_dir = TempDir::new().unwrap();
+    let temp_path = temp_dir.path();
+
+    // Create a utils module
+    create_test_module(
+        temp_path,
+        "utils",
+        r#"
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_let (lines 838-919, 82 lines)
+Preview:
+    fn compile_let(
+        &mut self,
+        graph: &ASTGraph,
+        bindings: &[(String, NodeId)],
+        body: NodeId,
+    ) -> Result<()> {
+        // Create new scope
+        self.locals.push(HashMap::new());
+        self.captured.push(HashMap::new());
+        self.scope_bases.push(self.stack_depth);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/module_tests_flc.rs
+Method: test_module_with_public_exports (lines 18-98, 81 lines)
+Preview:
+fn test_module_with_public_exports() -> Result<()> {
+    let source = r#"
+mod math;
+
+// Public functions should be automatically exported
+public function add(a: float, b: float) -> float {
+    a + b
+}
+
+public function sub(a: float, b: float) -> float {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_module_with_complex_exports (lines 93-173, 81 lines)
+Preview:
+fn test_module_with_complex_exports() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a module that exports values, functions, and re-exports
+    let const_val = graph
+        .add_node(Node::Literal(Literal::Integer(42)))
+        .expect("Failed to add node");
+
+    // Create a function to export
+    let x_var1 = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_nested_constructors (lines 796-876, 81 lines)
+Preview:
+fn test_nested_constructors() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (Cons 1 (Cons 2 (Cons 3 (Nil))))
+    let nil_ctor = graph
+        .add_node(Node::Variable {
+            name: "Nil".to_string(),
+        })
+        .expect("Failed to add node");
+    let nil_app = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/simple_optimization_demo.rs
+Method: main (lines 7-87, 81 lines)
+Preview:
+fn main() {
+    println!("FluentAi Optimization Demo\n");
+
+    // Simple examples that won't cause stack overflow
+    let examples = vec![
+        ("constant_folding", "(+ 1 2 3)", "Simple constant folding"),
+        (
+            "arithmetic_optimization",
+            "(+ (* 3 4) (- 10 5))",
+            "Constant folding with multiple operations",
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/async_vm.rs
+Method: execute_until_async (lines 80-159, 80 lines)
+Preview:
+    fn execute_until_async(&mut self) -> VMResult<ExecutionResult> {
+        loop {
+            let frame = self.vm.call_stack().last()
+                .ok_or_else(|| VMError::StackUnderflow {
+                    operation: "get_current_frame".to_string(),
+                    stack_size: self.vm.call_stack().len(),
+                    stack_trace: None,
+                })?;
+            
+            let chunk_id = frame.chunk_id;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/unboxed.rs
+Method: from_value (lines 73-152, 80 lines)
+Preview:
+    pub fn from_value(value: Value) -> Self {
+        match value {
+            Value::Nil => UnboxedValue::Nil,
+            Value::Boolean(b) => UnboxedValue::Bool(b),
+            Value::Integer(i) => UnboxedValue::Int(i),
+            Value::Float(f) => UnboxedValue::Float(f),
+            Value::String(s) => UnboxedValue::Boxed(Box::new(BoxedValue::String(s))),
+            Value::Symbol(s) => UnboxedValue::Boxed(Box::new(BoxedValue::Symbol(s))),
+            Value::List(items) => {
+                let unboxed_items = items.into_iter().map(UnboxedValue::from_value).collect();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/buffered_channel_test.rs
+Method: test_buffered_channel_send_receive (lines 113-191, 79 lines)
+Preview:
+fn test_buffered_channel_send_receive() {
+    // Test that buffered channels allow multiple sends without blocking
+    let context = Arc::new(EffectContext::new());
+    let runtime = Arc::new(EffectRuntime::new().unwrap());
+    
+    // Register handlers
+    context.register_handler(Arc::new(AsyncHandler::new()));
+    context.register_handler(Arc::new(ConcurrentHandler::new()));
+
+    // Create a graph for:
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_coverage_tests.rs
+Method: test_nested_scopes (lines 464-541, 78 lines)
+Preview:
+fn test_nested_scopes() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create deeply nested let expressions to exercise scope management
+    let a = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let _a_var = graph
+        .add_node(Node::Variable {
+            name: "a".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/simd.rs
+Method: apply_simd_op (lines 173-250, 78 lines)
+Preview:
+    pub fn apply_simd_op(op: SimdOp, a: &Value, b: &Value) -> Result<Value> {
+        match (a, b) {
+            (Value::List(list_a), Value::List(list_b)) => {
+                // Check if all elements are the same numeric type
+                let (all_f64_a, all_i64_a) = Self::check_numeric_list(list_a);
+                let (all_f64_b, all_i64_b) = Self::check_numeric_list(list_b);
+
+                if (all_f64_a && all_f64_b) || (op == SimdOp::DotProduct && all_i64_a && all_i64_b)
+                {
+                    // Convert to f64 arrays and apply SIMD
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: core_value_to_vm_value (lines 1350-1427, 78 lines)
+Preview:
+    fn core_value_to_vm_value(&self, value: &fluentai_core::value::Value) -> Value {
+        match value {
+            fluentai_core::value::Value::Nil => Value::Nil,
+            fluentai_core::value::Value::Boolean(b) => Value::Boolean(*b),
+            fluentai_core::value::Value::Integer(i) => Value::Integer(*i),
+            fluentai_core::value::Value::Float(f) => Value::Float(*f),
+            fluentai_core::value::Value::String(s) => Value::String(s.clone()),
+            fluentai_core::value::Value::List(items) => Value::List(
+                items
+                    .iter()
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_handler (lines 2748-2825, 78 lines)
+Preview:
+    fn compile_handler(
+        &mut self,
+        graph: &ASTGraph,
+        handlers: &[(fluentai_core::ast::EffectType, Option<String>, NodeId)],
+        body: NodeId,
+    ) -> Result<()> {
+        // Handler implementation:
+        // 1. Compile handler functions and push them onto the stack
+        // 2. Create handler table with effect types and optional operation filters
+        // 3. Install handler for the dynamic extent of the body
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/pipeline.rs
+Method: optimize (lines 224-301, 78 lines)
+Preview:
+    pub fn optimize(&mut self, graph: &Graph) -> Result<Graph> {
+        let start = Instant::now();
+        self.stats = OptimizationStats::new();
+        self.stats.nodes_before = graph.nodes.len();
+
+        let mut optimized = graph.clone();
+        
+        // Always run Continuum lowering first if there are any Continuum nodes
+        if self.has_continuum_nodes(&optimized) {
+            use crate::passes::continuum_lowering::ContinuumLowering;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/stdlib_integration_test.rs
+Method: test_direct_stdlib_call (lines 148-224, 77 lines)
+Preview:
+fn test_direct_stdlib_call() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a simple function: fn x -> x * 2
+    let x_param = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+        })
+        .expect("Failed to add node");
+    let two = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests.rs
+Method: test_compile_list_with_variables (lines 408-484, 77 lines)
+Preview:
+fn test_compile_list_with_variables() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (let ((x 1) (y 2) (z 3)) (list x y z))
+    let x_val = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let y_val = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/loop_opts.rs
+Method: map_node_refs (lines 328-404, 77 lines)
+Preview:
+fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
+    match node {
+        Node::Application { function, args } => {
+            let new_func = mapping.get(function).copied().unwrap_or(*function);
+            let new_args: Vec<_> = args
+                .iter()
+                .map(|&arg| mapping.get(&arg).copied().unwrap_or(arg))
+                .collect();
+            Node::Application {
+                function: new_func,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/algebraic_simplification.rs
+Method: simplify_graph (lines 31-107, 77 lines)
+Preview:
+    fn simplify_graph(&mut self, graph: &Graph) -> Graph {
+        let mut optimized = Graph::new();
+        let mut node_map = FxHashMap::default();
+        
+        // First pass: copy all nodes and create mapping
+        for (node_id, node) in &graph.nodes {
+            let new_node = match node {
+                // Check if this is an operation we can simplify
+                Node::Application { function, args } => {
+                    if let Some(Node::Variable { name }) = graph.get_node(*function) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: import_subgraph_node (lines 3810-3885, 76 lines)
+Preview:
+    fn import_subgraph_node(&mut self, sub_graph: &Graph, node_id: NodeId) -> Result<NodeId> {
+        // Recursively import nodes from the sub-graph
+        if let Some(node) = sub_graph.get_node(node_id) {
+            match node {
+                Node::Literal(lit) => self.add_node(Node::Literal(lit.clone())),
+                Node::Variable { name } => self.add_node(Node::Variable { name: name.clone() }),
+                Node::Application { function, args } => {
+                    let new_function = self.import_subgraph_node(sub_graph, *function)?;
+                    let mut new_args = Vec::new();
+                    for arg in args {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests_extended.rs
+Method: test_compile_letrec_with_closure (lines 749-824, 76 lines)
+Preview:
+fn test_compile_letrec_with_closure() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (letrec ((counter (lambda ()
+    //                   (let ((x 0))
+    //                     (lambda () (set! x (+ x 1)) x)))))
+    //         (counter))
+
+    let zero = graph
+        .add_node(Node::Literal(Literal::Integer(0)))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: vm_value_to_core_value (lines 1273-1348, 76 lines)
+Preview:
+    fn vm_value_to_core_value(&self, value: &Value) -> fluentai_core::value::Value {
+        match value {
+            Value::Nil => fluentai_core::value::Value::Nil,
+            Value::Boolean(b) => fluentai_core::value::Value::Boolean(*b),
+            Value::Integer(i) => fluentai_core::value::Value::Integer(*i),
+            Value::Float(f) => fluentai_core::value::Value::Float(*f),
+            Value::String(s) => fluentai_core::value::Value::String(s.clone()),
+            Value::Symbol(s) => fluentai_core::value::Value::Symbol(s.clone()),
+            Value::List(items) => fluentai_core::value::Value::List(
+                items
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: call_native_function (lines 2151-2226, 76 lines)
+Preview:
+    pub fn call_native_function(&mut self, native_func: &str, args: Vec<Value>) -> VMResult<()> {
+        // Check if it's a stdlib function with __stdlib__ prefix
+        if let Some(func_name) = native_func.strip_prefix("__stdlib__") {
+            // Handle stdlib function calls
+            if let Some(stdlib_func) = self.stdlib.get(func_name) {
+                // Convert VM values to stdlib values
+                let stdlib_args: Vec<StdlibValue> = args
+                    .iter()
+                    .map(|v| self.vm_value_to_stdlib_value(v))
+                    .collect();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_catch_branches (lines 1562-1637, 76 lines)
+Preview:
+    fn compile_catch_branches(&mut self, graph: &ASTGraph, catch_branches: &[(Pattern, NodeId)], handler_stack_depth: usize) -> Result<()> {
+        // Compile catch handlers
+        if !catch_branches.is_empty() {
+            // For now, just compile the first handler with simple variable binding
+            let (pattern, handler) = &catch_branches[0];
+            
+            // The error value is on the stack from the throw
+            
+            // Handle variable binding in catch pattern
+            match pattern {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: check_for_effects (lines 273-348, 76 lines)
+Preview:
+    fn check_for_effects(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        visited: &mut FxHashSet<NodeId>,
+    ) -> bool {
+        if !visited.insert(node_id) {
+            return false;
+        }
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/inline.rs
+Method: copy_node (lines 390-465, 76 lines)
+Preview:
+    fn copy_node(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        mapping: &FxHashMap<NodeId, NodeId>,
+        optimized: &mut Graph,
+    ) -> Result<NodeId> {
+        if let Some(&mapped) = mapping.get(&node_id) {
+            return Ok(mapped);
+        }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/debug_compiler_test.rs
+Method: test_debug_compilation_issue (lines 9-83, 75 lines)
+Preview:
+fn test_debug_compilation_issue() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create the exact same graph as the failing test
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_spawn_with_captured_variables (lines 447-521, 75 lines)
+Preview:
+fn test_spawn_with_captured_variables() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (let ((x 10)
+    //              (y 20))
+    //          (spawn (lambda ()
+    //                   (+ x y))))
+
+    let x_val = graph
+        .add_node(Node::Literal(Literal::Integer(10)))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/inline.rs
+Method: run (lines 303-377, 75 lines)
+Preview:
+    fn run(&mut self, graph: &Graph) -> Result<Graph> {
+        self.inlined_count = 0;
+        let mut optimized = Graph::new();
+        let mut node_mapping = FxHashMap::default();
+
+        // First pass: identify inline candidates
+        let mut inline_candidates = FxHashSet::default();
+        for (node_id, node) in &graph.nodes {
+            if matches!(node, Node::Lambda { .. }) && self.should_inline(graph, *node_id) {
+                inline_candidates.insert(*node_id);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/optimizer_closure_bug_test.rs
+Method: test_optimizer_preserves_closures (lines 6-79, 74 lines)
+Preview:
+fn test_optimizer_preserves_closures() {
+    // Create a graph for: (let ((ch (chan))) (lambda () (send! ch 42)))
+    let mut graph = Graph::new();
+
+    // Create channel: (chan)
+    let channel = graph.add_node(Node::Channel { capacity: None }).unwrap();
+
+    // Create lambda: (lambda () (send! ch 42))
+    let ch_var = graph.add_node(Node::Variable { name: "ch".to_string() }).unwrap();
+    let value = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_variable (lines 495-568, 74 lines)
+Preview:
+    fn compile_variable(&mut self, name: &str) -> Result<()> {
+        // Built-in functions are valid values in FluentAi (first-class functions)
+        // They will be handled specially when applied
+
+        // Look up in locals
+        for (scope_idx, scope) in self.locals.iter().enumerate().rev() {
+            if let Some(&rel_pos) = scope.get(name) {
+                // Debug assertions for variable resolution
+                debug_assert!(
+                    scope_idx < self.scope_bases.len(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_letrec (lines 997-1070, 74 lines)
+Preview:
+    fn compile_letrec(
+        &mut self,
+        graph: &ASTGraph,
+        bindings: &[(String, NodeId)],
+        body: NodeId,
+    ) -> Result<()> {
+        // Create new scope
+        self.locals.push(HashMap::new());
+        self.captured.push(HashMap::new());
+        self.scope_bases.push(self.stack_depth);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/strength_reduction_demo.rs
+Method: demonstrate_optimization (lines 59-132, 74 lines)
+Preview:
+fn demonstrate_optimization(code: &str, name: &str) -> Result<()> {
+    let ast = parse_flc(code)?;
+    
+    // First, run without strength reduction
+    let config_without = OptimizationConfig {
+        level: OptimizationLevel::Standard,
+        constant_folding: true,
+        dead_code_elimination: true,
+        cse: true,
+        inline: true,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/value/mod.rs
+Method: deep_eq (lines 399-472, 74 lines)
+Preview:
+    pub fn deep_eq(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Nil, Value::Nil) => true,
+            (Value::Integer(a), Value::Integer(b)) => a == b,
+            (Value::Float(a), Value::Float(b)) => (a - b).abs() < f64::EPSILON,
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::Symbol(a), Value::Symbol(b)) => a == b,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::List(a), Value::List(b)) => {
+                a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| x.deep_eq(y))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/analysis.rs
+Method: analyze_node (lines 45-117, 73 lines)
+Preview:
+    fn analyze_node(&mut self, graph: &Graph, node_id: NodeId, pred: Option<NodeId>) {
+        // Use iterative approach with explicit stack to avoid stack overflow
+        let mut work_stack = vec![(node_id, pred)];
+        let mut visited = FxHashSet::default();
+
+        while let Some((current_id, predecessor)) = work_stack.pop() {
+            // Skip if already visited
+            if !visited.insert(current_id) {
+                continue;
+            }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/spawn_integration_test.rs
+Method: test_multiple_spawns (lines 138-209, 72 lines)
+Preview:
+fn test_multiple_spawns() {
+    // Initialize effect context and runtime
+    let context = Arc::new(EffectContext::new());
+    // Create a new runtime since we're not in an async context
+    let runtime = Arc::new(EffectRuntime::new().unwrap());
+    
+    // Register handlers
+    context.register_handler(Arc::new(IOHandler::new()));
+    context.register_handler(Arc::new(AsyncHandler::new()));
+    context.register_handler(Arc::new(ConcurrentHandler::new()));
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/concurrent_execution_tests.rs
+Method: test_concurrent_structure_fairness (lines 403-474, 72 lines)
+Preview:
+fn test_concurrent_structure_fairness() {
+    let queue = Arc::new(LockFreeQueue::new());
+    let thread_counts = Arc::new(parking_lot::Mutex::new(vec![0usize; 4]));
+
+    // Pre-fill queue
+    for i in 0..4000 {
+        queue.enqueue(i);
+    }
+
+    cb_thread::scope(|s| {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/advanced_optimizer.rs
+Method: collect_used_variables_iter (lines 2100-2171, 72 lines)
+Preview:
+    fn collect_used_variables_iter(
+        &self,
+        start_node_id: NodeId,
+        used_vars: &mut FxHashSet<String>,
+    ) {
+        let mut work_stack = vec![start_node_id];
+        let mut visited = FxHashSet::default();
+
+        while let Some(node_id) = work_stack.pop() {
+            if !visited.insert(node_id) {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_element_inline (lines 3986-4056, 71 lines)
+Preview:
+    fn parse_element_inline(&mut self) -> Result<NodeId> {
+        self.consume(Token::Element)?;
+        
+        let name = match self.current {
+            Some(Token::LowerIdent(n)) => {
+                let name = n.to_string();
+                self.advance();
+                name
+            }
+            _ => return Err(anyhow!("Expected element name")),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/optimizer_inline_bug_test.rs
+Method: test_optimizer_preserves_closure_capture (lines 6-76, 71 lines)
+Preview:
+fn test_optimizer_preserves_closure_capture() {
+    // Build AST for: (let ((x 10)) ((lambda () x)))
+    let mut graph = Graph::new();
+    
+    // x = 10
+    let ten = graph.add_node(Node::Literal(Literal::Integer(10))).unwrap();
+    
+    // Variable reference to x inside lambda
+    let x_ref = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+    
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_effects_tests.rs
+Method: test_compile_specialized_arithmetic (lines 363-433, 71 lines)
+Preview:
+fn test_compile_specialized_arithmetic() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Test specialized integer arithmetic opcodes
+    let plus_int = graph
+        .add_node(Node::Variable {
+            name: "+int".to_string(),
+        })
+        .expect("Failed to add node");
+    let five = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/thread_pool.rs
+Method: new (lines 229-299, 71 lines)
+Preview:
+    fn new(
+        id: usize,
+        config: ThreadPoolConfig,
+        receiver: Arc<Mutex<Receiver<Job>>>,
+        shutdown: Arc<AtomicBool>,
+        active_count: Arc<AtomicUsize>,
+        queued_count: Arc<AtomicUsize>,
+        completed_count: Arc<AtomicUsize>,
+    ) -> Self {
+        let thread_name = format!("{}-{}", config.thread_name, id);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/tests/async_function_test.rs
+Method: test_async_function_with_await (lines 80-149, 70 lines)
+Preview:
+fn test_async_function_with_await() {
+    let source = r#"
+        private async function process_data() {
+            let data = fetch().await();
+            transform(data)
+        }
+    "#;
+    
+    let graph = parse_flc(source).unwrap();
+    
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/optimizer_let_closure_test.rs
+Method: test_optimizer_spawn_closure (lines 89-158, 70 lines)
+Preview:
+fn test_optimizer_spawn_closure() {
+    // Test the exact pattern from the bug report
+    // Note: This test captures a channel in a spawned closure
+    let source = r#"
+        let ch = channel();
+        let lambda = () => send(ch, 42);
+        lambda
+    "#;
+    
+    let graph = parse_flc(source).map_err(|e| {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/module_system_integration_test.rs
+Method: test_nested_module_path (lines 184-253, 70 lines)
+Preview:
+fn test_nested_module_path() -> Result<()> {
+    let temp_dir = TempDir::new()?;
+    let module_path = temp_dir.path();
+    
+    // Create nested directory structure
+    fs::create_dir_all(module_path.join("utils"))?;
+    
+    // Create a nested module
+    let string_utils = r#"
+module utils.strings;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_async_with_error_handling (lines 320-389, 70 lines)
+Preview:
+fn test_async_with_error_handling() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (async
+    //          (try
+    //            (await (risky-operation))
+    //            (catch e
+    //              (print e))))
+
+    let risky_op = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/advanced_optimizer_tests.rs
+Method: verify_node_references (lines 334-403, 70 lines)
+Preview:
+fn verify_node_references(graph: &Graph, node_id: NodeId, node: &Node) {
+    match node {
+        Node::Application { function, args } => {
+            assert!(
+                graph.get_node(*function).is_some(),
+                "Node {:?} has invalid function reference {:?}",
+                node_id,
+                function
+            );
+            for arg in args {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/analysis.rs
+Method: contains_reference_to (lines 761-830, 70 lines)
+Preview:
+fn contains_reference_to(
+    graph: &Graph,
+    node_id: NodeId,
+    target_id: NodeId,
+    visited: &mut FxHashSet<NodeId>,
+) -> bool {
+    if !visited.insert(node_id) {
+        return false; // Already visited
+    }
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/spawn_integration_test.rs
+Method: test_spawn_with_channel (lines 67-135, 69 lines)
+Preview:
+fn test_spawn_with_channel() {
+    // Initialize effect context and runtime
+    let context = Arc::new(EffectContext::new());
+    // Create a new runtime since we're not in an async context
+    let runtime = Arc::new(EffectRuntime::new().unwrap());
+    
+    // Register handlers
+    context.register_handler(Arc::new(IOHandler::new()));
+    context.register_handler(Arc::new(AsyncHandler::new()));
+    context.register_handler(Arc::new(ConcurrentHandler::new()));
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/runtime_async_tests.rs
+Method: test_async_with_channel_operations (lines 249-317, 69 lines)
+Preview:
+async fn test_async_with_channel_operations() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (let ((ch (channel))) 
+    //          (async (begin (send ch 42) (receive ch))))
+    let channel_node = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
+
+    let ch_var1 = graph
+        .add_node(Node::Variable {
+            name: "ch".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/advanced_optimizer.rs
+Method: optimize_node (lines 94-162, 69 lines)
+Preview:
+    fn optimize_node(&mut self, node_id: NodeId) -> Result<Option<NodeId>> {
+        // Check if already optimized
+        if let Some(new_id) = self.node_mapping.get(&node_id) {
+            return Ok(Some(*new_id));
+        }
+
+        // Check for cycles
+        if self.processing_nodes.contains(&node_id) {
+            // Create a placeholder for the circular reference
+            let placeholder = Node::Variable {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/context_aware.rs
+Method: optimize_node (lines 140-208, 69 lines)
+Preview:
+    fn optimize_node(&self, graph: &mut Graph, node_id: NodeId) -> bool {
+        let mut changed = false;
+
+        if let Some(node) = graph.get_node(node_id).cloned() {
+            match &node {
+                Node::Lambda { .. } => {
+                    if self.should_inline(graph, node_id) {
+                        // Get existing context memory or create new one
+                        let mut context = graph
+                            .get_context_memory(node_id)
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: test_handler_bytecode_generation (lines 2897-2964, 68 lines)
+Preview:
+    fn test_handler_bytecode_generation() {
+        // Create a simple handler test case similar to what's in the effects runtime
+        let mut graph = Graph::new();
+
+        // Create handler body: just return 42
+        let body = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+
+        // Create handler function: lambda that takes _ and returns "handled"
+        let handler_param = "_".to_string();
+        let handler_body = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/debug_tests.rs
+Method: test_event_channel_integration (lines 354-421, 68 lines)
+Preview:
+    async fn test_event_channel_integration() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let config = DebugConfig::with_events(tx);
+
+        // Send multiple events
+        let events = vec![
+            VMDebugEvent::PreInstruction {
+                pc: 0,
+                instruction: Instruction::with_arg(Opcode::Push, 0),
+                stack_size: 0,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/string.rs
+Method: execute (lines 12-79, 68 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, _chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            StrLen => {
+                let string = vm.pop()?;
+                match string {
+                    Value::String(s) => vm.push(Value::Integer(s.len() as i64))?,
+                    v => {
+                        return Err(VMError::TypeError {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/pipeline.rs
+Method: for_level (lines 59-126, 68 lines)
+Preview:
+    pub fn for_level(level: OptimizationLevel) -> Self {
+        match level {
+            OptimizationLevel::None => Self {
+                level,
+                constant_folding: false,
+                dead_code_elimination: false,
+                cse: false,
+                inline: false,
+                inline_threshold: 0,
+                tail_call_optimization: false,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast_tests.rs
+Method: test_structured_performance_hints (lines 1590-1657, 68 lines)
+Preview:
+    fn test_structured_performance_hints() {
+        let mut graph = Graph::new();
+        let node = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+
+        // Create context memory with various performance hints
+        let context = ContextMemory {
+            embedding_id: None,
+            usage_stats: UsageStatistics::default(),
+            rationale: Some("Performance critical loop".to_string()),
+            performance_hints: vec![
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/concurrent_execution_tests.rs
+Method: test_work_stealing_deque (lines 179-245, 67 lines)
+Preview:
+fn test_work_stealing_deque() {
+    let deque = Arc::new(WorkStealingDeque::new(1024)); // Increase capacity
+    let stolen_count = Arc::new(AtomicUsize::new(0));
+    let processed_by_owner = Arc::new(AtomicUsize::new(0));
+
+    // Owner thread pushes work
+    let deque_owner = Arc::clone(&deque);
+    let owner_processed = Arc::clone(&processed_by_owner);
+    let owner_handle = thread::spawn(move || {
+        for i in 0..500 {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_select (lines 1320-1386, 67 lines)
+Preview:
+    fn compile_select(
+        &mut self,
+        graph: &ASTGraph,
+        branches: &[(NodeId, NodeId)],
+        default: Option<&NodeId>,
+    ) -> Result<()> {
+        // For now, implement select using simpler logic
+        // We'll try each channel and execute the first handler that has data
+        
+        let mut jump_to_end = Vec::new();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/begin_test.rs
+Method: test_letrec_with_begin_body (lines 59-125, 67 lines)
+Preview:
+fn test_letrec_with_begin_body() {
+    // Test case: (letrec ((fact (lambda (n) ...))) (begin (print "Starting") (fact 5)))
+    let mut graph = Graph::new();
+    
+    // Create string literal
+    let str_lit = graph.add_node(Node::Literal(Literal::String("Starting".to_string()))).unwrap();
+    
+    // Create print function variable
+    let print_var = graph.add_node(Node::Variable { name: "print".to_string() }).unwrap();
+    
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/forward_reference_tests.rs
+Method: test_optimizer_handles_circular_references (lines 244-309, 66 lines)
+Preview:
+fn test_optimizer_handles_circular_references() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a letrec with mutual recursion
+    let f_var = graph
+        .add_node(Node::Variable {
+            name: "f".to_string(),
+        })
+        .expect("Failed to add node");
+    let g_var = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/test_manual_graph_construction_bug.rs
+Method: test_reachability_analysis_bug (lines 67-132, 66 lines)
+Preview:
+fn test_reachability_analysis_bug() {
+    // Another way the bug could manifest: through complex reachability patterns
+    let mut graph = Graph::new();
+
+    // Create a lambda that captures a variable
+    let x_var = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+        })
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/match_optimization_test.rs
+Method: test_match_optimization_simple (lines 8-73, 66 lines)
+Preview:
+fn test_match_optimization_simple() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a simple match: (match [1, 2] ((cons x xs) 99) (_ 0))
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/strength_reduction.rs
+Method: clone_node_with_refs (lines 87-152, 66 lines)
+Preview:
+    fn clone_node_with_refs(&self, node: &Node, node_map: &FxHashMap<NodeId, NodeId>) -> Node {
+        match node {
+            Node::Application { function, args } => {
+                Node::Application {
+                    function: node_map.get(function).copied().unwrap_or(*function),
+                    args: args.iter()
+                        .map(|id| node_map.get(id).copied().unwrap_or(*id))
+                        .collect(),
+                }
+            }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/algebraic_simplification.rs
+Method: clone_node_with_refs (lines 110-175, 66 lines)
+Preview:
+    fn clone_node_with_refs(&self, node: &Node, node_map: &FxHashMap<NodeId, NodeId>) -> Node {
+        match node {
+            Node::Application { function, args } => {
+                Node::Application {
+                    function: node_map.get(function).copied().unwrap_or(*function),
+                    args: args.iter()
+                        .map(|id| node_map.get(id).copied().unwrap_or(*id))
+                        .collect(),
+                }
+            }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_async_tests.rs
+Method: test_compile_channel_in_closure (lines 352-416, 65 lines)
+Preview:
+fn test_compile_channel_in_closure() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (lambda (msg)
+    //          (let ((ch (channel)))
+    //            (send ch msg)
+    //            ch))
+
+    let channel_node = graph.add_node(Node::Channel { capacity: None }).expect("Failed to add node");
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/actor_receive_integration_test.rs
+Method: test_actor_receive_with_message_processing (lines 14-78, 65 lines)
+Preview:
+fn test_actor_receive_with_message_processing() {
+    let mut graph = Graph::new();
+    
+    // Create handler with receive expression
+    let state_var = graph.add_node(Node::Variable { name: "state".to_string() }).unwrap();
+    let _msg_var = graph.add_node(Node::Variable { name: "msg".to_string() }).unwrap();
+    
+    // Create receive patterns that return different states based on message
+    let ready_lit = graph.add_node(Node::Literal(Literal::String("ready".to_string()))).unwrap();
+    let processing_lit = graph.add_node(Node::Literal(Literal::String("processing".to_string()))).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/module_registry.rs
+Method: register_module (lines 43-107, 65 lines)
+Preview:
+    pub fn register_module(
+        &mut self,
+        graph: &Graph,
+        bytecode: Arc<fluentai_bytecode::Bytecode>,
+        path: Option<String>,
+    ) -> Result<String> {
+        // Extract module name from graph metadata
+        let module_name = graph.graph_metadata
+            .get("module_name")
+            .cloned()
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/opcode_handlers/stack.rs
+Method: execute (lines 12-76, 65 lines)
+Preview:
+    fn execute(&mut self, vm: &mut VM, instruction: &Instruction, chunk_id: usize) -> VMResult<VMState> {
+        use Opcode::*;
+        
+        match instruction.opcode {
+            // Basic stack manipulation
+            Push => {
+                let value = vm.get_constant(chunk_id, instruction.arg as usize)?
+                    .clone();
+                vm.push(value)?;
+            }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/forward_reference_tests.rs
+Method: test_optimizer_handles_complex_forward_references (lines 72-136, 65 lines)
+Preview:
+fn test_optimizer_handles_complex_forward_references() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create multiple variables that will be referenced
+    let a_var = graph
+        .add_node(Node::Variable {
+            name: "a".to_string(),
+        })
+        .expect("Failed to add node");
+    let b_var = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/debug_final_issue.rs
+Method: debug_final_issue (lines 7-71, 65 lines)
+Preview:
+fn debug_final_issue() {
+    // Minimal test case
+    let code = "{ let x = 5; x }";
+    let ast = parse_flc(code).unwrap();
+
+    println!("=== Original AST ===");
+    let mut node_list: Vec<_> = ast.nodes.iter().collect();
+    node_list.sort_by_key(|(id, _)| id.0);
+    for (id, node) in node_list {
+        println!("{:?}: {:?}", id, node);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/effect_aware_tests.rs
+Method: test_preserve_effect_ordering (lines 218-282, 65 lines)
+Preview:
+fn test_preserve_effect_ordering() {
+    let mut graph = Graph::new();
+
+    // Create effectful operations that must maintain order
+    // (let ((a (io-write "first"))
+    //       (b (io-write "second")))
+    //   42)
+
+    let first = graph
+        .add_node(Node::Literal(Literal::String("first".to_string())))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: try_fold_node_in_optimized (lines 114-178, 65 lines)
+Preview:
+    fn try_fold_node_in_optimized(
+        &mut self,
+        current: &Graph,
+        optimized: &Graph,
+        mapping: &FxHashMap<NodeId, NodeId>,
+        _node_id: NodeId,
+        node: &Node,
+    ) -> Option<Node> {
+        match node {
+            Node::Application { function, args } => {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/partial_eval.rs
+Method: map_node_refs (lines 289-353, 65 lines)
+Preview:
+fn map_node_refs(node: &Node, mapping: &FxHashMap<NodeId, NodeId>) -> Node {
+    match node {
+        Node::Application { function, args } => {
+            let new_func = mapping.get(function).copied().unwrap_or(*function);
+            let new_args: Vec<_> = args
+                .iter()
+                .map(|&arg| mapping.get(&arg).copied().unwrap_or(arg))
+                .collect();
+            Node::Application {
+                function: new_func,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core-lib/examples/basic_runtime.rs
+Method: main (lines 6-70, 65 lines)
+Preview:
+fn main() -> anyhow::Result<()> {
+    // Create a runtime engine with custom configuration
+    let config = RuntimeConfig {
+        debug: DebugConfig {
+            enabled: true,
+            ..Default::default()
+        },
+        security: SecurityConfig {
+            max_execution_time: 5000, // 5 second timeout
+            ..Default::default()
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests_extended.rs
+Method: test_compile_pattern_matching_nested (lines 1184-1247, 64 lines)
+Preview:
+fn test_compile_pattern_matching_nested() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (match (list (list 1 2) 3) ((cons (cons a b) c) a) (_ 0))
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_edge_cases.rs
+Method: test_match_deeply_nested_lists (lines 23-86, 64 lines)
+Preview:
+fn test_match_deeply_nested_lists() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create [[1, 2], [3, 4]]
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_async_tests.rs
+Method: test_compile_spawn_multiple (lines 286-349, 64 lines)
+Preview:
+fn test_compile_spawn_multiple() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (list (spawn (worker 1)) (spawn (worker 2)))
+
+    let worker_var1 = graph
+        .add_node(Node::Variable {
+            name: "worker".to_string(),
+        })
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/runtime_async_tests.rs
+Method: test_multiple_async_blocks (lines 183-246, 64 lines)
+Preview:
+async fn test_multiple_async_blocks() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (let ((p1 (async 1)) (p2 (async 2))) (list (await p1) (await p2)))
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_effects_tests.rs
+Method: test_compile_gc_let (lines 142-205, 64 lines)
+Preview:
+fn test_compile_gc_let() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (gc:let ((x (list 1 2 3))) x)
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/free_var_analysis.rs
+Method: test_enhanced_analysis (lines 435-498, 64 lines)
+Preview:
+    fn test_enhanced_analysis() {
+        let mut graph = Graph::new();
+        
+        // Create: λx. λy. x + y
+        // This demonstrates the enhanced analysis tracking which variables
+        // are captured by inner closures
+        let x_var = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+        let y_var = graph.add_node(Node::Variable { name: "y".to_string() }).unwrap();
+        let plus_op = graph.add_node(Node::Variable { name: "+".to_string() }).unwrap();
+        
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/let_binding_closure_test.rs
+Method: test_individual_passes_on_let_binding (lines 93-156, 64 lines)
+Preview:
+fn test_individual_passes_on_let_binding() {
+    use fluentai_optimizer::passes::*;
+    
+    // Create the same graph
+    let mut graph = Graph::new();
+    let channel = graph.add_node(Node::Channel { capacity: None }).unwrap();
+    let ch_var = graph.add_node(Node::Variable { name: "ch".to_string() }).unwrap();
+    let value = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+    let send = graph.add_node(Node::Send { channel: ch_var, value }).unwrap();
+    let lambda = graph.add_node(Node::Lambda { params: vec![], body: send }).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/pipeline.rs
+Method: configure_passes (lines 158-221, 64 lines)
+Preview:
+    fn configure_passes(&mut self) {
+        use crate::passes::*;
+
+        self.passes.clear();
+
+        if self.config.constant_folding {
+            self.passes
+                .push(Box::new(constant_folding::ConstantFoldingPass::new()));
+        }
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/context_aware.rs
+Method: run (lines 264-327, 64 lines)
+Preview:
+    fn run(&mut self, graph: &Graph) -> Result<Graph> {
+        let mut optimized = Graph::new();
+        let mut node_mapping = FxHashMap::default();
+
+        // First pass: Copy all nodes
+        for (node_id, node) in &graph.nodes {
+            let new_node = node.clone();
+            let new_id = optimized.add_node(new_node)?;
+            node_mapping.insert(*node_id, new_id);
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast_tests.rs
+Method: test_import_export_nodes (lines 901-964, 64 lines)
+Preview:
+    fn test_import_export_nodes() {
+        let mut graph = Graph::new();
+
+        // Test Import node
+        let import = graph
+            .add_node(Node::Import {
+                module_path: "std/math".to_string(),
+                import_list: vec![
+                    ImportItem {
+                        name: "sin".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core-lib/src/engine.rs
+Method: execute_compiled_module (lines 108-171, 64 lines)
+Preview:
+    fn execute_compiled_module(&mut self, module: &CompiledModule) -> Result<Value> {
+        // Check state
+        if self.context.state() == RuntimeState::Running {
+            return Err(RuntimeError::other("Runtime is already executing"));
+        }
+
+        // Mark start
+        self.context.mark_start();
+        let start_time = Instant::now();
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/simple_actor_test.rs
+Method: test_actor_send_and_process (lines 65-127, 63 lines)
+Preview:
+fn test_actor_send_and_process() {
+    let mut graph = Graph::new();
+    
+    // Create a counter handler that increments state
+    let state_var = graph.add_node(Node::Variable { name: "state".to_string() }).unwrap();
+    let msg_var = graph.add_node(Node::Variable { name: "msg".to_string() }).unwrap();
+    let one = graph.add_node(Node::Literal(Literal::Integer(1))).unwrap();
+    
+    // Create application node for state + 1
+    let add_op = graph.add_node(Node::Variable { name: "+".to_string() }).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/memory_pool.rs
+Method: allocate (lines 184-246, 63 lines)
+Preview:
+    pub fn allocate(&mut self, size: usize, align: usize) -> Result<*mut u8> {
+        if size > self.config.slab_size {
+            return Err(anyhow!(
+                "Allocation size {} exceeds slab size {}",
+                size,
+                self.config.slab_size
+            ));
+        }
+
+        // Try current slab first
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/builder.rs
+Method: build (lines 166-228, 63 lines)
+Preview:
+    pub fn build(self) -> Result<VM> {
+        // Bytecode is required
+        let bytecode = self
+            .bytecode
+            .ok_or_else(|| anyhow::anyhow!("Bytecode is required"))?;
+
+        // Create VM with default dependencies
+        let mut vm = VM::new(bytecode);
+
+        // Apply custom dependencies if provided
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/strength_reduction_integration_test.rs
+Method: test_strength_reduction_integration (lines 5-67, 63 lines)
+Preview:
+fn test_strength_reduction_integration() {
+    // Test that x * 2 gets optimized when strength reduction is enabled
+    let code = "let x = 5; x * 2";
+    let ast = parse_flc(code).unwrap();
+    
+    // First test with strength reduction disabled
+    let config_without = OptimizationConfig {
+        level: OptimizationLevel::Standard,
+        constant_folding: false,
+        dead_code_elimination: false,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/tests/complex_pattern_tests.rs
+Method: test_complex_pattern_combination (lines 267-329, 63 lines)
+Preview:
+fn test_complex_pattern_combination() -> Result<()> {
+    let mut graph = Graph::new();
+
+    let input = graph.add_node(Node::Variable {
+        name: "input".to_string(),
+    })?;
+
+    // Create various results
+    let small_even = graph.add_node(Node::Literal(Literal::String("small even".to_string())))?;
+    let small_odd = graph.add_node(Node::Literal(Literal::String("small odd".to_string())))?;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/examples/test_stock_syntax.rs
+Method: main (lines 3-64, 62 lines)
+Preview:
+fn main() {
+    println!("Testing stock rebalancer syntax...\n");
+
+    // Test some key syntax from the stock rebalancer
+    let test_cases = vec![
+        // Map literal
+        (r#"{"symbol": "AAPL", "shares": 100}"#, "map literal"),
+        // Function with map return
+        (
+            r#"private function create_stock(symbol, shares) { {"symbol": symbol, "shares": shares} }"#,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_async_tests.rs
+Method: test_compile_async_with_await (lines 222-283, 62 lines)
+Preview:
+fn test_compile_async_with_await() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (async (let ((result (await (fetch url))))
+    //                 (+ result 1)))
+
+    let fetch_var = graph
+        .add_node(Node::Variable {
+            name: "fetch".to_string(),
+        })
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/concurrent_execution_tests.rs
+Method: test_bounded_queue_capacity (lines 115-176, 62 lines)
+Preview:
+fn test_bounded_queue_capacity() {
+    let capacity = 64;
+    let queue = Arc::new(BoundedQueue::new(capacity));
+    let num_threads = 8;
+
+    let success_count = Arc::new(AtomicUsize::new(0));
+    let fail_count = Arc::new(AtomicUsize::new(0));
+
+    cb_thread::scope(|s| {
+        // Producers
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/actor_receive_integration_test.rs
+Method: test_actor_become_in_receive (lines 81-142, 62 lines)
+Preview:
+fn test_actor_become_in_receive() {
+    let mut graph = Graph::new();
+    
+    // Create handler that uses become within receive
+    let _state_var = graph.add_node(Node::Variable { name: "state".to_string() }).unwrap();
+    let _msg_var = graph.add_node(Node::Variable { name: "msg".to_string() }).unwrap();
+    
+    // Create a handler body that uses become
+    let new_state_lit = graph.add_node(Node::Literal(Literal::String("changed".to_string()))).unwrap();
+    let become_node = graph.add_node(Node::Become { new_state: new_state_lit }).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/forward_reference_tests.rs
+Method: test_optimizer_handles_forward_references_in_match (lines 8-69, 62 lines)
+Preview:
+fn test_optimizer_handles_forward_references_in_match() -> Result<()> {
+    // This test verifies the fix for the forward reference bug
+    // where nodes referenced in match branches weren't properly mapped
+
+    let mut graph = Graph::new();
+
+    // Create a variable node that will be referenced later
+    let x_var = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/debug_node_mapping_trace.rs
+Method: debug_node_mapping_trace (lines 28-89, 62 lines)
+Preview:
+fn debug_node_mapping_trace() {
+    let code = "{ let x = 5; let y = x + 2; y * 3 }";
+    let ast = parse_flc(code).unwrap();
+
+    println!("=== Analyzing Original AST ===");
+
+    // Find the Let node and its bindings
+    for (id, node) in &ast.nodes {
+        if let Node::Let { bindings, body } = node {
+            println!("Found Let node at {:?}", id);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/optimizer_showcase.rs
+Method: showcase_optimization (lines 58-119, 62 lines)
+Preview:
+fn showcase_optimization(name: &str, code: &str, level: OptimizationLevel) {
+    println!("### {} ###", name);
+    println!("Original: {}", code);
+
+    let graph = match parse_flc(code) {
+        Ok(g) => g,
+        Err(e) => {
+            println!("Parse error: {}", e);
+            return;
+        }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/benches/parser_bench.rs
+Method: parser_benchmarks (lines 30-90, 61 lines)
+Preview:
+fn parser_benchmarks(c: &mut Criterion) {
+    let mut group = c.benchmark_group("parser");
+
+    // Simple expression
+    group.throughput(Throughput::Bytes(SIMPLE_EXPR.len() as u64));
+    group.bench_function("simple_expr", |b| {
+        b.iter(|| {
+            let _ = black_box(parse(black_box(SIMPLE_EXPR)));
+        });
+    });
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_error.rs
+Method: format_token (lines 22-82, 61 lines)
+Preview:
+fn format_token(token: &Token) -> String {
+    match token {
+        Token::Private => "keyword 'private'".to_string(),
+        Token::Public => "keyword 'public'".to_string(),
+        Token::Function => "keyword 'function'".to_string(),
+        Token::Let => "keyword 'let'".to_string(),
+        Token::If => "keyword 'if'".to_string(),
+        Token::Else => "keyword 'else'".to_string(),
+        Token::Match => "keyword 'match'".to_string(),
+        Token::Case => "keyword 'case'".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/concurrent_execution_tests.rs
+Method: test_concurrent_queue_ordering (lines 52-112, 61 lines)
+Preview:
+fn test_concurrent_queue_ordering() {
+    let queue = Arc::new(LockFreeQueue::new());
+    let num_producers = 4;
+    let num_consumers = 4;
+    let items_per_producer = 1000;
+
+    let barrier = Arc::new(Barrier::new(num_producers + num_consumers));
+    let consumed = Arc::new(AtomicUsize::new(0));
+
+    // Start producers
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_async_in_conditional_branches (lines 673-733, 61 lines)
+Preview:
+fn test_async_in_conditional_branches() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (if condition
+    //          (async (await (fast-op)))
+    //          (async (await (slow-op))))
+
+    let condition = graph
+        .add_node(Node::Variable {
+            name: "condition".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/examples/vm_di_demo.rs
+Method: custom_effects_demo (lines 64-124, 61 lines)
+Preview:
+fn custom_effects_demo() -> Result<()> {
+    println!("2. Custom Effects Demo");
+    println!("--------------------");
+
+    // Create custom effect handler
+    struct LoggingHandler;
+
+    impl EffectHandler for LoggingHandler {
+        fn effect_type(&self) -> EffectType {
+            EffectType::IO
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/test_dead_code_node_reference_fix.rs
+Method: verify_node_references (lines 96-156, 61 lines)
+Preview:
+fn verify_node_references(graph: &Graph, node: &Node) {
+    match node {
+        Node::Application { function, args } => {
+            assert!(
+                graph.get_node(*function).is_some(),
+                "Function node {:?} doesn't exist",
+                function
+            );
+            for arg in args {
+                assert!(
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/dynamic_pipeline.rs
+Method: di_integration_demo (lines 126-186, 61 lines)
+Preview:
+fn di_integration_demo() -> Result<()> {
+    println!("3. DI Integration Demo");
+    println!("---------------------");
+
+    // Create DI container with optimizer services
+    let mut builder = ContainerBuilder::new();
+
+    // Register optimizer with custom configuration
+    let config = OptimizationConfig {
+        level: OptimizationLevel::Aggressive,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_export_with_complex_aliases (lines 213-272, 60 lines)
+Preview:
+fn test_export_with_complex_aliases() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Define some internal functions
+    let nil_body = graph
+        .add_node(Node::Literal(Literal::Nil))
+        .expect("Failed to add node");
+    let internal_fn1 = graph
+        .add_node(Node::Lambda {
+            params: vec![],
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/debug_match_test.rs
+Method: test_debug_match_optimization (lines 42-101, 60 lines)
+Preview:
+fn test_debug_match_optimization() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create the exact same graph as the failing test
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/test_manual_graph_construction_bug.rs
+Method: test_manual_invalid_node_reference (lines 5-64, 60 lines)
+Preview:
+fn test_manual_invalid_node_reference() {
+    // This test manually creates a graph with an invalid node reference
+    // to simulate the exact bug described where NodeId(9) doesn't exist
+
+    let mut graph = Graph::new();
+
+    // Manually create nodes with specific IDs by inserting them directly
+    // This simulates a graph that might be created by a parser or other tool
+    // that has a bug and creates invalid references
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/test_dead_code_node_reference_fix.rs
+Method: test_dead_code_elimination_with_used_binding (lines 159-218, 60 lines)
+Preview:
+fn test_dead_code_elimination_with_used_binding() {
+    // Test the case where the binding IS used and everything should work correctly
+    let mut graph = Graph::new();
+
+    // Create nodes
+    let add_var = graph
+        .add_node(Node::Variable {
+            name: "add".to_string(),
+        })
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/examples/dynamic_pipeline.rs
+Method: custom_pass_demo (lines 65-124, 60 lines)
+Preview:
+fn custom_pass_demo() -> Result<()> {
+    println!("2. Custom Pass Registration Demo");
+    println!("-------------------------------");
+
+    // Create a custom optimization pass
+    struct CustomConstantPass {
+        replacements: usize,
+    }
+
+    impl CustomConstantPass {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/ml_hints.rs
+Method: analyze_node (lines 206-265, 60 lines)
+Preview:
+    fn analyze_node(
+        &self,
+        graph: &Graph,
+        _node_id: NodeId,
+        node: &Node,
+        features: &mut ProgramFeatures,
+    ) {
+        match node {
+            Node::Application { function, args } => {
+                features.function_calls += 1;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/tests/thread_pool_tests.rs
+Method: test_thread_pool_stress_test (lines 98-157, 60 lines)
+Preview:
+fn test_thread_pool_stress_test() {
+    let pool = Arc::new(
+        ThreadPoolBuilder::new()
+            .num_threads(8)
+            .thread_name("stress-test")
+            .queue_capacity(1000)
+            .build(),
+    );
+
+    let completed = Arc::new(AtomicUsize::new(0));
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/jit_integration_test.rs
+Method: test_jit_hot_path_compilation (lines 14-72, 59 lines)
+Preview:
+fn test_jit_hot_path_compilation() {
+    // Create a simple recursive factorial function
+    let source = r#"
+        (define (factorial n)
+            (if (<= n 1)
+                1
+                (* n (factorial (- n 1)))))
+    "#;
+    
+    let ast = parse_flc(source).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/forward_reference_tests.rs
+Method: test_all_optimization_passes_handle_forward_references (lines 312-370, 59 lines)
+Preview:
+fn test_all_optimization_passes_handle_forward_references() -> Result<()> {
+    // Test that each individual pass handles forward references correctly
+    let mut graph = Graph::new();
+
+    // Create a pattern that uses forward references
+    let var_ref = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+        })
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_handler_definition (lines 441-498, 58 lines)
+Preview:
+    fn parse_handler_definition(&mut self, _is_public: bool) -> Result<(NodeId, String)> {
+        // handle handler_name(param1: Type, param2: Type) { ... }
+        self.consume(Token::Handle)?;
+
+        let handler_name = match self.current {
+            Some(Token::LowerIdent(name)) => {
+                let name = name.to_string();
+                self.advance();
+                name
+            }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/runtime_async_tests.rs
+Method: test_nested_async_await (lines 123-180, 58 lines)
+Preview:
+async fn test_nested_async_await() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (async (let ((inner (async 10))) (await inner)))
+    let ten = graph
+        .add_node(Node::Literal(Literal::Integer(10)))
+        .expect("Failed to add node");
+
+    let inner_async = graph
+        .add_node(Node::Async { body: ten })
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_comprehensive_tests.rs
+Method: test_match_list_tail (lines 279-336, 58 lines)
+Preview:
+fn test_match_list_tail() -> Result<()> {
+    let mut graph = Graph::new();
+
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+    let three = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: common_subexpression_elimination (lines 665-722, 58 lines)
+Preview:
+    fn common_subexpression_elimination(&mut self, graph: &Graph) -> Result<Graph> {
+        let mut optimized = Graph::new();
+        let mut node_mapping = FxHashMap::default();
+        let mut expr_cache: FxHashMap<String, NodeId> = FxHashMap::default();
+
+        // First pass: Create all nodes to establish mappings
+        let nodes: Vec<_> = graph.nodes.keys().copied().collect();
+        for node_id in &nodes {
+            if graph.get_node(*node_id).is_some() {
+                let placeholder = Node::Literal(Literal::Nil);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/ml_hints.rs
+Method: test_ml_optimization_hints_integration (lines 957-1014, 58 lines)
+Preview:
+    fn test_ml_optimization_hints_integration() {
+        let mut ml_hints = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+
+        // Create a complex expression to get various hints
+        let mut values = vec![];
+        for i in 0..10 {
+            values.push(
+                graph
+                    .add_node(Node::Literal(Literal::Integer(i)))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/src/flc_parser.rs
+Method: parse_while_expression (lines 1526-1582, 57 lines)
+Preview:
+    fn parse_while_expression(&mut self) -> Result<NodeId> {
+        // while condition { body }
+        self.consume(Token::While)?;
+
+        let condition = self.parse_expression()?;
+
+        self.consume(Token::LBrace)?;
+        let body = self.parse_block_expression()?;
+        self.consume(Token::RBrace)?;
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/spawn_integration_test.rs
+Method: test_spawn_with_lambda (lines 8-64, 57 lines)
+Preview:
+fn test_spawn_with_lambda() {
+    // Initialize effect context and runtime
+    let context = Arc::new(EffectContext::new());
+    // Create a new runtime since we're not in an async context
+    let runtime = Arc::new(EffectRuntime::new().unwrap());
+    
+    // Register handlers
+    context.register_handler(Arc::new(IOHandler::new()));
+    context.register_handler(Arc::new(AsyncHandler::new()));
+    context.register_handler(Arc::new(ConcurrentHandler::new()));
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/module_loader_test.rs
+Method: test_module_loader_basic (lines 13-69, 57 lines)
+Preview:
+fn test_module_loader_basic() -> Result<()> {
+    let temp_dir = TempDir::new()?;
+    let module_path = temp_dir.path();
+    
+    // Create a simple module
+    let math_module = r#"
+// A simple math module
+
+public function add(a: int, b: int) -> int {
+    a + b
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/debug_node_mapping_complex.rs
+Method: debug_node_mapping_complex (lines 6-62, 57 lines)
+Preview:
+fn debug_node_mapping_complex() {
+    // The exact test case that's failing
+    let code = "{ let x = 5; let y = x + 2; y * 3 }";
+    let ast = parse_flc(code).unwrap();
+
+    println!("=== Original AST ===");
+    for (id, node) in &ast.nodes {
+        println!("{:?}: {:?}", id, node);
+    }
+    println!("Root: {:?}\n", ast.root_id);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/strength_reduction.rs
+Method: optimize_graph (lines 28-84, 57 lines)
+Preview:
+    fn optimize_graph(&mut self, graph: &Graph) -> Graph {
+        let mut optimized = Graph::new();
+        let mut node_map = FxHashMap::default();
+        
+        // Create operator nodes we'll need
+        let plus_id = optimized.add_node(Node::Variable { name: "+".to_string() }).unwrap();
+        let mult_id = optimized.add_node(Node::Variable { name: "*".to_string() }).unwrap();
+        
+        // First pass: copy all nodes and create mapping
+        for (node_id, node) in &graph.nodes {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/inline.rs
+Method: collect_free_variables (lines 67-123, 57 lines)
+Preview:
+    fn collect_free_variables(
+        &self,
+        graph: &Graph,
+        node_id: NodeId,
+        bound_vars: &[String],
+        free_vars: &mut FxHashSet<String>,
+    ) {
+        if let Some(node) = graph.get_node(node_id) {
+            match node {
+                Node::Variable { name } => {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/value_tests.rs
+Method: test_value_display (lines 462-518, 57 lines)
+Preview:
+    fn test_value_display() {
+        assert_eq!(format!("{}", Value::Integer(42)), "42");
+        assert_eq!(format!("{}", Value::Float(3.14)), "3.14");
+        assert_eq!(
+            format!("{}", Value::String("hello".to_string())),
+            "\"hello\""
+        );
+        assert_eq!(format!("{}", Value::Symbol("foo".to_string())), "foo");
+        assert_eq!(format!("{}", Value::Boolean(true)), "#t");
+        assert_eq!(format!("{}", Value::Boolean(false)), "#f");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/tests/test_assignment_expr.rs
+Method: test_chained_assignments (lines 16-71, 56 lines)
+Preview:
+fn test_chained_assignments() {
+    // Test right-associativity of assignments
+    let input = "a = b = c = 5";
+    let parser = Parser::new(input);
+    let graph = parser.parse().expect("Failed to parse");
+
+    // The AST should be: Assignment(a, Assignment(b, Assignment(c, 5)))
+    if let Some(root_id) = graph.root_id {
+        if let Some(Node::Assignment { target, value }) = graph.nodes.get(&root_id) {
+            // Check that 'a' is the target
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/error_handling_tests.rs
+Method: test_error_propagation_through_calls (lines 523-578, 56 lines)
+Preview:
+fn test_error_propagation_through_calls() {
+    let mut graph = Graph::new();
+
+    // Create: (let ((f (lambda () (/ 1 0)))) (f))
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let zero = graph
+        .add_node(Node::Literal(Literal::Integer(0)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/async_await_integration_test.rs
+Method: test_promise_all (lines 83-138, 56 lines)
+Preview:
+fn test_promise_all() {
+    println!("\n=== Testing promise_all ===");
+    
+    // Create AST for: promise_all([p1, p2, p3])
+    let mut graph = Graph::new();
+    
+    // Create three promises
+    let mut promise_nodes = vec![];
+    for i in 1..=3 {
+        let const_node = graph.add_node(Node::Literal(Literal::Integer(i))).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: create_error_with_location (lines 1598-1653, 56 lines)
+Preview:
+    pub fn create_error_with_location(&self, mut error: VMError) -> VMError {
+        // Add stack trace if not already present
+        match &mut error {
+            VMError::StackOverflow { stack_trace, .. } |
+            VMError::StackUnderflow { stack_trace, .. } |
+            VMError::CallStackOverflow { stack_trace, .. } |
+            VMError::TypeError { stack_trace, .. } |
+            VMError::DivisionByZero { stack_trace, .. } |
+            VMError::IntegerOverflow { stack_trace, .. } |
+            VMError::InvalidConstantIndex { stack_trace, .. } |
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_coverage_tests.rs
+Method: test_compile_qualified_variable_complex (lines 145-199, 55 lines)
+Preview:
+fn test_compile_qualified_variable_complex() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (+ (math:add 1 2) (string:length "hello"))
+    let math_add = graph
+        .add_node(Node::QualifiedVariable {
+            module_name: "math".to_string(),
+            variable_name: "add".to_string(),
+        })
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_comprehensive_tests.rs
+Method: test_match_boolean_literals (lines 99-153, 55 lines)
+Preview:
+fn test_match_boolean_literals() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Test matching true
+    let true_val = graph
+        .add_node(Node::Literal(Literal::Boolean(true)))
+        .expect("Failed to add node");
+    let true_result = graph
+        .add_node(Node::Literal(Literal::String("is true".to_string())))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_comprehensive_tests.rs
+Method: test_match_non_empty_list_with_cons (lines 222-276, 55 lines)
+Preview:
+fn test_match_non_empty_list_with_cons() -> Result<()> {
+    let mut graph = Graph::new();
+
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+    let three = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/error_handling_tests.rs
+Method: test_stack_trace_in_function (lines 464-518, 55 lines)
+Preview:
+fn test_stack_trace_in_function() {
+    let mut graph = Graph::new();
+
+    // Create function that errors: (lambda (x) (/ x 0))
+    let x_var = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+        })
+        .expect("Failed to add node");
+    let zero = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/vm.rs
+Method: spawn_task (lines 1888-1942, 55 lines)
+Preview:
+    pub fn spawn_task(&mut self, func: Value) -> VMResult<()> {
+        match func {
+            Value::Function { chunk_id, env } => {
+                // Create a promise for the result
+                let promise_id = self.id_generator.next_promise_id();
+                let (tx, rx) = oneshot::channel();
+                
+                // Store the receiver
+                self.promises.insert(promise_id, rx);
+                
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/promise_manager.rs
+Method: await_all (lines 147-201, 55 lines)
+Preview:
+    pub async fn await_all(&mut self, promise_ids: Vec<PromiseId>) -> VMResult<Vec<Value>> {
+        let mut results = Vec::with_capacity(promise_ids.len());
+        
+        // Collect all futures
+        let mut futures = Vec::new();
+        for id in promise_ids {
+            if let Some(receiver) = self.promises.remove(&id) {
+                futures.push(receiver);
+            } else {
+                // Check cached state
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/forward_reference_tests.rs
+Method: test_optimizer_handles_forward_references_in_lambda (lines 187-241, 55 lines)
+Preview:
+fn test_optimizer_handles_forward_references_in_lambda() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a variable that will be captured
+    let free_var = graph
+        .add_node(Node::Variable {
+            name: "free".to_string(),
+        })
+        .expect("Failed to add node");
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/optimizer_tests.rs
+Method: test_optimizer_corrupts_channel_with_capacity (lines 276-330, 55 lines)
+Preview:
+    fn test_optimizer_corrupts_channel_with_capacity() {
+        // Create a graph for: (chan 10)
+        let mut graph = Graph::new();
+        let capacity = graph.add_node(Node::Literal(Literal::Integer(10))).unwrap();
+        let channel = graph.add_node(Node::Channel { capacity: Some(capacity) }).unwrap();
+        graph.root_id = Some(channel);
+        
+        // Debug: Print original graph
+        println!("Original graph:");
+        println!("  NodeId(1) = {:?}", graph.get_node(NodeId(NonZeroU32::new(1).unwrap())));
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/advanced_optimizer.rs
+Method: count_nodes (lines 1316-1370, 55 lines)
+Preview:
+    fn count_nodes(&self, root: NodeId) -> usize {
+        let mut count = 0;
+        let mut visited = FxHashSet::default();
+        let mut queue = vec![root];
+
+        while let Some(node_id) = queue.pop() {
+            if !visited.insert(node_id) {
+                continue;
+            }
+            count += 1;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/ml_hints.rs
+Method: test_hint_generator (lines 866-920, 55 lines)
+Preview:
+    fn test_hint_generator() {
+        let mut hints = MLOptimizationHints::new();
+        let mut graph = Graph::new();
+
+        // Create a function with enough operations to trigger inlining hint
+        let mut nodes = vec![];
+        for i in 0..5 {
+            nodes.push(
+                graph
+                    .add_node(Node::Literal(Literal::Integer(i)))
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/value_tests.rs
+Method: test_deep_eq_edge_cases (lines 742-796, 55 lines)
+Preview:
+    fn test_deep_eq_edge_cases() {
+        // Test deep_eq with different types
+        assert!(!Value::Integer(42).deep_eq(&Value::String("42".to_string())));
+        assert!(!Value::List(vec![]).deep_eq(&Value::Vector(vec![])));
+        assert!(!Value::Symbol("sym".to_string()).deep_eq(&Value::String("sym".to_string())));
+
+        // Test deep_eq with NativeFunction
+        let native1 = Value::NativeFunction {
+            name: "test".to_string(),
+            arity: 1,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests_extended.rs
+Method: test_compile_pattern_matching_tail (lines 1128-1181, 54 lines)
+Preview:
+fn test_compile_pattern_matching_tail() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (match (list 1 2 3) ((cons x xs) xs) (_ (list)))
+    let one = graph
+        .add_node(Node::Literal(Literal::Integer(1)))
+        .expect("Failed to add node");
+    let two = graph
+        .add_node(Node::Literal(Literal::Integer(2)))
+        .expect("Failed to add node");
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_edge_cases.rs
+Method: test_match_with_shadowed_variables (lines 189-242, 54 lines)
+Preview:
+fn test_match_with_shadowed_variables() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create outer let with x = 100
+    let outer_x_val = graph
+        .add_node(Node::Literal(Literal::Integer(100)))
+        .expect("Failed to add node");
+
+    // Create list for matching
+    let one = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/test_actor_receive_simple.rs
+Method: test_actor_receive_returns_value (lines 11-64, 54 lines)
+Preview:
+fn test_actor_receive_returns_value() {
+    let mut graph = Graph::new();
+    
+    // Create a simple handler that uses receive to return different values
+    let handler_body = {
+        // Create literals for the return values
+        let pong_lit = graph.add_node(Node::Literal(Literal::String("pong".to_string()))).unwrap();
+        let world_lit = graph.add_node(Node::Literal(Literal::String("world".to_string()))).unwrap();
+        let unknown_lit = graph.add_node(Node::Literal(Literal::String("unknown".to_string()))).unwrap();
+        
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/gc.rs
+Method: full_collect (lines 250-303, 54 lines)
+Preview:
+    fn full_collect(&self) -> Result<()> {
+        // Phase 1: Mark all objects as white
+        for (_, weak) in self.objects.read().unwrap().iter() {
+            if let Some(obj) = weak.upgrade() {
+                *obj.metadata.color.lock().unwrap() = Color::White;
+            }
+        }
+
+        // Phase 2: Mark roots and their descendants
+        let roots = self.roots.read().unwrap().clone();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/begin_test.rs
+Method: test_begin_with_multiple_effects (lines 128-181, 54 lines)
+Preview:
+fn test_begin_with_multiple_effects() {
+    // Test that all effects in a Begin are preserved
+    let mut graph = Graph::new();
+    
+    // Create effect nodes
+    let print_var = graph.add_node(Node::Variable { name: "print".to_string() }).unwrap();
+    let write_var = graph.add_node(Node::Variable { name: "write-file".to_string() }).unwrap();
+    
+    let str1 = graph.add_node(Node::Literal(Literal::String("First".to_string()))).unwrap();
+    let str2 = graph.add_node(Node::Literal(Literal::String("Second".to_string()))).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/assignment_optimization_test.rs
+Method: test_assignment_optimization (lines 7-60, 54 lines)
+Preview:
+fn test_assignment_optimization() {
+    let code = "let x = 10; x := 42";
+    
+    eprintln!("Parsing code: {}", code);
+    let graph = parse_flc(code).expect("Parse failed");
+    
+    eprintln!("\nOriginal graph:");
+    eprintln!("  Root: {:?}", graph.root_id);
+    for (id, node) in &graph.nodes {
+        eprintln!("  {:?}: {:?}", id, node);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/context_aware_tests.rs
+Method: test_multiple_hints_same_node (lines 396-449, 54 lines)
+Preview:
+fn test_multiple_hints_same_node() {
+    let mut pass = ContextAwarePass::new();
+    let mut graph = parse_flc("data.map((x) => x * x)").unwrap();
+
+    // Find map node and add multiple hints
+    for (id, node) in &graph.nodes {
+        if let Node::Application { function, .. } = node {
+            if let Some(Node::Variable { name }) = graph.get_node(*function) {
+                if name == "map" {
+                    let hints = vec![
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/analysis.rs
+Method: calculate_node_size_helper (lines 696-749, 54 lines)
+Preview:
+fn calculate_node_size_helper(
+    graph: &Graph,
+    node_id: NodeId,
+    size: &mut usize,
+    visited: &mut FxHashSet<NodeId>,
+) {
+    if !visited.insert(node_id) {
+        return; // Already visited
+    }
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast_tests.rs
+Method: test_complex_graph (lines 796-849, 54 lines)
+Preview:
+    fn test_complex_graph() {
+        let mut graph = Graph::new();
+
+        // Build: let x = 10 in let y = 20 in x + y
+        let ten = graph.add_node(Node::Literal(Literal::Integer(10))).unwrap();
+        let twenty = graph.add_node(Node::Literal(Literal::Integer(20))).unwrap();
+
+        let x_var = graph
+            .add_node(Node::Variable {
+                name: "x".to_string(),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/documentation/registry.rs
+Method: register_all (lines 32-85, 54 lines)
+Preview:
+    fn register_all(&mut self) {
+        // Register literals
+        self.register::<IntegerDoc>();
+        self.register::<FloatDoc>();
+        self.register::<StringDoc>();
+        self.register::<BooleanDoc>();
+        self.register::<NilDoc>();
+
+        // Register variables
+        self.register::<VariableDoc>();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/documentation/registry.rs
+Method: search (lines 303-356, 54 lines)
+Preview:
+    pub fn search(&self, query: &str) -> Vec<Documentation> {
+        let query_lower = query.to_lowercase();
+        let mut results = Vec::new();
+
+        // Search constructs
+        for doc in self.constructs.values() {
+            if doc.name.to_lowercase().contains(&query_lower)
+                || doc.description.to_lowercase().contains(&query_lower)
+                || doc.syntax.to_lowercase().contains(&query_lower)
+            {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/value/mod.rs
+Method: fmt (lines 654-707, 54 lines)
+Preview:
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Integer(n) => write!(f, "{}", n),
+            Value::Float(x) => write!(f, "{}", x),
+            Value::String(s) => write!(f, "\"{}\"", s),
+            Value::Symbol(s) => write!(f, "{}", s),
+            Value::Boolean(b) => write!(f, "{}", if *b { "#t" } else { "#f" }),
+            Value::Nil => write!(f, "nil"),
+            Value::List(items) => {
+                write!(f, "(")?;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_tests_extended.rs
+Method: test_compile_multiple_lambdas (lines 984-1036, 53 lines)
+Preview:
+fn test_compile_multiple_lambdas() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (let ((f (lambda (x) x)) (g (lambda (y) y))) f)
+    let x_var = graph
+        .add_node(Node::Variable {
+            name: "x".to_string(),
+        })
+        .expect("Failed to add node");
+    let f_lambda = graph
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_module_tests.rs
+Method: test_compile_import_multiple_modules (lines 343-395, 53 lines)
+Preview:
+fn test_compile_import_multiple_modules() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Import from multiple modules
+    let import1 = graph
+        .add_node(Node::Import {
+            module_path: "math".to_string(),
+            import_list: vec![ImportItem {
+                name: "add".to_string(),
+                alias: None,
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/compiler_uncovered_tests.rs
+Method: test_nested_async_operations (lines 392-444, 53 lines)
+Preview:
+fn test_nested_async_operations() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create (async
+    //          (let ((inner (async
+    //                         (await (fetch "url")))))
+    //            (await inner)))
+
+    let fetch_var = graph
+        .add_node(Node::Variable {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/compiler.rs
+Method: compile_assignment (lines 943-995, 53 lines)
+Preview:
+    fn compile_assignment(&mut self, graph: &ASTGraph, target: NodeId, value: NodeId) -> Result<()> {
+        // For now, we only support simple variable assignments
+        // TODO: In the future, support field access (e.g., self.count)
+        
+        
+        let target_node = graph
+            .get_node(target)
+            .ok_or_else(|| anyhow!("Invalid target node in assignment: {:?}", target))?;
+        
+        match target_node {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/concurrent_gc.rs
+Method: scan_value_concurrent (lines 502-554, 53 lines)
+Preview:
+    fn scan_value_concurrent(
+        &self,
+        value: &Value,
+        gray_queue: &SegQueue<GcNodePtr>,
+        guard: &Guard,
+    ) {
+        // Similar to scan_value but adds to gray queue
+        match value {
+            Value::List(items) => {
+                for item in items {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/iterative_optimizer_tests.rs
+Method: test_complex_deep_nesting (lines 232-284, 53 lines)
+Preview:
+fn test_complex_deep_nesting() {
+    // Test combination of deep nesting: let inside lambda inside if
+    let depth = 100; // Much less depth due to complexity - 200 total levels
+    let mut code = String::from("(if #t");
+
+    // Add nested lambdas
+    for i in 0..depth {
+        code.push_str(&format!(" (lambda (x{})", i));
+    }
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/iterative_optimizer_tests.rs
+Method: test_extremely_deep_nesting_stress (lines 287-339, 53 lines)
+Preview:
+fn test_extremely_deep_nesting_stress() {
+    // Use a separate thread with larger stack size for this test
+    let builder = std::thread::Builder::new()
+        .name("deep_nesting_test".into())
+        .stack_size(8 * 1024 * 1024); // 8MB stack
+
+    let handle = builder
+        .spawn(|| {
+            // Stress test with extremely deep nesting
+            let depth = 450; // Reduced to avoid parser stack overflow
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/loop_opts.rs
+Method: find_invariant_code (lines 171-223, 53 lines)
+Preview:
+    fn find_invariant_code(
+        &self,
+        graph: &Graph,
+        loop_info: &LoopInfo,
+        _cfg: &ControlFlowGraph,
+        dfa: &DataFlowAnalysis,
+    ) -> Vec<NodeId> {
+        let mut invariant = Vec::new();
+        let loop_vars = self.get_loop_variables(loop_info);
+
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/passes/continuum_lowering.rs
+Method: copy_node_with_transformed_children (lines 218-270, 53 lines)
+Preview:
+    fn copy_node_with_transformed_children(&mut self, old_graph: &Graph, new_graph: &mut Graph, node_id: NodeId) -> Result<NodeId> {
+        let node = old_graph.get_node(node_id).ok_or_else(|| anyhow::anyhow!("Invalid node"))?.clone();
+        
+        let new_node = match node {
+            Node::Let { bindings, body } => {
+                let mut new_bindings = vec![];
+                for (name, value_id) in bindings {
+                    let new_value = self.transform_node(old_graph, new_graph, value_id)?;
+                    new_bindings.push((name, new_value));
+                }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/value_tests.rs
+Method: test_value_type_predicates (lines 11-63, 53 lines)
+Preview:
+    fn test_value_type_predicates() {
+        // Integer
+        let int_val = Value::Integer(42);
+        assert!(int_val.is_integer());
+        assert!(int_val.is_number());
+        assert!(!int_val.is_float());
+        assert!(!int_val.is_string());
+
+        // Float
+        let float_val = Value::Float(3.14);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/tests/test_actor_state_initialization.rs
+Method: test_actor_state_mixed_initialization (lines 87-138, 52 lines)
+Preview:
+fn test_actor_state_mixed_initialization() {
+    let source = r#"
+        private actor Server {
+            port: int = 8080;
+            host: string;  // Should default to ""
+            running: bool = true;
+            connections: int;  // Should default to 0
+            
+            private handle start() {
+                running
+--------------------------------------------------------------------------------
+
+File: ./fluentai-parser/tests/test_phase2_milestone.rs
+Method: test_phase2_continuum_to_render_data (lines 5-56, 52 lines)
+Preview:
+fn test_phase2_continuum_to_render_data() {
+    // Phase 2 Milestone: Parse Continuum syntax and verify it can be converted to render data
+    let code = r##"
+surface demo_app {
+    element title {
+        content: "Phase 2 Complete!",
+        color: "#2E86AB"
+    }
+    
+    element box1 {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/pattern_matching_edge_cases.rs
+Method: test_match_very_long_list (lines 135-186, 52 lines)
+Preview:
+fn test_match_very_long_list() -> Result<()> {
+    let mut graph = Graph::new();
+
+    // Create a list with 100 elements
+    let mut elements = Vec::new();
+    for i in 0..100 {
+        elements.push(
+            graph
+                .add_node(Node::Literal(Literal::Integer(i)))
+                .expect("Failed to add node"),
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/gc.rs
+Method: mark_value_children (lines 322-373, 52 lines)
+Preview:
+    fn mark_value_children(&self, value: &Value) -> Result<()> {
+        match value {
+            Value::List(items) => {
+                for item in items {
+                    self.mark_value_children(item)?;
+                }
+            }
+            Value::Vector(items) => {
+                for item in items {
+                    self.mark_value_children(item)?;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/concurrent.rs
+Method: enqueue (lines 133-184, 52 lines)
+Preview:
+    pub fn enqueue(&self, value: T) {
+        let guard = &epoch::pin();
+        let new_node = Owned::new(Node {
+            data: value,
+            next: Atomic::null(),
+        })
+        .into_shared(guard);
+
+        loop {
+            let tail = self.tail.load(Ordering::Acquire, guard);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/unboxed.rs
+Method: to_value (lines 155-206, 52 lines)
+Preview:
+    pub fn to_value(self) -> Value {
+        match self {
+            UnboxedValue::Nil => Value::Nil,
+            UnboxedValue::Bool(b) => Value::Boolean(b),
+            UnboxedValue::Int(i) => Value::Integer(i),
+            UnboxedValue::Float(f) => Value::Float(f),
+            UnboxedValue::Boxed(boxed) => match *boxed {
+                BoxedValue::String(s) => Value::String(s),
+                BoxedValue::Symbol(s) => Value::Symbol(s),
+                BoxedValue::List(items) => {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/substitution_tests.rs
+Method: collect_node_references (lines 384-435, 52 lines)
+Preview:
+fn collect_node_references(node: &Node, stack: &mut Vec<NodeId>) {
+    match node {
+        Node::Application { function, args } => {
+            stack.push(*function);
+            stack.extend(args);
+        }
+        Node::Lambda { body, .. } => stack.push(*body),
+        Node::Let { bindings, body } | Node::Letrec { bindings, body } => {
+            for (_, value_id) in bindings {
+                stack.push(*value_id);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/iterative_optimizer_tests.rs
+Method: test_mark_reachable_deep_nesting (lines 342-393, 52 lines)
+Preview:
+fn test_mark_reachable_deep_nesting() {
+    // Test specifically for mark_reachable with deep let bindings
+    // where some bindings are unused
+    // Simpler structure to avoid parse errors
+    let depth = 50; // Much smaller for this complex test
+    let mut code = String::from("(let (");
+
+    // Create bindings
+    for i in 0..depth {
+        if i % 2 == 0 {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/tests/begin_test.rs
+Method: test_let_with_begin_body (lines 5-56, 52 lines)
+Preview:
+fn test_let_with_begin_body() {
+    // Test case: (let ((x 42)) (begin (print x) x))
+    // The print effect should be preserved even though it's inside a Begin
+    let mut graph = Graph::new();
+    
+    // Create the literal 42
+    let lit_42 = graph.add_node(Node::Literal(Literal::Integer(42))).unwrap();
+    
+    // Create variable x
+    let var_x = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/analysis.rs
+Method: analyze (lines 623-674, 52 lines)
+Preview:
+    pub fn analyze(graph: &Graph) -> Self {
+        let mut analysis = Self {
+            alias_sets: Vec::new(),
+            node_to_set: FxHashMap::default(),
+        };
+
+        // Simple alias analysis - group nodes by value equality
+        for (node_id, node) in &graph.nodes {
+            match node {
+                Node::Variable { name } => {
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/test_spawn_implementation.rs
+Method: main (lines 8-58, 51 lines)
+Preview:
+async fn main() -> anyhow::Result<()> {
+    println!("=== Testing Spawn Implementation ===\n");
+
+    // Initialize effect context and runtime
+    let context = Arc::new(EffectContext::new());
+    let runtime = Arc::new(EffectRuntime::new()?);
+    
+    // Register handlers
+    context.register_handler(Arc::new(IOHandler::new()));
+    context.register_handler(Arc::new(TimeHandler::new()));
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/tests/optimizer_inline_bug_test.rs
+Method: test_optimizer_application_of_closure (lines 79-129, 51 lines)
+Preview:
+fn test_optimizer_application_of_closure() {
+    // Build AST for: (let ((x 10)) ((lambda () x))())
+    // This applies the lambda immediately
+    let mut graph = Graph::new();
+    
+    // x = 10
+    let ten = graph.add_node(Node::Literal(Literal::Integer(10))).unwrap();
+    
+    // Variable reference to x inside lambda
+    let x_ref = graph.add_node(Node::Variable { name: "x".to_string() }).unwrap();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/promise_manager.rs
+Method: await_promise (lines 94-144, 51 lines)
+Preview:
+    pub async fn await_promise(&mut self, promise_id: PromiseId) -> VMResult<Value> {
+        if let Some(receiver) = self.promises.remove(&promise_id) {
+            match receiver.await {
+                Ok(result) => {
+                    // Update state
+                    let mut states = self.states.lock().await;
+                    match &result {
+                        Ok(value) => {
+                            states.insert(promise_id, PromiseState::Resolved(value.clone()));
+                        }
+--------------------------------------------------------------------------------
+
+File: ./fluentai-vm/src/concurrent_gc.rs
+Method: scan_value (lines 449-499, 51 lines)
+Preview:
+    fn scan_value(&self, value: &Value) {
+        match value {
+            Value::List(items) => {
+                for item in items {
+                    self.scan_value(item);
+                }
+            }
+            Value::Vector(items) => {
+                for item in items {
+                    self.scan_value(item);
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/graph_optimizer.rs
+Method: constant_folding_pass (lines 61-111, 51 lines)
+Preview:
+    fn constant_folding_pass(&mut self, graph: &Graph) -> Result<Graph> {
+        let mut current = graph.clone();
+        let mut iterations = 0;
+        const MAX_ITERATIONS: usize = 10;
+
+        // Iterate until no more folding is possible
+        loop {
+            let mut optimized = Graph::new();
+            let mut node_mapping = FxHashMap::default();
+            let mut folded_count = 0;
+--------------------------------------------------------------------------------
+
+File: ./fluentai-optimizer/src/ml_hints.rs
+Method: generate_hints (lines 481-531, 51 lines)
+Preview:
+    pub fn generate_hints(&self, graph: &Graph) -> Vec<(NodeId, OptimizationHint)> {
+        let features = self.extract_features(graph);
+        let feature_vec = features.to_vector();
+
+        // Simple dot product scoring
+        let score: f32 = feature_vec
+            .iter()
+            .zip(self.weights.iter())
+            .map(|(f, w)| f * w)
+            .sum();
+--------------------------------------------------------------------------------
+
+File: ./fluentai-core/src/ast_tests.rs
+Method: test_dfs_with_cycles (lines 390-440, 51 lines)
+Preview:
+    fn test_dfs_with_cycles() {
+        let mut graph = Graph::new();
+
+        // Create nodes that would form a cycle if we didn't track visited
+        let a = graph
+            .add_node(Node::Variable {
+                name: "a".to_string(),
+            })
+            .unwrap();
+        let b = graph
+--------------------------------------------------------------------------------
+

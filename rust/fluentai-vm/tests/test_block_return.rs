@@ -1,8 +1,6 @@
-#[cfg(test)]
-mod tests {
-    use fluentai_core::value::Value;
-    use fluentai_parser::parse_flc;
-    use fluentai_vm::{Compiler, CompilerOptions, OptimizationLevel, VM};
+use fluentai_core::value::Value;
+use fluentai_parser::parse_flc;
+use fluentai_vm::{Compiler, CompilerOptions, OptimizationLevel, VM};
     
     #[test]
     fn test_block_return_debug() {
@@ -43,4 +41,3 @@ mod tests {
         println!("Result: {:?}", result);
         assert_eq!(result, Value::Integer(10), "Block should return last expression");
     }
-}

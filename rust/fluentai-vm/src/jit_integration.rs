@@ -11,6 +11,7 @@ use fluentai_core::value::Value;
 use fluentai_jit::JitCompiler;
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
+use web_time::Instant;
 
 /// Threshold for JIT compilation
 pub struct JitConfig {
@@ -97,7 +98,7 @@ impl JitManager {
             return Ok(()); // Already compiled or attempted
         }
         
-        let start_time = std::time::Instant::now();
+        let start_time = web_time::Instant::now();
         
         match self.compiler.as_mut() {
             Some(compiler) => {

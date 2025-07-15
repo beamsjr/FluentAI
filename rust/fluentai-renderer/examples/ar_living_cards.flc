@@ -1,0 +1,302 @@
+// AR Living Cards Dashboard Demo
+// Showcasing Continuum UI features in FluentAI
+
+use Continuum::{Scene3D, Camera3D, Mesh3D, Material3D, PhysicsLayout, ReactiveEngine};
+use Continuum::AR::{ARSession, SpatialAnchor, GestureRecognizer};
+use Continuum::WebGL::{WebGLRenderer};
+
+// Card status enum
+private enum CardStatus {
+    Todo,
+    InProgress, 
+    Done
+}
+
+// Living Card structure
+private struct LivingCard {
+    id: string,
+    title: string,
+    description: string,
+    status: CardStatus,
+    position: vec3,
+    velocity: vec3,
+    is_dragging: bool
+}
+
+// Main application function
+private async function main() {
+    // Initialize Continuum UI
+    perform IO.println("Initializing AR Living Cards Dashboard...");
+    
+    // Create AR session
+    let ar_session = ARSession.new()
+        .with_plane_detection(true)
+        .with_hit_testing(true)
+        .with_hand_tracking(false);
+    
+    // Initialize the session
+    ar_session.initialize().await();
+    
+    // Create 3D scene
+    let scene = Scene3D.new("AR Dashboard")
+        .set_camera(
+            Camera3D.perspective()
+                .position({x: 0.0, y: 1.6, z: 0.0})
+                .look_at({x: 0.0, y: 0.0, z: -2.0})
+                .fov(60.0)
+        )
+        .add_light(
+            Light.ambient()
+                .color({r: 0.3, g: 0.3, b: 0.3})
+        )
+        .add_light(
+            Light.directional()
+                .direction({x: -0.3, y: -1.0, z: -0.5})
+                .color({r: 1.0, g: 1.0, b: 1.0})
+                .intensity(1.0)
+        );
+    
+    // Create physics system
+    let physics = PhysicsLayout.new()
+        .with_gravity({x: 0.0, y: -9.8})
+        .with_damping(0.1);
+    
+    // Create reactive state
+    let state = ReactiveEngine.new();
+    
+    // Create Kanban columns with spatial anchors
+    let columns = [
+        create_column("todo", CardStatus.Todo, {x: -1.0, y: 0.0, z: -2.0}),
+        create_column("progress", CardStatus.InProgress, {x: 0.0, y: 0.0, z: -2.0}),
+        create_column("done", CardStatus.Done, {x: 1.0, y: 0.0, z: -2.0})
+    ];
+    
+    // Add columns to AR space
+    columns.for_each(col => {
+        let anchor = SpatialAnchor.new()
+            .type("plane")
+            .position(col.position)
+            .confidence(1.0);
+        
+        ar_session.add_anchor(col.id, anchor);
+        scene.add_mesh(col.mesh);
+    });
+    
+    // Create demo cards
+    let cards = [
+        create_card("task1", "Setup project", "Initialize the AR dashboard", CardStatus.Todo),
+        create_card("task2", "Design UI", "Create wireframes", CardStatus.Todo),
+        create_card("task3", "Implement gestures", "Add touch interactions", CardStatus.InProgress),
+        create_card("task4", "Research WebXR", "Study the API", CardStatus.Done)
+    ];
+    
+    // Add cards to scene and physics
+    cards.for_each(card => {
+        // Add to physics system
+        physics.add_element(card.id, card.position, {width: 0.3, height: 0.2});
+        
+        // Add to reactive state
+        state.register_field(f"card_{card.id}_status", card.status);
+        
+        // Add to scene
+        scene.add_node({
+            name: card.id,
+            mesh: create_card_mesh(card),
+            transform: Matrix4.translation(card.position)
+        });
+    });
+    
+    // Create gesture recognizer
+    let gestures = GestureRecognizer.new()
+        .on_tap(pos => {
+            perform IO.println(f"Tap at {pos}");
+            handle_tap(pos, cards);
+        })
+        .on_drag((id, pos) => {
+            handle_drag(id, pos, cards, physics);
+        })
+        .on_flick((id, velocity) => {
+            handle_flick(id, velocity, cards, physics);
+        })
+        .on_pinch(scale => {
+            scene.camera.zoom(scale);
+        });
+    
+    // Create WebGL renderer
+    let renderer = WebGLRenderer.new()
+        .canvas_id("ar-canvas")
+        .antialias(true);
+    
+    // Main render loop
+    async {
+        loop {
+            // Get AR frame
+            let frame = ar_session.get_frame().await();
+            
+            // Update physics
+            physics.step(1.0 / 60.0);
+            
+            // Update card positions from physics
+            cards.for_each(card => {
+                let pos = physics.get_position(card.id);
+                card.position = {x: pos.x, y: pos.y, z: card.position.z};
+                
+                // Check for column snapping
+                if (!card.is_dragging) {
+                    check_column_snap(card, columns);
+                }
+            });
+            
+            // Update scene transforms
+            cards.for_each(card => {
+                scene.get_node(card.id)
+                    .set_transform(Matrix4.translation(card.position));
+            });
+            
+            // Render frame
+            renderer.render(scene);
+            
+            // Wait for next frame
+            perform Time.wait_frame();
+        }
+    }.spawn();
+    
+    perform IO.println("AR Living Cards Dashboard running!");
+}
+
+// Create a Kanban column
+private function create_column(id: string, status: CardStatus, position: vec3) {
+    let color = match status {
+        CardStatus.Todo => {r: 0.8, g: 0.3, b: 0.3, a: 0.2},
+        CardStatus.InProgress => {r: 0.8, g: 0.6, b: 0.2, a: 0.2},
+        CardStatus.Done => {r: 0.3, g: 0.8, b: 0.3, a: 0.2}
+    };
+    
+    let mesh = Mesh3D.box({width: 0.4, height: 1.0, depth: 0.02})
+        .material(
+            Material3D.unlit()
+                .color(color)
+                .transparent(true)
+        );
+    
+    {
+        id: id,
+        status: status,
+        position: position,
+        mesh: mesh,
+        bounds: {width: 0.4, height: 1.0}
+    }
+}
+
+// Create a task card
+private function create_card(id: string, title: string, desc: string, status: CardStatus) -> LivingCard {
+    let position = match status {
+        CardStatus.Todo => {x: -1.0, y: 0.0, z: -2.0},
+        CardStatus.InProgress => {x: 0.0, y: 0.0, z: -2.0},
+        CardStatus.Done => {x: 1.0, y: 0.0, z: -2.0}
+    };
+    
+    LivingCard {
+        id: id,
+        title: title,
+        description: desc,
+        status: status,
+        position: position,
+        velocity: {x: 0.0, y: 0.0, z: 0.0},
+        is_dragging: false
+    }
+}
+
+// Create card mesh
+private function create_card_mesh(card: LivingCard) -> Mesh3D {
+    let color = match card.status {
+        CardStatus.Todo => {r: 0.8, g: 0.3, b: 0.3, a: 0.9},
+        CardStatus.InProgress => {r: 0.8, g: 0.6, b: 0.2, a: 0.9},
+        CardStatus.Done => {r: 0.3, g: 0.8, b: 0.3, a: 0.9}
+    };
+    
+    Mesh3D.box({width: 0.3, height: 0.2, depth: 0.02})
+        .material(
+            Material3D.pbr()
+                .base_color(color)
+                .metallic(0.0)
+                .roughness(0.8)
+        )
+}
+
+// Handle tap gesture
+private function handle_tap(position: vec3, cards: List<LivingCard>) {
+    // Find tapped card
+    cards
+        .find(card => {
+            let dist = distance(position, card.position);
+            dist < 0.15  // Within 15cm
+        })
+        .match()
+            .case(Some(card), => {
+                perform IO.println(f"Selected card: {card.title}");
+                // Could show card details here
+            })
+            .case(None, => {})
+            .get();
+}
+
+// Handle drag gesture
+private function handle_drag(id: string, position: vec3, cards: List<LivingCard>, physics: PhysicsLayout) {
+    cards
+        .find(c => c.id == id)
+        .if_some(card => {
+            card.is_dragging = true;
+            card.position = position;
+            physics.update_position(id, {x: position.x, y: position.y});
+        });
+}
+
+// Handle flick gesture
+private function handle_flick(id: string, velocity: vec3, cards: List<LivingCard>, physics: PhysicsLayout) {
+    cards
+        .find(c => c.id == id)
+        .if_some(card => {
+            card.is_dragging = false;
+            card.velocity = velocity;
+            physics.apply_impulse(id, {x: velocity.x, y: velocity.y});
+        });
+}
+
+// Check if card should snap to a column
+private function check_column_snap(card: LivingCard, columns: List) {
+    let threshold = 0.3;  // 30cm from column center
+    
+    columns.for_each(col => {
+        let dist = abs(card.position.x - col.position.x);
+        if (dist < threshold) {
+            // Snap to column
+            card.position.x = col.position.x;
+            card.velocity.x = card.velocity.x * 0.1;  // Dampen velocity
+            card.status = col.status;
+            
+            perform IO.println(f"Card '{card.title}' moved to {col.status}");
+        }
+    });
+}
+
+// Utility function for distance
+private function distance(a: vec3, b: vec3) -> float {
+    let dx = a.x - b.x;
+    let dy = a.y - b.y; 
+    let dz = a.z - b.z;
+    sqrt(dx * dx + dy * dy + dz * dz)
+}
+
+// Absolute value
+private function abs(x: float) -> float {
+    if (x < 0.0) { -x } else { x }
+}
+
+// Square root (would be provided by standard library)
+private function sqrt(x: float) -> float {
+    perform Math.sqrt(x)
+}
+
+// Entry point
+main()

@@ -1,6 +1,7 @@
 //! Scene graph management
 
 use crate::primitives::Renderable;
+use crate::gradient::Gradient;
 use std::collections::HashMap;
 
 /// Unique identifier for scene nodes
@@ -28,6 +29,8 @@ pub struct Scene {
     roots: Vec<NodeId>,
     /// Counter for generating unique IDs
     next_id: NodeId,
+    /// Gradient definitions
+    gradients: HashMap<String, Gradient>,
 }
 
 impl Scene {
@@ -157,5 +160,25 @@ impl Scene {
     /// Get total number of nodes
     pub fn node_count(&self) -> usize {
         self.nodes.len()
+    }
+    
+    /// Add a gradient definition
+    pub fn add_gradient(&mut self, id: String, gradient: Gradient) {
+        self.gradients.insert(id, gradient);
+    }
+    
+    /// Get a gradient by ID
+    pub fn get_gradient(&self, id: &str) -> Option<&Gradient> {
+        self.gradients.get(id)
+    }
+    
+    /// Remove a gradient
+    pub fn remove_gradient(&mut self, id: &str) {
+        self.gradients.remove(id);
+    }
+    
+    /// Get all gradients
+    pub fn gradients(&self) -> &HashMap<String, Gradient> {
+        &self.gradients
     }
 }

@@ -49,6 +49,16 @@ impl Color {
     pub fn to_array(&self) -> [f32; 4] {
         [self.r, self.g, self.b, self.a]
     }
+    
+    /// Create from array format
+    pub fn from_array(array: [f32; 4]) -> Self {
+        Self {
+            r: array[0],
+            g: array[1],
+            b: array[2],
+            a: array[3],
+        }
+    }
 }
 
 /// 2D position
@@ -126,6 +136,24 @@ impl Transform {
     }
 }
 
+/// Vertex data for rendering
+#[derive(Debug, Clone, Copy)]
+pub struct Vertex {
+    /// Position in 3D space
+    pub position: [f32; 3],
+    /// RGBA color
+    pub color: [f32; 4],
+}
+
+/// Fill type for shapes
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Fill {
+    /// Solid color fill
+    Solid(Color),
+    /// Gradient fill (gradient ID reference)
+    Gradient(String),
+}
+
 /// Renderable primitive types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Renderable {
@@ -137,6 +165,17 @@ pub enum Renderable {
         size: Size2D,
         /// Fill color
         color: Color,
+        /// Corner radius
+        radius: f32,
+    },
+    /// Rectangle with gradient fill
+    GradientRect {
+        /// Transform for positioning
+        transform: Transform,
+        /// Size of the rectangle
+        size: Size2D,
+        /// Gradient ID
+        gradient_id: String,
         /// Corner radius
         radius: f32,
     },
@@ -171,6 +210,26 @@ pub enum Renderable {
         /// Fill color
         color: Color,
     },
+    /// Circle with gradient fill
+    GradientCircle {
+        /// Transform for positioning
+        transform: Transform,
+        /// Radius
+        radius: f32,
+        /// Gradient ID
+        gradient_id: String,
+    },
+    /// Ellipse primitive
+    Ellipse {
+        /// Transform for positioning
+        transform: Transform,
+        /// Width (x-axis radius)
+        width: f32,
+        /// Height (y-axis radius)
+        height: f32,
+        /// Fill color
+        color: Color,
+    },
     /// Line primitive
     Line {
         /// Start position
@@ -182,6 +241,17 @@ pub enum Renderable {
         /// Line color
         color: Color,
     },
+    /// Path primitive for complex shapes
+    Path {
+        /// Transform for positioning
+        transform: Transform,
+        /// Path data (SVG-style commands)
+        data: String,
+        /// Stroke color and width
+        stroke: Option<(Color, f32)>,
+        /// Fill color
+        fill: Option<Color>,
+    },
 }
 
 impl Renderable {
@@ -189,9 +259,13 @@ impl Renderable {
     pub fn transform(&self) -> Transform {
         match self {
             Renderable::Rect { transform, .. } |
+            Renderable::GradientRect { transform, .. } |
             Renderable::Text { transform, .. } |
             Renderable::Model3D { transform, .. } |
-            Renderable::Circle { transform, .. } => transform.clone(),
+            Renderable::Circle { transform, .. } |
+            Renderable::GradientCircle { transform, .. } |
+            Renderable::Ellipse { transform, .. } |
+            Renderable::Path { transform, .. } => transform.clone(),
             Renderable::Line { .. } => Transform::default(),
         }
     }
@@ -200,9 +274,13 @@ impl Renderable {
     pub fn transform_mut(&mut self) -> Option<&mut Transform> {
         match self {
             Renderable::Rect { transform, .. } |
+            Renderable::GradientRect { transform, .. } |
             Renderable::Text { transform, .. } |
             Renderable::Model3D { transform, .. } |
-            Renderable::Circle { transform, .. } => Some(transform),
+            Renderable::Circle { transform, .. } |
+            Renderable::GradientCircle { transform, .. } |
+            Renderable::Ellipse { transform, .. } |
+            Renderable::Path { transform, .. } => Some(transform),
             Renderable::Line { .. } => None,
         }
     }

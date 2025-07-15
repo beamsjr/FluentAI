@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Living Cards Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        #canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            touch-action: none;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        #info h3 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+        }
+        
+        #info ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .debug-active {
+            background: #ff9800;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="loading" class="loading">Loading AR Demo...</div>
+    
+    <div id="info" style="display: none;">
+        <h3>AR Living Cards Demo</h3>
+        <strong>Kanban Board in AR Space</strong>
+        <ul>
+            <li><span style="color: #f44336;">Red</span> = Todo</li>
+            <li><span style="color: #ff9800;">Orange</span> = In Progress</li>
+            <li><span style="color: #4CAF50;">Green</span> = Done</li>
+        </ul>
+        <strong>Controls:</strong>
+        <ul>
+            <li>Drag cards to move them</li>
+            <li>Flick cards to throw them</li>
+            <li>Cards snap to columns automatically</li>
+            <li>Press 'D' to toggle debug view</li>
+        </ul>
+    </div>
+    
+    <div id="controls" style="display: none;">
+        <button id="debugBtn" onclick="toggleDebug()">Toggle Debug</button>
+        <button onclick="resetDemo()">Reset Cards</button>
+        <button onclick="addNewCard()">Add Card</button>
+    </div>
+    
+    <div id="status" class="status-indicator">
+        <span id="cardCount">0</span> cards | FPS: <span id="fps">0</span>
+    </div>
+    
+    <script type="module">
+        // This would load your compiled WASM module
+        // For now, we'll create a mock implementation
+        
+        let isDebugActive = false;
+        let lastTime = 0;
+        let frameCount = 0;
+        let fps = 0;
+        
+        // Mock the WASM module functions
+        window.init_ar_demo = async function(canvas) {
+            console.log("Initializing AR Living Cards Demo...");
+            
+            // Simulate initialization
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('info').style.display = 'block';
+            document.getElementById('controls').style.display = 'block';
+            
+            // Start render loop
+            requestAnimationFrame(renderLoop);
+        };
+        
+        window.handle_touch = function(id, x, y, phase) {
+            console.log(`Touch ${phase}: ${x}, ${y}`);
+        };
+        
+        window.render_frame = function(time) {
+            // Mock render
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Kanban columns
+            drawColumns(ctx);
+            
+            // Draw cards
+            drawCards(ctx);
+            
+            // Draw debug overlay if active
+            if (isDebugActive) {
+                drawDebugOverlay(ctx);
+            }
+        };
+        
+        window.toggle_debug = function() {
+            isDebugActive = !isDebugActive;
+            document.getElementById('debugBtn').classList.toggle('debug-active');
+            console.log(`Debug mode: ${isDebugActive}`);
+        };
+        
+        // Initialize on load
+        window.addEventListener('load', async () => {
+            const canvas = document.getElementById('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Initialize AR demo
+            await init_ar_demo(canvas);
+            
+            // Set up touch handlers
+            setupTouchHandlers(canvas);
+            
+            // Set up keyboard handlers
+            document.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'd') {
+                    toggleDebug();
+                }
+            });
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // Touch handling
+        function setupTouchHandlers(canvas) {
+            let touches = new Map();
+            
+            canvas.addEventListener('mousedown', (e) => {
+                handle_touch(0, e.clientX, e.clientY, 'began');
+                touches.set(0, { x: e.clientX, y: e.clientY });
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                if (touches.has(0)) {
+                    handle_touch(0, e.clientX, e.clientY, 'moved');
+                }
+            });
+            
+            canvas.addEventListener('mouseup', (e) => {
+                handle_touch(0, e.clientX, e.clientY, 'ended');
+                touches.delete(0);
+            });
+            
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    handle_touch(touch.identifier, touch.clientX, touch.clientY, 'began');
+                    touches.set(touch.identifier, { x: touch.clientX, y: touch.clientY });
+                }
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    handle_touch(touch.identifier, touch.clientX, touch.clientY, 'moved');
+                }
+            });
+            
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    handle_touch(touch.identifier, touch.clientX, touch.clientY, 'ended');
+                    touches.delete(touch.identifier);
+                }
+            });
+        }
+        
+        // Render loop
+        function renderLoop(time) {
+            // Calculate FPS
+            frameCount++;
+            if (time - lastTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastTime = time;
+                document.getElementById('fps').textContent = fps;
+            }
+            
+            // Render frame
+            render_frame(time);
+            
+            requestAnimationFrame(renderLoop);
+        }
+        
+        // Mock rendering functions
+        const cards = [
+            { id: 'task1', title: 'Setup project', status: 'todo', x: 200, y: 300 },
+            { id: 'task2', title: 'Design UI', status: 'todo', x: 200, y: 400 },
+            { id: 'task3', title: 'Implement gestures', status: 'progress', x: 500, y: 350 },
+            { id: 'task4', title: 'Research WebXR', status: 'done', x: 800, y: 350 }
+        ];
+        
+        function drawColumns(ctx) {
+            const columnWidth = 250;
+            const columnHeight = 600;
+            const startY = 100;
+            
+            // Todo column
+            ctx.fillStyle = 'rgba(244, 67, 54, 0.1)';
+            ctx.fillRect(100, startY, columnWidth, columnHeight);
+            ctx.fillStyle = '#f44336';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('TODO', 225, startY - 20);
+            
+            // In Progress column
+            ctx.fillStyle = 'rgba(255, 152, 0, 0.1)';
+            ctx.fillRect(400, startY, columnWidth, columnHeight);
+            ctx.fillStyle = '#ff9800';
+            ctx.fillText('IN PROGRESS', 525, startY - 20);
+            
+            // Done column
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.1)';
+            ctx.fillRect(700, startY, columnWidth, columnHeight);
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillText('DONE', 825, startY - 20);
+        }
+        
+        function drawCards(ctx) {
+            cards.forEach(card => {
+                // Card shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(card.x - 95, card.y - 45, 190, 90);
+                
+                // Card background
+                const colors = {
+                    todo: '#f44336',
+                    progress: '#ff9800',
+                    done: '#4CAF50'
+                };
+                ctx.fillStyle = colors[card.status];
+                ctx.fillRect(card.x - 100, card.y - 50, 200, 100);
+                
+                // Card text
+                ctx.fillStyle = 'white';
+                ctx.font = '18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(card.title, card.x, card.y + 5);
+            });
+            
+            document.getElementById('cardCount').textContent = cards.length;
+        }
+        
+        function drawDebugOverlay(ctx) {
+            // Physics bodies (green circles)
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+            ctx.lineWidth = 2;
+            cards.forEach(card => {
+                ctx.beginPath();
+                ctx.arc(card.x, card.y, 10, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            
+            // Collision bounds (yellow boxes)
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+            ctx.lineWidth = 1;
+            cards.forEach(card => {
+                ctx.strokeRect(card.x - 105, card.y - 55, 210, 110);
+            });
+            
+            // Force vectors (if cards are moving)
+            ctx.strokeStyle = 'rgba(255, 0, 255, 0.8)';
+            ctx.lineWidth = 3;
+            // Would draw velocity vectors here
+        }
+        
+        // Control functions
+        window.toggleDebug = function() {
+            toggle_debug();
+        };
+        
+        window.resetDemo = function() {
+            // Reset card positions
+            cards[0].x = 200; cards[0].y = 300;
+            cards[1].x = 200; cards[1].y = 400;
+            cards[2].x = 500; cards[2].y = 350;
+            cards[3].x = 800; cards[3].y = 350;
+            console.log("Cards reset to initial positions");
+        };
+        
+        window.addNewCard = function() {
+            const newCard = {
+                id: `task${cards.length + 1}`,
+                title: `New Task ${cards.length + 1}`,
+                status: 'todo',
+                x: 200,
+                y: 200 + (cards.filter(c => c.status === 'todo').length * 110)
+            };
+            cards.push(newCard);
+            console.log("Added new card:", newCard.title);
+        };
+    </script>
+</body>
+</html>

@@ -10,7 +10,11 @@ pub mod effect_aware;
 pub mod inline;
 pub mod loop_opts;
 pub mod partial_eval;
+pub mod strength_reduction;
 pub mod tail_call;
+pub mod algebraic_simplification;
+pub mod loop_invariant_code_motion;
+pub mod function_specialization;
 
 use anyhow::Result;
 use fluentai_core::ast::Graph;

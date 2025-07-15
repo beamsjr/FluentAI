@@ -2,6 +2,7 @@
 //! 
 //! Connects browser/native events to the reactive engine and physics system
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::physics::PhysicsLayout;
 use crate::reactive::ReactiveEngine;
 use crate::primitives::Position2D;
@@ -27,6 +28,7 @@ pub enum UIEvent {
 
 /// Manages event handling and routing
 pub struct EventHandler {
+    #[cfg(not(target_arch = "wasm32"))]
     physics: Arc<Mutex<PhysicsLayout>>,
     reactive: Arc<Mutex<ReactiveEngine>>,
     
@@ -52,9 +54,19 @@ struct ElementBounds {
 }
 
 impl EventHandler {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new(physics: Arc<Mutex<PhysicsLayout>>, reactive: Arc<Mutex<ReactiveEngine>>) -> Self {
         Self {
             physics,
+            reactive,
+            dragging: None,
+            element_bounds: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+    
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(reactive: Arc<Mutex<ReactiveEngine>>) -> Self {
+        Self {
             reactive,
             dragging: None,
             element_bounds: Arc::new(Mutex::new(Vec::new())),
@@ -143,8 +155,11 @@ impl EventHandler {
         });
         
         // Tell physics to start dragging
-        let mut physics = self.physics.lock().unwrap();
-        physics.start_drag(&element_id, position);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut physics = self.physics.lock().unwrap();
+            physics.start_drag(&element_id, position);
+        }
         
         // Send event to reactive engine
         let reactive = self.reactive.lock().unwrap();
@@ -157,8 +172,11 @@ impl EventHandler {
     fn handle_mouse_up(&mut self, element_id: String, position: Position2D) {
         // End dragging if active
         if let Some(drag_state) = &self.dragging {
-            let mut physics = self.physics.lock().unwrap();
-            physics.end_drag(&drag_state.element_id);
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let mut physics = self.physics.lock().unwrap();
+                physics.end_drag(&drag_state.element_id);
+            }
             self.dragging = None;
         }
         
@@ -173,8 +191,11 @@ impl EventHandler {
     fn handle_mouse_move(&mut self, position: Position2D) {
         // If dragging, update physics
         if let Some(drag_state) = &self.dragging {
-            let mut physics = self.physics.lock().unwrap();
-            physics.update_drag(&drag_state.element_id, position);
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let mut physics = self.physics.lock().unwrap();
+                physics.update_drag(&drag_state.element_id, position);
+            }
         }
         
         // Check for hover events
@@ -189,8 +210,11 @@ impl EventHandler {
     
     fn handle_drag(&mut self, element_id: String, position: Position2D) {
         // Update physics drag position
-        let mut physics = self.physics.lock().unwrap();
-        physics.update_drag(&element_id, position);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut physics = self.physics.lock().unwrap();
+            physics.update_drag(&element_id, position);
+        }
         
         // Send drag event to reactive engine
         let reactive = self.reactive.lock().unwrap();

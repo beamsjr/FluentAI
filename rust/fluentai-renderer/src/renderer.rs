@@ -3,12 +3,13 @@
 use crate::{Scene, primitives::Renderable};
 use anyhow::Result;
 use wgpu::util::DeviceExt;
+use std::sync::Arc;
 
 /// Main renderer struct
 pub struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     
@@ -16,8 +17,8 @@ pub struct Renderer {
     render_pipeline: wgpu::RenderPipeline,
     
     // Text rendering
-    #[allow(dead_code)]
-    glyph_brush: wgpu_glyph::GlyphBrush<()>,
+    // #[allow(dead_code)]
+    // glyph_brush: wgpu_glyph::GlyphBrush<()>,
     
     // Vertex buffer for shapes
     vertex_buffer: wgpu::Buffer,
@@ -31,9 +32,9 @@ pub struct Renderer {
 /// Vertex data for rendering
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 4],
+pub(crate) struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 4],
 }
 
 impl Vertex {
@@ -66,7 +67,7 @@ struct Uniforms {
 
 impl Renderer {
     /// Create a new renderer
-    pub async fn new(window: &winit::window::Window) -> Result<Self> {
+    pub async fn new(window: Arc<winit::window::Window>) -> Result<Self> {
         let size = window.inner_size();
         
         // Create instance
@@ -76,7 +77,7 @@ impl Renderer {
         });
         
         // Create surface
-        let surface = unsafe { instance.create_surface(&window)? };
+        let surface = instance.create_surface(window.clone())?;
         
         // Get adapter
         let adapter = instance
@@ -93,8 +94,8 @@ impl Renderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("Renderer Device"),
-                    features: wgpu::Features::empty(),
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_features: wgpu::Features::empty(),
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
@@ -121,18 +122,19 @@ impl Renderer {
             present_mode: surface_caps.present_modes[0],
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
         
         // Create shader module
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Basic Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/basic.wgsl")),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/basic.wgsl").into()),
         });
         
         // Create uniform buffer
         let uniforms = Uniforms {
-            view_proj: cgmath::Matrix4::identity().into(),
+            view_proj: cgmath::Matrix4::from_scale(1.0).into(),
         };
         
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -206,9 +208,8 @@ impl Renderer {
             multiview: None,
         });
         
-        // Create text renderer
-        let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!("../assets/DejaVuSans.ttf"))?;
-        let glyph_brush = wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, config.format);
+        // Text rendering temporarily disabled due to version mismatch
+        // TODO: Re-enable when wgpu_glyph is updated to match wgpu 0.19
         
         // Create initial vertex and index buffers
         let vertices = &[
@@ -235,7 +236,7 @@ impl Renderer {
             config,
             size,
             render_pipeline,
-            glyph_brush,
+            // glyph_brush,
             vertex_buffer,
             index_buffer,
             uniform_buffer,
@@ -265,7 +266,7 @@ impl Renderer {
         // Update uniform buffer with view projection matrix
         let aspect = self.size.width as f32 / self.size.height as f32;
         let proj = cgmath::ortho(-aspect, aspect, -1.0, 1.0, -1.0, 1.0);
-        let view_proj = proj * cgmath::Matrix4::identity();
+        let view_proj = proj * cgmath::Matrix4::from_scale(1.0);
         
         let uniforms = Uniforms {
             view_proj: view_proj.into(),
@@ -328,7 +329,41 @@ impl Renderer {
         let base_index = vertices.len() as u16;
         
         match renderable {
-            Renderable::Rect { transform, size, color, .. } => {
+            Renderable::Text { transform, content, size: font_size, color, .. } => {
+                // Use simple text rendering for now
+                use crate::simple_text::SimpleTextLayout;
+                
+                let layout = SimpleTextLayout::new(
+                    content.clone(),
+                    transform.position.x,
+                    transform.position.y
+                )
+                .with_size(*font_size)
+                .with_color(*color);
+                
+                // Generate quads for each character
+                let quads = layout.generate_quads();
+                
+                for quad in quads {
+                    let quad_vertices = quad.to_vertices();
+                    let base = vertices.len() as u16;
+                    
+                    // Convert primitives::Vertex to renderer::Vertex
+                    for v in quad_vertices {
+                        vertices.push(Vertex {
+                            position: v.position,
+                            color: v.color,
+                        });
+                    }
+                    
+                    // Add indices for the quad
+                    indices.extend_from_slice(&[
+                        base, base + 1, base + 2,
+                        base, base + 2, base + 3,
+                    ]);
+                }
+            }
+            Renderable::Rect { transform: _, size, color, .. } => {
                 let half_width = size.width / 2.0;
                 let half_height = size.height / 2.0;
                 let color_array = color.to_array();
@@ -347,8 +382,214 @@ impl Renderer {
                     base_index, base_index + 2, base_index + 3,
                 ]);
             }
+            Renderable::Circle { transform, radius, color } => {
+                // Generate vertices for a circle using triangulation
+                const SEGMENTS: u16 = 32; // Number of segments for circle approximation
+                
+                let center_x = transform.position.x;
+                let center_y = transform.position.y;
+                let color_array = color.to_array();
+                
+                // Add center vertex
+                let center_index = vertices.len() as u16;
+                vertices.push(Vertex {
+                    position: [center_x, center_y, 0.0],
+                    color: color_array,
+                });
+                
+                // Add vertices around the circumference
+                for i in 0..=SEGMENTS {
+                    let angle = (i as f32 / SEGMENTS as f32) * std::f32::consts::PI * 2.0;
+                    let x = center_x + angle.cos() * radius;
+                    let y = center_y + angle.sin() * radius;
+                    
+                    vertices.push(Vertex {
+                        position: [x, y, 0.0],
+                        color: color_array,
+                    });
+                }
+                
+                // Create triangles from center to edge
+                for i in 0..SEGMENTS {
+                    indices.extend_from_slice(&[
+                        center_index,
+                        center_index + i + 1,
+                        center_index + i + 2,
+                    ]);
+                }
+            }
+            Renderable::Line { start, end, width, color } => {
+                // Generate vertices for a line with thickness
+                let dx = end.x - start.x;
+                let dy = end.y - start.y;
+                let len = (dx * dx + dy * dy).sqrt();
+                
+                if len > 0.0 {
+                    // Calculate perpendicular vector for line thickness
+                    let perp_x = -dy / len * width / 2.0;
+                    let perp_y = dx / len * width / 2.0;
+                    
+                    let color_array = color.to_array();
+                    
+                    // Create a quad for the line
+                    let base = vertices.len() as u16;
+                    vertices.extend_from_slice(&[
+                        Vertex {
+                            position: [start.x - perp_x, start.y - perp_y, start.z],
+                            color: color_array,
+                        },
+                        Vertex {
+                            position: [start.x + perp_x, start.y + perp_y, start.z],
+                            color: color_array,
+                        },
+                        Vertex {
+                            position: [end.x + perp_x, end.y + perp_y, end.z],
+                            color: color_array,
+                        },
+                        Vertex {
+                            position: [end.x - perp_x, end.y - perp_y, end.z],
+                            color: color_array,
+                        },
+                    ]);
+                    
+                    indices.extend_from_slice(&[
+                        base, base + 1, base + 2,
+                        base, base + 2, base + 3,
+                    ]);
+                }
+            }
+            Renderable::Ellipse { transform, width, height, color } => {
+                // Generate vertices for an ellipse using triangulation
+                const SEGMENTS: u16 = 32; // Number of segments for ellipse approximation
+                
+                let center_x = transform.position.x;
+                let center_y = transform.position.y;
+                let color_array = color.to_array();
+                
+                // Add center vertex
+                let center_index = vertices.len() as u16;
+                vertices.push(Vertex {
+                    position: [center_x, center_y, 0.0],
+                    color: color_array,
+                });
+                
+                // Add vertices around the circumference
+                for i in 0..=SEGMENTS {
+                    let angle = (i as f32 / SEGMENTS as f32) * std::f32::consts::PI * 2.0;
+                    let x = center_x + angle.cos() * width / 2.0;
+                    let y = center_y + angle.sin() * height / 2.0;
+                    
+                    vertices.push(Vertex {
+                        position: [x, y, 0.0],
+                        color: color_array,
+                    });
+                }
+                
+                // Create triangles from center to edge
+                for i in 0..SEGMENTS {
+                    indices.extend_from_slice(&[
+                        center_index,
+                        center_index + i + 1,
+                        center_index + i + 2,
+                    ]);
+                }
+            }
+            Renderable::Path { transform, data, stroke, fill: _ } => {
+                // Parse and render path
+                use crate::path::PathBuilder;
+                
+                match PathBuilder::from_svg(data) {
+                    Ok(mut path) => {
+                        // Apply stroke if specified
+                        if let Some((color, width)) = stroke {
+                            path = path.stroke(*color, *width);
+                        }
+                        
+                        // Tessellate the path
+                        let tess = path.tessellate();
+                        
+                        // Apply transform to vertices
+                        let base = vertices.len() as u16;
+                        for vertex in &tess.vertices {
+                            vertices.push(Vertex {
+                                position: [
+                                    vertex.position[0] + transform.position.x,
+                                    vertex.position[1] + transform.position.y,
+                                    vertex.position[2] + transform.position.z,
+                                ],
+                                color: vertex.color,
+                            });
+                        }
+                        
+                        // Add indices with offset
+                        for idx in &tess.indices {
+                            indices.push(base + idx);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to parse path: {}", e);
+                    }
+                }
+            }
+            Renderable::GradientRect { transform: _, size, gradient_id: _, radius: _ } => {
+                // For now, render as a solid color rect with a placeholder color
+                // TODO: Implement proper gradient rendering with GPU support
+                let color_array = [0.5, 0.5, 0.5, 1.0]; // Gray placeholder
+                
+                let half_width = size.width / 2.0;
+                let half_height = size.height / 2.0;
+                
+                vertices.extend_from_slice(&[
+                    Vertex { position: [-half_width, -half_height, 0.0], color: color_array },
+                    Vertex { position: [half_width, -half_height, 0.0], color: color_array },
+                    Vertex { position: [half_width, half_height, 0.0], color: color_array },
+                    Vertex { position: [-half_width, half_height, 0.0], color: color_array },
+                ]);
+                
+                indices.extend_from_slice(&[
+                    base_index, base_index + 1, base_index + 2,
+                    base_index, base_index + 2, base_index + 3,
+                ]);
+            }
+            Renderable::GradientCircle { transform, radius, gradient_id: _ } => {
+                // For now, render as a solid color circle with a placeholder color
+                // TODO: Implement proper gradient rendering
+                const SEGMENTS: u16 = 32;
+                let color_array = [0.5, 0.5, 0.5, 1.0]; // Gray placeholder
+                
+                let center_x = transform.position.x;
+                let center_y = transform.position.y;
+                
+                // Add center vertex
+                let center_index = vertices.len() as u16;
+                vertices.push(Vertex {
+                    position: [center_x, center_y, 0.0],
+                    color: color_array,
+                });
+                
+                // Add vertices around the circumference
+                for i in 0..=SEGMENTS {
+                    let angle = (i as f32 / SEGMENTS as f32) * std::f32::consts::PI * 2.0;
+                    let x = center_x + angle.cos() * radius;
+                    let y = center_y + angle.sin() * radius;
+                    
+                    vertices.push(Vertex {
+                        position: [x, y, 0.0],
+                        color: color_array,
+                    });
+                }
+                
+                // Create triangles from center to edge
+                for i in 0..SEGMENTS {
+                    indices.extend_from_slice(&[
+                        center_index,
+                        center_index + i + 1,
+                        center_index + i + 2,
+                    ]);
+                }
+            }
             _ => {
-                // TODO: Implement other primitive types
+                // TODO: Implement Model3D rendering
             }
         }
     }

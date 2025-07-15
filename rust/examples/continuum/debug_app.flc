@@ -1,0 +1,409 @@
+// FluentAI application with integrated developer tools
+
+use UI;
+use DevTools;
+use Platform;
+
+// Application state with debugging
+effect AppState {
+    counter: int = 0,
+    items: List<string> = ["Item 1", "Item 2", "Item 3"],
+    selected_item: Option<int> = None,
+    debug_mode: bool = false,
+}
+
+// Main application with DevTools integration
+@UI.component
+public function DebugApp() -> UI.Element {
+    // Initialize DevTools
+    let devtools = DevTools.create();
+    
+    // Register state for debugging
+    devtools.watch_state("AppState", perform AppState.get());
+    
+    // Set up hot reload
+    devtools.on_hot_reload((event) => {
+        match event.type {
+            case .ComponentChanged => {
+                $(f"🔥 Hot reloading component: {event.path}").print();
+                UI.refresh();
+            },
+            case .StyleChanged => {
+                $(f"🎨 Hot reloading styles: {event.path}").print();
+                UI.refresh_styles();
+            },
+            case .AssetChanged => {
+                $(f"📦 Hot reloading asset: {event.path}").print();
+                UI.refresh_assets();
+            },
+        }
+    });
+    
+    UI.Stack {
+        direction: .vertical,
+        padding: 20,
+        
+        children: [
+            // App header with debug toggle
+            UI.Row {
+                justify: .space_between,
+                align: .center,
+                
+                children: [
+                    UI.Text("Debug Demo App")
+                        .font_size(24)
+                        .bold(),
+                    
+                    UI.Button(if perform AppState.get().debug_mode { "🐛 Debug ON" } else { "Debug OFF" }) {
+                        on_click: toggle_debug_mode,
+                        variant: if perform AppState.get().debug_mode { .primary } else { .secondary },
+                    },
+                ],
+            },
+            
+            // Main content
+            UI.Row {
+                spacing: 20,
+                flex: 1,
+                
+                children: [
+                    // Left panel - Counter demo
+                    UI.Stack {
+                        flex: 1,
+                        padding: 16,
+                        background: UI.theme.surface,
+                        border_radius: 8,
+                        
+                        children: [
+                            UI.Text("Counter Demo")
+                                .font_size(18)
+                                .margin_bottom(12),
+                            
+                            UI.Text(f"Count: {perform AppState.get().counter}")
+                                .font_size(32)
+                                .bold()
+                                .debug_name("counter_display"), // Debug name for inspector
+                            
+                            UI.Row {
+                                spacing: 10,
+                                margin_top: 16,
+                                
+                                children: [
+                                    UI.Button("Increment") {
+                                        on_click: () => {
+                                            devtools.log("Button clicked: Increment");
+                                            increment_counter();
+                                        },
+                                        debug_breakpoint: true, // Break on click in debug mode
+                                    },
+                                    
+                                    UI.Button("Decrement") {
+                                        on_click: () => {
+                                            devtools.log("Button clicked: Decrement");
+                                            decrement_counter();
+                                        },
+                                    },
+                                    
+                                    UI.Button("Reset") {
+                                        on_click: () => {
+                                            devtools.log("Button clicked: Reset");
+                                            reset_counter();
+                                        },
+                                        variant: .danger,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    
+                    // Right panel - List demo
+                    UI.Stack {
+                        flex: 1,
+                        padding: 16,
+                        background: UI.theme.surface,
+                        border_radius: 8,
+                        
+                        children: [
+                            UI.Text("List Demo")
+                                .font_size(18)
+                                .margin_bottom(12),
+                            
+                            UI.Stack {
+                                spacing: 8,
+                                
+                                children: [
+                                    for (index, item) in perform AppState.get().items.enumerate() {
+                                        ListItem(index, item)
+                                    },
+                                ],
+                            },
+                            
+                            UI.Button("Add Item") {
+                                on_click: add_item,
+                                margin_top: 16,
+                                variant: .primary,
+                            },
+                        ],
+                    },
+                ],
+            },
+            
+            // Performance monitor (visible in debug mode)
+            if perform AppState.get().debug_mode {
+                PerformanceMonitor(devtools)
+            },
+            
+            // DevTools overlay
+            if perform AppState.get().debug_mode {
+                devtools.render_overlay()
+            },
+        ],
+    }
+}
+
+// List item component with debugging
+@UI.component
+private function ListItem(index: int, text: string) -> UI.Element {
+    let selected = perform AppState.get().selected_item == Some(index);
+    
+    UI.Row {
+        padding: 12,
+        background: if selected { UI.theme.primary.with_alpha(0.2) } else { UI.theme.surface_variant },
+        border_radius: 4,
+        cursor: .pointer,
+        debug_name: f"list_item_{index}",
+        
+        on_click: () => select_item(index),
+        on_hover: (hovering) => {
+            if hovering {
+                DevTools.log(f"Hovering item {index}");
+            }
+        },
+        
+        children: [
+            UI.Text(text)
+                .flex(1),
+            
+            if selected {
+                UI.Icon("check")
+                    .color(UI.theme.primary),
+            },
+            
+            UI.IconButton("delete") {
+                on_click: (e) => {
+                    e.stop_propagation(); // Prevent item selection
+                    delete_item(index);
+                },
+                size: .small,
+            },
+        ],
+    }
+}
+
+// Performance monitor component
+@UI.component
+private function PerformanceMonitor(devtools: DevTools) -> UI.Element {
+    let stats = devtools.get_performance_stats();
+    
+    UI.Stack {
+        position: .fixed,
+        top: 10,
+        right: 10,
+        padding: 12,
+        background: Color.black().with_alpha(0.8),
+        border_radius: 4,
+        min_width: 200,
+        
+        children: [
+            UI.Text("Performance")
+                .color(Color.white())
+                .font_size(12)
+                .bold()
+                .margin_bottom(8),
+            
+            UI.Row {
+                justify: .space_between,
+                children: [
+                    UI.Text("FPS:")
+                        .color(Color.gray(0.8))
+                        .font_size(11),
+                    UI.Text(f"{stats.fps:.1}")
+                        .color(get_fps_color(stats.fps))
+                        .font_size(11)
+                        .font_family("monospace"),
+                ],
+            },
+            
+            UI.Row {
+                justify: .space_between,
+                children: [
+                    UI.Text("Frame:")
+                        .color(Color.gray(0.8))
+                        .font_size(11),
+                    UI.Text(f"{stats.frame_time:.2}ms")
+                        .color(Color.white())
+                        .font_size(11)
+                        .font_family("monospace"),
+                ],
+            },
+            
+            UI.Row {
+                justify: .space_between,
+                children: [
+                    UI.Text("Draw calls:")
+                        .color(Color.gray(0.8))
+                        .font_size(11),
+                    UI.Text(f"{stats.draw_calls}")
+                        .color(Color.white())
+                        .font_size(11)
+                        .font_family("monospace"),
+                ],
+            },
+            
+            UI.Row {
+                justify: .space_between,
+                children: [
+                    UI.Text("Memory:")
+                        .color(Color.gray(0.8))
+                        .font_size(11),
+                    UI.Text(f"{stats.memory_mb:.1} MB")
+                        .color(Color.white())
+                        .font_size(11)
+                        .font_family("monospace"),
+                ],
+            },
+        ],
+    }
+}
+
+// State management functions
+private function increment_counter() {
+    perform AppState.update(state => {
+        state.counter += 1;
+        DevTools.snapshot_state("After increment", state);
+        state
+    });
+}
+
+private function decrement_counter() {
+    perform AppState.update(state => {
+        state.counter -= 1;
+        DevTools.snapshot_state("After decrement", state);
+        state
+    });
+}
+
+private function reset_counter() {
+    perform AppState.update(state => {
+        let old_value = state.counter;
+        state.counter = 0;
+        DevTools.log(f"Reset counter from {old_value} to 0", .warning);
+        DevTools.snapshot_state("After reset", state);
+        state
+    });
+}
+
+private function select_item(index: int) {
+    perform AppState.update(state => {
+        state.selected_item = Some(index);
+        DevTools.log(f"Selected item {index}");
+        state
+    });
+}
+
+private function add_item() {
+    perform AppState.update(state => {
+        let new_index = state.items.length() + 1;
+        state.items.push(f"Item {new_index}");
+        DevTools.log(f"Added item {new_index}", .info);
+        state
+    });
+}
+
+private function delete_item(index: int) {
+    perform AppState.update(state => {
+        if index < state.items.length() {
+            let removed = state.items.remove(index);
+            DevTools.log(f"Deleted item: {removed}", .warning);
+            
+            // Update selected item if needed
+            if state.selected_item == Some(index) {
+                state.selected_item = None;
+            } else if let Some(selected) = state.selected_item {
+                if selected > index {
+                    state.selected_item = Some(selected - 1);
+                }
+            }
+        }
+        state
+    });
+}
+
+private function toggle_debug_mode() {
+    perform AppState.update(state => {
+        state.debug_mode = !state.debug_mode;
+        
+        if state.debug_mode {
+            DevTools.enable();
+            DevTools.log("Debug mode enabled", .info);
+        } else {
+            DevTools.disable();
+        }
+        
+        state
+    });
+}
+
+// Helper functions
+private function get_fps_color(fps: float) -> Color {
+    if fps >= 55.0 {
+        Color.green()
+    } else if fps >= 30.0 {
+        Color.yellow()
+    } else {
+        Color.red()
+    }
+}
+
+// DevTools integration
+handle {
+    // Set up keyboard shortcuts
+    Platform.on_key_press((key, modifiers) => {
+        match (key, modifiers) {
+            case (Key.F12, _) => {
+                // Toggle debug mode
+                toggle_debug_mode();
+            },
+            case (Key.F5, _) => {
+                // Force reload
+                DevTools.force_reload();
+            },
+            case (Key.P, Modifiers.ctrl_shift) => {
+                // Pause execution
+                DevTools.pause();
+            },
+            case (Key.C, Modifiers.ctrl_shift) => {
+                // Clear console
+                DevTools.clear_console();
+            },
+            case (Key.S, Modifiers.ctrl_shift) => {
+                // Take state snapshot
+                DevTools.snapshot_current_state();
+            },
+        }
+    });
+    
+    // Main app
+    let window = UI.Window {
+        title: "FluentAI Debug Demo",
+        size: (1200, 800),
+        resizable: true,
+    };
+    
+    window.mount(DebugApp);
+    UI.run(window);
+} with {
+    DevTools.* => devtools_bridge.*,
+    Platform.* => platform_bridge.*,
+    UI.* => ui_bridge.*,
+}

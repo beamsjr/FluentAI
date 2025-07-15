@@ -1,0 +1,722 @@
+// FluentAI Renderer Showcase Application
+// Demonstrates all renderer features in a real-world application
+
+use UI;
+use Platform;
+use DevTools;
+use Animation;
+use Storage;
+
+// Theme definition
+enum Theme {
+    Light,
+    Dark,
+    System,
+}
+
+// Application state
+effect AppState {
+    theme: Theme = Theme.System,
+    sidebar_open: bool = !Platform.is_mobile(),
+    current_page: Page = Page.Dashboard,
+    user: Option<User> = None,
+    notifications: List<Notification> = [],
+}
+
+// Pages
+enum Page {
+    Dashboard,
+    Graphics,
+    Components,
+    Animations,
+    Performance,
+    Platform,
+}
+
+// Main application
+@UI.component
+public function ShowcaseApp() -> UI.Element {
+    // Initialize systems
+    initialize_app();
+    
+    // Reactive theme
+    let theme_colors = match perform AppState.get().theme {
+        case Theme.Light => UI.LightTheme,
+        case Theme.Dark => UI.DarkTheme,
+        case Theme.System => {
+            if Platform.system_theme() == .dark {
+                UI.DarkTheme
+            } else {
+                UI.LightTheme
+            }
+        },
+    };
+    
+    UI.ThemeProvider {
+        theme: theme_colors,
+        
+        child: UI.Stack {
+            direction: .vertical,
+            background: theme_colors.background,
+            
+            children: [
+                // App header
+                AppHeader(),
+                
+                // Main content with sidebar
+                UI.Row {
+                    flex: 1,
+                    
+                    children: [
+                        // Sidebar (collapsible on mobile)
+                        if perform AppState.get().sidebar_open {
+                            Sidebar()
+                        },
+                        
+                        // Page content
+                        UI.Stack {
+                            flex: 1,
+                            overflow: .auto,
+                            
+                            child: PageContent(),
+                        },
+                    ],
+                },
+                
+                // Dev tools overlay
+                if Platform.is_development() {
+                    DevTools.overlay()
+                },
+            ],
+        },
+    }
+}
+
+// App header with platform integration
+@UI.component
+private function AppHeader() -> UI.Element {
+    UI.Row {
+        height: 64,
+        padding: (0, 16),
+        background: UI.theme.surface,
+        shadow: Shadow.small(),
+        align: .center,
+        
+        children: [
+            // Menu button (mobile)
+            if Platform.is_mobile() {
+                UI.IconButton("menu") {
+                    on_click: toggle_sidebar,
+                }
+            },
+            
+            // Logo with animation
+            AnimatedLogo(),
+            
+            UI.Spacer(),
+            
+            // Search bar (desktop only)
+            if !Platform.is_mobile() {
+                SearchBar()
+            },
+            
+            UI.Spacer(),
+            
+            // Theme switcher
+            ThemeSwitcher(),
+            
+            // Notifications
+            NotificationBell(),
+            
+            // User menu
+            UserMenu(),
+        ],
+    }
+}
+
+// Animated logo demonstrating animation features
+@UI.component
+private function AnimatedLogo() -> UI.Element {
+    reactive! {
+        rotation: float = 0.0,
+        scale: float = 1.0,
+    }
+    
+    // Continuous rotation
+    Animation.loop(
+        Animation.to(rotation, 360.0, 3000.ms, .linear)
+    ).start();
+    
+    // Hover effect
+    UI.Transform {
+        rotation: rotation.degrees(),
+        scale: scale,
+        
+        child: UI.Stack {
+            on_mouse_enter: () => {
+                Animation.to(scale, 1.2, 200.ms, .ease_out).start();
+            },
+            on_mouse_leave: () => {
+                Animation.to(scale, 1.0, 200.ms, .ease_out).start();
+            },
+            
+            child: UI.Row {
+                spacing: 8,
+                
+                children: [
+                    // Custom rendered logo
+                    UI.Canvas {
+                        size: (32, 32),
+                        
+                        on_draw: (ctx) => {
+                            // Gradient fill
+                            ctx.fill_circle(
+                                center: (16, 16),
+                                radius: 16,
+                                gradient: Gradient.radial(
+                                    center: (16, 16),
+                                    radius: 16,
+                                    stops: [
+                                        (0.0, Color.blue()),
+                                        (1.0, Color.purple()),
+                                    ],
+                                ),
+                            );
+                            
+                            // FluentAI "F"
+                            ctx.draw_text(
+                                text: "F",
+                                position: (16, 16),
+                                font: Font.system(20, .bold),
+                                color: Color.white(),
+                                align: .center,
+                                baseline: .middle,
+                            );
+                        },
+                    },
+                    
+                    UI.Text("FluentAI Showcase")
+                        .font_size(20)
+                        .bold(),
+                ],
+            },
+        },
+    }
+}
+
+// Sidebar with navigation
+@UI.component
+private function Sidebar() -> UI.Element {
+    let current_page = perform AppState.get().current_page;
+    
+    UI.Stack {
+        width: 260,
+        background: UI.theme.surface_variant,
+        padding: 16,
+        
+        children: [
+            UI.Text("Features")
+                .font_size(14)
+                .color(UI.theme.text_secondary)
+                .margin_bottom(8),
+            
+            // Navigation items
+            for page in Page.all() {
+                SidebarItem(
+                    page: page,
+                    selected: page == current_page,
+                )
+            },
+        ],
+    }
+}
+
+// Sidebar navigation item
+@UI.component
+private function SidebarItem(page: Page, selected: bool) -> UI.Element {
+    UI.Row {
+        padding: 12,
+        border_radius: 8,
+        background: if selected { UI.theme.primary.with_alpha(0.1) } else { Color.transparent() },
+        cursor: .pointer,
+        transition: Transition.all(200.ms, .ease_out),
+        
+        on_click: () => navigate_to(page),
+        on_hover: (hovering) => {
+            if hovering && !selected {
+                self.background = UI.theme.surface;
+            }
+        },
+        
+        children: [
+            UI.Icon(page.icon())
+                .color(if selected { UI.theme.primary } else { UI.theme.text_secondary }),
+            
+            UI.Text(page.title())
+                .margin_left(12)
+                .color(if selected { UI.theme.primary } else { UI.theme.text_primary }),
+        ],
+    }
+}
+
+// Main page content router
+@UI.component
+private function PageContent() -> UI.Element {
+    let page = perform AppState.get().current_page;
+    
+    UI.TransitionGroup {
+        transition: Transition.fade(200.ms),
+        
+        child: match page {
+            case Page.Dashboard => DashboardPage(),
+            case Page.Graphics => GraphicsPage(),
+            case Page.Components => ComponentsPage(),
+            case Page.Animations => AnimationsPage(),
+            case Page.Performance => PerformancePage(),
+            case Page.Platform => PlatformPage(),
+        },
+    }
+}
+
+// Dashboard page
+@UI.component
+private function DashboardPage() -> UI.Element {
+    UI.Stack {
+        padding: 24,
+        
+        children: [
+            UI.Text("Renderer Feature Showcase")
+                .font_size(32)
+                .bold()
+                .margin_bottom(16),
+            
+            UI.Text("Explore all the features of the FluentAI renderer")
+                .font_size(16)
+                .color(UI.theme.text_secondary)
+                .margin_bottom(32),
+            
+            // Feature grid
+            UI.Grid {
+                columns: if Platform.screen_width() > 1200 { 3 } else { 2 },
+                gap: 16,
+                
+                children: [
+                    FeatureCard(
+                        title: "Advanced Graphics",
+                        description: "Gradients, paths, shadows, and effects",
+                        icon: "brush",
+                        color: Color.blue(),
+                        on_click: () => navigate_to(Page.Graphics),
+                    ),
+                    
+                    FeatureCard(
+                        title: "Component System",
+                        description: "Flexible layouts and rich components",
+                        icon: "dashboard",
+                        color: Color.green(),
+                        on_click: () => navigate_to(Page.Components),
+                    ),
+                    
+                    FeatureCard(
+                        title: "Animations",
+                        description: "Smooth transitions and complex animations",
+                        icon: "animation",
+                        color: Color.purple(),
+                        on_click: () => navigate_to(Page.Animations),
+                    ),
+                    
+                    FeatureCard(
+                        title: "Performance",
+                        description: "Batching, instancing, and optimization",
+                        icon: "speed",
+                        color: Color.orange(),
+                        on_click: () => navigate_to(Page.Performance),
+                    ),
+                    
+                    FeatureCard(
+                        title: "Platform Integration",
+                        description: "Native features across all platforms",
+                        icon: "devices",
+                        color: Color.teal(),
+                        on_click: () => navigate_to(Page.Platform),
+                    ),
+                    
+                    FeatureCard(
+                        title: "Developer Tools",
+                        description: "Debugging, profiling, and hot reload",
+                        icon: "code",
+                        color: Color.red(),
+                        on_click: () => DevTools.toggle(),
+                    ),
+                ],
+            },
+        ],
+    }
+}
+
+// Feature card component
+@UI.component
+private function FeatureCard(
+    title: string,
+    description: string,
+    icon: string,
+    color: Color,
+    on_click: () -> ()
+) -> UI.Element {
+    reactive! {
+        hover: bool = false,
+        pressed: bool = false,
+    }
+    
+    let scale = if pressed { 0.95 } else if hover { 1.05 } else { 1.0 };
+    let shadow = if hover { Shadow.large() } else { Shadow.medium() };
+    
+    UI.AnimatedContainer {
+        transform: Transform.scale(scale),
+        shadow: shadow,
+        transition: Transition.all(200.ms, .ease_out),
+        
+        child: UI.Stack {
+            padding: 24,
+            background: UI.theme.surface,
+            border_radius: 12,
+            cursor: .pointer,
+            
+            on_mouse_enter: () => set_hover(true),
+            on_mouse_leave: () => set_hover(false),
+            on_mouse_down: () => set_pressed(true),
+            on_mouse_up: () => set_pressed(false),
+            on_click: on_click,
+            
+            children: [
+                // Icon with gradient background
+                UI.Stack {
+                    size: (64, 64),
+                    background: Gradient.linear(
+                        angle: 45.degrees(),
+                        stops: [
+                            (0.0, color),
+                            (1.0, color.darken(0.2)),
+                        ],
+                    ),
+                    border_radius: 16,
+                    align: .center,
+                    justify: .center,
+                    margin_bottom: 16,
+                    
+                    child: UI.Icon(icon, size: 32)
+                        .color(Color.white()),
+                },
+                
+                UI.Text(title)
+                    .font_size(20)
+                    .bold()
+                    .margin_bottom(8),
+                
+                UI.Text(description)
+                    .font_size(14)
+                    .color(UI.theme.text_secondary),
+            ],
+        },
+    }
+}
+
+// Graphics showcase page
+@UI.component
+private function GraphicsPage() -> UI.Element {
+    UI.ScrollView {
+        padding: 24,
+        
+        child: UI.Stack {
+            spacing: 32,
+            
+            children: [
+                PageTitle("Graphics Rendering"),
+                
+                // Custom shapes
+                Section(
+                    title: "Shapes & Paths",
+                    child: ShapesDemo(),
+                ),
+                
+                // Gradients
+                Section(
+                    title: "Gradients",
+                    child: GradientsDemo(),
+                ),
+                
+                // Effects
+                Section(
+                    title: "Effects & Filters",
+                    child: EffectsDemo(),
+                ),
+                
+                // Text rendering
+                Section(
+                    title: "Advanced Text",
+                    child: TextDemo(),
+                ),
+            ],
+        },
+    }
+}
+
+// Components showcase page
+@UI.component
+private function ComponentsPage() -> UI.Element {
+    UI.ScrollView {
+        padding: 24,
+        
+        child: UI.Stack {
+            spacing: 32,
+            
+            children: [
+                PageTitle("Component System"),
+                
+                // Layout systems
+                Section(
+                    title: "Flexbox Layout",
+                    child: FlexboxDemo(),
+                ),
+                
+                Section(
+                    title: "Grid Layout",
+                    child: GridDemo(),
+                ),
+                
+                // UI components
+                Section(
+                    title: "Built-in Components",
+                    child: ComponentsDemo(),
+                ),
+                
+                // Forms
+                Section(
+                    title: "Form Components",
+                    child: FormDemo(),
+                ),
+            ],
+        },
+    }
+}
+
+// Animations showcase page
+@UI.component
+private function AnimationsPage() -> UI.Element {
+    UI.ScrollView {
+        padding: 24,
+        
+        child: UI.Stack {
+            spacing: 32,
+            
+            children: [
+                PageTitle("Animations & Transitions"),
+                
+                // Basic animations
+                Section(
+                    title: "Basic Animations",
+                    child: BasicAnimationsDemo(),
+                ),
+                
+                // Complex animations
+                Section(
+                    title: "Complex Animations",
+                    child: ComplexAnimationsDemo(),
+                ),
+                
+                // Page transitions
+                Section(
+                    title: "Page Transitions",
+                    child: TransitionsDemo(),
+                ),
+                
+                // Physics animations
+                Section(
+                    title: "Physics-based Animations",
+                    child: PhysicsAnimationsDemo(),
+                ),
+            ],
+        },
+    }
+}
+
+// Performance showcase page
+@UI.component
+private function PerformancePage() -> UI.Element {
+    UI.ScrollView {
+        padding: 24,
+        
+        child: UI.Stack {
+            spacing: 32,
+            
+            children: [
+                PageTitle("Performance Optimization"),
+                
+                // Render batching
+                Section(
+                    title: "Render Batching",
+                    child: BatchingDemo(),
+                ),
+                
+                // GPU instancing
+                Section(
+                    title: "GPU Instancing",
+                    child: InstancingDemo(),
+                ),
+                
+                // Virtual scrolling
+                Section(
+                    title: "Virtual Scrolling",
+                    child: VirtualScrollDemo(),
+                ),
+                
+                // Performance metrics
+                Section(
+                    title: "Performance Metrics",
+                    child: MetricsDemo(),
+                ),
+            ],
+        },
+    }
+}
+
+// Platform features page
+@UI.component
+private function PlatformPage() -> UI.Element {
+    UI.ScrollView {
+        padding: 24,
+        
+        child: UI.Stack {
+            spacing: 32,
+            
+            children: [
+                PageTitle("Platform Integration"),
+                
+                // File system
+                Section(
+                    title: "File System",
+                    child: FileSystemDemo(),
+                ),
+                
+                // Clipboard
+                Section(
+                    title: "Clipboard",
+                    child: ClipboardDemo(),
+                ),
+                
+                // Notifications
+                Section(
+                    title: "System Notifications",
+                    child: NotificationsDemo(),
+                ),
+                
+                // Platform info
+                Section(
+                    title: "Platform Information",
+                    child: PlatformInfoDemo(),
+                ),
+            ],
+        },
+    }
+}
+
+// Helper components
+@UI.component
+private function PageTitle(title: string) -> UI.Element {
+    UI.Text(title)
+        .font_size(32)
+        .bold()
+}
+
+@UI.component
+private function Section(title: string, child: UI.Element) -> UI.Element {
+    UI.Stack {
+        spacing: 16,
+        
+        children: [
+            UI.Text(title)
+                .font_size(24)
+                .bold(),
+            
+            UI.Stack {
+                padding: 16,
+                background: UI.theme.surface,
+                border_radius: 8,
+                
+                child: child,
+            },
+        ],
+    }
+}
+
+// Demo implementations...
+// (Continued with specific demo components for each feature)
+
+// Initialize application
+private function initialize_app() {
+    // Set up platform handlers
+    Platform.on_theme_changed((theme) => {
+        perform AppState.update(state => {
+            state.theme = Theme.System;
+            state
+        });
+    });
+    
+    // Set up hot reload
+    if Platform.is_development() {
+        DevTools.hot_reload.watch(["src/**/*.flc"]);
+    }
+    
+    // Load saved preferences
+    if let Some(prefs) = Storage.load("app_preferences") {
+        // Apply preferences
+    }
+}
+
+// Navigation
+private function navigate_to(page: Page) {
+    perform AppState.update(state => {
+        state.current_page = page;
+        
+        // Close sidebar on mobile after navigation
+        if Platform.is_mobile() {
+            state.sidebar_open = false;
+        }
+        
+        state
+    });
+}
+
+private function toggle_sidebar() {
+    perform AppState.update(state => {
+        state.sidebar_open = !state.sidebar_open;
+        state
+    });
+}
+
+// Main entry point
+public function main() {
+    let window = Platform.create_window({
+        title: "FluentAI Renderer Showcase",
+        size: if Platform.is_mobile() {
+            Platform.screen_size()
+        } else {
+            (1400, 900)
+        },
+        min_size: (800, 600),
+        center: true,
+    });
+    
+    window.mount(ShowcaseApp);
+    Platform.run();
+}
+
+// Handle effects
+handle {
+    main()
+} with {
+    Platform.* => platform_bridge.*,
+    Storage.* => storage_bridge.*,
+    DevTools.* => devtools_bridge.*,
+    UI.* => ui_bridge.*,
+}

@@ -15,20 +15,32 @@ impl OpcodeHandler for ConcurrentHandler {
         match instruction.opcode {
             // Spawn a new concurrent task
             Spawn => {
-                let func = vm.pop()?;
-                vm.spawn_task(func)?;
+                #[cfg(feature = "std")]
+                {
+                    let func = vm.pop()?;
+                    vm.spawn_task(func)?;
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Spawn operation requires std feature".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             // Await a promise/future
             Await => {
-                let future = vm.pop()?;
-                match future {
-                    Value::Promise(promise_id) => {
-                        let pid = crate::safety::PromiseId(promise_id);
-                        
-                        // Check if the promise is already resolved
-                        // First try a non-blocking check
-                        if let Some(receiver) = vm.promises_mut().get_mut(&pid) {
+                #[cfg(feature = "std")]
+                {
+                    let future = vm.pop()?;
+                    match future {
+                        Value::Promise(promise_id) => {
+                            let pid = crate::safety::PromiseId(promise_id);
+                            
+                            // Check if the promise is already resolved
+                            // First try a non-blocking check
+                            if let Some(receiver) = vm.promises_mut().get_mut(&pid) {
                             match receiver.try_recv() {
                                 Ok(Ok(value)) => {
                                     // Promise is ready, push the result
@@ -58,107 +70,175 @@ impl OpcodeHandler for ConcurrentHandler {
                         return Err(VMError::TypeError {
                             operation: "await".to_string(),
                             expected: "promise".to_string(),
-                            got: vm.value_type_name(&future).to_string(),
+                            got: crate::error::value_type_name(&future).to_string(),
                             location: None,
                             stack_trace: None,
                         });
                     }
+                }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Await operation requires std feature".to_string(),
+                        stack_trace: None,
+                    });
                 }
             }
             
             // Channel operations
             Channel => {
-                let channel_id = vm.create_channel();
-                vm.push(Value::Channel(channel_id.0))?;
+                #[cfg(feature = "std")]
+                {
+                    let channel_id = vm.create_channel();
+                    vm.push(Value::Channel(channel_id.0))?;
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Channel operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             ChannelWithCapacity => {
-                let capacity = vm.pop()?;
-                match capacity {
-                    Value::Integer(_n) => {
-                        // For now, just create a regular channel
-                        let channel_id = vm.create_channel();
-                        vm.push(Value::Channel(channel_id.0))?;
-                    }
+                #[cfg(feature = "std")]
+                {
+                    let capacity = vm.pop()?;
+                    match capacity {
+                        Value::Integer(_n) => {
+                            // For now, just create a regular channel
+                            let channel_id = vm.create_channel();
+                            vm.push(Value::Channel(channel_id.0))?;
+                        }
                     _ => {
                         return Err(VMError::TypeError {
                             operation: "channel_with_capacity".to_string(),
                             expected: "integer".to_string(),
-                            got: vm.value_type_name(&capacity).to_string(),
+                            got: crate::error::value_type_name(&capacity).to_string(),
                             location: None,
                             stack_trace: None,
                         });
                     }
+                }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Channel operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
                 }
             }
             
             Send => {
-                let value = vm.pop()?;
-                let channel = vm.pop()?;
-                
-                match channel {
-                    Value::Channel(channel_id_raw) => {
-                        vm.send_to_channel(crate::safety::ChannelId(channel_id_raw), value)?;
-                        vm.push(Value::Nil)?;
+                #[cfg(feature = "std")]
+                {
+                    let value = vm.pop()?;
+                    let channel = vm.pop()?;
+                    
+                    match channel {
+                        Value::Channel(channel_id_raw) => {
+                            vm.send_to_channel(crate::safety::ChannelId(channel_id_raw), value)?;
+                            vm.push(Value::Nil)?;
+                        }
+                        _ => {
+                            return Err(VMError::TypeError {
+                                operation: "send".to_string(),
+                                expected: "channel".to_string(),
+                                got: crate::error::value_type_name(&channel).to_string(),
+                                location: None,
+                                stack_trace: None,
+                            });
+                        }
                     }
-                    _ => {
-                        return Err(VMError::TypeError {
-                            operation: "send".to_string(),
-                            expected: "channel".to_string(),
-                            got: vm.value_type_name(&channel).to_string(),
-                            location: None,
-                            stack_trace: None,
-                        });
-                    }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Channel operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
                 }
             }
             
             Receive => {
-                let channel = vm.pop()?;
-                
-                match channel {
-                    Value::Channel(channel_id_raw) => {
-                        let value = vm.receive_from_channel(crate::safety::ChannelId(channel_id_raw))?;
-                        vm.push(value)?;
+                #[cfg(feature = "std")]
+                {
+                    let channel = vm.pop()?;
+                    
+                    match channel {
+                        Value::Channel(channel_id_raw) => {
+                            let value = vm.receive_from_channel(crate::safety::ChannelId(channel_id_raw))?;
+                            vm.push(value)?;
+                        }
+                        _ => {
+                            return Err(VMError::TypeError {
+                                operation: "receive".to_string(),
+                                expected: "channel".to_string(),
+                                got: crate::error::value_type_name(&channel).to_string(),
+                                location: None,
+                                stack_trace: None,
+                            });
+                        }
                     }
-                    _ => {
-                        return Err(VMError::TypeError {
-                            operation: "receive".to_string(),
-                            expected: "channel".to_string(),
-                            got: vm.value_type_name(&channel).to_string(),
-                            location: None,
-                            stack_trace: None,
-                        });
-                    }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Channel operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
                 }
             }
             
             // Actor operations
             CreateActor => {
-                let handler = vm.pop()?;
-                let initial_state = vm.pop()?;
-                let actor_id = vm.create_actor(initial_state, handler)?;
-                vm.push(Value::Actor(actor_id.0))?;
+                #[cfg(feature = "std")]
+                {
+                    let handler = vm.pop()?;
+                    let initial_state = vm.pop()?;
+                    let actor_id = vm.create_actor(initial_state, handler)?;
+                    vm.push(Value::Actor(actor_id.0))?;
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Actor operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             ActorSend => {
-                let message = vm.pop()?;
-                let actor = vm.pop()?;
-                
-                match actor {
-                    Value::Actor(actor_id_raw) => {
-                        vm.send_to_actor(crate::safety::ActorId(actor_id_raw), message)?;
-                        vm.push(Value::Nil)?;
+                #[cfg(feature = "std")]
+                {
+                    let message = vm.pop()?;
+                    let actor = vm.pop()?;
+                    
+                    match actor {
+                        Value::Actor(actor_id_raw) => {
+                            vm.send_to_actor(crate::safety::ActorId(actor_id_raw), message)?;
+                            vm.push(Value::Nil)?;
+                        }
+                        _ => {
+                            return Err(VMError::TypeError {
+                                operation: "actor_send".to_string(),
+                                expected: "actor".to_string(),
+                                got: crate::error::value_type_name(&actor).to_string(),
+                                location: None,
+                                stack_trace: None,
+                            });
+                        }
                     }
-                    _ => {
-                        return Err(VMError::TypeError {
-                            operation: "actor_send".to_string(),
-                            expected: "actor".to_string(),
-                            got: vm.value_type_name(&actor).to_string(),
-                            location: None,
-                            stack_trace: None,
-                        });
-                    }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Actor operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
                 }
             }
             
@@ -176,7 +256,7 @@ impl OpcodeHandler for ConcurrentHandler {
                         return Err(VMError::TypeError {
                             operation: "try_send".to_string(),
                             expected: "channel".to_string(),
-                            got: vm.value_type_name(&channel).to_string(),
+                            got: crate::error::value_type_name(&channel).to_string(),
                             location: None,
                             stack_trace: None,
                         });
@@ -196,7 +276,7 @@ impl OpcodeHandler for ConcurrentHandler {
                         return Err(VMError::TypeError {
                             operation: "try_receive".to_string(),
                             expected: "channel".to_string(),
-                            got: vm.value_type_name(&channel).to_string(),
+                            got: crate::error::value_type_name(&channel).to_string(),
                             location: None,
                             stack_trace: None,
                         });
@@ -242,43 +322,55 @@ impl OpcodeHandler for ConcurrentHandler {
             }
             
             PromiseNew => {
-                // Create a new promise
-                // The promise body should be on the stack as a function
-                let promise_body = vm.pop()?;
-                
-                // Validate it's a callable
-                match &promise_body {
-                    Value::Function { .. } | Value::Procedure(_) => {
-                        // Generate a new promise ID
-                        let promise_id = vm.id_generator().next_promise_id();
-                        
-                        // Create the promise (actual async execution would happen in async_vm)
-                        // For now, we just create the promise ID
-                        vm.push(Value::Promise(promise_id.0))?;
-                        
-                        // Store the promise body for later execution
-                        // This would be handled by the async runtime
-                        vm.pending_promise_bodies().insert(promise_id, promise_body);
-                        
-                        // For immediate await pattern, we need to create a placeholder receiver
-                        // The actual execution will happen when AsyncVM processes it
-                        // This ensures await doesn't fail when used immediately after promise creation
+                #[cfg(feature = "std")]
+                {
+                    // Create a new promise
+                    // The promise body should be on the stack as a function
+                    let promise_body = vm.pop()?;
+                    
+                    // Validate it's a callable
+                    match &promise_body {
+                        Value::Function { .. } | Value::Procedure(_) => {
+                            // Generate a new promise ID
+                            let promise_id = vm.id_generator().next_promise_id();
+                            
+                            // Create the promise (actual async execution would happen in async_vm)
+                            // For now, we just create the promise ID
+                            vm.push(Value::Promise(promise_id.0))?;
+                            
+                            // Store the promise body for later execution
+                            // This would be handled by the async runtime
+                            vm.pending_promise_bodies().insert(promise_id, promise_body);
+                            
+                            // For immediate await pattern, we need to create a placeholder receiver
+                            // The actual execution will happen when AsyncVM processes it
+                            // This ensures await doesn't fail when used immediately after promise creation
+                        }
+                        _ => {
+                            return Err(VMError::TypeError {
+                                operation: "promise_new".to_string(),
+                                expected: "function".to_string(),
+                                got: crate::error::value_type_name(&promise_body).to_string(),
+                                location: None,
+                                stack_trace: None,
+                            });
+                        }
                     }
-                    _ => {
-                        return Err(VMError::TypeError {
-                            operation: "promise_new".to_string(),
-                            expected: "function".to_string(),
-                            got: vm.value_type_name(&promise_body).to_string(),
-                            location: None,
-                            stack_trace: None,
-                        });
-                    }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Promise operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
                 }
             }
             
             PromiseAll => {
-                let promises = vm.pop()?;
-                match promises {
+                #[cfg(feature = "std")]
+                {
+                    let promises = vm.pop()?;
+                    match promises {
                     Value::List(promise_list) => {
                         // Validate all items are promises
                         let mut promise_ids = Vec::new();
@@ -291,7 +383,7 @@ impl OpcodeHandler for ConcurrentHandler {
                                     return Err(VMError::TypeError {
                                         operation: "promise_all".to_string(),
                                         expected: format!("promise at index {}", i),
-                                        got: vm.value_type_name(item).to_string(),
+                                        got: crate::error::value_type_name(item).to_string(),
                                         location: None,
                                         stack_trace: None,
                                     });
@@ -320,17 +412,27 @@ impl OpcodeHandler for ConcurrentHandler {
                         return Err(VMError::TypeError {
                             operation: "promise_all".to_string(),
                             expected: "list of promises".to_string(),
-                            got: vm.value_type_name(&promises).to_string(),
+                            got: crate::error::value_type_name(&promises).to_string(),
                             location: None,
                             stack_trace: None,
                         });
                     }
                 }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Promise operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             PromiseRace => {
-                let promises = vm.pop()?;
-                match promises {
+                #[cfg(feature = "std")]
+                {
+                    let promises = vm.pop()?;
+                    match promises {
                     Value::List(promise_list) => {
                         if promise_list.is_empty() {
                             return Err(VMError::RuntimeError {
@@ -350,7 +452,7 @@ impl OpcodeHandler for ConcurrentHandler {
                                     return Err(VMError::TypeError {
                                         operation: "promise_race".to_string(),
                                         expected: format!("promise at index {}", i),
-                                        got: vm.value_type_name(item).to_string(),
+                                        got: crate::error::value_type_name(item).to_string(),
                                         location: None,
                                         stack_trace: None,
                                     });
@@ -378,20 +480,30 @@ impl OpcodeHandler for ConcurrentHandler {
                         return Err(VMError::TypeError {
                             operation: "promise_race".to_string(),
                             expected: "list of promises".to_string(),
-                            got: vm.value_type_name(&promises).to_string(),
+                            got: crate::error::value_type_name(&promises).to_string(),
                             location: None,
                             stack_trace: None,
                         });
                     }
                 }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "Promise operations require std feature".to_string(),
+                        stack_trace: None,
+                    });
+                }
             }
             
             WithTimeout => {
-                let timeout_ms = vm.pop()?;
-                let promise = vm.pop()?;
-                
-                // Validate timeout is a number
-                let timeout_value = match timeout_ms {
+                #[cfg(feature = "std")]
+                {
+                    let timeout_ms = vm.pop()?;
+                    let promise = vm.pop()?;
+                    
+                    // Validate timeout is a number
+                    let timeout_value = match timeout_ms {
                     Value::Integer(ms) => {
                         if ms < 0 {
                             return Err(VMError::RuntimeError {
@@ -414,7 +526,7 @@ impl OpcodeHandler for ConcurrentHandler {
                         return Err(VMError::TypeError {
                             operation: "with_timeout".to_string(),
                             expected: "number (milliseconds)".to_string(),
-                            got: vm.value_type_name(&timeout_ms).to_string(),
+                            got: crate::error::value_type_name(&timeout_ms).to_string(),
                             location: None,
                             stack_trace: None,
                         });
@@ -444,11 +556,19 @@ impl OpcodeHandler for ConcurrentHandler {
                         return Err(VMError::TypeError {
                             operation: "with_timeout".to_string(),
                             expected: "promise".to_string(),
-                            got: vm.value_type_name(&promise).to_string(),
+                            got: crate::error::value_type_name(&promise).to_string(),
                             location: None,
                             stack_trace: None,
                         });
                     }
+                }
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    return Err(VMError::RuntimeError {
+                        message: "WithTimeout operation requires std feature".to_string(),
+                        stack_trace: None,
+                    });
                 }
             }
             

@@ -6,6 +6,7 @@ use anyhow::Result;
 use fluentai_package::registry::{HttpRegistry, LocalRegistry};
 use fluentai_package::{Manifest, PackageInstaller, Registry};
 use std::sync::Arc;
+use std::collections::HashSet;
 
 pub async fn handle_package_command(cmd: PackageCommands, config: &Config) -> Result<()> {
     // Create package config from CLI config
@@ -70,11 +71,25 @@ pub async fn handle_package_command(cmd: PackageCommands, config: &Config) -> Re
             let manifest = load_manifest()?;
             if tree {
                 println!("Package dependency tree:");
-                // TODO: Implement tree display
+                display_dependency_tree(&manifest, &registry)?;
             } else {
                 println!("Installed packages:");
-                for (name, _dep) in &manifest.dependencies {
-                    println!("  {}", name);
+                for (name, dep) in &manifest.dependencies {
+                    let version = match dep {
+                        fluentai_package::manifest::Dependency::Version(v) => v.clone(),
+                        fluentai_package::manifest::Dependency::Detailed { version, .. } => version.clone(),
+                    };
+                    println!("  {} @ {}", name, version);
+                }
+                if !manifest.dev_dependencies.is_empty() {
+                    println!("\nDev dependencies:");
+                    for (name, dep) in &manifest.dev_dependencies {
+                        let version = match dep {
+                            fluentai_package::manifest::Dependency::Version(v) => v.clone(),
+                            fluentai_package::manifest::Dependency::Detailed { version, .. } => version.clone(),
+                        };
+                        println!("  {} @ {} (dev)", name, version);
+                    }
                 }
             }
         }
@@ -97,9 +112,7 @@ pub async fn handle_package_command(cmd: PackageCommands, config: &Config) -> Re
 
         PackageCommands::Publish { token } => {
             let manifest = load_manifest()?;
-            // TODO: Build and publish package
-            println!("Publishing {} v{}", manifest.name, manifest.version);
-            println!("Token: {}", token);
+            publish_package(&manifest, &registry, &token)?;
         }
 
         PackageCommands::Run { script, args } => {
@@ -238,4 +251,280 @@ fn run_script(manifest: &Manifest, script_name: &str, args: Vec<String>) -> Resu
     }
 
     Ok(())
+}
+
+/// Display dependency tree in a hierarchical format
+fn display_dependency_tree(manifest: &Manifest, registry: &Arc<dyn Registry>) -> Result<()> {
+    use std::collections::HashSet;
+    
+    // Track visited packages to avoid cycles
+    let mut visited = HashSet::new();
+    
+    // Display root package
+    println!("{} @ {}", manifest.name, manifest.version);
+    
+    // Display dependencies
+    if !manifest.dependencies.is_empty() {
+        println!("├── dependencies:");
+        let deps: Vec<_> = manifest.dependencies.iter().collect();
+        for (i, (name, dep)) in deps.iter().enumerate() {
+            let is_last = i == deps.len() - 1;
+            let prefix = if is_last { "└── " } else { "├── " };
+            let child_prefix = if is_last { "    " } else { "│   " };
+            
+            display_dependency(name, dep, registry, &mut visited, prefix, child_prefix, 1)?;
+        }
+    }
+    
+    // Display dev dependencies
+    if !manifest.dev_dependencies.is_empty() {
+        println!("└── dev-dependencies:");
+        let dev_deps: Vec<_> = manifest.dev_dependencies.iter().collect();
+        for (i, (name, dep)) in dev_deps.iter().enumerate() {
+            let is_last = i == dev_deps.len() - 1;
+            let prefix = if is_last { "    └── " } else { "    ├── " };
+            let child_prefix = if is_last { "        " } else { "    │   " };
+            
+            display_dependency(name, dep, registry, &mut visited, prefix, child_prefix, 1)?;
+        }
+    }
+    
+    Ok(())
+}
+
+/// Display a single dependency and its transitive dependencies
+fn display_dependency(
+    name: &str,
+    dep: &fluentai_package::manifest::Dependency,
+    registry: &Arc<dyn Registry>,
+    visited: &mut HashSet<String>,
+    prefix: &str,
+    child_prefix: &str,
+    depth: usize,
+) -> Result<()> {
+    let version = match dep {
+        fluentai_package::manifest::Dependency::Version(v) => v.clone(),
+        fluentai_package::manifest::Dependency::Detailed { version, .. } => version.clone(),
+    };
+    
+    // Display the dependency
+    println!("{}{} @ {}", prefix, name, version);
+    
+    // Avoid infinite recursion
+    if depth > 5 || visited.contains(name) {
+        if visited.contains(name) {
+            println!("{}(circular dependency)", child_prefix);
+        }
+        return Ok(());
+    }
+    
+    visited.insert(name.to_string());
+    
+    // Try to fetch package metadata to show transitive dependencies
+    match fluentai_package::Version::parse(&version) {
+        Ok(version_obj) => {
+            match registry.get_package_version(name, &version_obj) {
+            Ok(pkg_version) => {
+                // If we have manifest data, show transitive dependencies
+                if let Some(manifest_data) = pkg_version.manifest {
+                    if !manifest_data.dependencies.is_empty() {
+                        let trans_deps: Vec<_> = manifest_data.dependencies.iter().collect();
+                        for (i, (trans_name, trans_dep)) in trans_deps.iter().enumerate() {
+                            let is_last = i == trans_deps.len() - 1;
+                            let next_prefix = format!("{}{}", child_prefix, if is_last { "└── " } else { "├── " });
+                            let next_child_prefix = format!("{}{}", child_prefix, if is_last { "    " } else { "│   " });
+                            
+                            display_dependency(
+                                trans_name,
+                                trans_dep,
+                                registry,
+                                visited,
+                                &next_prefix,
+                                &next_child_prefix,
+                                depth + 1,
+                            )?;
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                // Error fetching package info - just skip
+            }
+        }
+        }
+        Err(_) => {
+            // Invalid version string - skip
+        }
+    }
+    
+    visited.remove(name);
+    Ok(())
+}
+
+/// Publish a package to the registry
+fn publish_package(manifest: &Manifest, registry: &Arc<dyn Registry>, token: &str) -> Result<()> {
+    use std::fs;
+    use std::io::Write;
+    use tar::Builder;
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use tempfile::NamedTempFile;
+    
+    println!("Publishing {} v{}...", manifest.name, manifest.version);
+    
+    // Validate manifest
+    validate_manifest_for_publish(manifest)?;
+    
+    // Create a temporary tarball
+    let mut tarball = NamedTempFile::new()?;
+    let encoder = GzEncoder::new(&mut tarball, Compression::default());
+    let mut tar_builder = Builder::new(encoder);
+    
+    // Add files to tarball
+    let files_to_include = get_files_to_include(manifest)?;
+    let base_path = std::env::current_dir()?;
+    
+    for file_path in files_to_include {
+        let relative_path = file_path.strip_prefix(&base_path)
+            .unwrap_or(&file_path);
+        
+        if file_path.is_file() {
+            let mut file = fs::File::open(&file_path)?;
+            tar_builder.append_file(relative_path, &mut file)?;
+        }
+    }
+    
+    // Add manifest
+    let manifest_json = serde_json::to_vec_pretty(manifest)?;
+    let mut header = tar::Header::new_gnu();
+    header.set_path("fluentai.json")?;
+    header.set_size(manifest_json.len() as u64);
+    header.set_mode(0o644);
+    header.set_cksum();
+    tar_builder.append(&header, &manifest_json[..])?;
+    
+    // Finish the tarball
+    tar_builder.into_inner()?.finish()?;
+    tarball.flush()?;
+    
+    // Publish to registry
+    let tarball_path = tarball.path();
+    println!("Uploading package...");
+    
+    match registry.publish(manifest, tarball_path, token) {
+        Ok(_) => {
+            println!("✓ Successfully published {} v{}", manifest.name, manifest.version);
+            println!("  View at: https://registry.fluentai.dev/packages/{}", manifest.name);
+        }
+        Err(e) => {
+            return Err(anyhow::anyhow!("Failed to publish package: {}", e));
+        }
+    }
+    
+    Ok(())
+}
+
+/// Validate manifest before publishing
+fn validate_manifest_for_publish(manifest: &Manifest) -> Result<()> {
+    // Check required fields
+    if manifest.name.is_empty() {
+        return Err(anyhow::anyhow!("Package name is required"));
+    }
+    
+    if manifest.version.is_empty() {
+        return Err(anyhow::anyhow!("Package version is required"));
+    }
+    
+    // Validate package name format
+    if !is_valid_package_name(&manifest.name) {
+        return Err(anyhow::anyhow!(
+            "Invalid package name '{}'. Package names must be lowercase, \
+             start with a letter, and contain only letters, numbers, and hyphens.",
+            manifest.name
+        ));
+    }
+    
+    // Validate version format
+    if fluentai_package::Version::parse(&manifest.version).is_err() {
+        return Err(anyhow::anyhow!(
+            "Invalid version '{}'. Version must follow semantic versioning (e.g., 1.0.0)",
+            manifest.version
+        ));
+    }
+    
+    // Warn about missing optional fields
+    if manifest.description.is_none() {
+        eprintln!("Warning: No description provided");
+    }
+    
+    if manifest.license.is_none() {
+        eprintln!("Warning: No license specified");
+    }
+    
+    Ok(())
+}
+
+/// Check if a package name is valid
+fn is_valid_package_name(name: &str) -> bool {
+    !name.is_empty() 
+        && name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        && name.chars().next().map_or(false, |c| c.is_ascii_lowercase())
+        && !name.starts_with('-')
+        && !name.ends_with('-')
+        && !name.contains("--")
+}
+
+/// Get list of files to include in the package
+fn get_files_to_include(manifest: &Manifest) -> Result<Vec<std::path::PathBuf>> {
+    use glob::glob;
+    
+    let mut files = Vec::new();
+    let base_path = std::env::current_dir()?;
+    
+    // If files are explicitly listed in manifest, use those
+    if !manifest.files.is_empty() {
+        for pattern in &manifest.files {
+            for entry in glob(pattern)? {
+                if let Ok(path) = entry {
+                    files.push(path);
+                }
+            }
+        }
+    } else {
+        // Default patterns to include
+        let default_patterns = vec![
+            "**/*.flc",
+            "README*",
+            "LICENSE*",
+            "CHANGELOG*",
+        ];
+        
+        for pattern in default_patterns {
+            for entry in glob(pattern)? {
+                if let Ok(path) = entry {
+                    // Exclude certain directories
+                    let path_str = path.to_string_lossy();
+                    if !path_str.contains("node_modules") 
+                        && !path_str.contains("target")
+                        && !path_str.contains(".git")
+                        && !path_str.starts_with(".") {
+                        files.push(path);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Always include the manifest
+    files.push(base_path.join("fluentai.json"));
+    
+    // Remove duplicates
+    files.sort();
+    files.dedup();
+    
+    if files.len() == 1 {  // Only manifest
+        return Err(anyhow::anyhow!("No source files found to publish"));
+    }
+    
+    Ok(files)
 }

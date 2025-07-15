@@ -7,6 +7,7 @@
 //! - Package installation and management
 //! - CLI tools for package operations
 
+pub mod build;
 pub mod config;
 pub mod error;
 pub mod installer;
@@ -16,6 +17,7 @@ pub mod registry;
 pub mod resolver;
 pub mod version;
 
+pub use build::{BuildConfig, Builder};
 pub use config::PackageConfig;
 pub use error::{PackageError, Result};
 pub use installer::PackageInstaller;

@@ -1,0 +1,21 @@
+module math;
+
+// Public functions should be automatically exported
+public function add(a: float, b: float) -> float {
+    a + b
+}
+
+public function sub(a: float, b: float) -> float {
+    a - b
+}
+
+// Private function should NOT be exported
+private function internal_helper(x: float) -> float {
+    x * x
+}
+
+// Public constant should be exported
+public let PI = 3.14159;
+
+// Private variable should NOT be exported  
+private let secret = 42;

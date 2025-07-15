@@ -1,9 +1,7 @@
-#[cfg(test)]
-mod tests {
-    use bumpalo::Bump;
-    use fluentai_core::ast::Node;
-    use fluentai_parser::*;
-    use fluentai_parser::parse_flc as parse;
+use bumpalo::Bump;
+use fluentai_core::ast::Node;
+use fluentai_parser::*;
+use fluentai_parser::parse_flc as parse;
 
     #[test]
     fn test_parse_basic() {
@@ -164,4 +162,3 @@ mod tests {
         // Should parse pattern matching
         assert!(!graph.nodes.is_empty());
     }
-}

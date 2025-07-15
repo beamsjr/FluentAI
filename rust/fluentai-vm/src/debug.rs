@@ -2,6 +2,7 @@
 
 use fluentai_bytecode::Instruction;
 use fluentai_core::value::Value;
+#[cfg(feature = "std")]
 use tokio::sync::mpsc;
 
 /// Debug event types
@@ -64,6 +65,7 @@ pub struct DebugConfig {
     pub step_mode: StepMode,
 
     /// Event channel
+    #[cfg(feature = "std")]
     pub event_sender: Option<mpsc::UnboundedSender<VMDebugEvent>>,
 }
 
@@ -89,6 +91,7 @@ impl Default for DebugConfig {
             enabled: false,
             breakpoints: Vec::new(),
             step_mode: StepMode::Run,
+            #[cfg(feature = "std")]
             event_sender: None,
         }
     }
@@ -96,20 +99,25 @@ impl Default for DebugConfig {
 
 impl DebugConfig {
     /// Create a new debug configuration with events enabled
+    #[cfg(feature = "std")]
     pub fn with_events(sender: mpsc::UnboundedSender<VMDebugEvent>) -> Self {
         Self {
             enabled: true,
             breakpoints: Vec::new(),
             step_mode: StepMode::Run,
+            #[cfg(feature = "std")]
             event_sender: Some(sender),
         }
     }
 
     /// Send a debug event
     pub fn send_event(&self, event: VMDebugEvent) {
+        #[cfg(feature = "std")]
         if let Some(sender) = &self.event_sender {
             let _ = sender.send(event);
         }
+        #[cfg(not(feature = "std"))]
+        let _ = event; // Avoid unused parameter warning
     }
 
     /// Check if we should break at this PC

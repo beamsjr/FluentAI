@@ -1,7 +1,5 @@
-#[cfg(test)]
-mod assignment_debug_tests {
-    use fluentai_core::ast::Node;
-    use fluentai_parser::flc_parser::Parser;
+use fluentai_core::ast::Node;
+use fluentai_parser::flc_parser::Parser;
 
     #[test]
     fn test_simple_assignment_parsing() {
@@ -58,4 +56,3 @@ mod assignment_debug_tests {
             println!("  {:?}: {:?}", id, node);
         }
     }
-}

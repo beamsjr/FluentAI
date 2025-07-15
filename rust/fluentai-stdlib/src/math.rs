@@ -44,6 +44,7 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("log10", log10, 1, Some(1), "Base 10 logarithm"),
         StdlibFunction::pure("log2", log2, 1, Some(1), "Base 2 logarithm"),
         StdlibFunction::pure("pow", pow, 2, Some(2), "Power function"),
+        StdlibFunction::pure("**", pow, 2, Some(2), "Exponentiation operator"),
         StdlibFunction::pure("sqrt", sqrt, 1, Some(1), "Square root"),
         // Rounding functions
         StdlibFunction::pure("ceil", ceil, 1, Some(1), "Ceiling function"),

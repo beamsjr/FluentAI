@@ -88,7 +88,8 @@ pub async fn run_with_visualization(
     let config = ServerConfig {
         host: "127.0.0.1".to_string(),
         port: viz_config.port,
-        static_dir: PathBuf::from("fluentai-viz/static"), // TODO: Make configurable
+        static_dir: viz_config.static_dir.clone()
+            .unwrap_or_else(|| PathBuf::from("fluentai-viz/static")),
     };
 
     // Create visualization server

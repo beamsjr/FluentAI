@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 fluentai-core = { path = "../fluentai-core" }
 fluentai-modules = { path = "../fluentai-modules" }
+fluentai-parser = { path = "../fluentai-parser" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

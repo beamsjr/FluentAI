@@ -6,19 +6,20 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+use std::sync::Arc;
 
 fn main() {
     env_logger::init();
     
     // Create event loop and window
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
+    let event_loop = EventLoop::new().unwrap();
+    let window = Arc::new(WindowBuilder::new()
         .with_title("FluentAI Renderer Demo")
         .build(&event_loop)
-        .unwrap();
+        .unwrap());
     
     // Create renderer
-    let mut renderer = pollster::block_on(Renderer::new(&window)).unwrap();
+    let mut renderer = pollster::block_on(Renderer::new(window.clone())).unwrap();
     
     // Create scene
     let mut scene = Scene::new();
@@ -48,26 +49,26 @@ fn main() {
     });
     
     // Run event loop
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
+    let _ = event_loop.run(move |event, elwt| {
+        elwt.set_control_flow(ControlFlow::Poll);
         
         match event {
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::CloseRequested => elwt.exit(),
                 WindowEvent::Resized(size) => {
                     renderer.resize(size);
                 }
+                WindowEvent::RedrawRequested => {
+                    match renderer.render(&scene) {
+                        Ok(_) => {}
+                        Err(e) => eprintln!("Render error: {}", e),
+                    }
+                }
                 _ => {}
             },
-            Event::MainEventsCleared => {
+            Event::AboutToWait => {
                 window.request_redraw();
             },
-            Event::RedrawRequested(_) => {
-                match renderer.render(&scene) {
-                    Ok(_) => {}
-                    Err(e) => eprintln!("Render error: {}", e),
-                }
-            }
             _ => {}
         }
     });

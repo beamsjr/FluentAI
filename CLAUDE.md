@@ -53,7 +53,7 @@ Modules provide encapsulation and organization. Each .flc file is implicitly a m
 
 Module Declaration:
 // Optional module declaration at the top of a file
-module ModuleName;
+mod ModuleName;
 
 // If no module declaration is provided, the module name defaults to the filename
 // File: Stock.flc → module Stock
@@ -103,7 +103,7 @@ FluentAI supports object-oriented programming through closure patterns. This pro
 
 Pattern Example:
 // Stock.flc
-module Stock;
+mod Stock;
 
 public function Stock(symbol: string, shares: float, price: float) {
     // Private state - not accessible from outside
@@ -439,7 +439,7 @@ private async function main() {
 This example demonstrates how to structure a real application using FluentAI's module system.
 
 // === File: Action.flc ===
-module Action;
+mod Action;
 
 // Action types for portfolio rebalancing
 public function Buy(symbol: string, shares: float, value: float) {
@@ -471,7 +471,7 @@ public function get_total_value(actions, type: string) -> float {
 }
 
 // === File: Stock.flc ===
-module Stock;
+mod Stock;
 
 public function Stock(symbol: string, shares: float, price: float) {
     // Private state
@@ -517,7 +517,7 @@ public function Stock(symbol: string, shares: float, price: float) {
 }
 
 // === File: PriceService.flc ===
-module PriceService;
+mod PriceService;
 
 public function PriceService() {
     // In a real app, this would fetch from an API
@@ -545,7 +545,7 @@ public function PriceService() {
 }
 
 // === File: Portfolio.flc ===
-module Portfolio;
+mod Portfolio;
 
 use Stock;
 use Action::*;  // Import all Action functions

@@ -157,8 +157,11 @@ impl ModuleLoader {
         let mut module_vm = VM::with_shared_bytecode(bytecode);
         
         // Copy necessary context from parent VM
-        module_vm.set_stdlib_registry(vm.get_stdlib_registry().clone());
-        module_vm.set_effect_runtime(vm.get_effect_runtime());
+        #[cfg(feature = "std")]
+        {
+            module_vm.set_stdlib_registry(vm.get_stdlib_registry().clone());
+            module_vm.set_effect_runtime(vm.get_effect_runtime());
+        }
         
         // Run the module
         let result = module_vm.run()

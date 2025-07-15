@@ -16,6 +16,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use crate::safety::PromiseId;
+use web_time::Instant;
 
 /// Async VM executor that wraps the synchronous VM
 pub struct AsyncVM {
@@ -56,7 +57,7 @@ impl AsyncVM {
             ip: 0,
             stack_base: 0,
             env: Vec::new(),
-            start_time: if has_tracker { Some(std::time::Instant::now()) } else { None },
+            start_time: if has_tracker { Some(web_time::Instant::now()) } else { None },
         });
         
         self.run_inner().await

@@ -215,8 +215,17 @@ impl DeadCodeEliminationPass {
                         self.mark_reachable(graph, *val, reachable);
                     }
                 }
+                Node::Map(pairs) => {
+                    for (key, value) in pairs {
+                        self.mark_reachable(graph, *key, reachable);
+                        self.mark_reachable(graph, *value, reachable);
+                    }
+                }
                 // Leaf nodes - no children to traverse
                 Node::Literal(_) | Node::Variable { .. } => {}
+                Node::Extern { .. } => {
+                    // Extern nodes have no child nodes to traverse
+                }
             }
         }
     }
@@ -417,8 +426,14 @@ impl DeadCodeEliminationPass {
                         self.collect_vars_from_node(graph, *val, used);
                     }
                 }
+                Node::Map(pairs) => {
+                    for (key, value) in pairs {
+                        self.collect_vars_from_node(graph, *key, used);
+                        self.collect_vars_from_node(graph, *value, used);
+                    }
+                }
                 // Leaf nodes - no variables to collect
-                Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } => {}
+                Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } | Node::Extern { .. } => {}
             }
         }
     }
@@ -530,8 +545,11 @@ impl DeadCodeEliminationPass {
                 // Continuum nodes contain NodeIds, not inline nodes
                 // This will be handled by the graph traversal in find_used_variables
             }
+            Node::Map(_) => {
+                // Map pairs are handled by the graph traversal
+            }
             // Leaf nodes - these don't contain variable references
-            Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } => {
+            Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } | Node::Extern { .. } => {
                 // These nodes don't contain variable references we need to track
             }
         }

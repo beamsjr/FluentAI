@@ -104,18 +104,10 @@ impl TaggedValue {
                 unsafe { Value::List((*ptr).clone()) }
             }
             ValueTag::Other => {
-                // Check the heap object type
-                let ptr = self.to_ptr::<HeapValue>();
+                // For Other tag, we store the Value directly
+                let ptr = self.to_ptr::<Value>();
                 unsafe {
-                    match &*ptr {
-                        HeapValue::Boolean(b) => Value::Boolean(*b),
-                        HeapValue::Nil => Value::Nil,
-                        HeapValue::Error { kind, message, stack_trace } => Value::Error {
-                            kind: kind.clone(),
-                            message: message.clone(),
-                            stack_trace: stack_trace.clone(),
-                        },
-                    }
+                    (*ptr).clone()
                 }
             }
             _ => {
@@ -167,20 +159,45 @@ pub fn value_to_tagged(value: &Value) -> TaggedValue {
             TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::List)
         }
         Value::Boolean(b) => {
-            let heap_val = Box::new(HeapValue::Boolean(*b));
-            TaggedValue::from_ptr(Box::into_raw(heap_val), ValueTag::Other)
+            let boxed = Box::new(Value::Boolean(*b));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
         }
         Value::Nil => {
-            let heap_val = Box::new(HeapValue::Nil);
-            TaggedValue::from_ptr(Box::into_raw(heap_val), ValueTag::Other)
+            let boxed = Box::new(Value::Nil);
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
         }
         Value::Error { kind, message, stack_trace } => {
-            let heap_val = Box::new(HeapValue::Error {
+            let boxed = Box::new(Value::Error {
                 kind: kind.clone(),
                 message: message.clone(),
                 stack_trace: stack_trace.clone(),
             });
-            TaggedValue::from_ptr(Box::into_raw(heap_val), ValueTag::Other)
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Map(m) => {
+            // Box the map and tag it as Other (since we don't have a specific Map tag)
+            let boxed = Box::new(Value::Map(m.clone()));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Vector(v) => {
+            // Box the vector and tag it as Other
+            let boxed = Box::new(Value::Vector(v.clone()));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Function { chunk_id, env } => {
+            // Box the function value
+            let boxed = Box::new(Value::Function { chunk_id: *chunk_id, env: env.clone() });
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Channel(id) => {
+            // Box the channel value
+            let boxed = Box::new(Value::Channel(*id));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Promise(id) => {
+            // Box the promise value
+            let boxed = Box::new(Value::Promise(*id));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
         }
         _ => {
             // For unimplemented types, return a nil value

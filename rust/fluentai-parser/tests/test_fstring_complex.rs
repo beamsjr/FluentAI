@@ -1,7 +1,5 @@
-#[cfg(test)]
-mod test_fstring_complex {
-    use fluentai_core::ast::Node;
-    use fluentai_parser::flc_parser::Parser;
+use fluentai_core::ast::Node;
+use fluentai_parser::flc_parser::Parser;
 
     #[test]
     fn test_fstring_with_expression() {
@@ -113,4 +111,3 @@ mod test_fstring_complex {
             }
         }
     }
-}

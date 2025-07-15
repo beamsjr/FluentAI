@@ -3,6 +3,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use fluentai_package::{
+    build::{BuildConfig, Builder},
     registry::{HttpRegistry, LocalRegistry},
     Manifest, PackageConfig, PackageInstaller, Registry,
 };
@@ -106,6 +107,32 @@ enum Commands {
 
     /// Clean unused packages
     Clean,
+
+    /// Build the package
+    Build {
+        /// Skip dependency installation
+        #[arg(long)]
+        no_install: bool,
+
+        /// Optimization level (0-3)
+        #[arg(long, default_value = "0")]
+        opt_level: u8,
+
+        /// Bundle dependencies
+        #[arg(long)]
+        bundle: bool,
+
+        /// Output directory
+        #[arg(long, default_value = "dist")]
+        out_dir: PathBuf,
+    },
+
+    /// Watch files and rebuild on changes
+    Watch {
+        /// Optimization level (0-3)
+        #[arg(long, default_value = "0")]
+        opt_level: u8,
+    },
 }
 
 fn main() -> Result<()> {
@@ -207,6 +234,40 @@ fn main() -> Result<()> {
         Commands::Clean => {
             let installer = PackageInstaller::new(config, registry, cwd);
             installer.clean()?;
+        }
+
+        Commands::Build {
+            no_install,
+            opt_level,
+            bundle,
+            out_dir,
+        } => {
+            let manifest = load_manifest(&cli.manifest_path)?;
+            
+            // Install dependencies first unless skipped
+            if !no_install {
+                let installer = PackageInstaller::new(config.clone(), registry, cwd.clone());
+                installer.install(&manifest, false)?;
+            }
+            
+            // Build the package
+            let build_config = BuildConfig {
+                src_dir: cwd.join("src"),
+                out_dir,
+                source_maps: true,
+                opt_level,
+                bundle_deps: bundle,
+                include_paths: vec![],
+            };
+            
+            let mut builder = Builder::new(manifest, build_config, config);
+            builder.build()?;
+        }
+
+        Commands::Watch { opt_level } => {
+            println!("Watch mode not yet implemented");
+            println!("For now, run 'fluentai build' manually when files change");
+            // TODO: Implement file watching
         }
     }
 

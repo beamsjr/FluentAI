@@ -160,6 +160,9 @@ fn main() -> anyhow::Result<()> {
         loop_optimization: true,
         beta_reduction: true,
         partial_evaluation: true,
+        strength_reduction: false,
+        algebraic_simplification: false,
+        loop_invariant_code_motion: false,
         max_iterations: 3,
         debug_mode: false,
     };

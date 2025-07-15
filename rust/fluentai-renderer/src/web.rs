@@ -17,21 +17,23 @@ pub fn get_canvas(id: &str) -> Result<HtmlCanvasElement, JsValue> {
     Ok(canvas.dyn_into::<HtmlCanvasElement>()?)
 }
 
-/// Create a winit window for WebAssembly
-#[cfg(target_arch = "wasm32")]
-pub fn create_wasm_window(canvas_id: &str) -> Result<winit::window::Window, Box<dyn std::error::Error>> {
-    use winit::dpi::LogicalSize;
-    use winit::event_loop::EventLoop;
-    use winit::platform::web::WindowBuilderExtWebSys;
-    use winit::window::WindowBuilder;
-    
-    let event_loop = EventLoop::new()?;
-    let canvas = get_canvas(canvas_id).map_err(|e| format!("Canvas error: {:?}", e))?;
-    
-    let window = WindowBuilder::new()
-        .with_canvas(Some(canvas))
-        .with_inner_size(LogicalSize::new(800, 600))
-        .build(&event_loop)?;
-    
-    Ok(window)
-}
+// Note: winit window creation is not supported in WASM builds
+// Use get_canvas() directly for WebGL rendering
+// /// Create a winit window for WebAssembly
+// #[cfg(target_arch = "wasm32")]
+// pub fn create_wasm_window(canvas_id: &str) -> Result<winit::window::Window, Box<dyn std::error::Error>> {
+//     use winit::dpi::LogicalSize;
+//     use winit::event_loop::EventLoop;
+//     use winit::platform::web::WindowBuilderExtWebSys;
+//     use winit::window::WindowBuilder;
+//     
+//     let event_loop = EventLoop::new()?;
+//     let canvas = get_canvas(canvas_id).map_err(|e| format!("Canvas error: {:?}", e))?;
+//     
+//     let window = WindowBuilder::new()
+//         .with_canvas(Some(canvas))
+//         .with_inner_size(LogicalSize::new(800, 600))
+//         .build(&event_loop)?;
+//     
+//     Ok(window)
+// }

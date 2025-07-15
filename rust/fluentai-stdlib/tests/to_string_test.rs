@@ -1,6 +1,4 @@
-#[cfg(test)]
-mod to_string_tests {
-    use fluentai_stdlib::{init_stdlib, value::Value};
+use fluentai_stdlib::{init_stdlib, value::Value};
 
     #[test]
     fn test_to_string_numbers() {
@@ -80,4 +78,3 @@ mod to_string_tests {
         let result = to_string.call(&[Value::Boolean(false)]).unwrap();
         assert_eq!(result, Value::String("false".to_string()));
     }
-}

@@ -997,6 +997,19 @@ impl GraphOptimizer {
                 target: mapping.get(target).copied().unwrap_or(*target),
                 value: mapping.get(value).copied().unwrap_or(*value),
             },
+            Node::Module { name, exports, body } => Node::Module {
+                name: name.clone(),
+                exports: exports.clone(),
+                body: mapping.get(body).copied().unwrap_or(*body),
+            },
+            Node::Map(pairs) => Node::Map(
+                pairs.iter()
+                    .map(|(k, v)| (
+                        mapping.get(k).copied().unwrap_or(*k),
+                        mapping.get(v).copied().unwrap_or(*v),
+                    ))
+                    .collect()
+            ),
             _ => node.clone(),
         }
     }

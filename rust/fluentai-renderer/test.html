@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Test</title>
+</head>
+<body>
+    <h1>FluentAI Renderer Server Test</h1>
+    <p>If you can see this page, the server is working correctly on port 8081.</p>
+    <h2>Quick Links:</h2>
+    <ul>
+        <li><a href="/demos.html">Demo Index</a></li>
+        <li><a href="/examples/ar_demo.html">AR Demo</a></li>
+        <li><a href="/examples/ar_living_cards_demo.html">AR Living Cards Demo</a></li>
+        <li><a href="/www/index.html">Main Renderer Demo</a></li>
+    </ul>
+    <h2>Server Status:</h2>
+    <div id="status"></div>
+    <script>
+        document.getElementById('status').innerHTML = `
+            <p>Current URL: ${window.location.href}</p>
+            <p>Server: ${window.location.host}</p>
+            <p>Protocol: ${window.location.protocol}</p>
+        `;
+    </script>
+</body>
+</html>

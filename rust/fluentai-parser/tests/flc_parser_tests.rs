@@ -1,11 +1,9 @@
 //! Comprehensive test suite for FLC parser
 
-#[cfg(test)]
-mod tests {
-    use fluentai_parser::parse_flc;
+use fluentai_parser::parse_flc;
 
-    #[test]
-    fn test_parse_arithmetic() {
+#[test]
+fn test_parse_arithmetic() {
         let cases = vec![
             ("1 + 2", "addition"),
             ("10 - 5", "subtraction"),
@@ -15,6 +13,9 @@ mod tests {
             ("1 + 2 * 3", "precedence multiply"),
             ("(1 + 2) * 3", "parentheses"),
             ("1 + 2 + 3", "left associative"),
+            ("2 ** 8", "exponentiation"),
+            ("2 ** 3 ** 2", "right associative exponentiation"),
+            ("2 * 3 ** 4", "exponentiation precedence"),
         ];
 
         for (input, desc) in cases {
@@ -85,6 +86,24 @@ mod tests {
             ("let x = 5; let y = 10; x + y", "multiple lets"),
             // TODO: Destructuring in let bindings not yet implemented in FLC parser
             // ("let {x, y} = point; x + y", "destructuring let"),
+        ];
+
+        for (input, desc) in cases {
+            let result = parse_flc(input);
+            assert!(result.is_ok(), "Failed to parse {}: {:?}", desc, result);
+        }
+    }
+
+    #[test]
+    fn test_parse_exponentiation_operator() {
+        let cases = vec![
+            ("2 ** 8", "simple exponentiation"),
+            ("2 ** 3 ** 2", "right associative - should be 2^(3^2) = 2^9 = 512"),
+            ("(2 ** 3) ** 2", "explicit left grouping - should be (2^3)^2 = 8^2 = 64"),
+            ("2 + 3 ** 4", "precedence with addition - should be 2 + 81 = 83"),
+            ("2 * 3 ** 4", "precedence with multiplication - should be 2 * 81 = 162"),
+            ("-2 ** 2", "with unary minus - should be -(2^2) = -4"),
+            ("(-2) ** 2", "parenthesized negative - should be (-2)^2 = 4"),
         ];
 
         for (input, desc) in cases {
@@ -635,4 +654,3 @@ private actor Counter {
             }
         }
     }
-}

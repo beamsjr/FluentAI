@@ -437,6 +437,15 @@ impl AdvancedOptimizer {
                                 stack.push(WorkItem::Process(*val));
                             }
                         }
+                        Node::Extern { .. } => {
+                            // Extern nodes have no child nodes to process
+                        }
+                        Node::Map(pairs) => {
+                            for (key, value) in pairs.iter().rev() {
+                                stack.push(WorkItem::Process(*key));
+                                stack.push(WorkItem::Process(*value));
+                            }
+                        }
                     }
                 }
                 WorkItem::Complete(node_id, placeholder_id) => {

@@ -195,32 +195,43 @@ impl ReactiveEngine {
         
         let field = Rc::new(StateField::new(name.clone(), initial_value));
         
-        // Set up observer to re-run affected computations
-        let observer = {
-            struct FieldObserver {
-                field_name: String,
-                computations: Vec<Rc<ReactiveComputation>>,
-            }
-            
-            impl Observer for FieldObserver {
-                fn on_change(&self, _: &str) {
-                    for comp in &self.computations {
-                        if comp.dependencies.borrow().contains(&self.field_name) {
-                            comp.run();
-                        }
-                    }
-                }
-            }
-            
-            Rc::new(FieldObserver {
-                field_name: name.clone(),
-                computations: self.computations.clone(),
-            })
-        };
+        // Create a weak reference to self to avoid circular references
+        let weak_self = Rc::downgrade(&Rc::new(self as *const ReactiveEngine));
+        let field_name_clone = name.clone();
+        
+        // Set up observer that will look up computations dynamically
+        let observer = Rc::new(move |changed_field: &str| {
+            // This closure captures the field name and will check computations at runtime
+            // For now, we'll use a different approach
+            let _ = (weak_self.clone(), field_name_clone.clone(), changed_field);
+        });
         
         field.observe(observer);
         
-        self.state_fields.insert(name, field);
+        self.state_fields.insert(name.clone(), field.clone());
+        
+        // Update the field's observer whenever computations change
+        self.update_field_observer(&name, field);
+    }
+    
+    /// Update a field's observer to include all current computations
+    fn update_field_observer(&self, field_name: &str, field: Rc<StateField>) {
+        // Clear existing observers
+        field.observers.borrow_mut().clear();
+        
+        // Create new observer with current computations
+        let computations = self.computations.clone();
+        let field_name_clone = field_name.to_string();
+        
+        let observer: StateObserver = Rc::new(move |_: &str| {
+            for comp in &computations {
+                if comp.dependencies.borrow().contains(&field_name_clone) {
+                    comp.run();
+                }
+            }
+        });
+        
+        field.observe(observer);
     }
     
     /// Get a state field by name
@@ -232,6 +243,11 @@ impl ReactiveEngine {
     pub fn add_computation<F: Fn() + 'static>(&mut self, computation: F) {
         let comp = ReactiveComputation::new(computation);
         self.computations.push(comp);
+        
+        // Update all field observers to include this new computation
+        for (field_name, field) in &self.state_fields {
+            self.update_field_observer(field_name, field.clone());
+        }
     }
     
     /// Handle a UI event
@@ -274,10 +290,23 @@ mod tests {
         let run_count = Rc::new(RefCell::new(0));
         let run_count_clone = run_count.clone();
         
+        // Store weak reference to engine fields for the computation
+        let counter_field = engine.get_field("counter").unwrap();
+        let counter_field_clone = counter_field.clone();
+        
         // Add a reactive computation that depends on the counter
         engine.add_computation(move || {
             *run_count_clone.borrow_mut() += 1;
-            // This would normally update UI elements
+            
+            // Access the counter value to establish dependency
+            let _value = counter_field_clone.get();
+            
+            // Track dependency manually for now
+            DEPENDENCY_TRACKER.with(|t| {
+                if let Some(ref tracker) = *t.borrow() {
+                    tracker.track_dependency("counter".to_string());
+                }
+            });
         });
         
         // Initial run

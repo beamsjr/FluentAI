@@ -246,6 +246,8 @@ impl TypeInferencer {
             Node::StateField { .. } => TypedValue::primitive(PrimitiveType::unit()),
             Node::When { .. } => TypedValue::primitive(PrimitiveType::unit()),
             Node::Disturb { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::Extern { .. } => TypedValue::primitive(PrimitiveType::unit()),
+            Node::Map(pairs) => self.infer_map(graph, pairs)?,
         };
 
         // Store the inferred type
@@ -498,6 +500,52 @@ impl TypeInferencer {
                 self.subst.apply_type(&first_type),
             )))
         }
+    }
+
+    /// Infer type of map/dictionary
+    fn infer_map(&mut self, graph: &Graph, pairs: &[(NodeId, NodeId)]) -> Result<TypedValue> {
+        // For now, treat maps as records with string keys
+        // In the future, we could have a proper Map type
+        let mut fields = FxHashMap::default();
+        
+        for &(key_id, value_id) in pairs {
+            // Get the key - should be a string literal for record syntax
+            if let Some(Node::Literal(Literal::String(key))) = graph.get_node(key_id) {
+                let value_type = self.infer_node(graph, value_id)?;
+                fields.insert(key.clone(), value_type);
+            } else {
+                // For dynamic keys, we'd need a different approach
+                // For now, just use a generic record type
+                let value_type = if pairs.is_empty() {
+                    self.env.fresh_type("v")
+                } else {
+                    self.infer_node(graph, pairs[0].1)?
+                };
+                
+                // Ensure all values have the same type for dynamic maps
+                for &(_, value_id) in &pairs[1..] {
+                    let v_type = self.infer_node(graph, value_id)?;
+                    match self.unifier.unify(&value_type, &v_type) {
+                        Ok(new_subst) => self.subst.compose(&new_subst),
+                        Err(_) => {
+                            self.errors.push(TypeError::TypeMismatch {
+                                expected: value_type.to_string(),
+                                found: v_type.to_string(),
+                            });
+                        }
+                    }
+                }
+                
+                // Return a generic "map-like" record type
+                let mut record = RecordType::new();
+                record.fields = fields;
+                return Ok(TypedValue::record(record));
+            }
+        }
+        
+        let mut record = RecordType::new();
+        record.fields = fields;
+        Ok(TypedValue::record(record))
     }
 
     /// Infer type of pattern match

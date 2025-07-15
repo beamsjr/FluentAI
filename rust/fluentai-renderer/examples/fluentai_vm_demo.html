@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluentAI VM Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+        
+        h2 {
+            margin: 0 0 15px 0;
+            color: #555;
+            font-size: 18px;
+        }
+        
+        #editor {
+            width: 100%;
+            height: 400px;
+            font-family: "Monaco", "Menlo", "Consolas", monospace;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            resize: vertical;
+        }
+        
+        #canvas {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        
+        #console {
+            width: 100%;
+            height: 150px;
+            font-family: "Monaco", "Menlo", "Consolas", monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: #f8f8f8;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .examples {
+            margin-top: 15px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .error {
+            color: #d32f2f;
+        }
+        
+        .success {
+            color: #388e3c;
+        }
+    </style>
+</head>
+<body>
+    <h1>FluentAI VM WebAssembly Demo</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>FluentAI Code Editor</h2>
+            <textarea id="editor" placeholder="Enter FluentAI code here...">// Simple FluentAI example
+private function main() {
+    // Print to console
+    perform IO.println("Hello from FluentAI!");
+    
+    // Create some shapes
+    let shapes = [
+        {
+            type: "rect",
+            position: [50, 50],
+            size: [100, 100],
+            color: "#FF6B6B"
+        },
+        {
+            type: "circle",
+            position: [250, 150],
+            radius: 50,
+            color: "#4ECDC4"
+        },
+        {
+            type: "text",
+            position: [50, 250],
+            content: "FluentAI + WASM",
+            size: 24,
+            color: "#333333"
+        }
+    ];
+    
+    // Render the shapes
+    perform Continuum.render(shapes);
+    
+    // Return a value
+    "Rendering complete!"
+}
+
+// Run the main function
+main()</textarea>
+            
+            <div class="controls">
+                <button id="runBtn">Run</button>
+                <button id="compileBtn">Compile Only</button>
+                <button id="clearBtn">Clear</button>
+            </div>
+            
+            <div class="examples">
+                <h2>Examples:</h2>
+                <select id="exampleSelect">
+                    <option value="">Select an example...</option>
+                    <option value="hello">Hello World</option>
+                    <option value="shapes">Basic Shapes</option>
+                    <option value="functions">Functions & Lambdas</option>
+                    <option value="collections">Collections</option>
+                    <option value="effects">Effects System</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Canvas Output</h2>
+            <canvas id="canvas"></canvas>
+            
+            <h2 style="margin-top: 20px;">Console Output</h2>
+            <div id="console"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        // Import the WASM module
+        import init, { 
+            create_fluentai_vm, 
+            test_compile 
+        } from './fluentai_renderer.js';
+        
+        let vm = null;
+        const editor = document.getElementById('editor');
+        const canvas = document.getElementById('canvas');
+        const consoleDiv = document.getElementById('console');
+        const runBtn = document.getElementById('runBtn');
+        const compileBtn = document.getElementById('compileBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exampleSelect = document.getElementById('exampleSelect');
+        
+        // Override console.log to capture output
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog(...args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            log(message);
+        };
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : '📝';
+            consoleDiv.innerHTML += `${prefix} [${timestamp}] ${message}\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        function clearConsole() {
+            consoleDiv.innerHTML = '';
+        }
+        
+        async function runCode() {
+            if (!vm) {
+                log('VM not initialized', 'error');
+                return;
+            }
+            
+            const code = editor.value;
+            clearConsole();
+            log('Running FluentAI code...', 'info');
+            
+            try {
+                const result = await vm.run(code);
+                log(`Result: ${JSON.stringify(result)}`, 'success');
+                
+                // Render the scene
+                await vm.render();
+            } catch (error) {
+                log(`Error: ${error}`, 'error');
+            }
+        }
+        
+        async function compileCode() {
+            const code = editor.value;
+            clearConsole();
+            log('Compiling FluentAI code...', 'info');
+            
+            try {
+                const result = await test_compile(code);
+                log(result, 'success');
+            } catch (error) {
+                log(`Compilation error: ${error}`, 'error');
+            }
+        }
+        
+        function clearCanvas() {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            clearConsole();
+            log('Canvas and console cleared', 'info');
+        }
+        
+        // Example code snippets
+        const examples = {
+            hello: `// Hello World example
+private function main() {
+    perform IO.println("Hello, FluentAI!");
+    perform IO.println("Running in WebAssembly!");
+    
+    let message = "FluentAI is " + "awesome!";
+    perform IO.println(message);
+    
+    42 // Return value
+}
+
+main()`,
+            
+            shapes: `// Drawing shapes with Continuum UI
+private function main() {
+    // Create a list of shapes
+    let shapes = [
+        {
+            type: "rect",
+            position: [50, 50],
+            size: [150, 100],
+            color: "#FF6B6B",
+            radius: 10
+        },
+        {
+            type: "circle", 
+            position: [300, 150],
+            radius: 60,
+            color: "#4ECDC4"
+        },
+        {
+            type: "text",
+            position: [50, 250],
+            content: "FluentAI Shapes",
+            size: 28,
+            color: "#2C3E50"
+        },
+        {
+            type: "rect",
+            position: [250, 250],
+            size: [120, 80],
+            color: "#95E1D3"
+        }
+    ];
+    
+    // Render the shapes
+    perform Continuum.render(shapes);
+    
+    "Shapes rendered!"
+}
+
+main()`,
+            
+            functions: `// Functions and lambdas
+private function greet(name: string) -> string {
+    "Hello, " + name + "!"
+}
+
+private function main() {
+    // Call a function
+    let message = greet("FluentAI");
+    perform IO.println(message);
+    
+    // Use lambdas with collections
+    let numbers = [1, 2, 3, 4, 5];
+    
+    let doubled = numbers.map(x => x * 2);
+    perform IO.println("Doubled: " + doubled.to_string());
+    
+    let sum = numbers.reduce(0, (acc, x) => acc + x);
+    perform IO.println("Sum: " + sum.to_string());
+    
+    // Filter even numbers
+    let evens = numbers.filter(x => x % 2 == 0);
+    perform IO.println("Even numbers: " + evens.to_string());
+    
+    sum
+}
+
+main()`,
+            
+            collections: `// Working with collections
+private function main() {
+    // Lists
+    let fruits = ["apple", "banana", "orange"];
+    perform IO.println("Fruits: " + fruits.to_string());
+    
+    // Maps
+    let person = {
+        "name": "Alice",
+        "age": 30,
+        "city": "New York"
+    };
+    perform IO.println("Person: " + person.to_string());
+    
+    // Nested structures
+    let data = {
+        "users": [
+            {"name": "Bob", "score": 85},
+            {"name": "Carol", "score": 92},
+            {"name": "Dave", "score": 78}
+        ],
+        "average": 85.0
+    };
+    
+    // Process the data
+    let high_scorers = data.users
+        .filter(user => user.score > 80)
+        .map(user => user.name);
+    
+    perform IO.println("High scorers: " + high_scorers.to_string());
+    
+    // Create visualization
+    let bars = data.users.map((user, i) => {
+        {
+            type: "rect",
+            position: [50 + i * 120, 300 - user.score * 2],
+            size: [80, user.score * 2],
+            color: if (user.score > 80) { "#4ECDC4" } else { "#FF6B6B" }
+        }
+    });
+    
+    let labels = data.users.map((user, i) => {
+        {
+            type: "text",
+            position: [70 + i * 120, 320],
+            content: user.name,
+            size: 16,
+            color: "#333"
+        }
+    });
+    
+    perform Continuum.render(bars + labels);
+    
+    "Data visualized!"
+}
+
+main()`,
+            
+            effects: `// Effects system demonstration
+private function draw_clock() {
+    let time = perform Time.now();
+    let seconds = time % 60;
+    let minutes = (time / 60) % 60;
+    let hours = (time / 3600) % 12;
+    
+    // Clock face
+    let clock_face = {
+        type: "circle",
+        position: [200, 200],
+        radius: 150,
+        color: "#ECF0F1"
+    };
+    
+    // Hour markers
+    let markers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => {
+        let angle = i * 30 - 90;
+        let x = 200 + 120 * cos(angle);
+        let y = 200 + 120 * sin(angle);
+        {
+            type: "circle",
+            position: [x, y],
+            radius: 5,
+            color: "#34495E"
+        }
+    });
+    
+    // Clock hands (simplified)
+    let center = {
+        type: "circle",
+        position: [200, 200],
+        radius: 10,
+        color: "#E74C3C"
+    };
+    
+    let shapes = [clock_face] + markers + [center];
+    perform Continuum.render(shapes);
+}
+
+private function main() {
+    perform IO.println("FluentAI Effects Demo");
+    perform IO.println("Drawing a clock...");
+    
+    draw_clock();
+    
+    "Clock rendered!"
+}
+
+// Trigonometric functions (simplified)
+private function cos(degrees: float) -> float {
+    // Convert to radians and use approximation
+    let rad = degrees * 3.14159 / 180.0;
+    1.0 - (rad * rad) / 2.0
+}
+
+private function sin(degrees: float) -> float {
+    // Convert to radians and use approximation
+    let rad = degrees * 3.14159 / 180.0;
+    rad - (rad * rad * rad) / 6.0
+}
+
+main()`
+        };
+        
+        // Event handlers
+        runBtn.addEventListener('click', runCode);
+        compileBtn.addEventListener('click', compileCode);
+        clearBtn.addEventListener('click', clearCanvas);
+        
+        exampleSelect.addEventListener('change', (e) => {
+            const example = examples[e.target.value];
+            if (example) {
+                editor.value = example;
+            }
+        });
+        
+        // Initialize WASM
+        async function initialize() {
+            try {
+                await init();
+                vm = await create_fluentai_vm(canvas);
+                log('FluentAI VM initialized successfully!', 'success');
+                log('Try running the example code or write your own!', 'info');
+            } catch (error) {
+                log(`Failed to initialize: ${error}`, 'error');
+            }
+        }
+        
+        // Start initialization
+        initialize();
+    </script>
+</body>
+</html>

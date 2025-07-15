@@ -1,0 +1,39 @@
+[package]
+name = "fluentai-codegen"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native code generation backend for FluentAI"
+
+[dependencies]
+# Core dependencies
+fluentai-core = { path = "../fluentai-core" }
+fluentai-bytecode = { path = "../fluentai-bytecode" }
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Cranelift for code generation
+cranelift = "0.104"
+cranelift-codegen = "0.104"
+cranelift-frontend = "0.104"
+cranelift-module = "0.104"
+cranelift-object = "0.104"
+cranelift-jit = "0.104"
+cranelift-native = "0.104"
+
+# Target information
+target-lexicon = "0.12"
+
+# Object file generation
+object = { version = "0.32", features = ["write"] }
+
+# Logging
+tracing.workspace = true
+
+# For finding system tools
+which = "5.0"
+
+[dev-dependencies]
+tempfile = "3.8"
