@@ -68,7 +68,7 @@ pub use fluentai_core::value::Value;
 pub use compiler::OptimizationLevel;
 pub use free_var_analysis::{FreeVarAnalyzer, VarInfo};
 pub use gc::{GarbageCollector, GcConfig, GcHandle, GcScope};
-pub use learning_mode::{LearningModeConfig, LearningModeManager, LearningStatistics, OptimizationStrategy};
+pub use learning_mode::{LearningModeConfig, LearningModeManager, LearningStatistics, OptimizationStrategy, ExplorationMode};
 pub use memory_pool::{MemoryPool, ObjectPool, PoolConfig, SlabAllocator};
 pub use module_loader::{ModuleLoader, ModuleLoaderConfig};
 pub use module_registry::{ModuleInfo, ModuleRegistry};

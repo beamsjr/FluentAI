@@ -179,17 +179,13 @@ fn print_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
         match arg {
             Value::Tagged { tag, values } => {
                 // Check if this is a Printable tagged value
-                if values.len() == 1 {
-                    if let Value::String(s) = &values[0] {
-                        if s == "Printable" {
-                            // This is a Printable tagged value, use the tag as the content
-                            processed_args.push(Value::String(tag.clone()));
-                            continue;
-                        }
-                    }
+                if tag == "Printable" && values.len() == 1 {
+                    // Extract the content from the Printable
+                    processed_args.push(values[0].clone());
+                } else {
+                    // Not a Printable tagged value, use as-is
+                    processed_args.push(arg.clone());
                 }
-                // Not a Printable tagged value, use as-is
-                processed_args.push(arg.clone());
             }
             _ => processed_args.push(arg.clone()),
         }

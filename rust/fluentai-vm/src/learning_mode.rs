@@ -98,6 +98,19 @@ pub struct LearningModeConfig {
     pub exploration_rate: f32,
     /// Whether to use RL agent for decisions
     pub use_rl_agent: bool,
+    /// Exploration mode
+    pub exploration_mode: ExplorationMode,
+}
+
+/// How to explore optimization combinations
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExplorationMode {
+    /// Smart exploration: test individuals first, then promising combinations
+    Smart,
+    /// Exhaustive exploration: test all 2^13 possible combinations
+    Exhaustive,
+    /// Quick exploration: only test predefined optimization levels
+    Quick,
 }
 
 impl Default for LearningModeConfig {
@@ -109,6 +122,7 @@ impl Default for LearningModeConfig {
             model_path: None,
             exploration_rate: 0.2,
             use_rl_agent: true,
+            exploration_mode: ExplorationMode::Smart,
         }
     }
 }
@@ -200,10 +214,15 @@ impl LearningModeManager {
     /// Check if a function should be explored
     pub fn should_explore(&self, function_id: NodeId) -> bool {
         if let Some(count) = self.execution_counts.get(&function_id) {
+            let variant_count = self.function_variants.get(&function_id).map_or(0, |v| v.len());
+            let max_allowed = match self.config.exploration_mode {
+                ExplorationMode::Exhaustive => usize::MAX, // No limit in exhaustive mode
+                _ => self.config.max_strategies_per_function,
+            };
+            
             *count >= self.config.hot_threshold
                 && !self.exploring_functions.contains_key(&function_id)
-                && self.function_variants.get(&function_id).map_or(0, |v| v.len()) 
-                    < self.config.max_strategies_per_function
+                && variant_count < max_allowed
         } else {
             false
         }
@@ -239,63 +258,93 @@ impl LearningModeManager {
     
     /// Get default optimization strategies to try
     fn get_default_strategies(&self) -> Vec<OptimizationStrategy> {
-        let mut strategies = vec![
-            // Always start with baseline
-            OptimizationStrategy::None,
-            
-            // Basic strategies
-            OptimizationStrategy::Basic,
-            OptimizationStrategy::Standard,
-            OptimizationStrategy::Aggressive,
-        ];
-        
-        // Add custom strategies for specific optimizations
-        // Each bit in the mask enables a specific optimization
-        
-        // Constant folding only (bit 0)
-        strategies.push(OptimizationStrategy::Custom(0x001));
-        
-        // Dead code elimination only (bit 1)
-        strategies.push(OptimizationStrategy::Custom(0x002));
-        
-        // Common subexpression elimination (bit 2)
-        strategies.push(OptimizationStrategy::Custom(0x004));
-        
-        // Function inlining (bit 3)
-        strategies.push(OptimizationStrategy::Custom(0x008));
-        
-        // Loop optimization (bit 5)
-        strategies.push(OptimizationStrategy::Custom(0x020));
-        
-        // Effect reordering (partial evaluation - bit 7)
-        strategies.push(OptimizationStrategy::Custom(0x080));
-        
-        // Strength reduction (bit 8)
-        strategies.push(OptimizationStrategy::Custom(0x100));
-        
-        // Loop invariant code motion (bit 10)
-        strategies.push(OptimizationStrategy::Custom(0x400));
-        
-        // Function specialization (bit 11)
-        strategies.push(OptimizationStrategy::Custom(0x800));
-        
-        // Memoization (bit 12) - cache pure function results
-        strategies.push(OptimizationStrategy::Custom(0x1000));
-        
-        // Combination strategies
-        // Constant folding + dead code (common pair)
-        strategies.push(OptimizationStrategy::Custom(0x003));
-        
-        // Loop optimizations combo (loop opt + invariant motion)
-        strategies.push(OptimizationStrategy::Custom(0x420));
-        
-        // Effect optimization combo (partial eval + CSE)
-        strategies.push(OptimizationStrategy::Custom(0x084));
-        
-        // Memoization + function specialization (caching specialized functions)
-        strategies.push(OptimizationStrategy::Custom(0x1800));
-        
-        strategies
+        match self.config.exploration_mode {
+            ExplorationMode::Quick => {
+                // Only test predefined optimization levels
+                vec![
+                    OptimizationStrategy::None,
+                    OptimizationStrategy::Basic,
+                    OptimizationStrategy::Standard,
+                    OptimizationStrategy::Aggressive,
+                ]
+            }
+            ExplorationMode::Smart => {
+                // Smart exploration with individual optimizations and promising combinations
+                let mut strategies = vec![
+                    // Always start with baseline
+                    OptimizationStrategy::None,
+                    
+                    // Basic strategies
+                    OptimizationStrategy::Basic,
+                    OptimizationStrategy::Standard,
+                    OptimizationStrategy::Aggressive,
+                ];
+                
+                // Add custom strategies for specific optimizations
+                // Each bit in the mask enables a specific optimization
+                
+                // Constant folding only (bit 0)
+                strategies.push(OptimizationStrategy::Custom(0x001));
+                
+                // Dead code elimination only (bit 1)
+                strategies.push(OptimizationStrategy::Custom(0x002));
+                
+                // Common subexpression elimination (bit 2)
+                strategies.push(OptimizationStrategy::Custom(0x004));
+                
+                // Function inlining (bit 3)
+                strategies.push(OptimizationStrategy::Custom(0x008));
+                
+                // Loop optimization (bit 5)
+                strategies.push(OptimizationStrategy::Custom(0x020));
+                
+                // Effect reordering (partial evaluation - bit 7)
+                strategies.push(OptimizationStrategy::Custom(0x080));
+                
+                // Strength reduction (bit 8)
+                strategies.push(OptimizationStrategy::Custom(0x100));
+                
+                // Loop invariant code motion (bit 10)
+                strategies.push(OptimizationStrategy::Custom(0x400));
+                
+                // Function specialization (bit 11)
+                strategies.push(OptimizationStrategy::Custom(0x800));
+                
+                // Memoization (bit 12) - cache pure function results
+                strategies.push(OptimizationStrategy::Custom(0x1000));
+                
+                // Combination strategies
+                // Constant folding + dead code (common pair)
+                strategies.push(OptimizationStrategy::Custom(0x003));
+                
+                // Loop optimizations combo (loop opt + invariant motion)
+                strategies.push(OptimizationStrategy::Custom(0x420));
+                
+                // Effect optimization combo (partial eval + CSE)
+                strategies.push(OptimizationStrategy::Custom(0x084));
+                
+                // Memoization + function specialization (caching specialized functions)
+                strategies.push(OptimizationStrategy::Custom(0x1800));
+                
+                strategies
+            }
+            ExplorationMode::Exhaustive => {
+                // Generate all possible combinations (2^13 = 8192)
+                let mut strategies = vec![OptimizationStrategy::None];
+                
+                // Generate all possible bit combinations from 1 to 0x1FFF (13 bits)
+                for mask in 1..=0x1FFF {
+                    strategies.push(OptimizationStrategy::Custom(mask));
+                }
+                
+                // Also include the named strategies for comparison
+                strategies.push(OptimizationStrategy::Basic);
+                strategies.push(OptimizationStrategy::Standard);
+                strategies.push(OptimizationStrategy::Aggressive);
+                
+                strategies
+            }
+        }
     }
     
     /// Add a compiled variant for a function
@@ -438,13 +487,26 @@ impl LearningModeManager {
     
     /// Get statistics about learning progress
     pub fn get_statistics(&self) -> LearningStatistics {
+        let exploration_progress = self.get_exploration_progress();
+        
         LearningStatistics {
             functions_analyzed: self.execution_counts.len(),
             hot_functions: self.execution_counts.values().filter(|&&c| c >= self.config.hot_threshold).count(),
             functions_explored: self.best_strategies.len(),
             total_variants: self.function_variants.values().map(|v| v.len()).sum(),
             exploring_now: self.exploring_functions.len(),
+            exploration_mode: self.config.exploration_mode,
+            exploration_progress,
         }
+    }
+    
+    /// Get exploration progress for all functions being explored
+    pub fn get_exploration_progress(&self) -> Vec<(NodeId, usize, usize)> {
+        self.exploring_functions.iter().map(|(id, state)| {
+            let tested = state.tried_strategies.len();
+            let total = tested + state.pending_strategies.len() + 1; // +1 for current
+            (*id, tested, total)
+        }).collect()
     }
 }
 
@@ -461,4 +523,8 @@ pub struct LearningStatistics {
     pub total_variants: usize,
     /// Functions currently being explored
     pub exploring_now: usize,
+    /// Current exploration mode
+    pub exploration_mode: ExplorationMode,
+    /// Progress for functions being explored: (function_id, tested_count, total_count)
+    pub exploration_progress: Vec<(NodeId, usize, usize)>,
 }

@@ -3287,6 +3287,13 @@ impl VM {
         self.learning_mode.as_ref().map(|lm| lm.get_statistics())
     }
     
+    /// Set exploration mode for learning mode
+    pub fn set_exploration_mode(&mut self, mode: crate::learning_mode::ExplorationMode) {
+        if let Some(manager) = &mut self.learning_mode {
+            manager.config.exploration_mode = mode;
+        }
+    }
+    
     /// Save learned optimization data
     pub fn save_learned_data(&self, path: &str) -> VMResult<()> {
         if let Some(lm) = &self.learning_mode {

@@ -1,0 +1,18 @@
+// Test for_each method on lists and ranges
+
+// Test with list
+let items = [1, 2, 3, 4, 5];
+$(f"Testing for_each on list: {items}").print();
+items.for_each(x => $(f"  Item: {x}").print());
+
+// Test with range
+let r = 0..5;
+$(f"\nTesting for_each on range 0..5:").print();
+r.for_each(i => $(f"  Index: {i}").print());
+
+// Test with side effects
+let counter = 0;
+[10, 20, 30].for_each(x => {
+    counter := counter + x;
+});
+$(f"\nSum using for_each: {counter}").print();

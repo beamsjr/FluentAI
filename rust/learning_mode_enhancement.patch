@@ -1,0 +1,95 @@
+// Enhancement to learning_mode.rs to support dynamic combination discovery
+
+impl LearningModeManager {
+    /// Enhanced strategy generation with dynamic combinations
+    pub fn start_exploration_dynamic(&mut self, function_id: NodeId, graph: &Graph) -> Vec<OptimizationStrategy> {
+        let mut strategies = Vec::new();
+        
+        // Phase 1: Always test baseline and individual optimizations
+        strategies.push(OptimizationStrategy::None);
+        
+        // Individual optimizations
+        let individual_masks = vec![
+            0x001, 0x002, 0x004, 0x008, 0x010, 0x020,
+            0x040, 0x080, 0x100, 0x200, 0x400, 0x800, 0x1000
+        ];
+        
+        for mask in individual_masks {
+            strategies.push(OptimizationStrategy::Custom(mask));
+        }
+        
+        // Phase 2: If we have historical data, add smart combinations
+        if let Some(history) = self.get_function_history(function_id) {
+            let successful_opts = self.analyze_successful_optimizations(&history);
+            let combinations = self.generate_smart_combinations(&successful_opts);
+            
+            for combo in combinations {
+                strategies.push(OptimizationStrategy::Custom(combo));
+            }
+        } else {
+            // First time: also test traditional combinations for comparison
+            strategies.push(OptimizationStrategy::Basic);
+            strategies.push(OptimizationStrategy::Standard);
+            strategies.push(OptimizationStrategy::Aggressive);
+        }
+        
+        strategies
+    }
+    
+    /// Analyze which individual optimizations performed well
+    fn analyze_successful_optimizations(&self, history: &FunctionHistory) -> Vec<(u32, f32)> {
+        let mut successful = Vec::new();
+        let baseline = history.get_baseline_performance();
+        
+        for (mask, metrics) in history.individual_results() {
+            let improvement = calculate_improvement(&baseline, metrics);
+            if improvement > 0.05 { // 5% improvement threshold
+                successful.push((*mask, improvement));
+            }
+        }
+        
+        successful.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        successful
+    }
+    
+    /// Generate combinations based on successful individual optimizations
+    fn generate_smart_combinations(&self, successful: &[(u32, f32)]) -> Vec<u32> {
+        let mut combinations = Vec::new();
+        
+        if successful.len() >= 2 {
+            // Top 2 performers
+            combinations.push(successful[0].0 | successful[1].0);
+            
+            // Top 3 if available
+            if successful.len() >= 3 {
+                combinations.push(successful[0].0 | successful[1].0 | successful[2].0);
+            }
+            
+            // Progressive combinations
+            let mut progressive = successful[0].0;
+            for (opt, _) in successful.iter().skip(1).take(3) {
+                progressive |= opt;
+                combinations.push(progressive);
+            }
+            
+            // Known synergistic pairs
+            self.add_synergistic_combinations(&successful, &mut combinations);
+        }
+        
+        combinations
+    }
+    
+    /// Track synergy between optimizations
+    pub fn record_combination_result(&mut self, function_id: NodeId, mask: u32, metrics: ExecutionMetrics) {
+        // Calculate synergy score
+        let synergy = self.calculate_synergy(function_id, mask, &metrics);
+        
+        // If high synergy, remember this combination
+        if synergy > 0.15 {
+            self.high_synergy_combinations
+                .entry(function_id)
+                .or_insert_with(Vec::new)
+                .push((mask, synergy));
+        }
+    }
+}

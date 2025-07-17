@@ -54,6 +54,14 @@ pub fn register(registry: &mut StdlibRegistry) {
             vec![],
             "Fold a list from the left",
         ),
+        StdlibFunction::effectful_with_context(
+            "for-each",
+            for_each_ctx,
+            2,
+            Some(2),
+            vec![],
+            "Apply a function to each element of a collection for side effects",
+        ),
         StdlibFunction::pure("range", range, 1, Some(3), "Generate a range of numbers"),
         StdlibFunction::pure(
             "cons",
@@ -328,6 +336,60 @@ pub fn fold_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
             Ok(accumulator)
         }
         _ => Err(anyhow!("fold: expected list")),
+    }
+}
+
+pub fn for_each_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let func = match &args[0] {
+        Value::Function { .. } => &args[0],
+        _ => return Err(anyhow!("for-each: expected function")),
+    };
+    
+    match &args[1] {
+        Value::List(items) => {
+            for item in items {
+                // Call the function with each item, ignoring the return value
+                context.call_function_with_effects(func, &[item.clone()])
+                    .map_err(|e| anyhow!("for-each: error applying function: {}", e))?;
+            }
+            Ok(Value::Nil)
+        }
+        Value::Tagged { tag, values } if tag == "Range" && values.len() == 3 => {
+            // Handle ranges
+            let start = match &values[0] {
+                Value::Integer(i) => *i,
+                _ => return Err(anyhow!("for-each: invalid range start")),
+            };
+            let end = match &values[1] {
+                Value::Integer(i) => *i,
+                _ => return Err(anyhow!("for-each: invalid range end")),
+            };
+            let step = match &values[2] {
+                Value::Integer(i) => *i,
+                _ => return Err(anyhow!("for-each: invalid range step")),
+            };
+            
+            if step == 0 {
+                return Err(anyhow!("for-each: range step cannot be zero"));
+            }
+            
+            let mut current = start;
+            if step > 0 {
+                while current < end {
+                    context.call_function_with_effects(func, &[Value::Integer(current)])
+                        .map_err(|e| anyhow!("for-each: error applying function: {}", e))?;
+                    current += step;
+                }
+            } else {
+                while current > end {
+                    context.call_function_with_effects(func, &[Value::Integer(current)])
+                        .map_err(|e| anyhow!("for-each: error applying function: {}", e))?;
+                    current += step;
+                }
+            }
+            Ok(Value::Nil)
+        }
+        _ => Err(anyhow!("for-each: expected list or range")),
     }
 }
 
