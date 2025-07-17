@@ -17,6 +17,10 @@ fn compile_and_run(source: &str) -> Result<Value> {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,
+        #[cfg(feature = "ai-analysis")]
+        ai_optimization: false,
+        #[cfg(feature = "ai-analysis")]
+        hybrid_optimization: false,
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph)?;

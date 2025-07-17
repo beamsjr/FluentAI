@@ -31,6 +31,10 @@ pub struct FunctionRegistry {
     native_functions: HashMap<String, JitFunctionInfo>,
     /// Runtime function table for indirect calls
     function_table: Vec<*const u8>,
+    /// Map from chunk ID to function table index
+    chunk_to_index: HashMap<usize, usize>,
+    /// Map from native function name to function table index
+    native_to_index: HashMap<String, usize>,
 }
 
 impl FunctionRegistry {
@@ -40,18 +44,24 @@ impl FunctionRegistry {
             chunk_to_jit: HashMap::new(),
             native_functions: HashMap::new(),
             function_table: Vec::new(),
+            chunk_to_index: HashMap::new(),
+            native_to_index: HashMap::new(),
         }
     }
     
     /// Register a JIT-compiled VM function
     pub fn register_vm_function(&mut self, chunk_id: usize, info: JitFunctionInfo, code_ptr: *const u8) {
+        let index = self.function_table.len();
         self.chunk_to_jit.insert(chunk_id, info);
+        self.chunk_to_index.insert(chunk_id, index);
         self.function_table.push(code_ptr);
     }
     
     /// Register a native function wrapper
     pub fn register_native_function(&mut self, name: String, info: JitFunctionInfo, code_ptr: *const u8) {
-        self.native_functions.insert(name, info);
+        let index = self.function_table.len();
+        self.native_functions.insert(name.clone(), info);
+        self.native_to_index.insert(name, index);
         self.function_table.push(code_ptr);
     }
     
@@ -69,21 +79,23 @@ impl FunctionRegistry {
     pub fn get_function_index(&self, value: &Value) -> Option<usize> {
         match value {
             Value::Function { chunk_id, .. } => {
-                // Find the function in our table
-                self.chunk_to_jit.get(chunk_id).and_then(|_| {
-                    // For now, just return the chunk_id as index
-                    // In a real implementation, we'd maintain a proper index mapping
-                    Some(*chunk_id)
-                })
+                self.chunk_to_index.get(chunk_id).copied()
             }
             Value::NativeFunction { name, .. } => {
-                self.native_functions.get(name).and_then(|_| {
-                    // For now, return a placeholder
-                    Some(1000 + name.len()) // Ensure it doesn't conflict with chunk IDs
-                })
+                self.native_to_index.get(name).copied()
             }
             _ => None,
         }
+    }
+    
+    /// Get function pointer from table by index
+    pub fn get_function_pointer(&self, index: usize) -> Option<*const u8> {
+        self.function_table.get(index).copied()
+    }
+    
+    /// Get the function table for runtime use
+    pub fn function_table(&self) -> &[*const u8] {
+        &self.function_table
     }
 }
 

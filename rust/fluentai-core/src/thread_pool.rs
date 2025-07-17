@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use web_time::Duration;
 
 /// Thread pool configuration
 #[derive(Debug, Clone)]
@@ -265,7 +265,10 @@ impl Worker {
                 loop {
                     let job = {
                         let receiver = receiver.lock();
-                        receiver.recv_timeout(config.keep_alive)
+                        // Convert web_time::Duration to std::time::Duration for recv_timeout
+                        let std_duration = std::time::Duration::from_secs(config.keep_alive.as_secs())
+                            .saturating_add(std::time::Duration::from_nanos(config.keep_alive.subsec_nanos() as u64));
+                        receiver.recv_timeout(std_duration)
                     };
 
                     match job {
@@ -434,7 +437,7 @@ mod tests {
 
         // Wait for completion
         while pool.completed_count() < 100 {
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(std::time::Duration::from_millis(10));
         }
 
         assert_eq!(counter.load(Ordering::Relaxed), 100);
@@ -510,7 +513,7 @@ mod tests {
         .unwrap();
 
         // Give the job time to be picked up
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(std::time::Duration::from_millis(50));
 
         // Shutdown should wait for jobs to complete
         pool.shutdown();
@@ -556,7 +559,7 @@ mod tests {
 
         // Wait for completion
         while pool.completed_count() < 2 {
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(std::time::Duration::from_millis(10));
         }
 
         assert_eq!(pool.completed_count(), 2);
@@ -613,7 +616,7 @@ mod tests {
 
         // Wait for completion
         while pool.completed_count() < 2 {
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(std::time::Duration::from_millis(10));
         }
 
         assert_eq!(counter.load(Ordering::Relaxed), 1);

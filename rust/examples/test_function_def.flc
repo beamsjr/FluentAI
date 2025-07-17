@@ -1,0 +1,7 @@
+// Test for function definition and call
+private function greet() {
+    $("Hello from function!").print()
+}
+
+// Call the function
+greet()

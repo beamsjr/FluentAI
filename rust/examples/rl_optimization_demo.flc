@@ -1,0 +1,173 @@
+// RL Optimization Demo - Shows how the ML optimizer learns and improves performance
+// This demo implements a computationally intensive program that benefits from optimization
+
+// === Computational functions that can be optimized ===
+
+// Fibonacci with memoization opportunity
+private function fibonacci(n: int) -> int {
+    if (n <= 1) { n }
+    else { fibonacci(n - 1) + fibonacci(n - 2) }
+}
+
+// Matrix multiplication with loop optimization opportunities
+private function matrix_multiply(a: List<List<float>>, b: List<List<float>>) -> List<List<float>> {
+    let rows_a = a.length();
+    let cols_a = a[0].length();
+    let cols_b = b[0].length();
+    
+    // Create result matrix
+    let result = (0..rows_a).map(i => {
+        (0..cols_b).map(j => {
+            (0..cols_a).map(k => {
+                a[i][k] * b[k][j]
+            }).reduce(0.0, (sum, val) => sum + val)
+        }).to_list()
+    }).to_list();
+    
+    result
+}
+
+// Simulate data processing with effect reordering opportunities
+private function process_data_batch(data: List<int>) -> List<int> {
+    // Multiple effects that could be reordered
+    perform IO.println("Processing batch...");
+    
+    let processed = data
+        .map(x => x * 2)
+        .filter(x => x > 10)
+        .map(x => {
+            // Hot path that could be inlined
+            let result = compute_heavy(x);
+            result
+        });
+    
+    perform IO.println("Batch processed");
+    processed
+}
+
+// Heavy computation that's called frequently (hot path)
+private function compute_heavy(x: int) -> int {
+    // Simulate expensive computation
+    let result = (1..100).reduce(x, (acc, i) => {
+        acc + (i * i) % 7
+    });
+    result
+}
+
+// Function with skewed values (good for value specialization)
+private function process_with_mode(value: int, mode: string) -> int {
+    // In practice, mode is almost always "fast"
+    if (mode == "fast") {
+        value * 2
+    } else if (mode == "slow") {
+        (1..value).reduce(0, (sum, i) => sum + i)
+    } else {
+        value
+    }
+}
+
+// Memory-intensive operations
+private function create_large_structure(size: int) -> Map<string, List<int>> {
+    let data = {};
+    
+    (0..size).for_each(i => {
+        let key = f"key_{i}";
+        let values = (0..100).map(j => i * j).to_list();
+        data[key] = values;
+    });
+    
+    data
+}
+
+// === Benchmark harness ===
+private function measure_time(name: string, func: () -> any) -> float {
+    let start = perform Time.now();
+    func();
+    let end = perform Time.now();
+    let duration = end - start;
+    
+    $(f"{name}: {duration}ms").print();
+    duration
+}
+
+// === Main demo ===
+private function main() {
+    $("=== FluentAI RL Optimization Demo ===").print();
+    $("").print();
+    
+    // Define our workload
+    let workload = () => {
+        // Test 1: Fibonacci (benefits from memoization)
+        let fib_result = (20..30).map(n => fibonacci(n)).to_list();
+        
+        // Test 2: Matrix multiplication (benefits from loop optimization)
+        let matrix_a = (0..50).map(i => {
+            (0..50).map(j => (i + j) as float).to_list()
+        }).to_list();
+        let matrix_b = matrix_a; // Square matrix
+        let matrix_result = matrix_multiply(matrix_a, matrix_b);
+        
+        // Test 3: Data processing (benefits from effect reordering)
+        let data = (1..1000).to_list();
+        let processed = process_data_batch(data);
+        
+        // Test 4: Hot path with skewed values
+        let results = (0..10000).map(i => {
+            // 90% of calls use "fast" mode
+            let mode = if (i % 10 == 0) { "slow" } else { "fast" };
+            process_with_mode(i, mode)
+        }).to_list();
+        
+        // Test 5: Memory operations
+        let structures = (0..10).map(i => {
+            create_large_structure(100)
+        }).to_list();
+    };
+    
+    // Phase 1: Run without optimization
+    $("Phase 1: Running without optimization...").print();
+    $("========================================").print();
+    let baseline_time = measure_time("Baseline (no optimization)", workload);
+    $("").print();
+    
+    // Phase 2: Run with RL training enabled
+    $("Phase 2: Running with RL optimization (training mode)...").print();
+    $("=======================================================").print();
+    
+    // In a real implementation, we would:
+    // 1. Enable profiling
+    // 2. Run multiple iterations to gather data
+    // 3. Let the ML system learn patterns
+    
+    let training_times = (1..5).map(iteration => {
+        $(f"Training iteration {iteration}...").print();
+        measure_time(f"  Iteration {iteration}", workload)
+    }).to_list();
+    
+    let avg_training_time = training_times.reduce(0.0, (sum, t) => sum + t) / training_times.length() as float;
+    $(f"Average training time: {avg_training_time}ms").print();
+    $("").print();
+    
+    // Phase 3: Run with trained model (RL off)
+    $("Phase 3: Running with trained optimizations...").print();
+    $("=============================================").print();
+    let optimized_time = measure_time("Optimized (with trained model)", workload);
+    $("").print();
+    
+    // Results summary
+    $("=== Results Summary ===").print();
+    $(f"Baseline time: {baseline_time}ms").print();
+    $(f"Optimized time: {optimized_time}ms").print();
+    
+    let improvement = ((baseline_time - optimized_time) / baseline_time) * 100.0;
+    $(f"Performance improvement: {improvement}%").print();
+    
+    if (improvement > 0.0) {
+        $(f"✅ Optimization successful! {improvement}% faster").print();
+    } else {
+        $("❌ No performance improvement detected").print();
+    }
+}
+
+// Run the demo
+main()

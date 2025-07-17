@@ -4,7 +4,7 @@ use crate::animation::{Animation, AnimatableValue, EasingFunction, AnimationMana
 use crate::components::{Component, ComponentId};
 use crate::primitives::Color;
 use cgmath::Vector2;
-use std::time::Duration;
+use web_time::Duration;
 use std::collections::HashMap;
 
 /// Transitionable property names

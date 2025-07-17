@@ -1,0 +1,13 @@
+// Test Random effects
+
+private function main() {
+    perform IO.println("Testing Random effects");
+    
+    let random_int = perform Random.int(1, 100);
+    perform IO.println(f"Random int (1-100): {random_int}");
+    
+    let random_float = perform Random.float();
+    perform IO.println(f"Random float (0-1): {random_float}");
+}
+
+main()

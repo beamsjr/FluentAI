@@ -1,0 +1,142 @@
+// RL Optimization Demo (Simplified) - Shows how the ML optimizer learns and improves performance
+// This version avoids syntax not yet supported by the parser
+
+// === Computational functions that can be optimized ===
+
+// Fibonacci with memoization opportunity
+private function fibonacci(n: int) -> int {
+    if (n <= 1) { n }
+    else { fibonacci(n - 1) + fibonacci(n - 2) }
+}
+
+// Simple data processing with optimization opportunities
+private function process_data_batch(data: List<int>) -> List<int> {
+    // Multiple effects that could be reordered
+    perform IO.println("Processing batch...");
+    
+    let processed = data
+        .map(x => x * 2)
+        .filter(x => x > 10)
+        .map(x => {
+            // Hot path that could be inlined
+            let result = compute_heavy(x);
+            result
+        });
+    
+    perform IO.println("Batch processed");
+    processed
+}
+
+// Heavy computation that's called frequently (hot path)
+private function compute_heavy(x: int) -> int {
+    // Simulate expensive computation
+    let result = x * x + x * 3 + 7;
+    result
+}
+
+// Function with skewed values (good for value specialization)
+private function process_with_mode(value: int, mode: string) -> int {
+    // In practice, mode is almost always "fast"
+    if (mode == "fast") {
+        value * 2
+    } else if (mode == "slow") {
+        value * value * value  // Simulate slow computation
+    } else {
+        value
+    }
+}
+
+// Memory-intensive operations
+private function create_large_list(size: int) -> List<int> {
+    // Create a list by repeatedly appending
+    let data = [];
+    let i = 0;
+    while (i < size) {
+        data = data.append(i * i);
+        i = i + 1;
+    }
+    data
+}
+
+// Workload function that exercises different optimization opportunities
+private function run_workload() -> int {
+    // Test 1: Fibonacci (benefits from memoization)
+    let fib_sum = fibonacci(15) + fibonacci(16) + fibonacci(17);
+    
+    // Test 2: Data processing (benefits from effect reordering and hot path inlining)
+    let data = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+    let processed = process_data_batch(data);
+    
+    // Test 3: Hot path with skewed values
+    let fast_results = process_with_mode(100, "fast") + 
+                      process_with_mode(200, "fast") +
+                      process_with_mode(300, "fast");
+    let slow_result = process_with_mode(10, "slow");
+    
+    // Test 4: Memory operations
+    let list1 = create_large_list(100);
+    let list2 = create_large_list(50);
+    
+    // Return some result
+    fib_sum + fast_results + slow_result
+}
+
+// === Main demo ===
+private function main() {
+    $("=== FluentAI RL Optimization Demo (Simplified) ===").print();
+    $("").print();
+    
+    // Phase 1: Run without optimization
+    $("Phase 1: Running without optimization...").print();
+    $("========================================").print();
+    
+    let baseline_result = run_workload();
+    $(f"Baseline result: {baseline_result}").print();
+    $("").print();
+    
+    // Phase 2: Run with RL training enabled
+    $("Phase 2: Running with RL optimization (training mode)...").print();
+    $("=======================================================").print();
+    $("Note: In a real implementation, this would:").print();
+    $("  - Enable profiling to collect runtime data").print();
+    $("  - Run multiple iterations to train the ML model").print();
+    $("  - Learn which optimizations are most effective").print();
+    $("").print();
+    
+    // Simulate training iterations
+    let iteration = 1;
+    while (iteration <= 3) {
+        $(f"Training iteration {iteration}...").print();
+        let result = run_workload();
+        $(f"  Result: {result}").print();
+        iteration = iteration + 1;
+    }
+    $("").print();
+    
+    // Phase 3: Run with trained model
+    $("Phase 3: Running with trained optimizations...").print();
+    $("=============================================").print();
+    $("Note: The ML system would now apply:").print();
+    $("  - Memoization for fibonacci").print();
+    $("  - Hot path inlining for compute_heavy").print();
+    $("  - Value specialization for 'fast' mode").print();
+    $("  - Effect reordering in process_data_batch").print();
+    $("").print();
+    
+    let optimized_result = run_workload();
+    $(f"Optimized result: {optimized_result}").print();
+    $("").print();
+    
+    // Results summary
+    $("=== Results Summary ===").print();
+    $("In a real implementation with timing:").print();
+    $("  - Baseline would be slower").print();
+    $("  - Training iterations would show gradual improvement").print();
+    $("  - Final optimized version would be significantly faster").print();
+    $("").print();
+    $("The ML optimizer learns to apply the right optimizations").print();
+    $("based on runtime profiling data!").print();
+}
+
+// Run the demo
+main()

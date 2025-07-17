@@ -14,7 +14,8 @@ use fluentai_parser::parse_flc;
 use fluentai_core::ast::Graph;
 use fluentai_core::value::Value;
 use fluentai_bytecode::Bytecode;
-use fluentai_optimizer::OptimizationLevel;
+// use fluentai_optimizer::OptimizationLevel;
+use crate::compiler::OptimizationLevel;
 use anyhow::{anyhow, Result};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -43,7 +44,7 @@ impl Default for ModuleLoaderConfig {
             ],
             module_extension: "flc".to_string(),
             enable_cache: true,
-            optimization_level: OptimizationLevel::Basic,
+            optimization_level: OptimizationLevel::Standard,
         }
     }
 }
@@ -136,6 +137,10 @@ impl ModuleLoader {
         let options = CompilerOptions {
             optimization_level: self.config.optimization_level.clone(),
             debug_info: true,
+            #[cfg(feature = "ai-analysis")]
+            ai_optimization: false,
+            #[cfg(feature = "ai-analysis")]
+            hybrid_optimization: false,
         };
         
         let compiler = Compiler::with_options(options);

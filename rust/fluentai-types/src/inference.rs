@@ -248,6 +248,10 @@ impl TypeInferencer {
             Node::Disturb { .. } => TypedValue::primitive(PrimitiveType::unit()),
             Node::Extern { .. } => TypedValue::primitive(PrimitiveType::unit()),
             Node::Map(pairs) => self.infer_map(graph, pairs)?,
+            Node::Range { .. } => {
+                // Range produces a list of values
+                TypedValue::list(ListType::new(TypedValue::primitive(PrimitiveType::int())))
+            }
         };
 
         // Store the inferred type

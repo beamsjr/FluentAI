@@ -1,0 +1,9 @@
+// Test Time.now() effect
+
+private function main() {
+    perform IO.println("Testing Time.now() effect");
+    let time = perform Time.now();
+    perform IO.println(f"Current time: {time}");
+}
+
+main()

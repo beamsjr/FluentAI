@@ -22,6 +22,7 @@ pub mod value;
 pub mod function_registry;
 pub mod runtime;
 pub mod runtime_extended;
+pub mod symbol_table;
 
 use value::TaggedValue;
 use function_registry::FunctionRegistry;
@@ -209,6 +210,15 @@ impl JitCompiler {
         // Core runtime functions
         builder.symbol("jit_runtime_call", runtime::jit_runtime_call as *const u8);
         builder.symbol("jit_runtime_add_checked", runtime::jit_runtime_add_checked as *const u8);
+        
+        // Type-checked arithmetic operations
+        builder.symbol("jit_runtime_add_typed", runtime::jit_runtime_add_typed as *const u8);
+        builder.symbol("jit_runtime_sub_typed", runtime::jit_runtime_sub_typed as *const u8);
+        builder.symbol("jit_runtime_mul_typed", runtime::jit_runtime_mul_typed as *const u8);
+        builder.symbol("jit_runtime_div_typed", runtime::jit_runtime_div_typed as *const u8);
+        builder.symbol("jit_runtime_mod_typed", runtime::jit_runtime_mod_typed as *const u8);
+        builder.symbol("jit_runtime_neg_typed", runtime::jit_runtime_neg_typed as *const u8);
+        
         builder.symbol("jit_runtime_string_concat", runtime::jit_runtime_string_concat as *const u8);
         builder.symbol("jit_runtime_string_len", runtime::jit_runtime_string_len as *const u8);
         builder.symbol("jit_runtime_string_upper", runtime::jit_runtime_string_upper as *const u8);

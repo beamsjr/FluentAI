@@ -13,10 +13,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::{Duration, Instant};
-#[cfg(target_arch = "wasm32")]
-use std::time::Duration;
+use web_time::{Duration, Instant};
 
 /// Concurrent garbage collector with generational support
 pub struct ConcurrentGc {
@@ -154,6 +151,25 @@ struct GcStats {
 
     /// Bytes freed
     bytes_freed: AtomicUsize,
+}
+
+/// Snapshot of GC statistics
+#[derive(Debug, Clone)]
+pub struct GcStatsSnapshot {
+    /// Minor collections (young gen only)
+    pub minor_collections: usize,
+
+    /// Major collections (full GC)
+    pub major_collections: usize,
+
+    /// Total pause time in nanoseconds
+    pub total_pause_ns: usize,
+
+    /// Bytes allocated
+    pub bytes_allocated: usize,
+
+    /// Bytes freed
+    pub bytes_freed: usize,
 }
 
 impl ConcurrentGc {
@@ -619,9 +635,73 @@ impl ConcurrentGc {
 
     /// Concurrent sweep all generations
     fn concurrent_sweep_all(&self) -> Result<()> {
-        // For now, just do synchronous sweep
-        // A real concurrent implementation would need more careful design
-        self.sweep_all()
+        use crossbeam_utils::thread;
+        
+        // Use crossbeam's scoped threads for safe concurrent access
+        thread::scope(|s| {
+            let mut handles = vec![];
+            
+            // Spawn thread to sweep young generation
+            let handle_young = s.spawn(|_| {
+                let mut young_gen = self.young_gen.write();
+                let mut freed_bytes = 0usize;
+                let mut to_remove = Vec::new();
+                
+                // First pass: identify nodes to remove
+                for (id, node) in young_gen.objects.iter() {
+                    let marked = node.mark_bits.load(Ordering::SeqCst) > 0;
+                    if marked {
+                        node.mark_bits.store(0, Ordering::SeqCst);
+                    } else {
+                        to_remove.push(*id);
+                        let value = node.value.read().unwrap();
+                        freed_bytes += self.value_size(&value);
+                    }
+                }
+                
+                // Second pass: remove unmarked nodes
+                for id in to_remove {
+                    young_gen.objects.remove(&id);
+                }
+                
+                self.stats.bytes_freed.fetch_add(freed_bytes, Ordering::Relaxed);
+            });
+            handles.push(handle_young);
+            
+            // Spawn thread to sweep old generation
+            let handle_old = s.spawn(|_| {
+                let mut old_gen = self.old_gen.write();
+                let mut freed_bytes = 0usize;
+                let mut to_remove = Vec::new();
+                
+                // First pass: identify nodes to remove
+                for (id, node) in old_gen.objects.iter() {
+                    let marked = node.mark_bits.load(Ordering::SeqCst) > 0;
+                    if marked {
+                        node.mark_bits.store(0, Ordering::SeqCst);
+                    } else {
+                        to_remove.push(*id);
+                        let value = node.value.read().unwrap();
+                        freed_bytes += self.value_size(&value);
+                    }
+                }
+                
+                // Second pass: remove unmarked nodes
+                for id in to_remove {
+                    old_gen.objects.remove(&id);
+                }
+                
+                self.stats.bytes_freed.fetch_add(freed_bytes, Ordering::Relaxed);
+            });
+            handles.push(handle_old);
+            
+            // Wait for all threads to complete
+            for handle in handles {
+                handle.join().unwrap();
+            }
+            
+            Ok(())
+        }).unwrap()
     }
 
     /// Sweep a generation
@@ -720,12 +800,29 @@ impl ConcurrentGc {
             Value::Error { message, stack_trace, .. } => {
                 32 + message.len() + stack_trace.as_ref().map_or(0, |st| st.len() * 16)
             }
+            Value::Set(items) => 24 + items.len() * 8,
         }
     }
 
     /// Create a handle from a node
     fn make_handle(&self, node: GcNodePtr) -> GcHandle {
         GcHandle::concurrent(node)
+    }
+    
+    /// Force a garbage collection cycle
+    pub fn force_gc(&self) -> Result<()> {
+        self.trigger_major_gc()
+    }
+    
+    /// Get GC statistics
+    pub fn stats(&self) -> GcStatsSnapshot {
+        GcStatsSnapshot {
+            minor_collections: self.stats.minor_collections.load(Ordering::Relaxed),
+            major_collections: self.stats.major_collections.load(Ordering::Relaxed),
+            bytes_allocated: self.stats.bytes_allocated.load(Ordering::Relaxed),
+            bytes_freed: self.stats.bytes_freed.load(Ordering::Relaxed),
+            total_pause_ns: self.stats.total_pause_ns.load(Ordering::Relaxed),
+        }
     }
 }
 

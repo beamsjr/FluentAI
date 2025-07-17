@@ -1,0 +1,25 @@
+// Test list methods
+
+private function main() {
+    perform IO.println("=== Testing List Methods ===");
+    
+    let nums = [1, 2, 3, 4, 5];
+    
+    // Test map
+    let doubled = nums.map(x => x * 2);
+    perform IO.println(f"Doubled: {doubled}");
+    
+    // Test filter
+    let evens = nums.filter(x => x % 2 == 0);
+    perform IO.println(f"Evens: {evens}");
+    
+    // Test reduce
+    let sum = nums.reduce(0, (acc, x) => acc + x);
+    perform IO.println(f"Sum: {sum}");
+    
+    // Test length
+    let len = nums.length();
+    perform IO.println(f"Length: {len}");
+}
+
+main()

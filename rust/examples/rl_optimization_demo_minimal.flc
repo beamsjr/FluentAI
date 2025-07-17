@@ -1,0 +1,77 @@
+// RL Optimization Demo (Minimal) - Demonstrates ML optimizer basics
+
+// Simple fibonacci for memoization optimization
+private function fib(n: int) -> int {
+    let result = if (n <= 1) { 
+        n 
+    } else { 
+        fib(n - 1) + fib(n - 2) 
+    };
+    result
+}
+
+// Hot function that gets called many times
+private function double(x: int) -> int {
+    x * 2
+}
+
+// Function that demonstrates value specialization
+private function compute(x: int, fast: bool) -> int {
+    let result = if (fast) {
+        // Fast path - most common
+        double(x)
+    } else {
+        // Slow path - rare
+        x * x * x
+    };
+    result
+}
+
+// Main demo function
+private function main() {
+    $("=== FluentAI RL Optimization Demo ===").print();
+    $("").print();
+    
+    // Compute some fibonacci numbers
+    $("Computing fibonacci numbers...").print();
+    let f1 = fib(10);
+    let f2 = fib(15);
+    let f3 = fib(20);
+    $(f"fib(10) = {f1}, fib(15) = {f2}, fib(20) = {f3}").print();
+    $("").print();
+    
+    // Call hot function many times
+    $("Calling hot function repeatedly...").print();
+    let sum = 0;
+    let i = 0;
+    while (i < 1000) {
+        sum = sum + double(i);
+        i = i + 1;
+    }
+    $(f"Sum of doubles: {sum}").print();
+    $("").print();
+    
+    // Demonstrate value specialization
+    $("Testing value specialization...").print();
+    let fast_results = compute(10, true) + compute(20, true) + compute(30, true);
+    let slow_result = compute(5, false);
+    $(f"Fast results: {fast_results}, Slow result: {slow_result}").print();
+    $("").print();
+    
+    $("=== How RL Optimization Works ===").print();
+    $("1. Without optimization: Functions run as-is").print();
+    $("2. With profiling: System collects runtime data").print();
+    $("3. ML analysis: Identifies optimization opportunities").print();
+    $("   - fib() called recursively -> memoization").print();
+    $("   - double() called 1000 times -> inline it").print();
+    $("   - compute() mostly called with fast=true -> specialize").print();
+    $("4. Optimized run: Applies learned optimizations").print();
+    $("").print();
+    
+    $("In a real implementation:").print();
+    $("- Phase 1 would show baseline performance").print();
+    $("- Phase 2 would train the ML model").print();
+    $("- Phase 3 would show improved performance").print();
+}
+
+main()

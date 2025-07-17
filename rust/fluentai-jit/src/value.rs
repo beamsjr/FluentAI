@@ -4,10 +4,10 @@
 //! that can be efficiently manipulated in JIT-compiled code.
 
 use fluentai_core::value::Value;
-use std::ptr;
 
 /// Tag bits for different value types (using lowest 3 bits)
 #[repr(u8)]
+#[derive(Debug)]
 pub enum ValueTag {
     /// Integer value (stored inline, shifted left 3 bits)
     Integer = 0b000,
@@ -66,7 +66,8 @@ impl TaggedValue {
     /// Extract an integer value (panics if not an integer)
     pub fn to_integer(&self) -> i64 {
         debug_assert_eq!(self.tag() as u8, ValueTag::Integer as u8);
-        (self.untagged() >> 3) as i64
+        // Use arithmetic shift to preserve sign
+        ((self.0 as i64) >> 3)
     }
 
     /// Extract a symbol ID (panics if not a symbol)
@@ -87,9 +88,12 @@ impl TaggedValue {
         match self.tag() {
             ValueTag::Integer => Value::Integer(self.to_integer()),
             ValueTag::Symbol => {
-                // For now, just create a placeholder symbol
-                // In real implementation, we'd look up the symbol from an intern table
-                Value::Symbol(format!("symbol_{}", self.to_symbol_id()))
+                // Look up the symbol from the intern table
+                let symbol_id = self.to_symbol_id();
+                match crate::symbol_table::lookup(symbol_id) {
+                    Some(symbol) => Value::Symbol(symbol),
+                    None => Value::Symbol(format!("unknown_symbol_{}", symbol_id))
+                }
             }
             ValueTag::Float => {
                 let ptr = self.to_ptr::<f64>();
@@ -110,9 +114,21 @@ impl TaggedValue {
                     (*ptr).clone()
                 }
             }
-            _ => {
-                // For now, return Nil for unimplemented types
-                Value::Nil
+            ValueTag::Closure => {
+                // Closure tag is reserved but currently we use Other tag for closures
+                // If we encounter this, treat it as Other
+                let ptr = self.to_ptr::<Value>();
+                unsafe {
+                    (*ptr).clone()
+                }
+            }
+            ValueTag::Tagged => {
+                // Tagged tag is reserved but currently we use Other tag for tagged values
+                // If we encounter this, treat it as Other
+                let ptr = self.to_ptr::<Value>();
+                unsafe {
+                    (*ptr).clone()
+                }
             }
         }
     }
@@ -141,9 +157,8 @@ pub fn value_to_tagged(value: &Value) -> TaggedValue {
     match value {
         Value::Integer(n) => TaggedValue::from_integer(*n),
         Value::Symbol(s) => {
-            // For now, use a simple hash as the symbol ID
-            // In real implementation, we'd use a proper intern table
-            let id = s.bytes().fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
+            // Use the proper intern table to get/create symbol ID
+            let id = crate::symbol_table::intern(s);
             TaggedValue::from_symbol_id(id)
         }
         Value::Float(f) => {
@@ -199,10 +214,63 @@ pub fn value_to_tagged(value: &Value) -> TaggedValue {
             let boxed = Box::new(Value::Promise(*id));
             TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
         }
-        _ => {
-            // For unimplemented types, return a nil value
-            let heap_val = Box::new(HeapValue::Nil);
-            TaggedValue::from_ptr(Box::into_raw(heap_val), ValueTag::Other)
+        Value::NativeFunction { name, arity, function } => {
+            // Box the native function value
+            let boxed = Box::new(Value::NativeFunction { 
+                name: name.clone(), 
+                arity: *arity, 
+                function: function.clone() 
+            });
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Procedure(proc) => {
+            // Box the procedure value
+            let boxed = Box::new(Value::Procedure(proc.clone()));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Tagged { tag, values } => {
+            // Box the tagged value
+            let boxed = Box::new(Value::Tagged { 
+                tag: tag.clone(), 
+                values: values.clone() 
+            });
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Future { chunk_id, env } => {
+            // Box the future value
+            let boxed = Box::new(Value::Future { 
+                chunk_id: *chunk_id, 
+                env: env.clone() 
+            });
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Actor(id) => {
+            // Box the actor value
+            let boxed = Box::new(Value::Actor(*id));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Cell(id) => {
+            // Box the cell value
+            let boxed = Box::new(Value::Cell(*id));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Module { name, exports } => {
+            // Box the module value
+            let boxed = Box::new(Value::Module { 
+                name: name.clone(), 
+                exports: exports.clone() 
+            });
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::GcHandle(handle) => {
+            // Box the GC handle value
+            let boxed = Box::new(Value::GcHandle(handle.clone()));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
+        }
+        Value::Set(items) => {
+            // Box the set value
+            let boxed = Box::new(Value::Set(items.clone()));
+            TaggedValue::from_ptr(Box::into_raw(boxed), ValueTag::Other)
         }
     }
 }
@@ -241,6 +309,113 @@ mod tests {
         match converted {
             Value::Float(f) => assert_eq!(f, 3.14),
             _ => panic!("Expected Float"),
+        }
+    }
+
+    #[test]
+    fn test_all_value_types_conversion() {
+        use std::sync::Arc;
+        use fluentai_core::value::Procedure;
+        use rustc_hash::FxHashMap;
+        
+        // Test all value types can be converted
+        let test_values = vec![
+            Value::Integer(42),
+            Value::Float(3.14),
+            Value::String("hello".to_string()),
+            Value::Symbol("test_symbol".to_string()),
+            Value::Boolean(true),
+            Value::Nil,
+            Value::List(vec![Value::Integer(1), Value::Integer(2)]),
+            Value::Vector(vec![Value::Integer(3), Value::Integer(4)]),
+            Value::Map({
+                let mut map = FxHashMap::default();
+                map.insert("key".to_string(), Value::Integer(5));
+                map
+            }),
+            Value::Tagged { tag: "Point".to_string(), values: vec![Value::Integer(10), Value::Integer(20)] },
+            Value::Function { chunk_id: 1, env: vec![] },
+            Value::Future { chunk_id: 2, env: vec![Value::Integer(99)] },
+            Value::Promise(123),
+            Value::Channel(456),
+            Value::Actor(789),
+            Value::Cell(101),
+            Value::Module { 
+                name: "TestModule".to_string(), 
+                exports: FxHashMap::default() 
+            },
+            Value::Error { 
+                kind: "TestError".to_string(), 
+                message: "Test message".to_string(), 
+                stack_trace: None 
+            },
+            Value::NativeFunction {
+                name: "test_func".to_string(),
+                arity: 2,
+                function: Arc::new(|_| Ok(Value::Nil)),
+            },
+            Value::GcHandle(Arc::new(42u64)),
+            Value::Set(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)]),
+        ];
+        
+        for value in test_values {
+            let tagged = value_to_tagged(&value);
+            let converted = tagged.to_value();
+            
+            // For most types, we can use PartialEq
+            match (&value, &converted) {
+                (Value::Integer(a), Value::Integer(b)) => assert_eq!(a, b),
+                (Value::Float(a), Value::Float(b)) => assert_eq!(a, b),
+                (Value::String(a), Value::String(b)) => assert_eq!(a, b),
+                (Value::Symbol(a), Value::Symbol(b)) => assert_eq!(a, b),
+                (Value::Boolean(a), Value::Boolean(b)) => assert_eq!(a, b),
+                (Value::Nil, Value::Nil) => {},
+                (Value::List(a), Value::List(b)) => assert_eq!(a, b),
+                (Value::Vector(a), Value::Vector(b)) => assert_eq!(a, b),
+                (Value::Map(a), Value::Map(b)) => assert_eq!(a, b),
+                (Value::Tagged { tag: t1, values: v1 }, Value::Tagged { tag: t2, values: v2 }) => {
+                    assert_eq!(t1, t2);
+                    assert_eq!(v1, v2);
+                },
+                (Value::Function { chunk_id: c1, env: e1 }, Value::Function { chunk_id: c2, env: e2 }) => {
+                    assert_eq!(c1, c2);
+                    assert_eq!(e1, e2);
+                },
+                (Value::Future { chunk_id: c1, env: e1 }, Value::Future { chunk_id: c2, env: e2 }) => {
+                    assert_eq!(c1, c2);
+                    assert_eq!(e1, e2);
+                },
+                (Value::Promise(a), Value::Promise(b)) => assert_eq!(a, b),
+                (Value::Channel(a), Value::Channel(b)) => assert_eq!(a, b),
+                (Value::Actor(a), Value::Actor(b)) => assert_eq!(a, b),
+                (Value::Cell(a), Value::Cell(b)) => assert_eq!(a, b),
+                (Value::Module { name: n1, exports: e1 }, Value::Module { name: n2, exports: e2 }) => {
+                    assert_eq!(n1, n2);
+                    assert_eq!(e1, e2);
+                },
+                (Value::Error { kind: k1, message: m1, stack_trace: s1 }, 
+                 Value::Error { kind: k2, message: m2, stack_trace: s2 }) => {
+                    assert_eq!(k1, k2);
+                    assert_eq!(m1, m2);
+                    assert_eq!(s1, s2);
+                },
+                (Value::NativeFunction { name: n1, arity: a1, .. }, 
+                 Value::NativeFunction { name: n2, arity: a2, .. }) => {
+                    assert_eq!(n1, n2);
+                    assert_eq!(a1, a2);
+                    // Can't compare function pointers
+                },
+                (Value::GcHandle(_), Value::GcHandle(_)) => {
+                    // Can't compare Any trait objects
+                },
+                (Value::Set(a), Value::Set(b)) => {
+                    assert_eq!(a.len(), b.len());
+                    for item in a {
+                        assert!(b.contains(item), "Set missing item: {:?}", item);
+                    }
+                },
+                _ => panic!("Value type mismatch: {:?} != {:?}", value, converted),
+            }
         }
     }
 }

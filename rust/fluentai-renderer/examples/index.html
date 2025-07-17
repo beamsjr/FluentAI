@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluentAI Developer Tools Showcase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        
+        /* Main canvas for rendering */
+        #render-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* Welcome overlay */
+        .welcome-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        
+        .welcome-content {
+            max-width: 800px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            color: #888;
+            margin-bottom: 40px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .feature-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .feature-shortcut {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .start-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Control panel */
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10;
+            min-width: 300px;
+            display: none;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+        }
+        
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+        
+        .slider-value {
+            min-width: 40px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 14px;
+            color: #667eea;
+        }
+        
+        .tools-dropdown {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            margin-bottom: 10px;
+        }
+        
+        .tools-dropdown option {
+            background: #1a1a1a;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        /* Component tree panel */
+        .component-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10;
+            min-width: 350px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .app-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .app-title {
+            font-weight: 600;
+        }
+        
+        .app-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .app-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .app-button:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .app-content {
+            padding: 20px;
+            height: calc(100% - 60px);
+            overflow-y: auto;
+        }
+        
+        /* Tooltip improvements */
+        .tooltip {
+            max-width: 400px;
+            line-height: 1.5;
+        }
+        
+        .tooltip strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        /* Component tree demo */
+        .component-tree {
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .tree-node {
+            padding: 4px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .tree-node:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .tree-node.selected {
+            background: rgba(102, 126, 234, 0.3);
+            color: #667eea;
+        }
+        
+        .tree-indent {
+            display: inline-block;
+            width: 20px;
+        }
+        
+        /* HUD indicators */
+        .hud {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: none;
+        }
+        
+        .hud-item {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
+        .hud-label {
+            color: #888;
+            margin-right: 10px;
+        }
+        
+        .hud-value {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+        
+        /* Tutorial tooltips */
+        .tooltip {
+            position: absolute;
+            background: rgba(102, 126, 234, 0.95);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1001;
+        }
+        
+        .tooltip.active {
+            opacity: 1;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid rgba(102, 126, 234, 0.95);
+        }
+        
+        /* Loading state */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Error state */
+        .error-message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            display: none;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="render-canvas"></canvas>
+    
+    <!-- Welcome Screen -->
+    <div class="welcome-overlay" id="welcome">
+        <div class="welcome-content">
+            <h1>FluentAI DevTools</h1>
+            <p class="subtitle">Interactive Developer Tools Showcase</p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <div class="feature-name">Component Inspector</div>
+                    <div class="feature-shortcut">Ctrl+Shift+I</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-name">Performance Profiler</div>
+                    <div class="feature-shortcut">Ctrl+Shift+P</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔥</div>
+                    <div class="feature-name">Hot Reload</div>
+                    <div class="feature-shortcut">Ctrl+R</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🐛</div>
+                    <div class="feature-name">UI Debugger</div>
+                    <div class="feature-shortcut">F12</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-name">AR Debug Overlay</div>
+                    <div class="feature-shortcut">D</div>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-name">Render Batching</div>
+                    <div class="feature-shortcut">Auto</div>
+                </div>
+            </div>
+            
+            <button class="start-button" onclick="startDemo()">Start Interactive Demo</button>
+        </div>
+    </div>
+    
+    <!-- Control Panel -->
+    <div class="control-panel" id="controlPanel">
+        <div class="control-section">
+            <label class="control-label">Particle Controls</label>
+            
+            <div class="slider-container">
+                <span>Count:</span>
+                <input type="range" class="slider" id="particleCount" min="0" max="1000" value="100">
+                <span class="slider-value" id="particleCountValue">100</span>
+            </div>
+            
+            <div class="slider-container">
+                <span>Size:</span>
+                <input type="range" class="slider" id="particleSize" min="1" max="20" value="4">
+                <span class="slider-value" id="particleSizeValue">4</span>
+            </div>
+            
+            <div class="slider-container">
+                <span>Speed:</span>
+                <input type="range" class="slider" id="particleSpeed" min="0" max="100" value="50">
+                <span class="slider-value" id="particleSpeedValue">50</span>
+            </div>
+            
+            <div class="control-buttons">
+                <button class="app-button" onclick="regenerateParticles()">Regenerate</button>
+                <button class="app-button" onclick="clearParticles()">Clear</button>
+                <button class="app-button" onclick="toggleAnimation()">Toggle Animation</button>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <label class="control-label">Developer Tools</label>
+            
+            <select class="tools-dropdown" id="toolsDropdown" onchange="activateTool(this.value)">
+                <option value="">Select a tool...</option>
+                <option value="devtools">Toggle DevTools (F12)</option>
+                <option value="inspector">Component Inspector (Ctrl+Shift+I)</option>
+                <option value="profiler">Performance Profiler (Ctrl+Shift+P)</option>
+                <option value="hotreload">Hot Reload (Ctrl+R)</option>
+                <option value="debug">Debug Overlay (D)</option>
+            </select>
+            
+            <div class="control-buttons">
+                <button class="app-button" onclick="showShortcuts()">Show Shortcuts</button>
+                <button class="app-button" onclick="resetDemo()">Reset Demo</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Component Tree Panel -->
+    <div class="component-panel" id="componentPanel">
+        <div class="control-label">Component Tree</div>
+        <div class="component-tree">
+            <div class="tree-node" data-id="root">
+                <span class="tree-indent"></span>📁 App Root
+            </div>
+            <div class="tree-node" data-id="canvas">
+                <span class="tree-indent"></span><span class="tree-indent"></span>🎨 Canvas
+            </div>
+            <div class="tree-node" data-id="particles">
+                <span class="tree-indent"></span><span class="tree-indent"></span><span class="tree-indent"></span>✨ ParticleSystem
+            </div>
+            <div class="tree-node" data-id="controls">
+                <span class="tree-indent"></span><span class="tree-indent"></span>🎛️ ControlPanel
+            </div>
+            <div class="tree-node selected" data-id="hud">
+                <span class="tree-indent"></span><span class="tree-indent"></span>📊 HUD
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Display -->
+    <div class="hud" id="hud">
+        <div class="hud-item">
+            <span class="hud-label">FPS:</span>
+            <span class="hud-value" id="fps">60</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label">Draw Calls:</span>
+            <span class="hud-value" id="drawCalls">0</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label">Memory:</span>
+            <span class="hud-value" id="memory">0 MB</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label">Components:</span>
+            <span class="hud-value" id="components">4</span>
+        </div>
+    </div>
+    
+    <!-- Tutorial Tooltips -->
+    <div class="tooltip" id="tooltip"></div>
+    
+    <!-- Loading State -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading WASM Module...</div>
+    </div>
+    
+    <!-- Error Message -->
+    <div class="error-message" id="error"></div>
+    
+    <script type="module">
+        // Import FluentAI WASM module
+        let wasmModule = null;
+        let devTools = null;
+        let particles = [];
+        let animationEnabled = true;
+        
+        // Tutorial state
+        let tutorialStep = 0;
+        const tutorialSteps = [
+            { element: 'demoApp', text: 'This is your FluentAI application. Press F12 to open DevTools!' },
+            { element: null, text: 'Use Ctrl+Shift+I to inspect components' },
+            { element: null, text: 'Press Ctrl+Shift+P to view performance metrics' },
+            { element: null, text: 'Try Ctrl+R to test hot reload' }
+        ];
+        
+        async function initWASM() {
+            try {
+                // Show loading
+                document.getElementById('loading').style.display = 'block';
+                
+                // In a real implementation, we would load the actual WASM module
+                // For demo purposes, we'll simulate it
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+                
+                // Initialize mock DevTools
+                initMockDevTools();
+                
+                console.log('FluentAI DevTools initialized');
+            } catch (error) {
+                showError('Failed to load WASM module: ' + error.message);
+            }
+        }
+        
+        function initMockDevTools() {
+            // Simulate DevTools functionality
+            devTools = {
+                enabled: false,
+                inspector: { selected: null },
+                profiler: { fps: 60, drawCalls: 0, memory: 0 },
+                overlay: { visible: false }
+            };
+            
+            // Set up keyboard shortcuts
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // Start performance monitoring
+            startPerformanceMonitoring();
+        }
+        
+        function handleKeyPress(e) {
+            // F12 - Toggle DevTools
+            if (e.key === 'F12') {
+                e.preventDefault();
+                toggleDevTools();
+            }
+            
+            // Ctrl+Shift+I - Inspector
+            if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+                e.preventDefault();
+                showTooltip('Component Inspector activated! Click on any element to inspect it.');
+                highlightComponents();
+            }
+            
+            // Ctrl+Shift+P - Profiler
+            if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+                e.preventDefault();
+                showTooltip('Performance Profiler activated! Check the HUD for metrics.');
+                document.getElementById('hud').style.display = 'block';
+            }
+            
+            // Ctrl+R - Hot Reload
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                simulateHotReload();
+            }
+            
+            // D - Debug Overlay
+            if (e.key === 'd' || e.key === 'D') {
+                toggleDebugOverlay();
+            }
+        }
+        
+        function toggleDevTools() {
+            devTools.enabled = !devTools.enabled;
+            if (devTools.enabled) {
+                showTooltip('DevTools enabled! Try the keyboard shortcuts.');
+                document.getElementById('hud').style.display = 'block';
+            } else {
+                document.getElementById('hud').style.display = 'none';
+            }
+        }
+        
+        function highlightComponents() {
+            const nodes = document.querySelectorAll('.tree-node');
+            nodes.forEach(node => {
+                node.addEventListener('click', function() {
+                    nodes.forEach(n => n.classList.remove('selected'));
+                    this.classList.add('selected');
+                    showTooltip(`Inspecting: ${this.textContent.trim()}`);
+                });
+            });
+        }
+        
+        function simulateHotReload() {
+            showTooltip('Hot reloading...');
+            
+            // Fade out all panels
+            const panels = document.querySelectorAll('.control-panel, .component-panel, .hud');
+            panels.forEach(panel => {
+                panel.style.opacity = '0.5';
+                panel.style.transition = 'opacity 0.3s ease';
+            });
+            
+            // Simulate reload
+            setTimeout(() => {
+                panels.forEach(panel => {
+                    panel.style.opacity = '1';
+                });
+                
+                // Add some visual feedback
+                const canvas = document.getElementById('render-canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                showTooltip('Hot reload complete! All components refreshed.');
+            }, 1000);
+        }
+        
+        function toggleDebugOverlay() {
+            devTools.overlay.visible = !devTools.overlay.visible;
+            
+            if (devTools.overlay.visible) {
+                showTooltip('Debug overlay enabled - showing grid and component boundaries');
+            } else {
+                showTooltip('Debug overlay disabled');
+            }
+        }
+        
+        // Demo app functions
+        window.startDemo = function() {
+            document.getElementById('welcome').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('welcome').style.display = 'none';
+                document.getElementById('controlPanel').style.display = 'block';
+                document.getElementById('componentPanel').style.display = 'block';
+                
+                // Initialize canvas
+                const canvas = document.getElementById('render-canvas');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                // Initialize particles on canvas
+                initCanvasParticles();
+                
+                // Start animation loop
+                animate();
+                
+                // Setup slider listeners
+                setupSliders();
+                
+                // Show initial tooltip
+                showTooltip('Welcome! Use the controls or keyboard shortcuts to explore DevTools.');
+            }, 500);
+        };
+        
+        // Canvas-based particle system
+        let canvasParticles = [];
+        let particleSettings = {
+            count: 100,
+            size: 4,
+            speed: 50
+        };
+        
+        function initCanvasParticles() {
+            canvasParticles = [];
+            const count = parseInt(document.getElementById('particleCount').value);
+            for (let i = 0; i < count; i++) {
+                canvasParticles.push(createParticle());
+            }
+        }
+        
+        function createParticle() {
+            return {
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                vx: (Math.random() - 0.5) * particleSettings.speed / 10,
+                vy: (Math.random() - 0.5) * particleSettings.speed / 10,
+                size: particleSettings.size,
+                color: `hsl(${Math.random() * 60 + 200}, 70%, 60%)`,
+                phase: Math.random() * Math.PI * 2
+            };
+        }
+        
+        window.regenerateParticles = function() {
+            const count = parseInt(document.getElementById('particleCount').value);
+            canvasParticles = [];
+            for (let i = 0; i < count; i++) {
+                canvasParticles.push(createParticle());
+            }
+            updateStats();
+        };
+        
+        window.clearParticles = function() {
+            canvasParticles = [];
+            updateStats();
+        };
+        
+        window.toggleAnimation = function() {
+            animationEnabled = !animationEnabled;
+            showTooltip(animationEnabled ? 'Animation resumed' : 'Animation paused');
+        };
+        
+        function setupSliders() {
+            // Particle count slider
+            const countSlider = document.getElementById('particleCount');
+            const countValue = document.getElementById('particleCountValue');
+            countSlider.addEventListener('input', function() {
+                countValue.textContent = this.value;
+                particleSettings.count = parseInt(this.value);
+            });
+            
+            // Particle size slider
+            const sizeSlider = document.getElementById('particleSize');
+            const sizeValue = document.getElementById('particleSizeValue');
+            sizeSlider.addEventListener('input', function() {
+                sizeValue.textContent = this.value;
+                particleSettings.size = parseInt(this.value);
+                canvasParticles.forEach(p => p.size = particleSettings.size);
+            });
+            
+            // Particle speed slider
+            const speedSlider = document.getElementById('particleSpeed');
+            const speedValue = document.getElementById('particleSpeedValue');
+            speedSlider.addEventListener('input', function() {
+                speedValue.textContent = this.value;
+                particleSettings.speed = parseInt(this.value);
+                canvasParticles.forEach(p => {
+                    p.vx = (Math.random() - 0.5) * particleSettings.speed / 10;
+                    p.vy = (Math.random() - 0.5) * particleSettings.speed / 10;
+                });
+            });
+        }
+        
+        // Tool activation from dropdown
+        window.activateTool = function(tool) {
+            switch(tool) {
+                case 'devtools':
+                    toggleDevTools();
+                    break;
+                case 'inspector':
+                    showTooltip('Component Inspector activated! Click on any element to inspect it.');
+                    highlightComponents();
+                    document.getElementById('componentPanel').style.border = '2px solid #667eea';
+                    setTimeout(() => {
+                        document.getElementById('componentPanel').style.border = '';
+                    }, 2000);
+                    break;
+                case 'profiler':
+                    showTooltip('Performance Profiler activated! Check the HUD for metrics.');
+                    document.getElementById('hud').style.display = 'block';
+                    break;
+                case 'hotreload':
+                    simulateHotReload();
+                    break;
+                case 'debug':
+                    toggleDebugOverlay();
+                    break;
+            }
+            // Reset dropdown
+            document.getElementById('toolsDropdown').value = '';
+        };
+        
+        window.showShortcuts = function() {
+            const shortcuts = `
+                <strong>Keyboard Shortcuts:</strong><br>
+                F12 - Toggle DevTools<br>
+                Ctrl+Shift+I - Component Inspector<br>
+                Ctrl+Shift+P - Performance Profiler<br>
+                Ctrl+R - Hot Reload<br>
+                D - Debug Overlay
+            `;
+            showTooltip(shortcuts, 5000);
+        };
+        
+        window.resetDemo = function() {
+            // Reset all states
+            canvasParticles = [];
+            devTools.enabled = false;
+            devTools.overlay.visible = false;
+            document.getElementById('hud').style.display = 'none';
+            
+            // Reset sliders
+            document.getElementById('particleCount').value = 100;
+            document.getElementById('particleCountValue').textContent = '100';
+            document.getElementById('particleSize').value = 4;
+            document.getElementById('particleSizeValue').textContent = '4';
+            document.getElementById('particleSpeed').value = 50;
+            document.getElementById('particleSpeedValue').textContent = '50';
+            
+            // Reinitialize
+            particleSettings = { count: 100, size: 4, speed: 50 };
+            initCanvasParticles();
+            
+            showTooltip('Demo reset to initial state');
+        };
+        
+        function updateStats() {
+            document.getElementById('drawCalls').textContent = canvasParticles.length;
+            document.getElementById('components').textContent = 5 + Math.floor(canvasParticles.length / 50);
+            document.getElementById('memory').textContent = (20 + canvasParticles.length * 0.1).toFixed(1) + ' MB';
+        }
+        
+        function startPerformanceMonitoring() {
+            let frameCount = 0;
+            let lastTime = performance.now();
+            
+            function updateFPS() {
+                frameCount++;
+                const currentTime = performance.now();
+                
+                if (currentTime >= lastTime + 1000) {
+                    const fps = Math.round(frameCount * 1000 / (currentTime - lastTime));
+                    document.getElementById('fps').textContent = fps;
+                    frameCount = 0;
+                    lastTime = currentTime;
+                }
+                
+                requestAnimationFrame(updateFPS);
+            }
+            
+            updateFPS();
+        }
+        
+        function animate() {
+            const canvas = document.getElementById('render-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.1)'; // Slight trail effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw particles
+            if (animationEnabled) {
+                canvasParticles.forEach(particle => {
+                    // Update position
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    
+                    // Add some floating motion
+                    particle.y += Math.sin(Date.now() * 0.001 + particle.phase) * 0.2;
+                    
+                    // Wrap around screen
+                    if (particle.x < 0) particle.x = canvas.width;
+                    if (particle.x > canvas.width) particle.x = 0;
+                    if (particle.y < 0) particle.y = canvas.height;
+                    if (particle.y > canvas.height) particle.y = 0;
+                    
+                    // Draw particle
+                    ctx.beginPath();
+                    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                    ctx.fillStyle = particle.color;
+                    ctx.fill();
+                    
+                    // Add glow effect
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = particle.color;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                });
+            }
+            
+            // Draw debug overlay if enabled
+            if (devTools.overlay.visible) {
+                // Draw grid
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < canvas.width; i += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i, canvas.height);
+                    ctx.stroke();
+                }
+                for (let j = 0; j < canvas.height; j += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, j);
+                    ctx.lineTo(canvas.width, j);
+                    ctx.stroke();
+                }
+                
+                // Draw component boundaries
+                const panels = document.querySelectorAll('.control-panel, .component-panel, .hud');
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                panels.forEach(panel => {
+                    const rect = panel.getBoundingClientRect();
+                    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+                });
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        function showTooltip(text, duration = 3000) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = text;
+            tooltip.classList.add('active');
+            
+            // Position tooltip at top center
+            tooltip.style.top = '100px';
+            tooltip.style.left = '50%';
+            tooltip.style.transform = 'translateX(-50%)';
+            
+            setTimeout(() => {
+                tooltip.classList.remove('active');
+            }, duration);
+        }
+        
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+            
+            setTimeout(() => {
+                error.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            // For demo purposes, we'll skip actual WASM loading
+            // initWASM();
+            initMockDevTools();
+        });
+        
+        // Resize handler
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('render-canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>

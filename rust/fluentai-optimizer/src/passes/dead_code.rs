@@ -221,6 +221,10 @@ impl DeadCodeEliminationPass {
                         self.mark_reachable(graph, *value, reachable);
                     }
                 }
+                Node::Range { start, end, .. } => {
+                    self.mark_reachable(graph, *start, reachable);
+                    self.mark_reachable(graph, *end, reachable);
+                }
                 // Leaf nodes - no children to traverse
                 Node::Literal(_) | Node::Variable { .. } => {}
                 Node::Extern { .. } => {
@@ -432,6 +436,10 @@ impl DeadCodeEliminationPass {
                         self.collect_vars_from_node(graph, *value, used);
                     }
                 }
+                Node::Range { start, end, .. } => {
+                    self.collect_vars_from_node(graph, *start, used);
+                    self.collect_vars_from_node(graph, *end, used);
+                }
                 // Leaf nodes - no variables to collect
                 Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } | Node::Extern { .. } => {}
             }
@@ -547,6 +555,10 @@ impl DeadCodeEliminationPass {
             }
             Node::Map(_) => {
                 // Map pairs are handled by the graph traversal
+            }
+            Node::Range { .. } => {
+                // Range nodes contain NodeIds, not inline nodes
+                // This will be handled by the graph traversal in find_used_variables
             }
             // Leaf nodes - these don't contain variable references
             Node::Literal(_) | Node::Import { .. } | Node::Export { .. } | Node::Contract { .. } | Node::Extern { .. } => {

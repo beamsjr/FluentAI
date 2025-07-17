@@ -1,0 +1,11 @@
+// Test simple arithmetic
+let a = 5;
+let b = 3;
+let sum = a + b;
+print("a = ");
+print(a);
+print(", b = ");
+print(b);
+print(", a + b = ");
+print(sum);
+print(" (expected 8)");

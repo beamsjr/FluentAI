@@ -57,6 +57,7 @@ fn test_actor_receive_with_message_processing() {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: true,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph).unwrap();
@@ -127,6 +128,7 @@ fn test_actor_become_in_receive() {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph).unwrap();

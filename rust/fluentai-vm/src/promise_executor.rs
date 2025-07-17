@@ -58,7 +58,7 @@ impl PromiseExecutor {
                 let stack_base = vm.stack().len();
                 
                 // Push a call frame for the promise body
-                vm.call_stack_mut().push(crate::vm::CallFrame {
+                vm.push_frame(crate::vm::CallFrame {
                     chunk_id,
                     ip: 0,
                     stack_base,

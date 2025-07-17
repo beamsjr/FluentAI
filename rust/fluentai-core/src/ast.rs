@@ -59,6 +59,165 @@ pub struct NodeMetadata {
     pub context_memory: Option<ContextMemory>,
 }
 
+#[cfg(feature = "ai-analysis")]
+impl NodeMetadata {
+    /// Extract a feature vector for AI/ML analysis
+    /// 
+    /// The feature vector includes:
+    /// - Purity flag (0.0 or 1.0)
+    /// - Type info hash (normalized to 0.0-1.0)
+    /// - Number of annotations (normalized)
+    /// - Embedding ID (if present)
+    /// - Usage statistics features
+    /// - Performance hint features
+    /// 
+    /// Returns a fixed-size vector suitable for neural network input
+    pub fn feature_vector(&self) -> Vec<f32> {
+        let mut features = Vec::with_capacity(16);
+        
+        // Basic metadata features
+        features.push(self.extract_purity_feature());
+        features.push(self.extract_type_hash_feature());
+        features.push(self.extract_annotations_feature());
+        features.push(self.extract_span_feature());
+        
+        // Context memory features
+        if let Some(ref context) = self.context_memory {
+            features.extend(context.extract_features());
+        } else {
+            // Add zeros for missing context features
+            features.extend(vec![0.0; 8]);
+        }
+        
+        // Documentation feature
+        features.push(if self.documentation_id.is_some() { 1.0 } else { 0.0 });
+        
+        // Pad to fixed size if needed
+        while features.len() < 16 {
+            features.push(0.0);
+        }
+        
+        features
+    }
+    
+    /// Extract purity feature (0.0 for impure/unknown, 1.0 for pure)
+    fn extract_purity_feature(&self) -> f32 {
+        self.is_pure.unwrap_or(false) as u8 as f32
+    }
+    
+    /// Extract type info as a normalized hash value
+    fn extract_type_hash_feature(&self) -> f32 {
+        self.type_info
+            .as_ref()
+            .map(|t| hash_string_to_float(t))
+            .unwrap_or(0.0)
+    }
+    
+    /// Extract annotations count as a normalized feature
+    fn extract_annotations_feature(&self) -> f32 {
+        (self.annotations.len() as f32).min(10.0) / 10.0
+    }
+    
+    /// Extract span size as a feature (normalized)
+    fn extract_span_feature(&self) -> f32 {
+        if let Some((start, end)) = self.span {
+            let size = (end - start) as f32;
+            // Log-normalize and clamp to [0, 1]
+            ((size + 1.0).ln() / 12.0).min(1.0)
+        } else {
+            0.0
+        }
+    }
+}
+
+#[cfg(feature = "ai-analysis")]
+impl ContextMemory {
+    /// Extract features from context memory
+    fn extract_features(&self) -> Vec<f32> {
+        let mut features = Vec::with_capacity(8);
+        
+        // Embedding ID feature
+        features.push(
+            self.embedding_id
+                .map(|e| ((e.0 as f32 + 1.0).ln() / 50.0).min(1.0)) // Log-normalize and clamp
+                .unwrap_or(0.0)
+        );
+        
+        // Usage statistics features
+        features.push(self.extract_execution_count_feature());
+        features.push(self.extract_avg_time_feature());
+        features.push(self.extract_error_rate_feature());
+        features.push(self.usage_stats.is_hot_path as u8 as f32);
+        
+        // Performance hints summary
+        features.push(self.extract_performance_hints_feature());
+        
+        // Semantic tags count
+        features.push((self.semantic_tags.len() as f32).min(5.0) / 5.0);
+        
+        // Has rationale
+        features.push(if self.rationale.is_some() { 1.0 } else { 0.0 });
+        
+        features
+    }
+    
+    /// Extract execution count as a log-normalized feature
+    fn extract_execution_count_feature(&self) -> f32 {
+        if self.usage_stats.execution_count > 0 {
+            ((self.usage_stats.execution_count as f32 + 1.0).ln() / 50.0).min(1.0)
+        } else {
+            0.0
+        }
+    }
+    
+    /// Extract average execution time as a log-normalized feature
+    fn extract_avg_time_feature(&self) -> f32 {
+        if self.usage_stats.avg_execution_time_ns > 0 {
+            ((self.usage_stats.avg_execution_time_ns as f32 + 1.0).ln() / 50.0).min(1.0)
+        } else {
+            0.0
+        }
+    }
+    
+    /// Extract error rate as a feature
+    fn extract_error_rate_feature(&self) -> f32 {
+        if self.usage_stats.execution_count > 0 {
+            (self.usage_stats.error_count as f32 / self.usage_stats.execution_count as f32)
+                .min(1.0)
+        } else {
+            0.0
+        }
+    }
+    
+    /// Extract performance hints as a summary feature
+    fn extract_performance_hints_feature(&self) -> f32 {
+        if self.performance_hints.is_empty() {
+            0.0
+        } else {
+            // Average confidence of all hints
+            let sum: f32 = self.performance_hints
+                .iter()
+                .map(|h| h.confidence)
+                .sum();
+            sum / self.performance_hints.len() as f32
+        }
+    }
+}
+
+/// Helper function to convert a string to a normalized float hash
+#[cfg(feature = "ai-analysis")]
+fn hash_string_to_float(s: &str) -> f32 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    
+    let mut hasher = DefaultHasher::new();
+    s.hash(&mut hasher);
+    let hash = hasher.finish();
+    
+    // Normalize to 0.0-1.0 range
+    hash as f32 / u64::MAX as f32
+}
+
 /// Context memory for machine-readable semantic information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextMemory {
@@ -1043,6 +1202,16 @@ pub enum Node {
 
     /// List data structure
     List(Vec<NodeId>),
+
+    /// Range expression (e.g., 0..10)
+    Range {
+        /// Start value
+        start: NodeId,
+        /// End value
+        end: NodeId,
+        /// Whether the range is inclusive (..=)
+        inclusive: bool,
+    },
 
     /// Map/dictionary data structure  
     Map(Vec<(NodeId, NodeId)>),
@@ -2246,6 +2415,19 @@ impl Node {
                 examples: vec![
                     "{\"name\": \"Alice\", \"age\": 25}".to_string(),
                     "{key1: val1, key2: val2}".to_string(),
+                ],
+                category: DocumentationCategory::DataStructure,
+                see_also: vec!["List".to_string()],
+                visibility: DocumentationVisibility::Public,
+            },
+            Node::Range { start: _, end: _, inclusive } => Documentation {
+                name: "Range".to_string(),
+                syntax: if *inclusive { "start..=end" } else { "start..end" }.to_string(),
+                description: "Range expression for creating sequences of values.".to_string(),
+                examples: vec![
+                    "1..10".to_string(),
+                    "0..=100".to_string(),
+                    "'a'..'z'".to_string(),
                 ],
                 category: DocumentationCategory::DataStructure,
                 see_also: vec!["List".to_string()],

@@ -1,0 +1,48 @@
+// Minimal test for basic functionality
+// Uses standard print function
+
+// Simple add function
+private function add(x: int, y: int) -> int {
+    x + y
+}
+
+// Double function
+private function double(x: int) -> int {
+    x * 2
+}
+
+// Test function
+private function test() {
+    print("Testing basic functions...");
+    print("");
+    
+    // Test add with different values
+    let sum1 = add(5, 3);
+    print("add(5, 3) = ");
+    print(sum1);
+    print(" (expected 8)");
+    print("");
+    
+    let sum2 = add(10, 20);
+    print("add(10, 20) = ");
+    print(sum2);
+    print(" (expected 30)");
+    print("");
+    
+    // Test double
+    let d = double(7);
+    print("double(7) = ");
+    print(d);
+    print(" (expected 14)");
+    print("");
+    
+    // Test direct arithmetic
+    let direct = 5 + 3;
+    print("5 + 3 (direct) = ");
+    print(direct);
+    print("");
+    
+    print("Basic tests completed!");
+}
+
+test()

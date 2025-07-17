@@ -11,3 +11,159 @@ fluentai-optimizer = { path = "../fluentai-optimizer" }
 fluentai-stdlib = { path = "../fluentai-stdlib" }
 anyhow = "1.0"
 
+[[bin]]
+name = "rl_optimization_demo"
+path = "rl_optimization_runner.rs"
+
+[[bin]]
+name = "simple_rl_demo"
+path = "simple_rl_demo.rs"
+
+[[bin]]
+name = "learning_mode_demo"
+path = "learning_mode_demo.rs"
+
+[[bin]]
+name = "simple_learning_demo"
+path = "simple_learning_demo.rs"
+
+[[bin]]
+name = "minimal_learning_demo"
+path = "minimal_learning_demo.rs"
+
+[[bin]]
+name = "basic_learning_test"
+path = "basic_learning_test.rs"
+
+[[bin]]
+name = "trivial_test"
+path = "trivial_test.rs"
+
+[[bin]]
+name = "test_function_runner"
+path = "test_function_runner.rs"
+
+[[bin]]
+name = "test_simple_runner"
+path = "test_simple_runner.rs"
+
+[[bin]]
+name = "test_printable_runner"
+path = "test_printable_runner.rs"
+
+[[bin]]
+name = "test_dollar_runner"
+path = "test_dollar_runner.rs"
+
+[[bin]]
+name = "test_rl_minimal_runner"
+path = "test_rl_minimal_runner.rs"
+
+[[bin]]
+name = "test_cells"
+path = "test_cells.rs"
+
+[[bin]]
+name = "test_simple_mutation"
+path = "test_simple_mutation.rs"
+
+[[bin]]
+name = "debug_bytecode"
+path = "debug_bytecode.rs"
+
+[[bin]]
+name = "trace_execution"
+path = "trace_execution.rs"
+
+[[bin]]
+name = "test_arithmetic_runner"
+path = "test_arithmetic_runner.rs"
+
+[[bin]]
+name = "test_let_simple_runner"
+path = "test_let_simple_runner.rs"
+
+[[bin]]
+name = "test_effects_runner"
+path = "test_effects_runner.rs"
+
+[[bin]]
+name = "test_simple_effect_runner"
+path = "test_simple_effect_runner.rs"
+
+[[bin]]
+name = "test_simple_effect_runner_debug"
+path = "test_simple_effect_runner_debug.rs"
+
+[[bin]]
+name = "test_time_effect_runner"
+path = "test_time_effect_runner.rs"
+
+[[bin]]
+name = "test_random_effect_runner"
+path = "test_random_effect_runner.rs"
+
+[[bin]]
+name = "test_state_effect_runner"
+path = "test_state_effect_runner.rs"
+
+[[bin]]
+name = "test_state_debug_runner"
+path = "test_state_debug_runner.rs"
+
+[[bin]]
+name = "test_state_simple_runner"
+path = "test_state_simple_runner.rs"
+
+[[bin]]
+name = "test_list_methods_runner"
+path = "test_list_methods_runner.rs"
+
+[[bin]]
+name = "test_string_concat"
+path = "test_string_concat.rs"
+
+[[bin]]
+name = "test_list_methods_simple_runner"
+path = "test_list_methods_simple_runner.rs"
+
+[[bin]]
+name = "test_mutation_in_closure"
+path = "test_mutation_in_closure.rs"
+
+[[bin]]
+name = "test_simple_assignment"
+path = "test_simple_assignment.rs"
+
+[[bin]]
+name = "test_while_loop"
+path = "test_while_loop.rs"
+
+[[bin]]
+name = "test_no_loop"
+path = "test_no_loop.rs"
+
+[[bin]]
+name = "debug_while_loop"
+path = "debug_while_loop.rs"
+
+[[bin]]
+name = "test_letrec_simple"
+path = "test_letrec_simple.rs"
+
+[[bin]]
+name = "debug_while_bytecode"
+path = "debug_while_bytecode.rs"
+
+[[bin]]
+name = "test_while_simple"
+path = "test_while_simple.rs"
+
+[[bin]]
+name = "test_while_with_io"
+path = "test_while_with_io.rs"
+
+[[bin]]
+name = "test_learning_mode"
+path = "test_learning_mode.rs"
+

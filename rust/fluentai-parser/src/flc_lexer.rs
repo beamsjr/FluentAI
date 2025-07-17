@@ -221,10 +221,10 @@ pub enum Token<'a> {
     Dollar,
 
     // Literals
-    #[regex(r"-?[0-9]+", priority = 5, callback = |lex| lex.slice().parse::<i64>().ok())]
+    #[regex(r"[0-9]+", priority = 5, callback = |lex| lex.slice().parse::<i64>().ok())]
     Integer(i64),
 
-    #[regex(r"-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", priority = 5, callback = |lex| lex.slice().parse::<f64>().ok())]
+    #[regex(r"[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?", priority = 5, callback = |lex| lex.slice().parse::<f64>().ok())]
     Float(f64),
 
     // String literals - regular strings

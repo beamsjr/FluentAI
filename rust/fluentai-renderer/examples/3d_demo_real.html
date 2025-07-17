@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluentAI 3D Demo - Real WASM Renderer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        
+        #render-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            display: block;
+        }
+        
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10;
+            min-width: 300px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+        
+        .status.loading .status-dot {
+            background: #ff9800;
+            animation: pulse 1s infinite;
+        }
+        
+        .status.error .status-dot {
+            background: #f44336;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .feature {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .feature-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 400px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+        }
+        
+        code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .controls {
+            margin-top: 20px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .control-group input[type="range"]::-webkit-slider-thumb:hover {
+            background: #764ba2;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="render-canvas"></canvas>
+    
+    <div class="info-panel">
+        <h1>FluentAI 3D Demo</h1>
+        <p class="subtitle">Real WebGL renderer compiled to WASM</p>
+        
+        <div class="status loading" id="status">
+            <span class="status-dot"></span>
+            <span id="status-text">Loading WASM module...</span>
+        </div>
+        
+        <div class="controls" id="controls" style="display: none;">
+            <div class="control-group">
+                <label>Particle Count: <span id="particle-count-value">100</span></label>
+                <input type="range" id="particle-count" min="10" max="500" value="100" step="10">
+            </div>
+            
+            <div class="control-group">
+                <label>Orbit Speed: <span id="orbit-speed-value">1.0</span></label>
+                <input type="range" id="orbit-speed" min="0" max="3" value="1" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label>Particle Size: <span id="particle-size-value">0.5</span></label>
+                <input type="range" id="particle-size" min="0.3" max="2.3" value="0.5" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label>Orbit Radius: <span id="orbit-radius-value">3.0</span></label>
+                <input type="range" id="orbit-radius" min="1" max="6" value="3" step="0.5">
+            </div>
+            
+            <div class="control-group">
+                <label>Glow Intensity: <span id="glow-intensity-value">1.0</span></label>
+                <input type="range" id="glow-intensity" min="0.1" max="2" value="1" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label>Mouse Gravity: <span id="mouse-gravity-value">1.0</span></label>
+                <input type="range" id="mouse-gravity" min="0" max="10" value="1" step="0.1">
+            </div>
+            
+            <div class="control-group">
+                <label>Tail Length: <span id="tail-length-value">10</span></label>
+                <input type="range" id="tail-length" min="0" max="20" value="10" step="1">
+            </div>
+        </div>
+    </div>
+    
+    <div class="error-message" id="error">
+        <h2>Failed to load WASM</h2>
+        <p id="error-details"></p>
+        <p style="margin-top: 15px;">
+            Make sure to build the WASM module first:<br>
+            <code>wasm-pack build --target web --out-dir examples/pkg</code>
+        </p>
+    </div>
+    
+    <script type="module">
+        async function initDemo() {
+            const status = document.getElementById('status');
+            const statusText = document.getElementById('status-text');
+            
+            try {
+                // Import the WASM module
+                const wasmModule = await import('./pkg/fluentai_renderer.js?v=' + Date.now());
+                await wasmModule.default();
+                
+                statusText.textContent = 'Initializing 3D scene...';
+                
+                // Create the 3D demo
+                const demo = new wasmModule.FluentAI3DDemo('render-canvas');
+                
+                // Get canvas for mouse tracking
+                const canvas = document.getElementById('render-canvas');
+                
+                // Add mouse event listeners
+                canvas.addEventListener('mousemove', (event) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    demo.update_mouse_position(x, y);
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    demo.update_canvas_size(canvas.width, canvas.height);
+                });
+                
+                // Initial canvas size
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                demo.update_canvas_size(canvas.width, canvas.height);
+                
+                // Show controls
+                document.getElementById('controls').style.display = 'block';
+                
+                // Setup control handlers
+                const setupControl = (id, valueId, updateFunc) => {
+                    const slider = document.getElementById(id);
+                    const valueSpan = document.getElementById(valueId);
+                    
+                    slider.addEventListener('input', (e) => {
+                        const value = parseFloat(e.target.value);
+                        valueSpan.textContent = value;
+                        updateFunc(value);
+                    });
+                };
+                
+                setupControl('particle-count', 'particle-count-value', (value) => {
+                    demo.set_particle_count(Math.floor(value));
+                });
+                
+                setupControl('orbit-speed', 'orbit-speed-value', (value) => {
+                    demo.set_orbit_speed(value);
+                });
+                
+                setupControl('particle-size', 'particle-size-value', (value) => {
+                    demo.set_particle_size(value);
+                });
+                
+                setupControl('orbit-radius', 'orbit-radius-value', (value) => {
+                    demo.set_orbit_radius(value);
+                });
+                
+                setupControl('glow-intensity', 'glow-intensity-value', (value) => {
+                    demo.set_glow_intensity(value);
+                });
+                
+                setupControl('mouse-gravity', 'mouse-gravity-value', (value) => {
+                    demo.set_mouse_gravity(value);
+                });
+                
+                setupControl('tail-length', 'tail-length-value', (value) => {
+                    demo.set_tail_length(Math.floor(value));
+                });
+                
+                // Start render loop
+                function render(timestamp) {
+                    try {
+                        demo.render(timestamp);
+                        requestAnimationFrame(render);
+                    } catch (error) {
+                        console.error('Render error:', error);
+                    }
+                }
+                
+                status.className = 'status';
+                statusText.textContent = 'Running FluentAI 3D Particle System';
+                
+                requestAnimationFrame(render);
+                
+                console.log('FluentAI 3D Demo initialized successfully!');
+                
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                status.className = 'status error';
+                statusText.textContent = 'Failed to load';
+                
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error-details').textContent = error.message;
+            }
+        }
+        
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDemo);
+        } else {
+            initDemo();
+        }
+    </script>
+</body>
+</html>

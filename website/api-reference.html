@@ -516,6 +516,16 @@
                     <li><a href="#spawn">Spawn</a></li>
                 </ul>
             </div>
+
+            <div class="sidebar-section">
+                <h3>AI Analysis</h3>
+                <ul>
+                    <li><a href="#ai-analyze">AST Analysis</a></li>
+                    <li><a href="#ai-patterns">Pattern Detection</a></li>
+                    <li><a href="#ai-optimization">Optimization Hints</a></li>
+                    <li><a href="#ai-metadata">Metadata Injection</a></li>
+                </ul>
+            </div>
         </aside>
 
         <!-- API Content -->
@@ -798,6 +808,469 @@ contents.match()
         use_default_config()
     })
     .get();</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Analysis -->
+            <section class="api-section" id="ai-analyze">
+                <h2>AI Analysis</h2>
+                <p>FluentAI includes native AI-driven AST analysis capabilities for detecting patterns and optimization opportunities.</p>
+
+                <!-- analyze_ast function -->
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">analyze_ast</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>analyze_ast(graph: &Graph) -> Result&lt;AiAnalysisResult, Error&gt;</code>
+                    </div>
+
+                    <p class="function-description">
+                        Performs AI-powered analysis on an AST graph to detect patterns, suggest optimizations, and generate performance insights.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Parameters</h4>
+                        <ul class="parameter-list">
+                            <li class="parameter">
+                                <span class="parameter-name">graph</span>
+                                <span class="parameter-type">: &Graph</span>
+                                <p class="parameter-description">The AST graph to analyze. Features are extracted directly from nodes without serialization.</p>
+                            </li>
+                        </ul>
+
+                        <h4>Returns</h4>
+                        <p>An AiAnalysisResult containing performance score, detected patterns, and optimization suggestions.</p>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>use fluentai_ai::analyze_ast;
+
+// Analyze the AST
+let analysis = analyze_ast(&ast_graph)?;
+
+// Check performance score
+$(f"Performance score: {analysis.performance_score}").print();
+
+// Examine detected patterns
+for pattern in analysis.detected_patterns {
+    $(f"Found pattern: {:?}", pattern.pattern_type).print();
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AiAnalyzerBuilder -->
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">AiAnalyzerBuilder</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>AiAnalyzerBuilder::new() -> Self</code>
+                    </div>
+
+                    <p class="function-description">
+                        Builder pattern for creating custom AI analyzers with specific configuration options.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Builder Methods</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>detect_patterns(bool)</code></td>
+                                    <td>Enable/disable pattern detection</td>
+                                </tr>
+                                <tr>
+                                    <td><code>detect_optimizations(bool)</code></td>
+                                    <td>Enable/disable optimization detection</td>
+                                </tr>
+                                <tr>
+                                    <td><code>generate_embeddings(bool)</code></td>
+                                    <td>Enable/disable node embedding generation</td>
+                                </tr>
+                                <tr>
+                                    <td><code>with_cache(bool)</code></td>
+                                    <td>Enable/disable result caching</td>
+                                </tr>
+                                <tr>
+                                    <td><code>build()</code></td>
+                                    <td>Create the configured analyzer</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>// Create a custom analyzer
+let analyzer = AiAnalyzerBuilder::new()
+    .detect_patterns(true)
+    .detect_optimizations(true)
+    .generate_embeddings(false)
+    .with_cache(true)
+    .build();
+
+// Use the analyzer
+let result = analyzer.analyze_graph(&ast)?;
+
+// Access embeddings if generated
+if let Some(embeddings) = result.node_embeddings {
+    for (node_id, embedding) in embeddings {
+        // Use embeddings for similarity analysis
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pattern Detection -->
+            <section class="api-section" id="ai-patterns">
+                <h2>Pattern Detection</h2>
+
+                <div class="type-definition">
+                    <div class="type-header">
+                        <h3 class="type-name">PatternType</h3>
+                        <span class="type-kind">Enum</span>
+                    </div>
+
+                    <p class="function-description">
+                        Represents different code patterns that can be detected by the AI analysis system.
+                    </p>
+
+                    <h4>Variants</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pattern</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>MapReduce</code></td>
+                                <td>Map followed by reduce operations</td>
+                            </tr>
+                            <tr>
+                                <td><code>FilterMap</code></td>
+                                <td>Filter followed by map operations</td>
+                            </tr>
+                            <tr>
+                                <td><code>RecursiveDescent</code></td>
+                                <td>Recursive function patterns</td>
+                            </tr>
+                            <tr>
+                                <td><code>NestedLoops</code></td>
+                                <td>Multiple nested loop structures</td>
+                            </tr>
+                            <tr>
+                                <td><code>ConditionalChain</code></td>
+                                <td>Long if-else chains</td>
+                            </tr>
+                            <tr>
+                                <td><code>CallbackHell</code></td>
+                                <td>Deeply nested callbacks</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">DetectedPattern</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <p class="function-description">
+                        Information about a detected pattern in the code.
+                    </p>
+
+                    <h4>Fields</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>pattern_type</code></td>
+                                <td><code>PatternType</code></td>
+                                <td>The type of pattern detected</td>
+                            </tr>
+                            <tr>
+                                <td><code>confidence</code></td>
+                                <td><code>f32</code></td>
+                                <td>Confidence score (0.0 - 1.0)</td>
+                            </tr>
+                            <tr>
+                                <td><code>node_ids</code></td>
+                                <td><code>Vec&lt;NodeId&gt;</code></td>
+                                <td>AST nodes involved in the pattern</td>
+                            </tr>
+                            <tr>
+                                <td><code>suggestion</code></td>
+                                <td><code>Option&lt;String&gt;</code></td>
+                                <td>Optimization suggestion if applicable</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Optimization Hints -->
+            <section class="api-section" id="ai-optimization">
+                <h2>Optimization Hints</h2>
+
+                <div class="type-definition">
+                    <div class="type-header">
+                        <h3 class="type-name">OptimizationType</h3>
+                        <span class="type-kind">Enum</span>
+                    </div>
+
+                    <p class="function-description">
+                        Types of optimizations that can be suggested by the AI analysis.
+                    </p>
+
+                    <h4>Variants</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Optimization</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>ConstantFolding</code></td>
+                                <td>Evaluate constant expressions at compile time</td>
+                            </tr>
+                            <tr>
+                                <td><code>CommonSubexpression</code></td>
+                                <td>Eliminate duplicate computations</td>
+                            </tr>
+                            <tr>
+                                <td><code>TailRecursion</code></td>
+                                <td>Convert tail recursion to iteration</td>
+                            </tr>
+                            <tr>
+                                <td><code>DeadCodeElimination</code></td>
+                                <td>Remove unreachable code</td>
+                            </tr>
+                            <tr>
+                                <td><code>LoopFusion</code></td>
+                                <td>Combine adjacent loops</td>
+                            </tr>
+                            <tr>
+                                <td><code>LoopUnrolling</code></td>
+                                <td>Unroll small loops for performance</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">OptimizationHint</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <p class="function-description">
+                        Detailed information about a suggested optimization.
+                    </p>
+
+                    <h4>Fields</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>optimization_type</code></td>
+                                <td><code>OptimizationType</code></td>
+                                <td>Type of optimization</td>
+                            </tr>
+                            <tr>
+                                <td><code>impact</code></td>
+                                <td><code>f32</code></td>
+                                <td>Estimated performance impact (0.0 - 1.0)</td>
+                            </tr>
+                            <tr>
+                                <td><code>node_id</code></td>
+                                <td><code>NodeId</code></td>
+                                <td>Target node for optimization</td>
+                            </tr>
+                            <tr>
+                                <td><code>description</code></td>
+                                <td><code>String</code></td>
+                                <td>Human-readable description</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h4>Example</h4>
+                    <div class="code-example">
+                        <pre><code>// Apply optimization hints
+for hint in analysis.optimization_hints {
+    match hint.optimization_type {
+        OptimizationType::ConstantFolding => {
+            // Apply constant folding optimization
+            optimizer.fold_constants(hint.node_id);
+        },
+        OptimizationType::TailRecursion => {
+            // Convert to iterative form
+            optimizer.optimize_tail_recursion(hint.node_id);
+        },
+        _ => {
+            // Log other optimizations for manual review
+            $(f"Suggested: {hint.description}").print();
+        }
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Metadata Injection -->
+            <section class="api-section" id="ai-metadata">
+                <h2>Metadata Injection</h2>
+
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">MetadataInjector</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-effect">Effect: Mutation</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>MetadataInjector::new(config: InjectorConfig) -> Self</code>
+                    </div>
+
+                    <p class="function-description">
+                        Injects AI analysis results back into the AST metadata for use during compilation.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Configuration</h4>
+                        <div class="code-example">
+                            <pre><code>let config = InjectorConfig {
+    inject_optimizations: true,  // Add optimization hints
+    inject_patterns: true,       // Add pattern information
+    inject_embeddings: false,    // Add node embeddings
+    metadata_prefix: "ai-",      // Prefix for metadata tags
+};</code></pre>
+                        </div>
+
+                        <h4>Methods</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>inject(&self, graph: &mut Graph, analysis: &AiAnalysisResult)</code></td>
+                                    <td>Inject analysis results into AST metadata</td>
+                                </tr>
+                                <tr>
+                                    <td><code>extract(&self, graph: &Graph) -> Option&lt;AiAnalysisResult&gt;</code></td>
+                                    <td>Extract previously injected metadata</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>// Inject AI metadata into AST
+let injector = MetadataInjector::new(InjectorConfig {
+    inject_optimizations: true,
+    inject_patterns: true,
+    inject_embeddings: false,
+    metadata_prefix: "ai-",
+});
+
+// Perform analysis
+let analysis = analyze_ast(&graph)?;
+
+// Inject results
+injector.inject(&mut graph, &analysis)?;
+
+// Later in compilation pipeline...
+// Metadata is available in node.metadata.context_memory</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="api-function">
+                    <div class="function-header">
+                        <h3 class="function-name">NodeMetadata.feature_vector</h3>
+                        <div class="function-tags">
+                            <span class="tag tag-pure">Pure</span>
+                        </div>
+                    </div>
+
+                    <div class="function-signature">
+                        <code>NodeMetadata::feature_vector(&self) -> Vec&lt;f32&gt;</code>
+                    </div>
+
+                    <p class="function-description">
+                        Extracts ML-ready features directly from AST node metadata. Available when the <code>ai-analysis</code> feature is enabled.
+                    </p>
+
+                    <div class="function-details">
+                        <h4>Feature Components</h4>
+                        <ul>
+                            <li>Node type encoding</li>
+                            <li>Purity analysis results</li>
+                            <li>Type information hash</li>
+                            <li>Usage statistics</li>
+                            <li>Performance hints</li>
+                            <li>Context memory features</li>
+                        </ul>
+
+                        <h4>Example</h4>
+                        <div class="code-example">
+                            <pre><code>// Extract features from AST nodes
+#[cfg(feature = "ai-analysis")]
+{
+    let features = node.metadata.feature_vector();
+    // Features are normalized to [0, 1] range
+    // Suitable for direct use in ML models
+    
+    // Use with tensor builder
+    let tensor = TensorBuilder::new()
+        .normalize(true)
+        .build_from_graph(&graph)?;
+}</code></pre>
                         </div>
                     </div>
                 </div>

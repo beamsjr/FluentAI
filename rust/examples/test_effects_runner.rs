@@ -1,0 +1,46 @@
+use fluentai_parser::parse_flc;
+use fluentai_vm::{VM, Compiler};
+
+fn main() {
+    println!("=== Testing Effect Support ===");
+    
+    let source = include_str!("test_effects.flc");
+    
+    // Enable debug output
+    std::env::set_var("VM_DEBUG", "1");
+    
+    // Parse
+    let graph = match parse_flc(source) {
+        Ok(g) => g,
+        Err(e) => {
+            eprintln!("Parse error: {:?}", e);
+            return;
+        }
+    };
+    
+    println!("AST nodes: {}", graph.nodes.len());
+    
+    // Compile
+    let compiler = Compiler::new();
+    let bytecode = match compiler.compile(&graph) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("Compile error: {:?}", e);
+            return;
+        }
+    };
+    
+    println!("Bytecode chunks: {}", bytecode.chunks.len());
+    
+    // Run
+    let mut vm = VM::new(bytecode);
+    match vm.run() {
+        Ok(result) => {
+            println!("\n✅ Execution succeeded");
+            println!("Result: {:?}", result);
+        }
+        Err(e) => {
+            println!("\n❌ Runtime error: {:?}", e);
+        }
+    }
+}

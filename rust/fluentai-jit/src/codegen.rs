@@ -309,71 +309,184 @@ pub fn build_function(
                 value_stack.push(jit_val);
             }
 
+            // --- Global Variable Operations ---
+            Opcode::LoadGlobal => {
+                // For now, push a placeholder value
+                // In a real implementation, we'd look up the global from a registry
+                // LoadGlobal test from issue with negation parser - needs proper implementation
+                let nil_val = value_to_tagged(&ClValue::Nil);
+                let jit_val = JitValue {
+                    val: builder.ins().iconst(types::I64, nil_val.0 as i64),
+                    ty: types::I64,
+                };
+                value_stack.push(jit_val);
+            }
+
             // --- Arithmetic Operations ---
             Opcode::Add => {
                 let r = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 let l = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                // For now, assume both values are tagged integers
-                // TODO: Add runtime type checking and support for other types
-                let l_int = l.untag_int(&mut builder);
-                let r_int = r.untag_int(&mut builder);
-                let sum = builder.ins().iadd(l_int, r_int);
-                let result = JitValue::make_tagged_int(&mut builder, sum);
-                value_stack.push(result);
+                // Import the runtime function for type-checked addition
+                let add_func = module.declare_function(
+                    "jit_runtime_add_typed",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let add_func_ref = module.declare_func_in_func(add_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(add_func_ref, &[l.val, r.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
+                    ty: types::I64,
+                });
             }
 
             Opcode::Sub => {
                 let r = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 let l = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                // For now, assume both values are tagged integers
-                let l_int = l.untag_int(&mut builder);
-                let r_int = r.untag_int(&mut builder);
-                let diff = builder.ins().isub(l_int, r_int);
-                let result = JitValue::make_tagged_int(&mut builder, diff);
-                value_stack.push(result);
+                // Import the runtime function for type-checked subtraction
+                let sub_func = module.declare_function(
+                    "jit_runtime_sub_typed",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let sub_func_ref = module.declare_func_in_func(sub_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(sub_func_ref, &[l.val, r.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
+                    ty: types::I64,
+                });
             }
             
             Opcode::Mul => {
                 let r = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 let l = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                let l_int = l.untag_int(&mut builder);
-                let r_int = r.untag_int(&mut builder);
-                let product = builder.ins().imul(l_int, r_int);
-                let result = JitValue::make_tagged_int(&mut builder, product);
-                value_stack.push(result);
+                // Import the runtime function for type-checked multiplication
+                let mul_func = module.declare_function(
+                    "jit_runtime_mul_typed",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let mul_func_ref = module.declare_func_in_func(mul_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(mul_func_ref, &[l.val, r.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
+                    ty: types::I64,
+                });
             }
             
             Opcode::Div => {
                 let r = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 let l = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                let l_int = l.untag_int(&mut builder);
-                let r_int = r.untag_int(&mut builder);
-                let quotient = builder.ins().sdiv(l_int, r_int);
-                let result = JitValue::make_tagged_int(&mut builder, quotient);
-                value_stack.push(result);
+                // Import the runtime function for type-checked division
+                let div_func = module.declare_function(
+                    "jit_runtime_div_typed",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let div_func_ref = module.declare_func_in_func(div_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(div_func_ref, &[l.val, r.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
+                    ty: types::I64,
+                });
             }
             
             Opcode::Mod => {
                 let r = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 let l = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                let l_int = l.untag_int(&mut builder);
-                let r_int = r.untag_int(&mut builder);
-                let remainder = builder.ins().srem(l_int, r_int);
-                let result = JitValue::make_tagged_int(&mut builder, remainder);
-                value_stack.push(result);
+                // Import the runtime function for type-checked modulo
+                let mod_func = module.declare_function(
+                    "jit_runtime_mod_typed",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let mod_func_ref = module.declare_func_in_func(mod_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(mod_func_ref, &[l.val, r.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
+                    ty: types::I64,
+                });
             }
             
             Opcode::Neg => {
                 let val = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
-                let int_val = val.untag_int(&mut builder);
-                let negated = builder.ins().ineg(int_val);
-                let result = JitValue::make_tagged_int(&mut builder, negated);
-                value_stack.push(result);
+                
+                // Import the runtime function for type-checked negation
+                let neg_func = module.declare_function(
+                    "jit_runtime_neg_typed",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64));
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let neg_func_ref = module.declare_func_in_func(neg_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(neg_func_ref, &[val.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
+                    ty: types::I64,
+                });
             }
             
             // --- Comparison Operations ---
@@ -522,10 +635,10 @@ pub fn build_function(
 
             Opcode::Return => {
                 let result = value_stack.pop().unwrap_or({
-                    // Return tagged nil if stack is empty
-                    let nil_tagged = TaggedValue::from_integer(0); // Using 0 as nil for now
+                    // Return properly tagged nil if stack is empty
+                    let nil_val = value_to_tagged(&ClValue::Nil);
                     JitValue {
-                        val: builder.ins().iconst(types::I64, nil_tagged.0 as i64),
+                        val: builder.ins().iconst(types::I64, nil_val.0 as i64),
                         ty: types::I64,
                     }
                 });
@@ -535,23 +648,65 @@ pub fn build_function(
             
             // --- Function Calls ---
             Opcode::Call => {
-                // For now, implement a simplified version that just returns a dummy value
-                // Full implementation with runtime dispatch is complex and needs more infrastructure
                 let arg_count = instruction.arg as usize;
                 
                 // Pop the function value
-                let _func_val = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow for function"))?;
+                let func_val = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow for function"))?;
                 
-                // Pop arguments
+                // Pop arguments into a vector (in reverse order)
+                let mut args = Vec::with_capacity(arg_count);
                 for _ in 0..arg_count {
-                    value_stack.pop().ok_or_else(|| anyhow!("Stack underflow for argument"))?;
+                    args.push(value_stack.pop().ok_or_else(|| anyhow!("Stack underflow for argument"))?);
                 }
+                args.reverse(); // Restore correct argument order
                 
-                // For now, just push a dummy result
-                // TODO: Implement proper function call dispatch
-                let dummy_result = TaggedValue::from_integer(42);
+                // Import the runtime call function
+                let call_func = module.declare_function(
+                    "jit_runtime_call",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // function value
+                        sig.params.push(AbiParam::new(types::I64)); // arg count
+                        sig.params.push(AbiParam::new(module.target_config().pointer_type())); // args pointer
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let call_func_ref = module.declare_func_in_func(call_func, builder.func);
+                
+                // Allocate stack space for arguments if needed
+                let result = if arg_count > 0 {
+                    // Create a stack slot for the arguments array
+                    let args_size = (arg_count * 8) as u32; // 8 bytes per i64
+                    let args_slot = builder.create_sized_stack_slot(StackSlotData::new(StackSlotKind::ExplicitSlot, args_size));
+                    
+                    // Store arguments in the stack slot
+                    for (i, arg) in args.iter().enumerate() {
+                        let offset = (i * 8) as i32;
+                        builder.ins().stack_store(arg.val, args_slot, offset);
+                    }
+                    
+                    // Get pointer to the stack slot
+                    let args_ptr = builder.ins().stack_addr(module.target_config().pointer_type(), args_slot, 0);
+                    let arg_count_val = builder.ins().iconst(types::I64, arg_count as i64);
+                    
+                    // Call the runtime function
+                    let call = builder.ins().call(call_func_ref, &[func_val.val, arg_count_val, args_ptr]);
+                    builder.inst_results(call)[0]
+                } else {
+                    // No arguments - pass null pointer
+                    let null_ptr = builder.ins().iconst(module.target_config().pointer_type(), 0);
+                    let arg_count_val = builder.ins().iconst(types::I64, 0);
+                    
+                    // Call the runtime function
+                    let call = builder.ins().call(call_func_ref, &[func_val.val, arg_count_val, null_ptr]);
+                    builder.inst_results(call)[0]
+                };
+                
+                // Push the result
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, dummy_result.0 as i64),
+                    val: result,
                     ty: types::I64,
                 });
             }
@@ -577,21 +732,62 @@ pub fn build_function(
                 let chunk_id = (instruction.arg >> 16) as usize;
                 let capture_count = (instruction.arg & 0xFFFF) as usize;
                 
-                // Pop captured values
+                // Pop captured values into a vector
                 let mut captures = Vec::with_capacity(capture_count);
                 for _ in 0..capture_count {
                     captures.push(value_stack.pop().ok_or_else(|| anyhow!("Stack underflow for capture"))?);
                 }
-                captures.reverse();
+                captures.reverse(); // Restore correct order
                 
-                // For now, create a tagged value representing the closure
-                // In a real implementation, we'd allocate a closure object on the heap
-                // containing the chunk_id and captured environment
+                // Import the runtime closure creation function
+                let make_closure_func = module.declare_function(
+                    "jit_runtime_make_closure",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // chunk_id
+                        sig.params.push(AbiParam::new(types::I64)); // capture_count
+                        sig.params.push(AbiParam::new(types::I64)); // captures_ptr
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let make_closure_ref = module.declare_func_in_func(make_closure_func, builder.func);
                 
-                // Use chunk_id as a simple closure identifier for now
-                let closure_tag = TaggedValue::from_integer(chunk_id as i64);
+                // Allocate stack space for captures
+                let stack_slot = if capture_count > 0 {
+                    let slot_size = (capture_count * 8) as u32; // 8 bytes per i64
+                    let slot = builder.create_sized_stack_slot(StackSlotData::new(
+                        StackSlotKind::ExplicitSlot,
+                        slot_size,
+                    ));
+                    
+                    // Store captures to stack
+                    for (i, capture) in captures.iter().enumerate() {
+                        let offset = (i * 8) as i32;
+                        builder.ins().stack_store(capture.val, slot, offset);
+                    }
+                    
+                    Some(slot)
+                } else {
+                    None
+                };
+                
+                // Get pointer to captures (or null if no captures)
+                let captures_ptr = if let Some(slot) = stack_slot {
+                    builder.ins().stack_addr(types::I64, slot, 0)
+                } else {
+                    builder.ins().iconst(types::I64, 0)
+                };
+                
+                // Call runtime function
+                let chunk_id_val = builder.ins().iconst(types::I64, chunk_id as i64);
+                let capture_count_val = builder.ins().iconst(types::I64, capture_count as i64);
+                let call = builder.ins().call(make_closure_ref, &[chunk_id_val, capture_count_val, captures_ptr]);
+                let closure_val = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, closure_tag.0 as i64),
+                    val: closure_val,
                     ty: types::I64,
                 });
             }
@@ -599,13 +795,46 @@ pub fn build_function(
             Opcode::LoadCaptured => {
                 // Load a value from the captured environment
                 // instruction.arg is the index into the captured environment
-                let _index = instruction.arg as usize;
+                let index = instruction.arg as usize;
                 
-                // For now, just push a dummy value
-                // In a real implementation, we'd load from the closure's environment
-                let dummy = TaggedValue::from_integer(0);
+                // We need to get the current closure from somewhere
+                // For now, we'll assume it's in a special local variable (local 0)
+                // In a real implementation, this would be passed as a parameter or stored in a register
+                let closure_val = if let Some(&var) = locals.get(&0) {
+                    builder.use_var(var)
+                } else {
+                    // If no closure is available, return an error
+                    let error_msg = "LoadCaptured called without active closure";
+                    let error = ClValue::Error {
+                        kind: "RuntimeError".to_string(),
+                        message: error_msg.to_string(),
+                        stack_trace: None,
+                    };
+                    let error_tagged = value_to_tagged(&error);
+                    builder.ins().iconst(types::I64, error_tagged.0 as i64)
+                };
+                
+                // Import the runtime function
+                let load_captured_func = module.declare_function(
+                    "jit_runtime_closure_get_env",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // closure
+                        sig.params.push(AbiParam::new(types::I64)); // index
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let load_captured_ref = module.declare_func_in_func(load_captured_func, builder.func);
+                
+                // Call runtime function
+                let index_val = builder.ins().iconst(types::I64, index as i64);
+                let call = builder.ins().call(load_captured_ref, &[closure_val, index_val]);
+                let captured_val = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, dummy.0 as i64),
+                    val: captured_val,
                     ty: types::I64,
                 });
             }
@@ -729,85 +958,285 @@ pub fn build_function(
                 }
                 items.reverse();
                 
-                // For now, create a dummy list value
-                // In a real implementation, we'd allocate a list on the heap
-                let list_id = items.len() as i64; // Use length as a simple ID
-                let list_val = TaggedValue::from_integer(list_id);
+                // Import the runtime list creation function
+                let make_list_func = module.declare_function(
+                    "jit_runtime_make_list",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // count
+                        sig.params.push(AbiParam::new(types::I64)); // items_ptr
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let make_list_ref = module.declare_func_in_func(make_list_func, builder.func);
+                
+                // Allocate stack space for items
+                let stack_slot = if count > 0 {
+                    let slot_size = (count * 8) as u32; // 8 bytes per i64
+                    let slot = builder.create_sized_stack_slot(StackSlotData::new(
+                        StackSlotKind::ExplicitSlot,
+                        slot_size,
+                    ));
+                    
+                    // Store items to stack
+                    for (i, item) in items.iter().enumerate() {
+                        let offset = (i * 8) as i32;
+                        builder.ins().stack_store(item.val, slot, offset);
+                    }
+                    
+                    Some(slot)
+                } else {
+                    None
+                };
+                
+                // Get pointer to items (or null if no items)
+                let items_ptr = if let Some(slot) = stack_slot {
+                    builder.ins().stack_addr(types::I64, slot, 0)
+                } else {
+                    builder.ins().iconst(types::I64, 0)
+                };
+                
+                // Call runtime function
+                let count_val = builder.ins().iconst(types::I64, count as i64);
+                let call = builder.ins().call(make_list_ref, &[count_val, items_ptr]);
+                let list_val = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, list_val.0 as i64),
+                    val: list_val,
                     ty: types::I64,
                 });
             }
             
             Opcode::ListHead => {
                 // Get the first element of a list
-                let _list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                // For now, return a dummy value
-                // In a real implementation, we'd call a runtime function
-                let dummy = TaggedValue::from_integer(0);
+                // Import the runtime function
+                let head_func = module.declare_function(
+                    "jit_runtime_list_head",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // list
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let head_func_ref = module.declare_func_in_func(head_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(head_func_ref, &[list.val]);
+                let result = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, dummy.0 as i64),
+                    val: result,
                     ty: types::I64,
                 });
             }
             
             Opcode::ListTail => {
                 // Get all elements except the first
-                let _list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                // For now, return a dummy list
-                let dummy = TaggedValue::from_integer(0);
+                // Import the runtime function
+                let tail_func = module.declare_function(
+                    "jit_runtime_list_tail",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // list
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let tail_func_ref = module.declare_func_in_func(tail_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(tail_func_ref, &[list.val]);
+                let result = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, dummy.0 as i64),
+                    val: result,
                     ty: types::I64,
                 });
             }
             
             Opcode::ListCons => {
                 // Prepend an element to a list
-                let _list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
-                let _elem = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                // Stack order: [head, list] with list on top
+                let list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let head = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                // For now, return a dummy list
-                let dummy = TaggedValue::from_integer(1);
+                // Import the runtime function
+                let cons_func = module.declare_function(
+                    "jit_runtime_list_cons",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // element
+                        sig.params.push(AbiParam::new(types::I64)); // list
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let cons_func_ref = module.declare_func_in_func(cons_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(cons_func_ref, &[head.val, list.val]);
+                let result = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, dummy.0 as i64),
+                    val: result,
                     ty: types::I64,
                 });
             }
             
             Opcode::ListLen => {
                 // Get the length of a list
-                let _list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                // For now, return a dummy length
-                let dummy_len = TaggedValue::from_integer(0);
+                // Import the runtime function
+                let len_func = module.declare_function(
+                    "jit_runtime_list_len",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // list
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let len_func_ref = module.declare_func_in_func(len_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(len_func_ref, &[list.val]);
+                let result = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, dummy_len.0 as i64),
+                    val: result,
                     ty: types::I64,
                 });
             }
             
             Opcode::ListEmpty => {
                 // Check if a list is empty
-                let _list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let list = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
                 
-                // For now, return true (1)
-                let true_val = TaggedValue::from_integer(1);
+                // Import the runtime function
+                let empty_func = module.declare_function(
+                    "jit_runtime_list_empty",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // list
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let empty_func_ref = module.declare_func_in_func(empty_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(empty_func_ref, &[list.val]);
+                let result = builder.inst_results(call)[0];
+                
                 value_stack.push(JitValue {
-                    val: builder.ins().iconst(types::I64, true_val.0 as i64),
+                    val: result,
+                    ty: types::I64,
+                });
+            }
+            
+            // --- Channel Operations ---
+            Opcode::Channel | Opcode::MakeChannel => {
+                // Create a new channel
+                // Import the runtime function
+                let make_channel_func = module.declare_function(
+                    "jit_runtime_make_channel",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let make_channel_func_ref = module.declare_func_in_func(make_channel_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(make_channel_func_ref, &[]);
+                let channel = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: channel,
+                    ty: types::I64,
+                });
+            }
+            
+            Opcode::Send => {
+                // Send a value to a channel
+                // Stack: [channel, value] with value on top
+                let value = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                let channel = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                
+                // Import the runtime function
+                let send_func = module.declare_function(
+                    "jit_runtime_channel_send",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // channel
+                        sig.params.push(AbiParam::new(types::I64)); // value
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let send_func_ref = module.declare_func_in_func(send_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(send_func_ref, &[channel.val, value.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
+                    ty: types::I64,
+                });
+            }
+            
+            Opcode::Receive => {
+                // Receive a value from a channel
+                let channel = value_stack.pop().ok_or_else(|| anyhow!("Stack underflow"))?;
+                
+                // Import the runtime function
+                let recv_func = module.declare_function(
+                    "jit_runtime_channel_recv",
+                    cranelift_module::Linkage::Import,
+                    &{
+                        let mut sig = module.make_signature();
+                        sig.params.push(AbiParam::new(types::I64)); // channel
+                        sig.returns.push(AbiParam::new(types::I64));
+                        sig
+                    }
+                )?;
+                let recv_func_ref = module.declare_func_in_func(recv_func, builder.func);
+                
+                // Call the runtime function
+                let call = builder.ins().call(recv_func_ref, &[channel.val]);
+                let result = builder.inst_results(call)[0];
+                
+                value_stack.push(JitValue {
+                    val: result,
                     ty: types::I64,
                 });
             }
             
             // --- Halt and Unimplemented Opcodes ---
             Opcode::Halt => {
-                // Return the value on top of the stack, or 0 if empty
+                // Return the value on top of the stack, or nil if empty
                 let result = if let Some(value) = value_stack.last() {
                     value.val
                 } else {
-                    builder.ins().iconst(types::I64, 0)
+                    let nil_val = value_to_tagged(&ClValue::Nil);
+                    builder.ins().iconst(types::I64, nil_val.0 as i64)
                 };
                 builder.ins().return_(&[result]);
                 block_terminated = true;
@@ -826,7 +1255,9 @@ pub fn build_function(
          let result = if let Some(value) = value_stack.pop() {
             value.val
         } else {
-            builder.ins().iconst(types::I64, 0) // Default return
+            // Default return is nil
+            let nil_val = value_to_tagged(&ClValue::Nil);
+            builder.ins().iconst(types::I64, nil_val.0 as i64)
         };
         builder.ins().return_(&[result]);
     }

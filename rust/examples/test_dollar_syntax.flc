@@ -1,0 +1,14 @@
+// Test the $() syntax for printing
+// This should work with the Printable builtin
+
+// Test with simple string
+$("Hello from dollar syntax!").print()
+
+// Test with formatted string
+private function test_format() {
+    let name = "FluentAI";
+    let version = 1;
+    $(f"Testing {name} version {version}").print()
+}
+
+test_format()

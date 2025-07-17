@@ -148,6 +148,11 @@ impl UnboxedValue {
                 // Convert errors to string representation
                 UnboxedValue::Boxed(Box::new(BoxedValue::String(format!("<error: {}>", message))))
             }
+            Value::Set(items) => {
+                // Convert sets to lists in unboxed representation
+                let unboxed_items = items.into_iter().map(UnboxedValue::from_value).collect();
+                UnboxedValue::Boxed(Box::new(BoxedValue::List(unboxed_items)))
+            }
         }
     }
 

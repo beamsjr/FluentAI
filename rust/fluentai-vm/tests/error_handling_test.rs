@@ -17,6 +17,7 @@ fn compile_and_run(source: &str) -> Result<Value> {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: true,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph)?;

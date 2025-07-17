@@ -1,6 +1,7 @@
 //! Optimization pipeline management
 
 use crate::advanced_optimizer::AdvancedOptimizer;
+use crate::ai_driven::OptimizationSource;
 use crate::graph_optimizer::GraphOptimizer;
 use crate::passes::OptimizationPass;
 use crate::stats::OptimizationStats;
@@ -8,18 +9,12 @@ use anyhow::Result;
 use fluentai_core::ast::Graph;
 use std::time::Instant;
 
+#[cfg(feature = "ai-analysis")]
+use crate::ai_driven::{ai_hints_to_optimization_config, hybrid_optimization_config};
+
 /// Optimization level
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OptimizationLevel {
-    /// No optimizations
-    None,
-    /// Basic optimizations (O1)
-    Basic,
-    /// Standard optimizations (O2)
-    Standard,
-    /// Aggressive optimizations (O3)
-    Aggressive,
-}
+// Use the core OptimizationLevel
+pub use fluentai_core::traits::OptimizationLevel;
 
 /// Optimization configuration
 #[derive(Debug, Clone)]
@@ -164,6 +159,33 @@ impl OptimizationPipeline {
         pipeline.configure_passes();
 
         pipeline
+    }
+    
+    /// Create pipeline from optimization source
+    pub fn from_source(source: OptimizationSource, graph: &Graph) -> Result<Self> {
+        let config = match source {
+            OptimizationSource::Manual(level) => OptimizationConfig::for_level(level),
+            #[cfg(feature = "ai-analysis")]
+            OptimizationSource::AIHints => {
+                // For now, return a reasonable default when AI hints are requested
+                // The actual AI integration happens at a higher level to avoid circular deps
+                OptimizationConfig::for_level(OptimizationLevel::Standard)
+            }
+            #[cfg(feature = "ai-analysis")]
+            OptimizationSource::Hybrid(base_level) => {
+                // For now, just use the base level
+                // The actual AI integration happens at a higher level to avoid circular deps
+                OptimizationConfig::for_level(base_level)
+            }
+            #[cfg(all(feature = "ai-analysis", feature = "rl"))]
+            OptimizationSource::ReinforcementLearning => {
+                // For now, return a reasonable default
+                // The actual RL integration happens at a higher level to avoid circular deps
+                OptimizationConfig::for_level(OptimizationLevel::Standard)
+            }
+        };
+        
+        Ok(Self::new(config))
     }
 
     /// Configure passes based on config

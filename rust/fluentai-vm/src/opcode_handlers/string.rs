@@ -29,15 +29,43 @@ impl OpcodeHandler for StringHandler {
                 }
             }
             
-            StrConcat => vm.binary_op(|a, b| match (a, b) {
-                (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
-                (a, b) => Err(VMError::TypeError {
-                    operation: "str_concat".to_string(),
-                    expected: "string".to_string(),
-                    got: format!("{} and {}", value_type_name(&a), value_type_name(&b)),
-                    location: None,
-                    stack_trace: None,
-                }),
+            StrConcat => vm.binary_op(|a, b| {
+                // Convert both values to strings for concatenation
+                let str_a = match a {
+                    Value::String(s) => s,
+                    Value::Integer(i) => i.to_string(),
+                    Value::Float(f) => f.to_string(),
+                    Value::Boolean(b) => b.to_string(),
+                    Value::Nil => "nil".to_string(),
+                    _ => {
+                        return Err(VMError::TypeError {
+                            operation: "str_concat".to_string(),
+                            expected: "string or convertible value".to_string(),
+                            got: value_type_name(&a).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        });
+                    }
+                };
+                
+                let str_b = match b {
+                    Value::String(s) => s,
+                    Value::Integer(i) => i.to_string(),
+                    Value::Float(f) => f.to_string(),
+                    Value::Boolean(b) => b.to_string(),
+                    Value::Nil => "nil".to_string(),
+                    _ => {
+                        return Err(VMError::TypeError {
+                            operation: "str_concat".to_string(),
+                            expected: "string or convertible value".to_string(),
+                            got: value_type_name(&b).to_string(),
+                            location: None,
+                            stack_trace: None,
+                        });
+                    }
+                };
+                
+                Ok(Value::String(str_a + &str_b))
             })?,
             
             StrUpper => {

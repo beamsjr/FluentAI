@@ -1,0 +1,74 @@
+// Test effect support
+
+// Test IO.print and IO.println
+private function test_io_effects() {
+    perform IO.print("Hello");
+    perform IO.print(" ");
+    perform IO.println("World!");
+    perform IO.println("This should be on a new line");
+}
+
+// Test Time.now()
+private function test_time_effects() {
+    let start_time = perform Time.now();
+    perform IO.println(f"Current time: {start_time}");
+    
+    // Do some work
+    let sum = 0;
+    for i in [1, 2, 3, 4, 5] {
+        sum = sum + i;
+    }
+    
+    let end_time = perform Time.now();
+    let duration = end_time - start_time;
+    perform IO.println(f"Duration: {duration}ms");
+}
+
+// Test Random effects
+private function test_random_effects() {
+    let random_int = perform Random.int(1, 100);
+    perform IO.println(f"Random integer (1-100): {random_int}");
+    
+    let random_float = perform Random.float();
+    perform IO.println(f"Random float (0-1): {random_float}");
+}
+
+// Test State effects
+private function test_state_effects() {
+    perform State.set("counter", 0);
+    
+    for i in [1, 2, 3] {
+        let current = perform State.get("counter");
+        perform State.set("counter", current + i);
+        perform IO.println(f"Counter after adding {i}: {current + i}");
+    }
+    
+    let final_count = perform State.get("counter");
+    perform IO.println(f"Final counter: {final_count}");
+}
+
+// Main function
+private function main() {
+    perform IO.println("=== Testing Effect Support ===");
+    perform IO.println("");
+    
+    perform IO.println("1. Testing IO effects:");
+    test_io_effects();
+    perform IO.println("");
+    
+    perform IO.println("2. Testing Time effects:");
+    test_time_effects();
+    perform IO.println("");
+    
+    perform IO.println("3. Testing Random effects:");
+    test_random_effects();
+    perform IO.println("");
+    
+    perform IO.println("4. Testing State effects:");
+    test_state_effects();
+    perform IO.println("");
+    
+    perform IO.println("=== All tests complete ===");
+}
+
+main()

@@ -168,6 +168,15 @@ pub fn serialize_value(value: &Value) -> String {
         Value::NativeFunction { name, .. } => format!("<native-function:{}>", name),
         Value::Actor(id) => format!("<actor:{}>", id),
         Value::Error { kind, message, .. } => format!("<error:{}:{}>", kind, message),
+        Value::Set(items) => {
+            let items_str: Vec<String> = items
+                .iter()
+                .take(5)
+                .map(serialize_value)
+                .collect();
+            let suffix = if items.len() > 5 { ", ..." } else { "" };
+            format!("#{{{}{}}}", items_str.join(", "), suffix)
+        }
     }
 }
 

@@ -345,6 +345,7 @@ pub extern "C" fn jit_runtime_type_name(value_tagged: i64) -> i64 {
         Value::Procedure(_) => "procedure",
         Value::Future { .. } => "future",
         Value::Actor(_) => "actor",
+        Value::Set(_) => "set",
     };
     
     let name_value = Value::String(type_name.to_string());

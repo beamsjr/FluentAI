@@ -2376,4 +2376,205 @@ mod tests {
             let _ = node.get_node_docs();
         }
     }
+
+    // ===== AI Analysis Feature Tests =====
+    #[cfg(feature = "ai-analysis")]
+    mod ai_analysis_tests {
+        use super::*;
+
+        #[test]
+        fn test_basic_feature_vector() {
+            let metadata = NodeMetadata {
+                span: Some((0, 10)),
+                type_info: Some("int".to_string()),
+                is_pure: Some(true),
+                annotations: vec!["test".to_string()],
+                documentation_id: Some("doc123".to_string()),
+                context_memory: None,
+            };
+
+            let features = metadata.feature_vector();
+            assert_eq!(features.len(), 16); // Fixed size vector
+            
+            // Check basic features
+            assert_eq!(features[0], 1.0); // is_pure = true
+            assert!(features[1] > 0.0 && features[1] <= 1.0); // type hash
+            assert_eq!(features[2], 0.1); // 1 annotation / 10
+            assert!(features[3] > 0.0); // span feature
+            
+            // Context memory features should be 0 (None)
+            for i in 4..12 {
+                assert_eq!(features[i], 0.0);
+            }
+            
+            assert_eq!(features[12], 1.0); // has documentation
+        }
+
+        #[test]
+        fn test_feature_vector_with_context_memory() {
+            let context = ContextMemory {
+                embedding_id: Some(EmbeddingId(1000)),
+                usage_stats: UsageStatistics {
+                    execution_count: 100,
+                    avg_execution_time_ns: 1000,
+                    error_count: 5,
+                    is_hot_path: true,
+                },
+                rationale: Some("Performance critical".to_string()),
+                performance_hints: vec![
+                    PerformanceHint {
+                        hint_type: PerformanceHintType::ShouldInline,
+                        confidence: 0.9,
+                        context: None,
+                    },
+                    PerformanceHint {
+                        hint_type: PerformanceHintType::CanVectorize { simd_width: Some(256) },
+                        confidence: 0.8,
+                        context: None,
+                    },
+                ],
+                semantic_tags: vec!["hot".to_string(), "critical".to_string()],
+                last_modified: Some(1234567890),
+            };
+
+            let metadata = NodeMetadata {
+                span: None,
+                type_info: None,
+                is_pure: Some(false),
+                annotations: vec![],
+                documentation_id: None,
+                context_memory: Some(context),
+            };
+
+            let features = metadata.feature_vector();
+            assert_eq!(features.len(), 16);
+            
+            // Basic features
+            assert_eq!(features[0], 0.0); // is_pure = false
+            assert_eq!(features[1], 0.0); // no type info
+            assert_eq!(features[2], 0.0); // no annotations
+            assert_eq!(features[3], 0.0); // no span
+            
+            // Context memory features
+            assert!(features[4] > 0.0); // embedding ID
+            assert!(features[5] > 0.0); // execution count
+            assert!(features[6] > 0.0); // avg execution time
+            assert_eq!(features[7], 0.05); // error rate (5/100)
+            assert_eq!(features[8], 1.0); // is_hot_path
+            assert_eq!(features[9], 0.85); // avg confidence (0.9 + 0.8) / 2
+            assert_eq!(features[10], 0.4); // 2 semantic tags / 5
+            assert_eq!(features[11], 1.0); // has rationale
+            
+            assert_eq!(features[12], 0.0); // no documentation
+        }
+
+        #[test]
+        fn test_feature_normalization() {
+            // Test with extreme values
+            let context = ContextMemory {
+                embedding_id: Some(EmbeddingId(u64::MAX)),
+                usage_stats: UsageStatistics {
+                    execution_count: u64::MAX,
+                    avg_execution_time_ns: u64::MAX,
+                    error_count: u64::MAX,
+                    is_hot_path: false,
+                },
+                rationale: None,
+                performance_hints: vec![],
+                semantic_tags: vec!["tag1".to_string(); 20], // Many tags
+                last_modified: None,
+            };
+
+            let metadata = NodeMetadata {
+                span: Some((0, 100000)), // Large span
+                type_info: Some("very_long_type_name_that_should_hash_differently".to_string()),
+                is_pure: None,
+                annotations: vec!["ann".to_string(); 20], // Many annotations
+                documentation_id: None,
+                context_memory: Some(context),
+            };
+
+            let features = metadata.feature_vector();
+            
+            // All features should be normalized between 0 and 1
+            for (i, &feature) in features.iter().enumerate() {
+                assert!(
+                    feature >= 0.0 && feature <= 1.0,
+                    "Feature {} = {} is out of range [0, 1]",
+                    i,
+                    feature
+                );
+            }
+            
+            // Error rate should be 1.0 (max)
+            assert_eq!(features[7], 1.0);
+            
+            // Annotations should be capped at 1.0
+            assert_eq!(features[2], 1.0);
+            
+            // Semantic tags should be capped at 1.0
+            assert_eq!(features[10], 1.0);
+        }
+
+        #[test]
+        fn test_empty_metadata_feature_vector() {
+            let metadata = NodeMetadata::default();
+            let features = metadata.feature_vector();
+            
+            assert_eq!(features.len(), 16);
+            
+            // Most features should be 0 for empty metadata
+            for &feature in &features[..12] {
+                assert_eq!(feature, 0.0);
+            }
+        }
+
+        #[test]
+        fn test_hash_string_to_float() {
+            // Test that different strings produce different hashes
+            let hash1 = hash_string_to_float("type1");
+            let hash2 = hash_string_to_float("type2");
+            let hash3 = hash_string_to_float("type1"); // Same as hash1
+            
+            assert_ne!(hash1, hash2);
+            assert_eq!(hash1, hash3); // Same string should produce same hash
+            
+            // All hashes should be in [0, 1]
+            assert!(hash1 >= 0.0 && hash1 <= 1.0);
+            assert!(hash2 >= 0.0 && hash2 <= 1.0);
+        }
+
+        #[test]
+        fn test_performance_hints_aggregation() {
+            let context = ContextMemory {
+                embedding_id: None,
+                usage_stats: UsageStatistics::default(),
+                rationale: None,
+                performance_hints: vec![
+                    PerformanceHint {
+                        hint_type: PerformanceHintType::ShouldInline,
+                        confidence: 1.0,
+                        context: None,
+                    },
+                    PerformanceHint {
+                        hint_type: PerformanceHintType::ShouldMemoize { max_cache_size: Some(100) },
+                        confidence: 0.5,
+                        context: None,
+                    },
+                    PerformanceHint {
+                        hint_type: PerformanceHintType::Custom("test".to_string()),
+                        confidence: 0.0,
+                        context: None,
+                    },
+                ],
+                semantic_tags: vec![],
+                last_modified: None,
+            };
+
+            let features = context.extract_features();
+            
+            // Performance hints feature should be average confidence
+            assert_eq!(features[5], 0.5); // (1.0 + 0.5 + 0.0) / 3
+        }
+    }
 }

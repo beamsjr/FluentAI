@@ -1,0 +1,17 @@
+// Simple State test without let bindings
+
+private function main() {
+    perform IO.println("=== Simple State Test ===");
+    
+    // Set a value
+    perform State.set("test", 42);
+    
+    // Get and print directly
+    perform IO.println("Getting value...");
+    perform IO.print("Value: ");
+    perform IO.println(perform State.get("test"));
+    
+    perform IO.println("Done");
+}
+
+main()

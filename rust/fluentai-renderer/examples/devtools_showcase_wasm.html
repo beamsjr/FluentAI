@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluentAI Developer Tools Showcase (WASM)</title>
+    <style>
+        /* Copy all the styles from devtools_showcase.html */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        
+        /* Main canvas for rendering */
+        #render-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* Welcome overlay with mode selection */
+        .welcome-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        
+        .welcome-content {
+            max-width: 800px;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            color: #888;
+            margin-bottom: 40px;
+        }
+        
+        .mode-selection {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+        
+        .mode-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            max-width: 300px;
+        }
+        
+        .mode-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #667eea;
+            transform: translateY(-4px);
+        }
+        
+        .mode-card.recommended {
+            border-color: #667eea;
+            position: relative;
+        }
+        
+        .mode-card.recommended::before {
+            content: 'Recommended';
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .mode-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .mode-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .mode-description {
+            color: #aaa;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .wasm-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        
+        .wasm-status.available {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+        
+        .wasm-status.building {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+        }
+        
+        .info-banner {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        /* Rest of styles from original file... */
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10;
+            min-width: 300px;
+            display: none;
+        }
+        
+        /* Include all other styles from devtools_showcase.html */
+    </style>
+</head>
+<body>
+    <canvas id="render-canvas"></canvas>
+    
+    <!-- Welcome Screen with Mode Selection -->
+    <div class="welcome-overlay" id="welcome">
+        <div class="welcome-content">
+            <h1>FluentAI DevTools</h1>
+            <p class="subtitle">Interactive Developer Tools Showcase</p>
+            
+            <div class="info-banner">
+                <strong>Choose your experience:</strong><br>
+                The WASM version uses our actual FluentAI renderer compiled to WebAssembly,
+                while the JavaScript mock provides a preview of the features.
+            </div>
+            
+            <div class="mode-selection">
+                <div class="mode-card" onclick="startDemo('mock')">
+                    <div class="mode-icon">🎭</div>
+                    <div class="mode-title">JavaScript Mock</div>
+                    <div class="mode-description">
+                        Quick preview using browser Canvas API.
+                        No build required, instant start.
+                    </div>
+                    <div class="wasm-status available">Ready</div>
+                </div>
+                
+                <div class="mode-card recommended" onclick="startDemo('wasm')">
+                    <div class="mode-icon">🚀</div>
+                    <div class="mode-title">WASM Renderer</div>
+                    <div class="mode-description">
+                        Full FluentAI renderer with real DevTools,
+                        component system, and optimized rendering.
+                    </div>
+                    <div class="wasm-status building" id="wasmStatus">Checking...</div>
+                </div>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                First time? Try the JavaScript mock to see the features instantly.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Include all other UI elements from original file -->
+    <!-- Control Panel, Component Tree Panel, HUD, etc. -->
+    
+    <script type="module">
+        // Check if WASM build exists
+        async function checkWASMAvailable() {
+            try {
+                const response = await fetch('./pkg/fluentai_renderer_bg.wasm', { method: 'HEAD' });
+                const status = document.getElementById('wasmStatus');
+                if (response.ok) {
+                    status.textContent = 'Available';
+                    status.className = 'wasm-status available';
+                } else {
+                    status.textContent = 'Not Built';
+                    status.className = 'wasm-status building';
+                }
+            } catch (e) {
+                document.getElementById('wasmStatus').textContent = 'Not Built';
+            }
+        }
+        
+        checkWASMAvailable();
+        
+        // Mode selection
+        window.startDemo = async function(mode) {
+            const welcome = document.getElementById('welcome');
+            
+            if (mode === 'wasm') {
+                // Try to load WASM version
+                try {
+                    const script = document.createElement('script');
+                    script.type = 'module';
+                    script.textContent = `
+                        import { initDevTools } from './devtools_wasm_integration.js';
+                        window.initDevTools = initDevTools;
+                        initDevTools().then(() => {
+                            document.getElementById('welcome').style.display = 'none';
+                            document.getElementById('controlPanel').style.display = 'block';
+                            document.getElementById('componentPanel').style.display = 'block';
+                        });
+                    `;
+                    document.body.appendChild(script);
+                } catch (error) {
+                    alert('WASM module not found. Please build it first with:\n\nwasm-pack build --target web --out-dir examples/pkg\n\nFalling back to JavaScript mock...');
+                    loadMockVersion();
+                }
+            } else {
+                loadMockVersion();
+            }
+        };
+        
+        function loadMockVersion() {
+            // Include the mock JavaScript code from original file
+            const script = document.createElement('script');
+            script.textContent = `
+                // Copy all the JavaScript mock code from devtools_showcase.html
+                ${getMockCode()}
+            `;
+            document.body.appendChild(script);
+        }
+        
+        function getMockCode() {
+            // This would contain all the mock JavaScript from the original file
+            return `
+                // Mock implementation code here...
+                console.log('Loading JavaScript mock version...');
+                // ... rest of the mock code
+            `;
+        }
+    </script>
+</body>
+</html>

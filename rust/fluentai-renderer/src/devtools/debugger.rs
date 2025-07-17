@@ -2,6 +2,7 @@
 use std::collections::{HashMap, VecDeque};
 use crate::components::{ComponentId, ComponentEvent};
 use crate::primitives::Renderable;
+use web_time::Instant;
 
 /// UI debugger for tracking events and state
 pub struct UIDebugger {
@@ -18,7 +19,7 @@ pub struct UIDebugger {
 
 #[derive(Debug, Clone)]
 pub struct DebugEvent {
-    pub timestamp: std::time::Instant,
+    pub timestamp: Instant,
     pub event_type: String,
     pub component_id: Option<ComponentId>,
     pub data: serde_json::Value,
@@ -27,7 +28,7 @@ pub struct DebugEvent {
 
 #[derive(Debug, Clone)]
 pub struct StateSnapshot {
-    pub timestamp: std::time::Instant,
+    pub timestamp: Instant,
     pub component_states: HashMap<ComponentId, serde_json::Value>,
     pub global_state: serde_json::Value,
 }
@@ -50,7 +51,7 @@ pub enum BreakpointCondition {
 
 #[derive(Debug, Clone)]
 pub struct ConsoleMessage {
-    pub timestamp: std::time::Instant,
+    pub timestamp: Instant,
     pub level: LogLevel,
     pub message: String,
     pub source: String,
@@ -164,7 +165,7 @@ impl UIDebugger {
     /// Log a UI event
     pub fn log_ui_event(&mut self, component_id: ComponentId, event: &ComponentEvent) {
         let debug_event = DebugEvent {
-            timestamp: std::time::Instant::now(),
+            timestamp: Instant::now(),
             event_type: format!("{:?}", event),
             component_id: Some(component_id),
             data: serde_json::json!({
@@ -183,7 +184,7 @@ impl UIDebugger {
         }
         
         let snapshot = StateSnapshot {
-            timestamp: std::time::Instant::now(),
+            timestamp: Instant::now(),
             component_states,
             global_state: serde_json::json!({}), // TODO: Capture global state
         };
@@ -258,7 +259,7 @@ impl UIDebugger {
         }
         
         let console_msg = ConsoleMessage {
-            timestamp: std::time::Instant::now(),
+            timestamp: Instant::now(),
             level,
             message: message.to_string(),
             source: source.to_string(),
@@ -381,7 +382,7 @@ impl LogLevel {
 
 /// Time travel debugging support
 pub struct TimeTravelDebugger {
-    snapshots: Vec<(std::time::Instant, StateSnapshot)>,
+    snapshots: Vec<(Instant, StateSnapshot)>,
     current_index: usize,
 }
 
@@ -395,7 +396,7 @@ impl TimeTravelDebugger {
     
     /// Record a snapshot
     pub fn record(&mut self, snapshot: StateSnapshot) {
-        let timestamp = std::time::Instant::now();
+        let timestamp = Instant::now();
         
         // If we're not at the end, truncate future snapshots
         if self.current_index < self.snapshots.len() {
@@ -427,10 +428,10 @@ impl TimeTravelDebugger {
     }
     
     /// Jump to specific time
-    pub fn jump_to_time(&mut self, target: std::time::Instant) -> Option<&StateSnapshot> {
+    pub fn jump_to_time(&mut self, target: Instant) -> Option<&StateSnapshot> {
         // Find closest snapshot
         let mut closest_index = 0;
-        let mut closest_diff = std::time::Duration::MAX;
+        let mut closest_diff = web_time::Duration::MAX;
         
         for (i, (timestamp, _)) in self.snapshots.iter().enumerate() {
             let diff = if *timestamp > target {

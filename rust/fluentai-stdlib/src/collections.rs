@@ -73,6 +73,7 @@ pub fn register(registry: &mut StdlibRegistry) {
         ),
         StdlibFunction::pure("set->list", set_to_list, 1, Some(1), "Convert set to list"),
         StdlibFunction::pure("list->set", list_to_set, 1, Some(1), "Convert list to set"),
+        StdlibFunction::pure("set-size", set_size, 1, Some(1), "Get the size of a set"),
         // Map/Dictionary operations
         StdlibFunction::pure("dict-new", dict_new, 0, None, "Create a new dictionary"),
         StdlibFunction::pure(
@@ -253,158 +254,159 @@ fn list_unique(args: &[Value]) -> Result<Value> {
     }
 }
 
-// Set operations (using List as backing for now)
+// Set operations
 
 fn set_new(args: &[Value]) -> Result<Value> {
-    let items: Vec<Value> = args.to_vec();
     let mut unique = Vec::new();
-    let mut seen = FxHashSet::default();
-
-    for item in items {
-        let key = format!("{:?}", item);
-        if seen.insert(key) {
-            unique.push(item);
+    
+    for item in args {
+        if !unique.contains(item) {
+            unique.push(item.clone());
         }
     }
-
-    Ok(Value::List(unique))
+    
+    Ok(Value::Set(unique))
 }
 
 fn set_add(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::List(items) => {
+        Value::Set(items) => {
             let mut result = items.clone();
             let new_item = &args[1];
-
-            // Check if already present
-            let key = format!("{:?}", new_item);
-            let exists = items.iter().any(|item| format!("{:?}", item) == key);
-
-            if !exists {
+            
+            if !result.contains(new_item) {
                 result.push(new_item.clone());
             }
-
-            Ok(Value::List(result))
+            
+            Ok(Value::Set(result))
         }
-        _ => Err(anyhow!("set-add: expected set (list)")),
+        _ => Err(anyhow!("set-add: expected set")),
     }
 }
 
 fn set_remove(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::List(items) => {
-            let remove_key = format!("{:?}", &args[1]);
+        Value::Set(items) => {
+            let remove_item = &args[1];
             let result: Vec<Value> = items
                 .iter()
-                .filter(|item| format!("{:?}", item) != remove_key)
+                .filter(|item| *item != remove_item)
                 .cloned()
                 .collect();
-
-            Ok(Value::List(result))
+                
+            Ok(Value::Set(result))
         }
-        _ => Err(anyhow!("set-remove: expected set (list)")),
+        _ => Err(anyhow!("set-remove: expected set")),
     }
 }
 
 fn set_contains(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::List(items) => {
-            let search_key = format!("{:?}", &args[1]);
-            let exists = items.iter().any(|item| format!("{:?}", item) == search_key);
-            Ok(Value::Boolean(exists))
+        Value::Set(items) => {
+            let search_item = &args[1];
+            Ok(Value::Boolean(items.contains(search_item)))
         }
-        _ => Err(anyhow!("set-contains?: expected set (list)")),
+        _ => Err(anyhow!("set-contains?: expected set")),
     }
 }
 
 fn set_union(args: &[Value]) -> Result<Value> {
     let mut result_items = Vec::new();
-    let mut seen = FxHashSet::default();
 
     for arg in args {
         match arg {
-            Value::List(items) => {
+            Value::Set(items) => {
                 for item in items {
-                    let key = format!("{:?}", item);
-                    if seen.insert(key) {
+                    if !result_items.contains(item) {
                         result_items.push(item.clone());
                     }
                 }
             }
-            _ => return Err(anyhow!("set-union: expected sets (lists)")),
+            _ => return Err(anyhow!("set-union: expected sets")),
         }
     }
 
-    Ok(Value::List(result_items))
+    Ok(Value::Set(result_items))
 }
 
 fn set_intersection(args: &[Value]) -> Result<Value> {
     if args.is_empty() {
-        return Ok(Value::List(vec![]));
+        return Ok(Value::Set(vec![]));
     }
 
     let first_set = match &args[0] {
-        Value::List(items) => items,
-        _ => return Err(anyhow!("set-intersection: expected sets (lists)")),
+        Value::Set(items) => items,
+        _ => return Err(anyhow!("set-intersection: expected sets")),
     };
 
     let mut result = Vec::new();
 
     'outer: for item in first_set {
-        let item_key = format!("{:?}", item);
-
         // Check if item exists in all other sets
         for arg in &args[1..] {
             match arg {
-                Value::List(items) => {
-                    if !items.iter().any(|i| format!("{:?}", i) == item_key) {
+                Value::Set(items) => {
+                    if !items.contains(item) {
                         continue 'outer;
                     }
                 }
-                _ => return Err(anyhow!("set-intersection: expected sets (lists)")),
+                _ => return Err(anyhow!("set-intersection: expected sets")),
             }
         }
 
         result.push(item.clone());
     }
 
-    Ok(Value::List(result))
+    Ok(Value::Set(result))
 }
 
 fn set_difference(args: &[Value]) -> Result<Value> {
     let first_set = match &args[0] {
-        Value::List(items) => items,
-        _ => return Err(anyhow!("set-difference: expected set (list)")),
+        Value::Set(items) => items,
+        _ => return Err(anyhow!("set-difference: expected set")),
     };
 
     let second_set = match &args[1] {
-        Value::List(items) => items,
-        _ => return Err(anyhow!("set-difference: expected set (list)")),
+        Value::Set(items) => items,
+        _ => return Err(anyhow!("set-difference: expected set")),
     };
-
-    let mut second_keys = FxHashSet::default();
-    for item in second_set {
-        second_keys.insert(format!("{:?}", item));
-    }
 
     let result: Vec<Value> = first_set
         .iter()
-        .filter(|item| !second_keys.contains(&format!("{:?}", item)))
+        .filter(|item| !second_set.contains(item))
         .cloned()
         .collect();
 
-    Ok(Value::List(result))
+    Ok(Value::Set(result))
 }
 
 fn set_to_list(args: &[Value]) -> Result<Value> {
     match &args[0] {
-        Value::List(items) => Ok(Value::List(items.clone())),
-        _ => Err(anyhow!("set->list: expected set (list)")),
+        Value::Set(items) => Ok(Value::List(items.clone())),
+        _ => Err(anyhow!("set->list: expected set")),
     }
 }
 
 fn list_to_set(args: &[Value]) -> Result<Value> {
-    list_unique(args)
+    match &args[0] {
+        Value::List(items) => {
+            let mut unique = Vec::new();
+            for item in items {
+                if !unique.contains(item) {
+                    unique.push(item.clone());
+                }
+            }
+            Ok(Value::Set(unique))
+        }
+        _ => Err(anyhow!("list->set: expected list")),
+    }
+}
+
+fn set_size(args: &[Value]) -> Result<Value> {
+    match &args[0] {
+        Value::Set(items) => Ok(Value::Integer(items.len() as i64)),
+        _ => Err(anyhow!("set-size: expected set")),
+    }
 }
 
 // Map/Dictionary operations

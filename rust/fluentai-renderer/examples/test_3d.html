@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test FluentAI 3D WASM</title>
+    <style>
+        body { margin: 0; background: #000; color: #fff; font-family: monospace; }
+        #status { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; }
+        #canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <div id="status">Loading...</div>
+    <canvas id="render-canvas"></canvas>
+    
+    <script type="module">
+        console.log('Script starting...');
+        const status = document.getElementById('status');
+        
+        try {
+            status.textContent = 'Importing WASM module...';
+            console.log('About to import WASM module...');
+            
+            const wasmModule = await import('./pkg/fluentai_renderer.js?t=' + Date.now());
+            console.log('WASM module imported:', wasmModule);
+            
+            status.textContent = 'Initializing WASM...';
+            await wasmModule.default();
+            console.log('WASM initialized');
+            
+            status.textContent = 'Creating FluentAI3DDemo...';
+            console.log('Available exports:', Object.keys(wasmModule));
+            
+            const demo = new wasmModule.FluentAI3DDemo('render-canvas');
+            console.log('Demo created:', demo);
+            
+            // Mouse handling
+            const canvas = document.getElementById('render-canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Initialize canvas size for the demo
+            if (demo.update_canvas_size) {
+                demo.update_canvas_size(canvas.width, canvas.height);
+            }
+            
+            let moveCount = 0;
+            canvas.addEventListener('mousemove', (e) => {
+                if (demo.update_mouse_position) {
+                    demo.update_mouse_position(e.clientX, e.clientY);
+                    moveCount++;
+                    if (moveCount % 100 === 0) {
+                        console.log(`Mouse position updated ${moveCount} times: ${e.clientX}, ${e.clientY}`);
+                    }
+                }
+            });
+            
+            // Render loop
+            let frameCount = 0;
+            function render(timestamp) {
+                try {
+                    demo.render(timestamp);
+                    frameCount++;
+                    if (frameCount % 60 === 0) {
+                        status.textContent = `Running... Frame: ${frameCount}`;
+                    }
+                    requestAnimationFrame(render);
+                } catch (error) {
+                    console.error('Render error:', error);
+                    status.textContent = 'Render error: ' + error.message;
+                }
+            }
+            
+            status.textContent = 'Starting render loop...';
+            requestAnimationFrame(render);
+            
+        } catch (error) {
+            console.error('Error:', error);
+            status.textContent = 'Error: ' + error.message;
+        }
+    </script>
+</body>
+</html>

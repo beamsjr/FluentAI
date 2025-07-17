@@ -409,6 +409,7 @@ pub fn value_type_name(value: &Value) -> &'static str {
         Value::GcHandle(_) => "gc-handle",
         Value::Actor(_) => "actor",
         Value::Error { .. } => "error",
+        Value::Set(_) => "set",
     }
 }
 

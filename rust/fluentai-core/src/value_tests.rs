@@ -987,4 +987,156 @@ mod tests {
         };
         assert!(none_like.is_truthy());
     }
+
+    // ===== Set Tests =====
+
+    #[test]
+    fn test_set_creation() {
+        // Empty set
+        let empty_set = Value::Set(vec![]);
+        assert!(empty_set.is_set());
+        assert!(!empty_set.is_list());
+        assert_eq!(empty_set.as_set().unwrap().len(), 0);
+
+        // Set with items
+        let set = Value::Set(vec![
+            Value::Integer(1),
+            Value::Integer(2),
+            Value::Integer(3),
+        ]);
+        assert!(set.is_set());
+        assert_eq!(set.as_set().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_set_type_conversions() {
+        let set = Value::Set(vec![Value::Integer(1), Value::Integer(2)]);
+        
+        // as_set should work
+        let items = set.as_set().unwrap();
+        assert_eq!(items.len(), 2);
+        
+        // as_list should fail
+        assert!(set.as_list().is_err());
+        
+        // type_name should return "set"
+        assert_eq!(set.type_name(), "set");
+    }
+
+    #[test]
+    fn test_set_equality() {
+        // Sets with same items in same order
+        let set1 = Value::Set(vec![Value::Integer(1), Value::Integer(2)]);
+        let set2 = Value::Set(vec![Value::Integer(1), Value::Integer(2)]);
+        assert_eq!(set1, set2);
+
+        // Sets with same items in different order
+        let set3 = Value::Set(vec![Value::Integer(2), Value::Integer(1)]);
+        let set4 = Value::Set(vec![Value::Integer(1), Value::Integer(2)]);
+        // Note: Our current implementation checks if all items in set3 are in set4
+        assert!(set3.deep_eq(&set4)); // Should be true for sets
+
+        // Sets with different items
+        let set5 = Value::Set(vec![Value::Integer(1), Value::Integer(3)]);
+        assert_ne!(set1, set5);
+
+        // Empty sets
+        let empty1 = Value::Set(vec![]);
+        let empty2 = Value::Set(vec![]);
+        assert_eq!(empty1, empty2);
+    }
+
+    #[test]
+    fn test_set_deep_equality() {
+        // Test that deep_eq doesn't exist for sets since we don't have it implemented
+        // Our deep_eq implementation returns false for unmatched types
+        let set = Value::Set(vec![Value::Integer(1)]);
+        let list = Value::List(vec![Value::Integer(1)]);
+        assert!(!set.deep_eq(&list));
+    }
+
+    #[test]
+    fn test_set_display() {
+        let set = Value::Set(vec![
+            Value::Integer(1),
+            Value::Integer(2),
+            Value::Integer(3),
+        ]);
+        assert_eq!(format!("{}", set), "#<set with 3 items>");
+
+        let empty_set = Value::Set(vec![]);
+        assert_eq!(format!("{}", empty_set), "#<set with 0 items>");
+
+        let single_set = Value::Set(vec![Value::String("hello".to_string())]);
+        assert_eq!(format!("{}", single_set), "#<set with 1 items>");
+    }
+
+    #[test]
+    fn test_set_debug() {
+        let set = Value::Set(vec![Value::Integer(1), Value::Integer(2)]);
+        let debug_str = format!("{:?}", set);
+        assert!(debug_str.contains("Integer(1)"));
+        assert!(debug_str.contains("Integer(2)"));
+    }
+
+    #[test]
+    fn test_set_truthiness() {
+        // Sets are always truthy, even empty ones
+        let empty_set = Value::Set(vec![]);
+        assert!(empty_set.is_truthy());
+
+        let set = Value::Set(vec![Value::Integer(1)]);
+        assert!(set.is_truthy());
+    }
+
+    #[test]
+    fn test_set_nested_in_collections() {
+        // Set inside a list
+        let list_with_set = Value::List(vec![
+            Value::Integer(1),
+            Value::Set(vec![Value::Integer(2), Value::Integer(3)]),
+            Value::String("end".to_string()),
+        ]);
+        
+        match &list_with_set {
+            Value::List(items) => {
+                assert_eq!(items.len(), 3);
+                assert!(items[1].is_set());
+            }
+            _ => panic!("Expected list"),
+        }
+
+        // Set inside a map
+        let mut map = FxHashMap::default();
+        map.insert("numbers".to_string(), Value::Set(vec![Value::Integer(1), Value::Integer(2)]));
+        let map_val = Value::Map(map);
+        
+        match &map_val {
+            Value::Map(m) => {
+                let set = m.get("numbers").unwrap();
+                assert!(set.is_set());
+            }
+            _ => panic!("Expected map"),
+        }
+    }
+
+    #[test]
+    fn test_set_with_complex_values() {
+        // Set containing various value types
+        let complex_set = Value::Set(vec![
+            Value::Integer(1),
+            Value::String("hello".to_string()),
+            Value::List(vec![Value::Integer(2), Value::Integer(3)]),
+            Value::Boolean(true),
+            Value::Nil,
+        ]);
+        
+        assert_eq!(complex_set.as_set().unwrap().len(), 5);
+        
+        // Check that we can access items
+        let items = complex_set.as_set().unwrap();
+        assert!(matches!(items[0], Value::Integer(1)));
+        assert!(matches!(items[1], Value::String(_)));
+        assert!(matches!(items[2], Value::List(_)));
+    }
 }

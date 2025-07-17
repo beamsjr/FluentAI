@@ -1,15 +1,49 @@
 /// Test helpers and utilities for renderer testing
-use fluentai_renderer::primitives::{Color, Point2D, Rect, Size2D};
+use fluentai_renderer::primitives::{Color, Position2D, Size2D};
+use cgmath;
 
 /// Create a test color
 pub fn test_color() -> Color {
     Color::new(1.0, 0.5, 0.25, 1.0)
 }
 
+/// Extension methods for Color in tests
+pub trait ColorTestExt {
+    fn gray() -> Self;
+    fn yellow() -> Self;
+}
+
+impl ColorTestExt for Color {
+    fn gray() -> Self {
+        Color::new(0.5, 0.5, 0.5, 1.0)
+    }
+    
+    fn yellow() -> Self {
+        Color::new(1.0, 1.0, 0.0, 1.0)
+    }
+}
+
 /// Create a test rectangle
+#[derive(Debug, Clone)]
+pub struct Rect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Rect {
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self { x, y, width, height }
+    }
+}
+
 pub fn test_rect() -> Rect {
     Rect::new(10.0, 20.0, 100.0, 50.0)
 }
+
+/// Alias for 2D point
+pub type Point2D = cgmath::Vector2<f32>;
 
 /// Create a test point
 pub fn test_point() -> Point2D {
@@ -83,7 +117,7 @@ impl MockRenderContext {
 pub fn test_gradient_stops() -> Vec<(f32, Color)> {
     vec![
         (0.0, Color::red()),
-        (0.5, Color::yellow()),
+        (0.5, Color::new(1.0, 1.0, 0.0, 1.0)), // yellow
         (1.0, Color::blue()),
     ]
 }

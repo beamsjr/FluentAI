@@ -1,10 +1,11 @@
 //! Core execution logic for running FluentAi programs
 
 use anyhow::Result;
-use fluentai_optimizer::OptimizationLevel;
+use fluentai_core::traits::OptimizationLevel;
 use fluentai_parser::parse_flc;
 use fluentai_vm::{Compiler, CompilerOptions, Value, VM};
 use std::path::Path;
+use crate::commands::run::RunOptimization;
 
 #[cfg(feature = "visualization")]
 use fluentai_vm::{DebugConfig, VMDebugEvent};
@@ -27,53 +28,112 @@ pub fn run_code(code: &str) -> Result<Value> {
 
 /// Run FluentAi code with specific optimization level
 pub fn run_code_with_options(code: &str, opt_level: OptimizationLevel) -> Result<Value> {
+    run_code_with_opt_config(code, RunOptimization::Manual(opt_level), false)
+}
+
+/// Run FluentAi code with optimization configuration
+pub fn run_code_with_opt_config(code: &str, opt_config: RunOptimization, learning_mode: bool) -> Result<Value> {
     // Parse
     let ast = parse_flc(code)?;
 
     // Compile with optimization
-    let options = CompilerOptions {
-        optimization_level: opt_level,
-        debug_info: false,
+    let options = match opt_config {
+        RunOptimization::Manual(level) => CompilerOptions {
+            optimization_level: level,
+            debug_info: false,
+            ..Default::default()
+        },
+        #[cfg(feature = "ai-analysis")]
+        RunOptimization::AI => CompilerOptions {
+            optimization_level: OptimizationLevel::None, // AI will decide
+            debug_info: false,
+            ai_optimization: true,
+            hybrid_optimization: false,
+        },
+        #[cfg(feature = "ai-analysis")]
+        RunOptimization::Hybrid(base_level) => CompilerOptions {
+            optimization_level: base_level,
+            debug_info: false,
+            ai_optimization: false,
+            hybrid_optimization: true,
+        },
+        #[cfg(all(feature = "ai-analysis", feature = "rl"))]
+        RunOptimization::ReinforcementLearning => CompilerOptions {
+            optimization_level: OptimizationLevel::None, // RL decides
+            debug_info: false,
+            ai_optimization: false,
+            hybrid_optimization: false,
+        },
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&ast)?;
 
     // Execute
     let mut vm = VM::new(bytecode);
+    
+    // Enable learning mode if requested
+    if learning_mode {
+        vm.enable_learning_mode();
+        // Set the AST graph for variant compilation
+        vm.set_ast_graph(std::sync::Arc::new(ast));
+    }
+    
     let result = vm.run()?;
 
     Ok(result)
 }
 
-/// Run FluentAi code from a file
+/// Run FluentAi code from a file (legacy)
 pub async fn run_file(
+    path: &Path,
+    args: Vec<String>,
+    viz_config: Option<crate::commands::run::VisualizationConfig>,
+    opt_level: OptimizationLevel,
+) -> Result<Value> {
+    run_file_with_opt(path, args, viz_config, RunOptimization::Manual(opt_level), false).await
+}
+
+/// Run FluentAi code from a file with optimization configuration
+pub async fn run_file_with_opt(
     path: &Path,
     _args: Vec<String>,
     viz_config: Option<crate::commands::run::VisualizationConfig>,
-    opt_level: OptimizationLevel,
+    opt_config: RunOptimization,
+    learning_mode: bool,
 ) -> Result<Value> {
     let code = std::fs::read_to_string(path)?;
 
     #[cfg(feature = "visualization")]
     if let Some(viz) = viz_config {
-        run_with_visualization(&code, viz, opt_level).await
+        run_with_visualization_opt(&code, viz, opt_config, learning_mode).await
     } else {
-        run_code_with_options(&code, opt_level)
+        run_code_with_opt_config(&code, opt_config, learning_mode)
     }
 
     #[cfg(not(feature = "visualization"))]
     {
         let _ = viz_config; // Suppress warning
-        run_code_with_options(&code, opt_level)
+        run_code_with_opt_config(&code, opt_config, learning_mode)
     }
 }
 
 #[cfg(feature = "visualization")]
-/// Run code with visualization enabled
+/// Run code with visualization enabled (legacy)
 pub async fn run_with_visualization(
     code: &str,
     viz_config: crate::commands::run::VisualizationConfig,
     opt_level: OptimizationLevel,
+) -> Result<Value> {
+    run_with_visualization_opt(code, viz_config, RunOptimization::Manual(opt_level), false).await
+}
+
+#[cfg(feature = "visualization")]
+/// Run code with visualization enabled with optimization config
+pub async fn run_with_visualization_opt(
+    code: &str,
+    viz_config: crate::commands::run::VisualizationConfig,
+    opt_config: RunOptimization,
+    learning_mode: bool,
 ) -> Result<Value> {
     use std::path::PathBuf;
 
@@ -149,9 +209,33 @@ pub async fn run_with_visualization(
     });
 
     // Compile with optimization
-    let options = CompilerOptions {
-        optimization_level: opt_level,
-        debug_info: false,
+    let options = match opt_config {
+        RunOptimization::Manual(level) => CompilerOptions {
+            optimization_level: level,
+            debug_info: false,
+            ..Default::default()
+        },
+        #[cfg(feature = "ai-analysis")]
+        RunOptimization::AI => CompilerOptions {
+            optimization_level: OptimizationLevel::None, // AI will decide
+            debug_info: false,
+            ai_optimization: true,
+            hybrid_optimization: false,
+        },
+        #[cfg(feature = "ai-analysis")]
+        RunOptimization::Hybrid(base_level) => CompilerOptions {
+            optimization_level: base_level,
+            debug_info: false,
+            ai_optimization: false,
+            hybrid_optimization: true,
+        },
+        #[cfg(all(feature = "ai-analysis", feature = "rl"))]
+        RunOptimization::ReinforcementLearning => CompilerOptions {
+            optimization_level: OptimizationLevel::None, // RL decides
+            debug_info: false,
+            ai_optimization: false,
+            hybrid_optimization: false,
+        },
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&ast)?;
@@ -160,6 +244,13 @@ pub async fn run_with_visualization(
     let mut vm = VM::new(bytecode);
     let debug_config = DebugConfig::with_events(vm_debug_tx);
     vm.set_debug_config(debug_config);
+    
+    // Enable learning mode if requested
+    if learning_mode {
+        vm.enable_learning_mode();
+        // Set the AST graph for variant compilation
+        vm.set_ast_graph(std::sync::Arc::new(ast));
+    }
 
     // Run the VM
     let result = match vm.run() {

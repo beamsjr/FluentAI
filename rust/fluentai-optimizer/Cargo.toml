@@ -11,6 +11,7 @@ fluentai-core = { path = "../fluentai-core" }
 fluentai-parser = { path = "../fluentai-parser" }
 fluentai-types = { path = "../fluentai-types", default-features = false }
 fluentai-di = { path = "../fluentai-di" }
+fluentai-vm = { path = "../fluentai-vm", default-features = false, optional = true }
 rustc-hash = "2.0"
 anyhow = "1.0"
 thiserror = "1.0"
@@ -26,3 +27,9 @@ fluentai-vm = { path = "../fluentai-vm" }
 [[bench]]
 name = "optimizer_benchmark"
 harness = false
+
+[features]
+default = []
+ai-analysis = ["fluentai-core/ai-analysis"]
+rl = ["ai-analysis"]
+runtime-guided = ["fluentai-vm"]

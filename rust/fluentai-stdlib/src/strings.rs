@@ -565,5 +565,16 @@ fn to_string(args: &[Value]) -> Result<Value> {
         Value::Cell(_) => Ok(Value::String("<cell>".to_string())),
         Value::Module { name, .. } => Ok(Value::String(format!("<module: {}>", name))),
         Value::GcHandle(_) => Ok(Value::String("<gc-handle>".to_string())),
+        Value::Set(items) => {
+            // Convert set to string representation like "#{1, 2, 3}"
+            let item_strings: Vec<String> = items
+                .iter()
+                .map(|v| match to_string(&[v.clone()]) {
+                    Ok(Value::String(s)) => s,
+                    _ => "?".to_string(),
+                })
+                .collect();
+            Ok(Value::String(format!("#{{{}}}", item_strings.join(", "))))
+        }
     }
 }

@@ -12,10 +12,14 @@
 pub mod ast;
 pub mod documentation;
 pub mod error;
+pub mod profiling;
 pub mod thread_pool;
 pub mod traits;
 pub mod value;
 pub mod work_stealing_scheduler;
+
+#[cfg(feature = "ai-analysis")]
+pub mod ai_interface;
 
 pub use ast::{AstHashMap, AstHashSet};
 pub use error::{Error, Result};

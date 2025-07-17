@@ -2,8 +2,19 @@
 
 use crate::config::Config;
 use anyhow::Result;
-use fluentai_optimizer::OptimizationLevel;
+use fluentai_core::traits::OptimizationLevel;
 use std::path::Path;
+
+#[derive(Debug, Clone)]
+pub enum RunOptimization {
+    Manual(OptimizationLevel),
+    #[cfg(feature = "ai-analysis")]
+    AI,
+    #[cfg(feature = "ai-analysis")]
+    Hybrid(OptimizationLevel),
+    #[cfg(all(feature = "ai-analysis", feature = "rl"))]
+    ReinforcementLearning,
+}
 
 #[derive(Debug, Clone)]
 pub struct VisualizationConfig {
@@ -17,27 +28,53 @@ pub async fn run_file(
     path: &Path,
     args: Vec<String>,
     viz_config: Option<VisualizationConfig>,
-    optimization: u8,
+    optimization: String,
     watch: bool,
+    learning_mode: bool,
     _config: &Config,
 ) -> Result<()> {
-    let opt_level = match optimization {
-        0 => OptimizationLevel::None,
-        1 => OptimizationLevel::Basic,
-        2 => OptimizationLevel::Standard,
-        _ => OptimizationLevel::Aggressive,
+    let opt_config = match optimization.as_str() {
+        "0" | "none" => RunOptimization::Manual(OptimizationLevel::None),
+        "1" | "basic" => RunOptimization::Manual(OptimizationLevel::Basic),
+        "2" | "standard" => RunOptimization::Manual(OptimizationLevel::Standard),
+        "3" | "aggressive" => RunOptimization::Manual(OptimizationLevel::Aggressive),
+        #[cfg(feature = "ai-analysis")]
+        "ai" => RunOptimization::AI,
+        #[cfg(feature = "ai-analysis")]
+        "hybrid" => RunOptimization::Hybrid(OptimizationLevel::Standard),
+        #[cfg(all(feature = "ai-analysis", feature = "rl"))]
+        "rl" => RunOptimization::ReinforcementLearning,
+        _ => {
+            // Try to parse as number for backward compatibility
+            match optimization.parse::<u8>() {
+                Ok(0) => RunOptimization::Manual(OptimizationLevel::None),
+                Ok(1) => RunOptimization::Manual(OptimizationLevel::Basic),
+                Ok(2) => RunOptimization::Manual(OptimizationLevel::Standard),
+                Ok(_) => RunOptimization::Manual(OptimizationLevel::Aggressive),
+                Err(_) => {
+                    eprintln!("Invalid optimization level: {}", optimization);
+                    eprintln!("Valid options: 0/none, 1/basic, 2/standard, 3/aggressive");
+                    #[cfg(feature = "ai-analysis")]
+                    eprintln!("               ai, hybrid");
+                    #[cfg(all(feature = "ai-analysis", feature = "rl"))]
+                    eprintln!("               rl");
+                    return Err(anyhow::anyhow!("Invalid optimization level"));
+                }
+            }
+        }
     };
 
     if watch {
-        run_with_watch(path, args, viz_config, opt_level).await
+        run_with_watch(path, args, viz_config, opt_config, learning_mode).await
     } else {
         println!(
-            "Running: {} (optimization: {:?})",
+            "Running: {} (optimization: {:?}, learning mode: {})",
             path.display(),
-            opt_level
+            opt_config,
+            if learning_mode { "enabled" } else { "disabled" }
         );
 
-        let result = crate::runner::run_file(path, args, viz_config, opt_level).await?;
+        let result = crate::runner::run_file_with_opt(path, args, viz_config, opt_config, learning_mode).await?;
 
         println!("\nResult: {}", result);
 
@@ -50,7 +87,8 @@ async fn run_with_watch(
     path: &Path,
     args: Vec<String>,
     viz_config: Option<VisualizationConfig>,
-    opt_level: OptimizationLevel,
+    opt_config: RunOptimization,
+    learning_mode: bool,
 ) -> Result<()> {
     use notify::{Watcher, RecursiveMode, Event, EventKind};
     use std::sync::mpsc::channel;
@@ -61,12 +99,13 @@ async fn run_with_watch(
     // Run once initially
     println!("\n{}", "=".repeat(60));
     println!(
-        "Running: {} (optimization: {:?})",
+        "Running: {} (optimization: {:?}, learning mode: {})",
         path.display(),
-        opt_level
+        opt_config,
+        if learning_mode { "enabled" } else { "disabled" }
     );
     
-    match crate::runner::run_file(path, args.clone(), viz_config.clone(), opt_level).await {
+    match crate::runner::run_file_with_opt(path, args.clone(), viz_config.clone(), opt_config.clone(), learning_mode).await {
         Ok(result) => println!("\nResult: {}", result),
         Err(e) => eprintln!("\nError: {}", e),
     }
@@ -103,12 +142,13 @@ async fn run_with_watch(
                         println!("\n{}", "=".repeat(60));
                         println!("File changed, rerunning...");
                         println!(
-                            "Running: {} (optimization: {:?})",
+                            "Running: {} (optimization: {:?}, learning mode: {})",
                             path.display(),
-                            opt_level
+                            opt_config,
+                            if learning_mode { "enabled" } else { "disabled" }
                         );
                         
-                        match crate::runner::run_file(path, args.clone(), viz_config.clone(), opt_level).await {
+                        match crate::runner::run_file_with_opt(path, args.clone(), viz_config.clone(), opt_config.clone(), learning_mode).await {
                             Ok(result) => println!("\nResult: {}", result),
                             Err(e) => eprintln!("\nError: {}", e),
                         }

@@ -52,6 +52,8 @@ flate2 = "1.0"
 [features]
 default = ["visualization"]
 visualization = ["fluentai-viz"]
+ai-analysis = ["fluentai-optimizer/ai-analysis"]
+rl = ["ai-analysis", "fluentai-optimizer/rl"]
 
 [dev-dependencies]
 tempfile = "3.10"

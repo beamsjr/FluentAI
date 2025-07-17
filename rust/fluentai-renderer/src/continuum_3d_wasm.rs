@@ -93,8 +93,8 @@ impl Continuum3D {
         globe.material_index = Some(earth_idx);
         let globe_idx = scene.add_mesh(globe);
         
-        // Create todo pins (small cubes for now)
-        let mut todo_pin = Mesh3D::create_cube(0.2);
+        // Create proper todo pin mesh (sphere on top of a cone)
+        let mut todo_pin = create_pin_mesh(0.3, 0.5);
         todo_pin.material_index = Some(todo_idx);
         let pin_idx = scene.add_mesh(todo_pin);
         
@@ -217,6 +217,106 @@ impl Continuum3D {
         log::info!("Would load glTF from: {}", url);
         Ok(())
     }
+}
+
+/// Create a pin-shaped mesh for TODO markers
+fn create_pin_mesh(head_radius: f32, total_height: f32) -> Mesh3D {
+    use crate::three_d::{Mesh3D, Vertex3D, Vec3, Vec2};
+    use std::f32::consts::PI;
+    
+    let mut mesh = Mesh3D::new("todo_pin".to_string());
+    
+    // Pin consists of:
+    // 1. Sphere head at the top
+    // 2. Cone/needle pointing down
+    
+    let cone_height = total_height - head_radius;
+    let cone_base_radius = head_radius * 0.3;
+    let segments = 16;
+    
+    // Generate cone vertices (pointing down from sphere)
+    let mut vertex_offset = 0;
+    
+    // Cone tip (bottom point)
+    mesh.vertices.push(Vertex3D::new(
+        Vec3::new(0.0, -cone_height, 0.0),
+        Vec3::new(0.0, -1.0, 0.0),
+        Vec2::new(0.5, 1.0)
+    ));
+    vertex_offset += 1;
+    
+    // Cone base vertices (where it meets the sphere)
+    for i in 0..segments {
+        let angle = (i as f32 / segments as f32) * 2.0 * PI;
+        let x = angle.cos() * cone_base_radius;
+        let z = angle.sin() * cone_base_radius;
+        
+        // Normal points outward and down
+        let normal = Vec3::new(x, -cone_base_radius, z).normalize();
+        
+        mesh.vertices.push(Vertex3D::new(
+            Vec3::new(x, 0.0, z),
+            normal,
+            Vec2::new(i as f32 / segments as f32, 0.0)
+        ));
+    }
+    
+    // Create cone triangles
+    for i in 0..segments {
+        let next = (i + 1) % segments;
+        // Triangle from tip to base edge
+        mesh.indices.push(0);
+        mesh.indices.push(vertex_offset + i as u32);
+        mesh.indices.push(vertex_offset + next as u32);
+    }
+    
+    vertex_offset += segments;
+    
+    // Generate sphere vertices for the head
+    let rings = 8;
+    let sphere_start_idx = mesh.vertices.len() as u32;
+    
+    for ring in 0..=rings {
+        let phi = PI * (ring as f32) / (rings as f32);
+        let y = head_radius * phi.cos();
+        let ring_radius = head_radius * phi.sin();
+        
+        for segment in 0..=segments {
+            let theta = 2.0 * PI * (segment as f32) / (segments as f32);
+            let x = ring_radius * theta.cos();
+            let z = ring_radius * theta.sin();
+            
+            let pos = Vec3::new(x, y + head_radius, z);
+            let normal = pos.normalize();
+            let uv = Vec2::new(
+                segment as f32 / segments as f32,
+                ring as f32 / rings as f32
+            );
+            
+            mesh.vertices.push(Vertex3D::new(pos, normal, uv));
+        }
+    }
+    
+    // Create sphere triangles
+    for ring in 0..rings {
+        for segment in 0..segments {
+            let curr = sphere_start_idx + ring * (segments + 1) + segment;
+            let next = curr + 1;
+            let above = curr + segments + 1;
+            let above_next = above + 1;
+            
+            // Two triangles per quad
+            mesh.indices.push(curr);
+            mesh.indices.push(next);
+            mesh.indices.push(above);
+            
+            mesh.indices.push(next);
+            mesh.indices.push(above_next);
+            mesh.indices.push(above);
+        }
+    }
+    
+    mesh
 }
 
 /// Create and initialize a 3D Continuum runtime

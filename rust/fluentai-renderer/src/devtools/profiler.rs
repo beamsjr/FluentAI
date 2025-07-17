@@ -1,6 +1,6 @@
 /// Performance profiler for rendering
 use std::collections::VecDeque;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
 
 /// Render profiler for performance analysis

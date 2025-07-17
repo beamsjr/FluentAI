@@ -108,6 +108,8 @@ pub fn register(registry: &mut StdlibRegistry) {
         StdlibFunction::pure("map-merge", map_merge, 2, Some(2), "Merge two maps"),
         StdlibFunction::pure("make-tagged", make_tagged, 1, None, "Create a tagged value"),
         StdlibFunction::pure("tagged?", is_tagged, 1, Some(1), "Check if value is tagged"),
+        // Concurrency operations
+        StdlibFunction::effectful_with_context("send-to", send_to, 2, Some(2), vec![], "Send a message to a channel or actor"),
         StdlibFunction::pure(
             "tagged-tag",
             tagged_tag,
@@ -180,14 +182,14 @@ pub fn register(registry: &mut StdlibRegistry) {
 
 // List operations
 
-fn length(args: &[Value]) -> Result<Value> {
+pub fn length(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::List(items) => Ok(Value::Integer(items.len() as i64)),
         _ => Err(anyhow!("length: expected list")),
     }
 }
 
-fn append(args: &[Value]) -> Result<Value> {
+pub fn append(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::List(items) => {
             let mut new_items = items.clone();
@@ -255,7 +257,7 @@ fn drop(args: &[Value]) -> Result<Value> {
     }
 }
 
-fn map_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+pub fn map_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
     let func = match &args[0] {
         Value::Function { .. } => &args[0],
         _ => return Err(anyhow!("map: expected function")),
@@ -279,7 +281,7 @@ fn map_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
     }
 }
 
-fn filter_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+pub fn filter_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
     let pred = match &args[0] {
         Value::Function { .. } => &args[0],
         _ => return Err(anyhow!("filter: expected predicate function")),
@@ -305,7 +307,7 @@ fn filter_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
     }
 }
 
-fn fold_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+pub fn fold_ctx(context: &mut StdlibContext, args: &[Value]) -> Result<Value> {
     let func = match &args[0] {
         Value::Function { .. } => &args[0],
         _ => return Err(anyhow!("fold: expected function")),
@@ -849,5 +851,30 @@ fn tagged_values(args: &[Value]) -> Result<Value> {
     match &args[0] {
         Value::Tagged { values, .. } => Ok(Value::List(values.clone())),
         _ => Err(anyhow!("tagged-values: expected tagged value")),
+    }
+}
+
+// Concurrency operations
+
+fn send_to(ctx: &mut StdlibContext, args: &[Value]) -> Result<Value> {
+    let target = &args[0];
+    let message = &args[1];
+    
+    match target {
+        Value::Channel(channel_id) => {
+            // Send to channel
+            if let Some(vm_callback) = &mut ctx.vm_callback {
+                vm_callback.send_to_channel(*channel_id, message.clone())?;
+            }
+            Ok(Value::Nil)
+        }
+        Value::Actor(actor_id) => {
+            // Send to actor
+            if let Some(vm_callback) = &mut ctx.vm_callback {
+                vm_callback.send_to_actor(*actor_id, message.clone())?;
+            }
+            Ok(Value::Nil)
+        }
+        _ => Err(anyhow!("send-to: expected channel or actor as first argument")),
     }
 }

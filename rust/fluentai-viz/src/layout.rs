@@ -303,6 +303,7 @@ impl ASTLayouter {
             Node::Disturb { field, .. } => format!("disturb {}", field),
             Node::Map(_) => "map".to_string(),
             Node::Extern { .. } => "extern".to_string(),
+            Node::Range { .. } => "range".to_string(),
         }
     }
 
@@ -355,6 +356,7 @@ impl ASTLayouter {
             Node::Disturb { .. } => "disturb",
             Node::Map(_) => "map",
             Node::Extern { .. } => "extern",
+            Node::Range { .. } => "range",
         }
         .to_string()
     }

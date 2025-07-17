@@ -52,12 +52,12 @@ impl AsyncVM {
         let has_tracker = self.vm.usage_tracker().is_some();
         
         // Push initial call frame
-        self.vm.call_stack_mut().push(crate::vm::CallFrame {
+        self.vm.push_frame(crate::vm::CallFrame {
             chunk_id: main_chunk,
             ip: 0,
             stack_base: 0,
             env: Vec::new(),
-            start_time: if has_tracker { Some(web_time::Instant::now()) } else { None },
+            start_time: None, // Will be set by push_frame if profiling enabled
         });
         
         self.run_inner().await

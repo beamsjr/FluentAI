@@ -97,9 +97,13 @@ enum Commands {
         /// Path to the FluentAi file
         file: PathBuf,
 
-        /// Optimization level (0=none, 1=basic, 2=standard, 3=aggressive)
+        /// Optimization level (0=none, 1=basic, 2=standard, 3=aggressive, ai=AI-driven, hybrid=hybrid)
         #[arg(short = 'O', long = "opt", default_value = "2")]
-        optimization: u8,
+        optimization: String,
+
+        /// Enable learning mode where VM explores different optimizations
+        #[arg(long = "learning-mode")]
+        learning_mode: bool,
 
         /// Enable visualization
         #[cfg(feature = "visualization")]
@@ -399,6 +403,7 @@ async fn main() -> Result<()> {
         Some(Commands::Run {
             file,
             optimization,
+            learning_mode,
             #[cfg(feature = "visualization")]
             visualize,
             #[cfg(feature = "visualization")]
@@ -427,7 +432,7 @@ async fn main() -> Result<()> {
             #[cfg(not(feature = "visualization"))]
             let viz_config = None;
 
-            run::run_file(&file, args, viz_config, optimization, watch, &config).await?;
+            run::run_file(&file, args, viz_config, optimization, watch, learning_mode, &config).await?;
         }
 
         #[cfg(feature = "visualization")]
@@ -444,7 +449,7 @@ async fn main() -> Result<()> {
                 auto_open: open,
                 static_dir: viz_static_dir,
             });
-            run::run_file(&file, args, viz_config, 2, false, &config).await?; // Default to standard optimization, no watch
+            run::run_file(&file, args, viz_config, "2".to_string(), false, false, &config).await?; // Default to standard optimization, no watch, no learning mode
         }
 
         Some(Commands::Test {

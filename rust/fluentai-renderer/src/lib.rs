@@ -50,6 +50,19 @@ pub mod webgl_renderer;
 pub mod web;
 
 #[cfg(target_arch = "wasm32")]
+pub mod demo_3d_wasm;
+
+#[cfg(target_arch = "wasm32")]
+pub mod physics_webpage_demo;
+
+// Re-export for WASM bindings
+#[cfg(target_arch = "wasm32")]
+pub use demo_3d_wasm::FluentAI3DDemo;
+
+#[cfg(target_arch = "wasm32")]
+pub use physics_webpage_demo::PhysicsWebpageDemo;
+
+#[cfg(target_arch = "wasm32")]
 pub mod wasm_bindings;
 
 // #[cfg(target_arch = "wasm32")]

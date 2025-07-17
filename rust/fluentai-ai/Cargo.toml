@@ -1,0 +1,95 @@
+[package]
+name = "fluentai-ai"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Core dependencies
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+# FluentAI dependencies
+fluentai-core = { path = "../fluentai-core", features = ["ai-analysis"] }
+fluentai-vm = { path = "../fluentai-vm", optional = true, features = ["ai-analysis"] }
+
+# Math and tensor operations
+ndarray = { version = "0.15", features = ["serde"] }
+num-traits = "0.2"
+
+# Machine learning backends (optional)
+burn = { version = "0.17", optional = true, default-features = false, features = ["std", "ndarray", "autodiff"] }
+burn-ndarray = { version = "0.17", optional = true }
+burn-autodiff = { version = "0.17", optional = true }
+candle-core = { version = "0.4", optional = true }
+ort = { version = "2.0.0-rc.2", optional = true }
+
+# Utilities
+rayon = { workspace = true, optional = true }
+dashmap.workspace = true
+parking_lot.workspace = true
+rand = "0.8"
+bincode = "1.3"
+
+[dev-dependencies]
+criterion.workspace = true
+proptest = "1.4"
+approx = "0.5"
+fluentai-parser = { path = "../fluentai-parser" }
+fluentai-optimizer = { path = "../fluentai-optimizer" }
+fluentai-vm = { path = "../fluentai-vm", features = ["ai-analysis"] }
+tokio = { workspace = true, features = ["full"] }
+
+[features]
+default = ["burn-backend"]
+burn-backend = ["burn", "burn-ndarray", "burn-autodiff"]
+candle-backend = ["candle-core"]
+onnx-backend = ["ort"]
+rl = ["burn-backend", "fluentai-vm"]
+
+# Performance features
+parallel = ["rayon"]
+
+[[example]]
+name = "analyze_ast"
+required-features = ["burn-backend"]
+
+[[example]]
+name = "rl_training_demo"
+required-features = ["rl"]
+
+[[example]]
+name = "full_rl_optimization_demo"
+required-features = ["rl", "burn-backend"]
+
+[[example]]
+name = "working_rl_demo"
+required-features = ["rl"]
+
+[[example]]
+name = "rl_optimization_showcase"
+required-features = ["rl"]
+
+[[example]]
+name = "rl_real_world_optimization"
+required-features = ["rl"]
+
+[[example]]
+name = "rl_simple_real_world_demo"
+required-features = ["rl"]
+
+[[example]]
+name = "rl_working_real_world_demo"
+required-features = ["rl"]
+
+[[example]]
+name = "rl_performance_demo"
+required-features = ["rl"]
+
+[[bench]]
+name = "analysis_benchmarks"
+harness = false

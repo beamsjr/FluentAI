@@ -16,6 +16,7 @@ cranelift-jit = "0.104"
 cranelift-native = "0.104"
 anyhow.workspace = true
 rustc-hash.workspace = true
+once_cell = "1.19"
 
 [dev-dependencies]
 fluentai-vm = { path = "../fluentai-vm" }

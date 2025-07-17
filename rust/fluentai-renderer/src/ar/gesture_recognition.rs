@@ -2,7 +2,7 @@
 
 use glam::{Vec3, Vec2};
 use std::collections::VecDeque;
-use std::time::Instant;
+use web_time::Instant;
 
 /// Recognized gesture types
 #[derive(Debug, Clone, Copy, PartialEq)]

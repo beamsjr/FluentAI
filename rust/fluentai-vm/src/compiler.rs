@@ -8,7 +8,10 @@ use crate::stack_effect::stack_effect;
 use anyhow::{anyhow, Result};
 use fluentai_core::ast::{Graph as ASTGraph, Literal, Node, NodeId, Pattern, RangePattern};
 use fluentai_core::value::Value;
-use fluentai_optimizer::{OptimizationConfig, OptimizationLevel, OptimizationPipeline};
+// use fluentai_optimizer::{OptimizationConfig, OptimizationLevel, OptimizationPipeline, OptimizationSource};
+
+// Use the core OptimizationLevel
+pub use fluentai_core::traits::OptimizationLevel;
 use std::collections::{HashMap, HashSet};
 
 /// Bit masks for MakeClosure instruction packing
@@ -22,6 +25,12 @@ pub struct CompilerOptions {
     pub optimization_level: OptimizationLevel,
     /// Enable debug information
     pub debug_info: bool,
+    /// Use AI-driven optimization
+    #[cfg(feature = "ai-analysis")]
+    pub ai_optimization: bool,
+    /// Use hybrid optimization (base level + AI)
+    #[cfg(feature = "ai-analysis")]
+    pub hybrid_optimization: bool,
 }
 
 impl Default for CompilerOptions {
@@ -29,6 +38,10 @@ impl Default for CompilerOptions {
         Self {
             optimization_level: OptimizationLevel::Standard,
             debug_info: false,
+            #[cfg(feature = "ai-analysis")]
+            ai_optimization: false,
+            #[cfg(feature = "ai-analysis")]
+            hybrid_optimization: false,
         }
     }
 }
@@ -96,13 +109,51 @@ impl Compiler {
         self.init_module_source_map();
         
         // Apply optimizations if enabled
-        let optimized_graph = if self.options.optimization_level != OptimizationLevel::None {
-            let config = OptimizationConfig::for_level(self.options.optimization_level);
-            let mut pipeline = OptimizationPipeline::new(config);
+        #[cfg(feature = "ai-analysis")]
+        let needs_optimization = self.options.optimization_level != OptimizationLevel::None
+            || self.options.ai_optimization || self.options.hybrid_optimization;
+        #[cfg(not(feature = "ai-analysis"))]
+        let needs_optimization = self.options.optimization_level != OptimizationLevel::None;
+        
+        // TODO: Re-enable optimization after fixing circular dependency
+        let optimized_graph = graph.clone();
+        /*
+        let optimized_graph = if needs_optimization
+        {
+            // Determine optimization source
+            let source = {
+                #[cfg(feature = "ai-analysis")]
+                {
+                    if self.options.ai_optimization {
+                        OptimizationSource::AIHints
+                    } else if self.options.hybrid_optimization {
+                        OptimizationSource::Hybrid(self.options.optimization_level)
+                    } else {
+                        // Check if RL optimization is requested through level
+                        #[cfg(feature = "rl")]
+                        {
+                            // This could be triggered by a special flag or optimization level
+                            // For now, we'll use manual mode
+                            OptimizationSource::Manual(self.options.optimization_level)
+                        }
+                        #[cfg(not(feature = "rl"))]
+                        {
+                            OptimizationSource::Manual(self.options.optimization_level)
+                        }
+                    }
+                }
+                #[cfg(not(feature = "ai-analysis"))]
+                {
+                    OptimizationSource::Manual(self.options.optimization_level)
+                }
+            };
+            
+            let mut pipeline = OptimizationPipeline::from_source(source, graph)?;
             pipeline.optimize(graph)?
         } else {
             graph.clone()
         };
+        */
 
         let root_id = optimized_graph
             .root_id
@@ -246,6 +297,9 @@ impl Compiler {
             }
             Node::List(items) => {
                 self.compile_list(graph, items)?;
+            }
+            Node::Range { start, end, inclusive } => {
+                self.compile_range(graph, *start, *end, *inclusive)?;
             }
             Node::Effect {
                 effect_type,
@@ -396,12 +450,65 @@ impl Compiler {
             Node::Define { name, value } => {
                 // Set current function name if this is a lambda
                 let saved_function = self.current_function.clone();
-                if let Some(Node::Lambda { .. }) = graph.nodes.get(value) {
+                let is_lambda = matches!(graph.nodes.get(value), Some(Node::Lambda { .. }));
+                if is_lambda {
                     self.current_function = Some(name.clone());
                 }
 
-                // Compile the value
-                self.compile_node(graph, *value)?;
+                // For top-level function definitions, we need to compile the lambda
+                // without capturing free variables, since at the top level,
+                // all unbound variables should be treated as globals
+                if is_lambda && self.locals.len() == 1 && self.locals[0].is_empty() {
+                    // We're at the top level - compile lambda specially
+                    if let Some(Node::Lambda { params, body }) = graph.nodes.get(value) {
+                        // Don't capture free variables at top level - they're globals
+                        let lambda_chunk = BytecodeChunk::new(Some(name.clone()));
+                        let chunk_id = self.bytecode.add_chunk(lambda_chunk);
+                        
+                        // Save current context
+                        let saved_chunk = self.current_chunk;
+                        let saved_locals = self.locals.clone();
+                        let saved_captured = self.captured.clone();
+                        let saved_stack_depth = self.stack_depth;
+                        let saved_scope_bases = self.scope_bases.clone();
+                        let saved_cell_vars = self.cell_vars.clone();
+                        
+                        // Switch to lambda chunk
+                        self.current_chunk = chunk_id;
+                        self.locals = vec![HashMap::new()];
+                        self.captured = vec![HashMap::new()];
+                        self.stack_depth = params.len();
+                        self.scope_bases = vec![0];
+                        self.cell_vars = vec![HashSet::new()];
+                        
+                        // Add parameters to locals
+                        for (i, param) in params.iter().enumerate() {
+                            self.locals[0].insert(param.clone(), i);
+                        }
+                        
+                        // Compile body
+                        self.compile_node(graph, *body)?;
+                        
+                        // Emit return if not already present
+                        if !self.ends_with_return() {
+                            self.emit(Instruction::new(Opcode::Return));
+                        }
+                        
+                        // Restore context
+                        self.current_chunk = saved_chunk;
+                        self.locals = saved_locals;
+                        self.captured = saved_captured;
+                        self.stack_depth = saved_stack_depth;
+                        self.scope_bases = saved_scope_bases;
+                        self.cell_vars = saved_cell_vars;
+                        
+                        // Push function value without captures
+                        self.emit(Instruction::with_arg(Opcode::MakeFunc, chunk_id as u32));
+                    }
+                } else {
+                    // Compile the value normally
+                    self.compile_node(graph, *value)?;
+                }
 
                 // Restore function name
                 self.current_function = saved_function;
@@ -462,20 +569,20 @@ impl Compiler {
                 }
                 _ => {
                     let idx = self.add_constant(Value::Integer(*n));
-                    self.emit(Instruction::with_arg(Opcode::Push, idx));
+                    self.emit(Instruction::with_arg(Opcode::PushConst, idx));
                 }
             },
             Literal::Float(f) => {
                 let idx = self.add_constant(Value::Float(*f));
-                self.emit(Instruction::with_arg(Opcode::Push, idx));
+                self.emit(Instruction::with_arg(Opcode::PushConst, idx));
             }
             Literal::String(s) => {
                 let idx = self.add_constant(Value::String(s.clone()));
-                self.emit(Instruction::with_arg(Opcode::Push, idx));
+                self.emit(Instruction::with_arg(Opcode::PushConst, idx));
             }
             Literal::Symbol(s) => {
                 let idx = self.add_constant(Value::Symbol(s.clone()));
-                self.emit(Instruction::with_arg(Opcode::Push, idx));
+                self.emit(Instruction::with_arg(Opcode::PushConst, idx));
             }
             Literal::Boolean(b) => {
                 if *b {
@@ -671,17 +778,23 @@ impl Compiler {
                 // Check if it's a constructor (starts with uppercase)
                 if name.chars().next().map_or(false, |c| c.is_uppercase()) {
                     // Constructor call - create a tagged value
-                    // Push the tag as a constant
-                    let tag_idx = self.add_constant(Value::String(name.clone()));
-                    self.emit(Instruction::with_arg(Opcode::Push, tag_idx));
-
-                    // Compile arguments
+                    // First compile all arguments
                     for &arg in args {
                         self.compile_node(graph, arg)?;
                     }
-
-                    // Create tagged value
-                    self.emit(Instruction::with_arg(Opcode::MakeTagged, args.len() as u32));
+                    
+                    // Create a list from the arguments
+                    self.emit(Instruction::with_arg(Opcode::MakeList, args.len() as u32));
+                    
+                    // Push the tag as a constant
+                    let tag_idx = self.add_constant(Value::String(name.clone()));
+                    self.emit(Instruction::with_arg(Opcode::PushConst, tag_idx));
+                    
+                    // Swap so tag is first, then list
+                    self.emit(Instruction::new(Opcode::Swap));
+                    
+                    // Create tagged value - MakeTagged pops list then tag
+                    self.emit(Instruction::with_arg(Opcode::MakeTagged, 0)); // arg not used
                     return Ok(());
                 }
             }
@@ -736,6 +849,8 @@ impl Compiler {
 
         // Switch to lambda chunk
         self.current_chunk = chunk_id;
+        // Important: Don't reset locals completely - we need to track what's captured
+        // The lambda compilation happens in its own chunk with its own locals
         self.locals = vec![HashMap::new()];
         self.captured = vec![HashMap::new()];
         // Lambda starts with parameters on stack
@@ -847,6 +962,23 @@ impl Compiler {
         self.scope_bases.push(self.stack_depth);
         self.cell_vars.push(HashSet::new());
         let scope_idx = self.locals.len() - 1;
+        
+        // Analyze which variables are mutated in the body
+        let mut mutated_vars = HashSet::new();
+        let mut bound_vars = HashSet::new();
+        for (name, _) in bindings {
+            bound_vars.insert(name.clone());
+        }
+        self.analyze_mutations(graph, body, &mut mutated_vars, &bound_vars)?;
+        
+        // Check which of our bindings are mutated and need to be cells
+        let mut needs_cell = Vec::new();
+        for (name, _) in bindings {
+            if mutated_vars.contains(name) {
+                needs_cell.push(name.clone());
+                self.cell_vars[scope_idx].insert(name.clone());
+            }
+        }
 
         // Compile bindings
         let initial_depth = self.stack_depth;
@@ -871,6 +1003,11 @@ impl Compiler {
                 "Let binding {} should add exactly one value to stack: expected {}, got {}",
                 name, before_depth + 1, self.stack_depth
             );
+            
+            // If this variable needs to be a cell, wrap it
+            if needs_cell.contains(name) {
+                self.emit(Instruction::new(Opcode::MakeCell));
+            }
 
             // Store relative position within this scope
             // The i-th binding is at position i relative to the scope base
@@ -965,8 +1102,27 @@ impl Compiler {
                         // The position stored is relative to the scope base
                         let abs_pos = self.get_scope_base(scope_idx)? + rel_pos;
                         
-                        // Store in local variable (consumes one copy)
-                        self.emit(Instruction::with_arg(Opcode::Store, abs_pos as u32));
+                        // Check if this is a cell variable
+                        if self.is_cell_var(scope_idx, name)? {
+                            // Load the cell first
+                            match abs_pos {
+                                0 => self.emit(Instruction::new(Opcode::LoadLocal0)),
+                                1 => self.emit(Instruction::new(Opcode::LoadLocal1)),
+                                2 => self.emit(Instruction::new(Opcode::LoadLocal2)),
+                                3 => self.emit(Instruction::new(Opcode::LoadLocal3)),
+                                _ => self.emit(Instruction::with_arg(Opcode::Load, abs_pos as u32)),
+                            };
+                            // Swap so we have [cell, value] on stack
+                            self.emit(Instruction::new(Opcode::Swap));
+                            // Store in cell
+                            self.emit(Instruction::new(Opcode::CellSet));
+                            // CellSet leaves nil on stack, but we need the value
+                            // So we need to drop the nil and keep the dup'd value
+                            self.emit(Instruction::new(Opcode::Pop));
+                        } else {
+                            // Store in local variable (consumes one copy)
+                            self.emit(Instruction::with_arg(Opcode::Store, abs_pos as u32));
+                        }
                         // Stack depth is now managed by emit()
                         found_local = true;
                         break;
@@ -974,10 +1130,43 @@ impl Compiler {
                 }
                 
                 if !found_local {
-                    // If not local, store as global (consumes one copy)
-                    let idx = self.add_constant(Value::String(name.clone()));
-                    self.emit(Instruction::with_arg(Opcode::StoreGlobal, idx));
-                    // Stack depth is now managed by emit()
+                    // Check if it's a captured variable
+                    let mut found_captured = false;
+                    for (_scope_idx, scope) in self.captured.iter().enumerate().rev() {
+                        if let Some(&capture_idx) = scope.get(name) {
+                            // Check if this captured variable is a cell
+                            let mut is_cell = false;
+                            for parent_cells in &self.cell_vars {
+                                if parent_cells.contains(name) {
+                                    is_cell = true;
+                                    break;
+                                }
+                            }
+                            
+                            if is_cell {
+                                // Load the captured cell
+                                self.emit(Instruction::with_arg(Opcode::LoadCaptured, capture_idx as u32));
+                                // Swap so we have [cell, value] on stack
+                                self.emit(Instruction::new(Opcode::Swap));
+                                // Store in cell
+                                self.emit(Instruction::new(Opcode::CellSet));
+                                // CellSet leaves nil on stack, but we need the value
+                                self.emit(Instruction::new(Opcode::Pop));
+                            } else {
+                                // Can't store to non-cell captured variables
+                                return Err(anyhow!("Cannot assign to non-mutable captured variable: {}", name));
+                            }
+                            found_captured = true;
+                            break;
+                        }
+                    }
+                    
+                    if !found_captured {
+                        // If not local or captured, store as global (consumes one copy)
+                        let idx = self.add_constant(Value::String(name.clone()));
+                        self.emit(Instruction::with_arg(Opcode::StoreGlobal, idx));
+                        // Stack depth is now managed by emit()
+                    }
                 }
                 
                 // The duplicated value remains on the stack as the result
@@ -1117,6 +1306,29 @@ impl Compiler {
         Ok(())
     }
 
+    fn compile_range(&mut self, graph: &ASTGraph, start: NodeId, end: NodeId, inclusive: bool) -> Result<()> {
+        // Load range function first
+        let range_const = self.add_constant(Value::String("range".to_string()));
+        self.emit(Instruction::with_arg(Opcode::LoadGlobal, range_const));
+        
+        // Compile start value
+        self.compile_node(graph, start)?;
+        
+        // Compile end value
+        self.compile_node(graph, end)?;
+        
+        // If inclusive, add 1 to the end value
+        if inclusive {
+            self.emit(Instruction::with_arg(Opcode::PushConst, 1));
+            self.emit(Instruction::new(Opcode::Add));
+        }
+        
+        // Call stdlib range function with 2 arguments (start, end)
+        self.emit(Instruction::with_arg(Opcode::Call, 2));
+        
+        Ok(())
+    }
+
     fn compile_map(&mut self, graph: &ASTGraph, pairs: &[(NodeId, NodeId)]) -> Result<()> {
         // Compile all key-value pairs
         for &(key, value) in pairs {
@@ -1132,6 +1344,13 @@ impl Compiler {
     }
 
 
+    fn ends_with_return(&self) -> bool {
+        let chunk = &self.bytecode.chunks[self.current_chunk];
+        chunk.instructions.last()
+            .map(|instr| matches!(instr.opcode, Opcode::Return | Opcode::TailReturn))
+            .unwrap_or(false)
+    }
+    
     pub(crate) fn emit(&mut self, instruction: Instruction) -> usize {
         let initial_depth = self.stack_depth;
         
@@ -1945,6 +2164,10 @@ impl Compiler {
                     self.collect_free_variables(graph, *item, free_vars, bound_vars)?;
                 }
             }
+            Node::Range { start, end, .. } => {
+                self.collect_free_variables(graph, *start, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *end, free_vars, bound_vars)?;
+            }
             Node::Effect { args, .. } => {
                 for arg in args {
                     self.collect_free_variables(graph, *arg, free_vars, bound_vars)?;
@@ -2034,6 +2257,32 @@ impl Compiler {
                     self.collect_free_variables(graph, *key, free_vars, bound_vars)?;
                     self.collect_free_variables(graph, *value, free_vars, bound_vars)?;
                 }
+            }
+            Node::Letrec { bindings, body } => {
+                // Letrec bindings are all in scope for each other
+                let mut new_bound = bound_vars.clone();
+                
+                // First, add all binding names to bound vars
+                for (name, _) in bindings {
+                    new_bound.insert(name.clone());
+                }
+                
+                // Then collect free vars from all binding values with all names in scope
+                for (_, value) in bindings {
+                    self.collect_free_variables(graph, *value, free_vars, &mut new_bound)?;
+                }
+                
+                // Finally, collect from body
+                self.collect_free_variables(graph, *body, free_vars, &mut new_bound)?;
+            }
+            Node::Begin { exprs } => {
+                for expr in exprs {
+                    self.collect_free_variables(graph, *expr, free_vars, bound_vars)?;
+                }
+            }
+            Node::Assignment { target, value } => {
+                self.collect_free_variables(graph, *target, free_vars, bound_vars)?;
+                self.collect_free_variables(graph, *value, free_vars, bound_vars)?;
             }
             _ => {} // Literals, Channel, etc. have no variables
         }
@@ -3254,6 +3503,91 @@ impl Compiler {
     #[cfg(not(debug_assertions))]
     fn verify_stack_invariants(&self) {
         // No-op in release builds
+    }
+    
+    /// Analyze which variables are mutated within a given scope
+    /// This is used to determine which variables need to be cells
+    fn analyze_mutations(
+        &self,
+        graph: &ASTGraph,
+        node: NodeId,
+        mutated_vars: &mut HashSet<String>,
+        bound_vars: &HashSet<String>,
+    ) -> Result<()> {
+        let node_obj = graph
+            .get_node(node)
+            .ok_or_else(|| anyhow!("Invalid node in mutation analysis: {:?}", node))?;
+
+        match node_obj {
+            Node::Assignment { target, value } => {
+                // Analyze the value first
+                self.analyze_mutations(graph, *value, mutated_vars, bound_vars)?;
+                
+                // Check if the target is a variable
+                if let Some(Node::Variable { name }) = graph.get_node(*target) {
+                    // Only track mutations of bound variables (not globals)
+                    if bound_vars.contains(name) {
+                        mutated_vars.insert(name.clone());
+                    }
+                }
+            }
+            Node::Let { bindings, body } => {
+                let mut new_bound = bound_vars.clone();
+                for (name, _) in bindings {
+                    new_bound.insert(name.clone());
+                }
+                
+                // Analyze binding values
+                for (_, value) in bindings {
+                    self.analyze_mutations(graph, *value, mutated_vars, &new_bound)?;
+                }
+                
+                // Analyze body
+                self.analyze_mutations(graph, *body, mutated_vars, &new_bound)?;
+            }
+            Node::Letrec { bindings, body } => {
+                let mut new_bound = bound_vars.clone();
+                // All letrec bindings are in scope for each other
+                for (name, _) in bindings {
+                    new_bound.insert(name.clone());
+                }
+                
+                // Analyze binding values
+                for (_, value) in bindings {
+                    self.analyze_mutations(graph, *value, mutated_vars, &new_bound)?;
+                }
+                
+                // Analyze body
+                self.analyze_mutations(graph, *body, mutated_vars, &new_bound)?;
+            }
+            Node::Lambda { params, body } => {
+                let mut new_bound = bound_vars.clone();
+                for param in params {
+                    new_bound.insert(param.clone());
+                }
+                self.analyze_mutations(graph, *body, mutated_vars, &new_bound)?;
+            }
+            Node::Application { function, args } => {
+                self.analyze_mutations(graph, *function, mutated_vars, bound_vars)?;
+                for arg in args {
+                    self.analyze_mutations(graph, *arg, mutated_vars, bound_vars)?;
+                }
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                self.analyze_mutations(graph, *condition, mutated_vars, bound_vars)?;
+                self.analyze_mutations(graph, *then_branch, mutated_vars, bound_vars)?;
+                self.analyze_mutations(graph, *else_branch, mutated_vars, bound_vars)?;
+            }
+            Node::Begin { exprs } => {
+                for expr in exprs {
+                    self.analyze_mutations(graph, *expr, mutated_vars, bound_vars)?;
+                }
+            }
+            // For other nodes, we don't need to track mutations
+            _ => {}
+        }
+        
+        Ok(())
     }
     
     #[cfg(not(debug_assertions))]

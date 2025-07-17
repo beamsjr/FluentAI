@@ -84,6 +84,7 @@ fn test_module_loading_and_execution() {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph).unwrap();
@@ -168,6 +169,7 @@ fn test_module_import_all() {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph).unwrap();
@@ -212,6 +214,7 @@ fn test_module_not_found_error() {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: false,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph).unwrap();

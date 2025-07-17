@@ -564,6 +564,14 @@ fn value_to_python(py: Python, value: &Value) -> PyResult<PyObject> {
         Value::Error { kind, message, .. } => {
             Ok(format!("<error:{}:{}>", kind, message).to_object(py))
         }
+        Value::Set(items) => {
+            let py_list = PyList::empty(py);
+            for item in items {
+                py_list.append(value_to_python(py, item)?)?;
+            }
+            let py_set = pyo3::types::PySet::new(py, py_list)?;
+            Ok(py_set.into())
+        }
     }
 }
 

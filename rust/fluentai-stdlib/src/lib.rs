@@ -20,6 +20,7 @@ pub mod strings_extended;
 pub mod test_support;
 pub mod value;
 pub mod vm_bridge;
+pub mod method_adapters;
 
 // Re-export the registry for convenience
 pub use registry::{StdlibFunction, StdlibRegistry};
@@ -46,6 +47,7 @@ pub fn init_stdlib() -> StdlibRegistry {
     datetime::register(&mut registry);
     logger::register(&mut registry);
     test_support::register(&mut registry);
+    method_adapters::register(&mut registry);
 
     registry
 }

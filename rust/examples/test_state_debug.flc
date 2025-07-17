@@ -1,0 +1,13 @@
+// Debug State effects
+
+private function main() {
+    perform IO.println("Setting state...");
+    perform State.set("test", 123);
+    perform IO.println("State set complete");
+    
+    perform IO.println("Getting state...");
+    let val = perform State.get("test");
+    perform IO.println(f"Got value: {val} (type: {val})");
+}
+
+main()

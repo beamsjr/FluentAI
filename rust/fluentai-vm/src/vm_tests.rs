@@ -229,7 +229,7 @@ mod tests {
             let mut vm = create_vm_with_constants(instructions, constants);
 
             let result = vm.run().unwrap();
-            assert_eq!(result, Value::Integer(42));
+            assert_eq!(result, Value::Float(42.0));
         }
 
         #[test]

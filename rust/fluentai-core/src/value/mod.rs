@@ -88,6 +88,9 @@ pub enum Value {
 
     /// Garbage collected handle (VM internal use)
     GcHandle(Arc<dyn std::any::Any + Send + Sync>),
+    
+    /// Set of unique values (stored as sorted vector for efficiency)
+    Set(Vec<Value>),
 }
 
 /// Procedure representation
@@ -185,6 +188,11 @@ impl Value {
 
     pub fn is_gc_handle(&self) -> bool {
         matches!(self, Value::GcHandle(_))
+    }
+    
+    /// Check if value is a set
+    pub fn is_set(&self) -> bool {
+        matches!(self, Value::Set(_))
     }
 
     /// Type conversion helpers
@@ -348,6 +356,17 @@ impl Value {
             }),
         }
     }
+    
+    /// Get set as vector reference
+    pub fn as_set(&self) -> ValueResult<&[Value]> {
+        match self {
+            Value::Set(items) => Ok(items),
+            _ => Err(ValueError::TypeError {
+                expected: "set",
+                actual: self.type_name(),
+            }),
+        }
+    }
 
     /// Get type name for error messages
     pub fn type_name(&self) -> &'static str {
@@ -371,6 +390,7 @@ impl Value {
             Value::Cell(_) => "cell",
             Value::Module { .. } => "module",
             Value::GcHandle(_) => "gc-handle",
+            Value::Set(_) => "set",
             Value::Actor(_) => "actor",
             Value::Error { .. } => "error",
         }
@@ -467,6 +487,12 @@ impl Value {
                 // GcHandles are compared by Arc pointer equality
                 Arc::ptr_eq(a, b)
             }
+            (Value::Set(a), Value::Set(b)) => {
+                // Sets should have same size and all elements from a should exist in b
+                a.len() == b.len() && a.iter().all(|item| {
+                    b.iter().any(|other| item.deep_eq(other))
+                })
+            }
             _ => false,
         }
     }
@@ -552,6 +578,7 @@ impl std::fmt::Debug for Value {
                 .field("exports", exports)
                 .finish(),
             Value::GcHandle(_) => write!(f, "GcHandle(..)"),
+            Value::Set(items) => f.debug_set().entries(items).finish(),
             Value::Actor(id) => write!(f, "Actor({})", id),
             Value::Error { kind, message, .. } => write!(f, "Error({}: {})", kind, message),
             Value::Future { chunk_id, env } => f
@@ -632,6 +659,9 @@ impl PartialEq for Value {
                 },
             ) => n1 == n2 && e1 == e2,
             (Value::GcHandle(a), Value::GcHandle(b)) => Arc::ptr_eq(a, b),
+            (Value::Set(a), Value::Set(b)) => {
+                a.len() == b.len() && a.iter().all(|item| b.contains(item))
+            },
             (Value::Actor(a), Value::Actor(b)) => a == b,
             (
                 Value::Error {
@@ -701,6 +731,7 @@ impl std::fmt::Display for Value {
                 write!(f, "#<module {} with {} exports>", name, exports.len())
             }
             Value::GcHandle(_) => write!(f, "#<gc-handle>"),
+            Value::Set(items) => write!(f, "#<set with {} items>", items.len()),
             Value::Actor(id) => write!(f, "#<actor:{}>", id),
             Value::Error { kind, message, .. } => write!(f, "#<error {} \"{}\">", kind, message),
         }

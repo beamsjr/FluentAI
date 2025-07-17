@@ -19,6 +19,7 @@ fn run_with_limits(source: &str, limits: ResourceLimits) -> Result<Value> {
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::None,
         debug_info: true,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&graph)?;

@@ -15,6 +15,11 @@ pub mod tail_call;
 pub mod algebraic_simplification;
 pub mod loop_invariant_code_motion;
 pub mod function_specialization;
+pub mod memoization;
+pub mod effect_reordering;
+pub mod subgraph_fusion;
+pub mod memory_aware;
+pub mod code_layout;
 
 use anyhow::Result;
 use fluentai_core::ast::Graph;

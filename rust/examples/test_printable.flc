@@ -1,0 +1,5 @@
+// Test using the standard library print function
+// The stdlib print function is already available
+
+// Test printing directly
+print("Hello, World!")

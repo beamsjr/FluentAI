@@ -1,0 +1,7 @@
+// Simple effect test
+
+private function main() {
+    perform IO.println("Testing simple effect");
+}
+
+main()

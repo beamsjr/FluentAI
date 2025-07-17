@@ -1,7 +1,7 @@
 /// Hot reload server for live development
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use web_time::SystemTime;
 use std::collections::HashMap;
 use notify::{Watcher, RecursiveMode, Event};
 use std::sync::mpsc::{channel, Receiver};

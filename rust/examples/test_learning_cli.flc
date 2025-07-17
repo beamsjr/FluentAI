@@ -1,0 +1,27 @@
+// Test program for learning mode CLI
+{
+    // Define a function that could benefit from optimization
+    let compute = (n) => {
+        // For now, use a simple calculation to test learning mode
+        // without triggering the while loop performance issue
+        n * (n - 1) / 2
+    };
+    
+    // Call the function multiple times to make it hot
+    let result1 = compute(100);
+    let result2 = compute(100);
+    let result3 = compute(100);
+    let result4 = compute(100);
+    let result5 = compute(100);
+    
+    perform IO.println("Results: " + result1 + ", " + result2 + ", " + result3);
+    
+    // Also test with different inputs
+    let result6 = compute(200);
+    let result7 = compute(200);
+    let result8 = compute(200);
+    
+    perform IO.println("More results: " + result6 + ", " + result7 + ", " + result8);
+    
+    "Done"
+}

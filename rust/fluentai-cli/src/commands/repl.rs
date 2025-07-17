@@ -327,7 +327,7 @@ pub async fn start_repl(viz_config: Option<VisualizationConfig>, config: &Config
 async fn run_code_with_viz(code: &str, viz: &ReplVisualization) -> Result<fluentai_core::value::Value> {
     use fluentai_parser::parse_flc;
     use fluentai_vm::{Compiler, CompilerOptions, VM};
-    use fluentai_optimizer::OptimizationLevel;
+    use fluentai_core::traits::OptimizationLevel;
     use fluentai_viz::serializer::VisualizationMessage;
     use fluentai_viz::layout::ASTLayouter;
     
@@ -348,6 +348,7 @@ async fn run_code_with_viz(code: &str, viz: &ReplVisualization) -> Result<fluent
     let options = CompilerOptions {
         optimization_level: OptimizationLevel::Standard,
         debug_info: true,
+        ..Default::default()
     };
     let compiler = Compiler::with_options(options);
     let bytecode = compiler.compile(&ast)?;

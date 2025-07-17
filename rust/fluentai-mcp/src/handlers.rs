@@ -278,5 +278,9 @@ fn format_value(value: &Value) -> String {
         Value::NativeFunction { name, .. } => format!("<native-function:{}>", name),
         Value::Actor(id) => format!("<actor:{}>", id),
         Value::Error { kind, message, .. } => format!("<error:{}:{}>", kind, message),
+        Value::Set(items) => {
+            let items_str: Vec<_> = items.iter().map(format_value).collect();
+            format!("#{{{}}}", items_str.join(" "))
+        }
     }
 }

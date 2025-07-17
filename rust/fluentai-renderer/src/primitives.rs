@@ -59,6 +59,31 @@ impl Color {
             a: array[3],
         }
     }
+    
+    /// Create a black color
+    pub fn black() -> Self {
+        Self { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }
+    }
+    
+    /// Create a white color
+    pub fn white() -> Self {
+        Self { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+    }
+    
+    /// Create a red color
+    pub fn red() -> Self {
+        Self { r: 1.0, g: 0.0, b: 0.0, a: 1.0 }
+    }
+    
+    /// Create a green color
+    pub fn green() -> Self {
+        Self { r: 0.0, g: 1.0, b: 0.0, a: 1.0 }
+    }
+    
+    /// Create a blue color
+    pub fn blue() -> Self {
+        Self { r: 0.0, g: 0.0, b: 1.0, a: 1.0 }
+    }
 }
 
 /// 2D position

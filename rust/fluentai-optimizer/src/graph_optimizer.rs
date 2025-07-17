@@ -1068,12 +1068,27 @@ fn evaluate_primitive(func_name: &str, args: &[Literal]) -> Option<Node> {
     use Literal::*;
 
     let result = match (func_name, args) {
-        // Arithmetic
-        ("+", [Integer(a), Integer(b)]) => Integer(a + b),
-        ("-", [Integer(a), Integer(b)]) => Integer(a - b),
-        ("*", [Integer(a), Integer(b)]) => Integer(a * b),
-        ("/", [Integer(a), Integer(b)]) if *b != 0 => Integer(a / b),
-        ("mod", [Integer(a), Integer(b)]) if *b != 0 => Integer(a % b),
+        // Arithmetic with overflow checking
+        ("+", [Integer(a), Integer(b)]) => match a.checked_add(*b) {
+            Some(result) => Integer(result),
+            None => return None, // Don't fold on overflow
+        },
+        ("-", [Integer(a), Integer(b)]) => match a.checked_sub(*b) {
+            Some(result) => Integer(result),
+            None => return None, // Don't fold on underflow
+        },
+        ("*", [Integer(a), Integer(b)]) => match a.checked_mul(*b) {
+            Some(result) => Integer(result),
+            None => return None, // Don't fold on overflow
+        },
+        ("/", [Integer(a), Integer(b)]) if *b != 0 => match a.checked_div(*b) {
+            Some(result) => Integer(result),
+            None => return None, // Don't fold on overflow (i64::MIN / -1)
+        },
+        ("mod", [Integer(a), Integer(b)]) if *b != 0 => match a.checked_rem(*b) {
+            Some(result) => Integer(result),
+            None => return None, // Don't fold on overflow
+        },
 
         // Floating point
         ("+", [Float(a), Float(b)]) => Float(a + b),

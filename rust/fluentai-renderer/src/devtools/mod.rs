@@ -3,7 +3,7 @@ use crate::components::{Component, ComponentId};
 use crate::primitives::{Renderable, Color};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 pub mod inspector;
 pub mod profiler;

@@ -5,7 +5,10 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse::Parse, parse::ParseStream, ItemFn, ItemStruct, Lit, Token};
+use syn::{
+    parse_macro_input, parse::Parse, parse::ParseStream, 
+    ItemFn, ItemStruct, Lit, Token, punctuated::Punctuated
+};
 
 // Helper struct to parse key-value pairs in attributes
 struct KeyValue {
@@ -232,8 +235,74 @@ pub fn stdlib_function(args: TokenStream, input: TokenStream) -> TokenStream {
 pub fn documented_effect(args: TokenStream, input: TokenStream) -> TokenStream {
     let input_struct = parse_macro_input!(input as ItemStruct);
     
-    // For now, just pass through - complex parsing of list attributes needs more work
+    // For syn 2.0, we need to parse the args differently
+    // Since the attribute syntax uses key=value pairs, we'll parse it as a custom type
+    struct EffectArgs {
+        effect_type: Option<String>,
+        operations: Vec<String>,
+        description: Option<String>,
+    }
+    
+    impl Parse for EffectArgs {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            let mut effect_type = None;
+            let mut operations = Vec::new();
+            let mut description = None;
+            
+            while !input.is_empty() {
+                let key: syn::Ident = input.parse()?;
+                let _: Token![=] = input.parse()?;
+                
+                if key == "effect_type" {
+                    let lit: syn::LitStr = input.parse()?;
+                    effect_type = Some(lit.value());
+                } else if key == "description" {
+                    let lit: syn::LitStr = input.parse()?;
+                    description = Some(lit.value());
+                } else if key == "operations" {
+                    // Parse array of strings: ["print", "println", "read_line"]
+                    let content;
+                    let _ = syn::bracketed!(content in input);
+                    let parsed_ops: Punctuated<syn::LitStr, Token![,]> = 
+                        Punctuated::parse_terminated(&content)?;
+                    operations = parsed_ops.into_iter().map(|lit| lit.value()).collect();
+                }
+                
+                if !input.is_empty() {
+                    let _: Token![,] = input.parse()?;
+                }
+            }
+            
+            Ok(EffectArgs {
+                effect_type,
+                operations,
+                description,
+            })
+        }
+    }
+    
+    let args = parse_macro_input!(args as EffectArgs);
+    
+    // Generate documentation
+    let doc_comment = if let (Some(effect_type), Some(desc)) = (args.effect_type, args.description) {
+        let ops_str = if args.operations.is_empty() {
+            String::new()
+        } else {
+            format!("\n\n# Operations\n\n- {}", args.operations.join("\n- "))
+        };
+        
+        format!(
+            "Effect handler for {} effects.\n\n{}{}",
+            effect_type,
+            desc,
+            ops_str
+        )
+    } else {
+        String::from("Effect handler.")
+    };
+    
     let expanded = quote! {
+        #[doc = #doc_comment]
         #input_struct
     };
 

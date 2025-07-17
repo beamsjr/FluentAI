@@ -24,7 +24,7 @@ impl Compiler {
         match func_name {
             // Arithmetic operators
             "+" => self.compile_variadic_op(graph, args, Opcode::Add, 2),
-            "-" => self.compile_binary_op(graph, args, Opcode::Sub),
+            "-" => self.compile_subtract(graph, args),
             "*" => self.compile_variadic_op(graph, args, Opcode::Mul, 2),
             "/" => self.compile_binary_op(graph, args, Opcode::Div),
             "%" => self.compile_binary_op(graph, args, Opcode::Mod),
@@ -264,5 +264,27 @@ impl Compiler {
         self.emit(Instruction::new(Opcode::Become));
         
         Ok(BuiltinResult::Handled)
+    }
+    
+    fn compile_subtract(
+        &mut self,
+        graph: &ASTGraph,
+        args: &[NodeId],
+    ) -> Result<BuiltinResult> {
+        match args.len() {
+            1 => {
+                // Unary minus (negation)
+                // We need to compile it as a regular function call since we don't have a Negate opcode
+                Ok(BuiltinResult::NotBuiltin)
+            }
+            2 => {
+                // Binary subtraction
+                self.compile_node(graph, args[0])?;
+                self.compile_node(graph, args[1])?;
+                self.emit(Instruction::new(Opcode::Sub));
+                Ok(BuiltinResult::Handled)
+            }
+            _ => Err(anyhow!("-: expected 1 or 2 arguments"))
+        }
     }
 }

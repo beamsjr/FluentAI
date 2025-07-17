@@ -9,11 +9,12 @@ use crate::gc::{GarbageCollector, GcConfig, GcScope};
 #[cfg(feature = "jit")]
 use crate::jit_integration::{JitConfig, JitManager};
 use crate::module_registry::ModuleRegistry;
+use crate::profiler::Profiler;
 use crate::safety::{ActorId, IdGenerator, ResourceLimits};
 #[cfg(feature = "std")]
 use crate::safety::{ChannelId, PromiseId};
 use crate::security::{SecurityManager, SecurityPolicy};
-use fluentai_core::ast::{NodeId, UsageStatistics};
+use fluentai_core::ast::{Graph, NodeId, UsageStatistics};
 use fluentai_core::value::Value;
 #[cfg(feature = "std")]
 use fluentai_effects::{runtime::EffectRuntime, EffectContext};
@@ -24,7 +25,6 @@ use fluentai_stdlib::value::Value as StdlibValue;
 use fluentai_stdlib::{init_stdlib, StdlibRegistry};
 use rustc_hash::FxHashMap;
 use std::sync::{Arc, RwLock};
-use web_time::Instant;
 #[cfg(feature = "std")]
 use tokio::sync::{mpsc, oneshot};
 
@@ -57,7 +57,7 @@ pub struct CallFrame {
     pub stack_base: usize,
     pub env: Vec<Value>, // Captured environment for closures
     #[allow(dead_code)]
-    pub start_time: Option<Instant>, // Track when this frame started executing
+    pub start_time: Option<web_time::Instant>, // Track when this frame started executing
 }
 
 /// Tracks usage statistics for nodes during execution
@@ -178,6 +178,12 @@ pub struct VM {
     gc: Option<Arc<GarbageCollector>>,
     // Usage tracking for context memory
     usage_tracker: Option<Arc<RwLock<UsageTracker>>>,
+    // Profiler for runtime optimization
+    profiler: Option<Arc<Profiler>>,
+    // Learning mode manager for runtime optimization exploration
+    learning_mode: Option<Box<crate::learning_mode::LearningModeManager>>,
+    // Original AST graph for variant compilation
+    ast_graph: Option<Arc<Graph>>,
     // Effect handler stack
     handler_stack: Vec<HandlerFrame>,
     // Error handler stack for try-catch-finally
@@ -198,6 +204,10 @@ pub struct VM {
     current_actor_id: Option<ActorId>,
     // Current actor message (if processing actor message)
     current_actor_message: Option<Value>,
+    // Loop tracking for profiling
+    loop_stack: Vec<(NodeId, usize, web_time::Instant)>, // (loop_id, iteration_count, start_time)
+    // Variant execution support
+    pending_variant_execution: Option<(Arc<Bytecode>, usize)>, // (variant_bytecode, variant_chunk_id)
 }
 
 /// Handler frame for tracking active effect handlers
@@ -277,6 +287,9 @@ impl VM {
             security_manager: None,
             gc: None,
             usage_tracker: None,
+            profiler: None,
+            learning_mode: None,
+            ast_graph: None,
             handler_stack: Vec::new(),
             error_handler_stack: Vec::new(),
             finally_states: Vec::new(),
@@ -288,6 +301,8 @@ impl VM {
             locals: Vec::with_capacity(256),
             current_actor_id: None,
             current_actor_message: None,
+            loop_stack: Vec::new(),
+            pending_variant_execution: None,
         }
     }
 
@@ -320,6 +335,7 @@ impl VM {
         self.locals.clear();
         self.current_actor_id = None;
         self.current_actor_message = None;
+        self.pending_variant_execution = None;
 
         // Keep these expensive initializations:
         // - self.stdlib (258 functions)
@@ -508,12 +524,19 @@ impl VM {
     }
 
     pub fn run(&mut self) -> VMResult<Value> {
+        // Create initial frame with profiling if enabled
+        let start_time = if let Some(profiler) = &self.profiler {
+            profiler.record_function_entry(self.bytecode.main_chunk, Some("main".to_string()))
+        } else {
+            None
+        };
+        
         self.call_stack.push(CallFrame {
             chunk_id: self.bytecode.main_chunk,
             ip: 0,
             stack_base: 0,
             env: Vec::new(),
-            start_time: self.usage_tracker.as_ref().map(|_| Instant::now()),
+            start_time,
         });
 
         let result = self.run_inner();
@@ -551,6 +574,14 @@ impl VM {
                 })?;
             let chunk_id = frame.chunk_id;
             let ip = frame.ip;
+
+            // Validate chunk_id first
+            if chunk_id >= self.bytecode.chunks.len() {
+                return Err(VMError::RuntimeError {
+                    message: format!("Invalid chunk_id: {}. Total chunks: {}", chunk_id, self.bytecode.chunks.len()),
+                    stack_trace: None,
+                });
+            }
 
             if ip >= self.bytecode.chunks[chunk_id].instructions.len() {
                 return Err(VMError::InvalidJumpTarget {
@@ -602,6 +633,57 @@ impl VM {
                     _ => {}
                 }
             }
+            
+            // Check if we have a pending variant execution before executing the next instruction
+            if self.pending_variant_execution.is_some() {
+                // Take the pending variant to avoid borrow issues
+                if let Some((variant_bytecode, variant_chunk_id)) = self.pending_variant_execution.take() {
+                    // Get the original function ID for performance tracking
+                    let original_function_id = if let Some(frame) = self.call_stack.last() {
+                        self.usage_tracker.as_ref()
+                            .and_then(|tracker| tracker.read().ok())
+                            .and_then(|t| t.chunk_to_node.get(&frame.chunk_id).cloned())
+                    } else {
+                        None
+                    };
+                    
+                    // Execute the variant with performance monitoring
+                    let start_time = web_time::Instant::now();
+                    let initial_instruction_count = self.instruction_count;
+                    let initial_allocations = self.gc.as_ref().map(|gc| gc.stats().allocations).unwrap_or(0);
+                    
+                    let execution_result = self.execute_with_variant(variant_bytecode.clone(), variant_chunk_id);
+                    
+                    // Collect performance metrics
+                    let elapsed = start_time.elapsed();
+                    let instructions_executed = self.instruction_count - initial_instruction_count;
+                    let new_allocations = self.gc.as_ref().map(|gc| gc.stats().allocations).unwrap_or(0) - initial_allocations;
+                    
+                    // Update learning mode with performance data
+                    if let (Some(lm), Some(function_id)) = (&mut self.learning_mode, original_function_id) {
+                        use crate::learning_mode::ExecutionMetrics;
+                        
+                        let metrics = ExecutionMetrics {
+                            duration: elapsed,
+                            instruction_count: instructions_executed as u64,
+                            allocations: new_allocations as u64,
+                            cache_misses: 0, // Simulated for now
+                            branch_mispredictions: 0, // Simulated for now
+                        };
+                        
+                        // Find the strategy used for this variant
+                        if let Some(variant) = lm.get_best_variant(function_id) {
+                            lm.update_performance(function_id, variant.strategy, metrics);
+                        }
+                    }
+                    
+                    // Re-raise error if execution failed
+                    execution_result?;
+                    
+                    // After variant execution completes, continue with normal execution
+                    continue;
+                }
+            }
 
             // Increment IP before execution (may be modified by jumps)
             self.call_stack.last_mut().unwrap().ip += 1;
@@ -648,15 +730,33 @@ impl VM {
                             });
                         }
                         return Ok(result);
-                    }
-                    // Pop call frame and continue
-                    self.call_stack.pop();
-                    if self.debug_config.enabled {
-                        let return_value = self.stack.last().cloned().unwrap_or(Value::Nil);
-                        self.debug_config.send_event(VMDebugEvent::FunctionReturn {
-                            value: return_value,
-                            call_depth: self.call_stack.len(),
-                        });
+                    } else {
+                        // Non-main function returning
+                        // The return value is on top of stack (pushed by Return handler)
+                        let return_value = self.pop()?;
+                        
+                        // Get the frame we're returning from
+                        let returning_frame = self.call_stack.pop().ok_or_else(|| VMError::RuntimeError {
+                            message: "No frame to return from".to_string(),
+                            stack_trace: None,
+                        })?;
+                        
+                        // Clean up stack to where it was before the call
+                        // (the caller's frame base is where we should restore to)
+                        if let Some(caller_frame) = self.call_stack.last() {
+                            // For non-main frames, we should restore to the caller's stack position
+                            self.stack.truncate(returning_frame.stack_base);
+                        }
+                        
+                        // Push return value for caller
+                        self.push(return_value.clone())?;
+                        
+                        if self.debug_config.enabled {
+                            self.debug_config.send_event(VMDebugEvent::FunctionReturn {
+                                value: return_value,
+                                call_depth: self.call_stack.len(),
+                            });
+                        }
                     }
                 }
                 VMState::Halt => {
@@ -697,6 +797,19 @@ impl VM {
         instruction: &Instruction,
         chunk_id: usize,
     ) -> VMResult<VMState> {
+        // Record instruction execution start time if profiling
+        let start_time = if let Some(profiler) = &self.profiler {
+            if profiler.is_enabled() {
+                Some(web_time::Instant::now())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
+        let pc = self.call_stack.last().map(|f| f.ip.saturating_sub(1)).unwrap_or(0);
+        
         use crate::opcode_handlers::{
             ArithmeticHandler, StackHandler, ControlFlowHandler,
             MemoryHandler, CollectionsHandler, ConcurrentHandler,
@@ -719,36 +832,36 @@ impl VM {
         let mut module_handler = ModuleHandler::new();
         
         // Dispatch to appropriate handler based on opcode category
-        match instruction.opcode {
+        let result = match instruction.opcode {
             // Stack operations
             Push | Pop | PopN | Dup | Swap |
             PushInt0 | PushInt1 | PushInt2 | PushIntSmall |
             PushTrue | PushFalse | PushNil | PushConst => {
-                return stack_handler.execute(self, instruction, chunk_id);
+                stack_handler.execute(self, instruction, chunk_id)
             }
             
             // Arithmetic operations
             Add | Sub | Mul | Div | Mod | Neg |
             AddInt | SubInt | MulInt | DivInt |
             AddFloat | SubFloat | MulFloat | DivFloat => {
-                return arithmetic_handler.execute(self, instruction, chunk_id);
+                arithmetic_handler.execute(self, instruction, chunk_id)
             }
             
             // Comparison operations
             Eq | Ne | Lt | Le | Gt | Ge |
             LtInt | LeInt | GtInt | GeInt => {
-                return comparison_handler.execute(self, instruction, chunk_id);
+                comparison_handler.execute(self, instruction, chunk_id)
             }
             
             // Logical operations
             And | Or | Not => {
-                return logical_handler.execute(self, instruction, chunk_id);
+                logical_handler.execute(self, instruction, chunk_id)
             }
             
             // Control flow operations
             Jump | JumpIf | JumpIfNot | Call |
             Return | TailCall => {
-                return control_flow_handler.execute(self, instruction, chunk_id);
+                control_flow_handler.execute(self, instruction, chunk_id)
             }
             
             // Memory operations
@@ -757,18 +870,18 @@ impl VM {
             StoreLocal0 | StoreLocal1 | StoreLocal2 | StoreLocal3 |
             LoadGlobal | StoreGlobal | LoadCaptured | UpdateLocal |
             LoadUpvalue | StoreUpvalue => {
-                return memory_handler.execute(self, instruction, chunk_id);
+                memory_handler.execute(self, instruction, chunk_id)
             }
             
             // Collection operations
             MakeList | ListGet | ListSet | ListLen | ListEmpty | ListHead | ListTail | ListCons |
             MakeMap | MapGet | MapSet => {
-                return collections_handler.execute(self, instruction, chunk_id);
+                collections_handler.execute(self, instruction, chunk_id)
             }
             
             // String operations
             StrLen | StrConcat | StrUpper | StrLower => {
-                return string_handler.execute(self, instruction, chunk_id);
+                string_handler.execute(self, instruction, chunk_id)
             }
             
             // Concurrent operations
@@ -776,7 +889,7 @@ impl VM {
             TrySend | TryReceive | Select | CreateActor | MakeActor | ActorSend |
             ActorReceive | Become | PromiseNew | PromiseAll | PromiseRace |
             WithTimeout => {
-                return concurrent_handler.execute(self, instruction, chunk_id);
+                concurrent_handler.execute(self, instruction, chunk_id)
             }
             
             // Effect operations
@@ -785,49 +898,70 @@ impl VM {
             Catch | Finally | FinallyStart | FinallyEnd | EndFinally |
             Throw | PushHandler | PushFinally | PopHandler |
             MakeHandler | InstallHandler | UninstallHandler => {
-                return effects_handler.execute(self, instruction, chunk_id);
+                effects_handler.execute(self, instruction, chunk_id)
             }
             
             // Cell operations
             MakeCell | LoadCell | StoreCell | CellGet | CellSet => {
-                return memory_handler.execute(self, instruction, chunk_id);
+                memory_handler.execute(self, instruction, chunk_id)
             }
             
             // Tagged value operations
             MakeTagged | GetTag | GetTaggedField | IsTagged => {
-                return memory_handler.execute(self, instruction, chunk_id);
+                memory_handler.execute(self, instruction, chunk_id)
             }
             
             // Module operations
             LoadModule | ImportBinding | ImportAll | LoadQualified |
             BeginModule | EndModule | ExportBinding => {
-                return module_handler.execute(self, instruction, chunk_id);
+                module_handler.execute(self, instruction, chunk_id)
             }
             
             // GC operations
             GcAlloc | GcDeref | GcSet | GcCollect => {
-                return memory_handler.execute(self, instruction, chunk_id);
+                memory_handler.execute(self, instruction, chunk_id)
             }
             
             // Other control flow
             TailReturn | LoopStart | LoopEnd => {
-                return control_flow_handler.execute(self, instruction, chunk_id);
+                control_flow_handler.execute(self, instruction, chunk_id)
             }
             
             // Function operations
             MakeFunc | MakeClosure | MakeFuture | MakeEnv | PopEnv => {
-                return memory_handler.execute(self, instruction, chunk_id);
+                memory_handler.execute(self, instruction, chunk_id)
             }
             
             // Special
             Halt | Nop => {
                 match instruction.opcode {
-                    Halt => return Ok(VMState::Halt),
-                    Nop => return Ok(VMState::Continue),
+                    Halt => Ok(VMState::Halt),
+                    Nop => Ok(VMState::Continue),
                     _ => unreachable!(),
                 }
             }
+        };
+        
+        // Record profiling data
+        if let (Some(profiler), Some(start_time)) = (&self.profiler, start_time) {
+            profiler.record_instruction(chunk_id, pc, instruction.opcode, start_time);
+            
+            // Record branch information for conditional jumps
+            match instruction.opcode {
+                JumpIf | JumpIfNot => {
+                    if let Ok(VMState::Continue) = &result {
+                        // Check if we jumped by comparing current IP with expected next IP
+                        let current_ip = self.call_stack.last().map(|f| f.ip).unwrap_or(0);
+                        let expected_ip = pc + 1;
+                        let jumped = current_ip != expected_ip;
+                        profiler.record_branch(chunk_id, pc, jumped);
+                    }
+                }
+                _ => {}
+            }
         }
+        
+        result
     }
 
 
@@ -1020,6 +1154,7 @@ impl VM {
             Value::Actor(_) => true,
             Value::Error { .. } => false, // Errors are falsy
             Value::Future { .. } => true,
+            Value::Set(s) => !s.is_empty(),
         }
     }
 
@@ -1084,19 +1219,12 @@ impl VM {
                 }
 
                 // Create new call frame
-                self.call_stack.push(CallFrame {
+                self.push_frame(CallFrame {
                     chunk_id,
                     ip: 0,
                     stack_base,
                     env,
-                    #[cfg(not(target_arch = "wasm32"))]
-                    start_time: if self.usage_tracker.is_some() {
-                        Some(Instant::now())
-                    } else {
-                        None
-                    },
-                    #[cfg(target_arch = "wasm32")]
-                    start_time: None,
+                    start_time: None, // Will be set by push_frame if profiling enabled
                 });
 
                 // Continue execution until this call returns
@@ -1112,6 +1240,14 @@ impl VM {
                         })?;
                     let chunk_id = frame.chunk_id;
                     let ip = frame.ip;
+
+                    // Validate chunk_id first
+                    if chunk_id >= self.bytecode.chunks.len() {
+                        return Err(VMError::RuntimeError {
+                            message: format!("Invalid chunk_id: {}. Total chunks: {}", chunk_id, self.bytecode.chunks.len()),
+                            stack_trace: None,
+                        });
+                    }
 
                     if ip >= self.bytecode.chunks[chunk_id].instructions.len() {
                         return Err(VMError::InvalidJumpTarget {
@@ -1224,6 +1360,14 @@ impl VM {
 
                     let chunk_id = frame.chunk_id;
                     let ip = frame.ip;
+
+                    // Validate chunk_id first
+                    if chunk_id >= self.bytecode.chunks.len() {
+                        return Err(VMError::RuntimeError {
+                            message: format!("Invalid chunk_id: {}. Total chunks: {}", chunk_id, self.bytecode.chunks.len()),
+                            stack_trace: None,
+                        });
+                    }
 
                     // Check bounds
                     let chunk = &self.bytecode.chunks[chunk_id];
@@ -1379,6 +1523,12 @@ impl VM {
             Value::Error { kind, message, .. } => {
                 fluentai_core::value::Value::String(format!("<error:{}:{}>", kind, message))
             }
+            Value::Set(items) => fluentai_core::value::Value::Set(
+                items
+                    .iter()
+                    .map(|v| self.vm_value_to_core_value(v))
+                    .collect(),
+            ),
         }
     }
 
@@ -1458,6 +1608,15 @@ impl VM {
                 chunk_id: *chunk_id,
                 env: env.iter().map(|v| self.core_value_to_vm_value(v)).collect(),
             },
+            fluentai_core::value::Value::Set(items) => {
+                // Convert sets to lists in VM representation
+                Value::List(
+                    items
+                        .iter()
+                        .map(|v| self.core_value_to_vm_value(v))
+                        .collect(),
+                )
+            },
         }
     }
 
@@ -1502,8 +1661,12 @@ impl VM {
 
         // Compile the module
         let options = crate::compiler::CompilerOptions {
-            optimization_level: fluentai_optimizer::OptimizationLevel::Basic,
+            optimization_level: crate::compiler::OptimizationLevel::Standard,
             debug_info: false,
+            #[cfg(feature = "ai-analysis")]
+            ai_optimization: false,
+            #[cfg(feature = "ai-analysis")]
+            hybrid_optimization: false,
         };
         let compiler = crate::compiler::Compiler::with_options(options);
         let module_bytecode =
@@ -1577,7 +1740,7 @@ impl VM {
         Ok(())
     }
 
-    fn current_chunk(&self) -> usize {
+    pub fn current_chunk(&self) -> usize {
         self.call_stack
             .last()
             .map(|frame| frame.chunk_id)
@@ -1708,6 +1871,14 @@ impl VM {
     
     // Constant access
     pub fn get_constant(&self, chunk_id: usize, index: usize) -> VMResult<&Value> {
+        // Validate chunk_id first
+        if chunk_id >= self.bytecode.chunks.len() {
+            return Err(VMError::RuntimeError {
+                message: format!("Invalid chunk_id: {}. Total chunks: {}", chunk_id, self.bytecode.chunks.len()),
+                stack_trace: None,
+            });
+        }
+        
         self.bytecode.chunks[chunk_id]
             .constants
             .get(index)
@@ -1734,6 +1905,10 @@ impl VM {
         if let Some(frame) = self.call_stack.last_mut() {
             frame.ip = ip;
         }
+    }
+    
+    pub fn get_ip(&self) -> usize {
+        self.call_stack.last().map(|f| f.ip).unwrap_or(0)
     }
     
     
@@ -1957,7 +2132,7 @@ impl VM {
                     task_vm.globals = globals;
                     
                     // Set up the call frame for the function
-                    task_vm.call_stack.push(CallFrame {
+                    task_vm.push_frame(CallFrame {
                         chunk_id,
                         ip: 0,
                         stack_base: 0,
@@ -2057,11 +2232,135 @@ impl VM {
         Ok(())
     }
     
+    /// Process messages for a specific actor
+    #[cfg(feature = "std")]
+    pub fn process_actor_messages(&mut self, actor_id: ActorId) -> VMResult<()> {
+        // Get the actor (we need to temporarily remove it to avoid borrow issues)
+        let mut actor = self.actors.remove(&actor_id).ok_or_else(|| VMError::UnknownIdentifier {
+            name: format!("actor:{}", actor_id.0),
+            location: None,
+            stack_trace: None,
+        })?;
+        
+        // Set current actor context
+        self.current_actor_id = Some(actor_id);
+        
+        // Try to receive a message from the mailbox
+        while let Ok(message) = actor.mailbox.try_recv() {
+            // Set the current message for ActorReceive opcode
+            self.current_actor_message = Some(message.clone());
+            
+            // For now, we'll set the state as a global variable
+            // This is a workaround until we fix the actor compilation
+            self.set_global("__state".to_string(), actor.state.clone());
+            
+            // Call the handler function with state and message
+            let handler = actor.handler.clone();
+            let state = actor.state.clone();
+            
+            // Save the current VM state to avoid interfering with it
+            let saved_call_stack = self.call_stack.clone();
+            let saved_stack_len = self.stack.len();
+            
+            // Clear the call stack for actor execution
+            self.call_stack.clear();
+            
+            // Push handler, state, and message onto stack
+            self.push(handler)?;
+            self.push(state)?;
+            self.push(message)?;
+            
+            // Call the handler with 2 arguments (state and message)
+            // Track the call stack depth for this execution
+            let initial_stack_depth = self.stack.len();
+            
+            // Create a simple call - push function and args, then Call opcode
+            let msg = self.pop()?;   // message (second arg)
+            let state = self.pop()?;  // state (first arg)
+            let func = self.pop()?;   // handler function
+            
+            // Push them back in the right order for Call
+            self.push(state)?;     // first arg
+            self.push(msg)?;       // second arg
+            self.push(func)?;      // function on top
+            
+            // Create a temporary main frame to execute from
+            self.push_frame(CallFrame {
+                chunk_id: 0,  // Use main chunk (doesn't matter, we won't execute from it)
+                ip: 0,
+                stack_base: 0,
+                env: Vec::new(),
+                start_time: None,
+            });
+            
+            // Execute call with 2 arguments
+            match self.execute_instruction(
+                &Instruction::with_arg(Opcode::Call, 2), 
+                0  // chunk_id doesn't matter for Call instruction
+            )? {
+                VMState::Continue => {
+                    // Continue executing until we return to the initial level
+                    while self.call_stack.len() > 1 {
+                        let result = self.run_inner();
+                        if let Err(e) = result {
+                            // Restore state before propagating error
+                            self.call_stack = saved_call_stack;
+                            self.stack.truncate(saved_stack_len);
+                            return Err(e);
+                        }
+                    }
+                    // Pop the temporary main frame
+                    self.call_stack.pop();
+                }
+                VMState::Return => {
+                    // Should not happen for Call instruction
+                    self.call_stack.pop();
+                }
+                VMState::Halt => {
+                    self.call_stack.pop();
+                    return Err(VMError::RuntimeError {
+                        message: "Actor handler halted unexpectedly".to_string(),
+                        stack_trace: None,
+                    });
+                }
+            }
+            
+            // The result is the new state (handler should return new state)
+            // In the simple test, the handler just returns the current state
+            let result = self.pop()?; // Get the return value from handler
+            actor.state = result;
+            
+            // Restore the VM state
+            self.call_stack = saved_call_stack;
+            self.stack.truncate(saved_stack_len);
+            
+            // Clear the current message and state
+            self.current_actor_message = None;
+            self.globals.remove("__state");
+        }
+        
+        // Clear actor context
+        self.current_actor_id = None;
+        
+        // Put the actor back
+        self.actors.insert(actor_id, actor);
+        Ok(())
+    }
+    
     /// Process all pending actor messages
     /// This is used in tests to drive actor message processing
+    #[cfg(feature = "std")]
     pub fn process_all_actor_messages(&mut self) -> VMResult<()> {
-        // TODO: Implement actor message processing
-        // For now, this is a no-op as actor message processing is not fully implemented
+        let actor_ids: Vec<ActorId> = self.actors.keys().cloned().collect();
+        for actor_id in actor_ids {
+            self.process_actor_messages(actor_id)?;
+        }
+        Ok(())
+    }
+    
+    /// Process all pending actor messages (no-op for no_std)
+    #[cfg(not(feature = "std"))]
+    pub fn process_all_actor_messages(&mut self) -> VMResult<()> {
         Ok(())
     }
     
@@ -2211,21 +2510,52 @@ impl VM {
                     .map(|v| self.vm_value_to_stdlib_value(v))
                     .collect();
 
-                // Create StdlibContext with just the effect context for now
-                let mut context = fluentai_stdlib::vm_bridge::StdlibContext::default();
-                context.effect_context_override = Some(self.effect_context.clone());
+                // Check if it's a higher-order function that needs special handling
+                match func_name {
+                    "map" | "filter" | "fold" | "reduce" => {
+                        // For method calls, we need to reorder arguments
+                        // Method syntax: list.map(fn) -> args are [list, fn]
+                        // Stdlib expects: map(fn, list)
+                        let reordered_args = if func_name == "fold" || func_name == "reduce" {
+                            // fold/reduce: list.reduce(init, fn) -> fold(fn, init, list)
+                            if args.len() == 3 {
+                                vec![args[2].clone(), args[1].clone(), args[0].clone()]
+                            } else {
+                                args
+                            }
+                        } else {
+                            // map/filter: list.map(fn) -> map(fn, list)
+                            if args.len() == 2 {
+                                vec![args[1].clone(), args[0].clone()]
+                            } else {
+                                args
+                            }
+                        };
+                        
+                        // Use the VM's higher-order stdlib implementation
+                        use crate::stdlib_bridge::VMStdlibExt;
+                        let result = self.call_higher_order_stdlib(func_name, &reordered_args)?;
+                        self.push(result)?;
+                    }
+                    _ => {
+                        // For non-higher-order functions, we can't create VM callback
+                        // so we'll use NoOpVMCallback 
+                        let mut context = fluentai_stdlib::vm_bridge::StdlibContext::default();
+                        context.effect_context_override = Some(self.effect_context.clone());
 
-                // Call the stdlib function with context
-                let stdlib_result = stdlib_func
-                    .call_with_context(&mut context, &stdlib_args)
-                    .map_err(|e| VMError::RuntimeError {
-                        message: format!("Stdlib function '{}' failed: {}", func_name, e),
-                        stack_trace: Some(self.build_stack_trace()),
-                    })?;
+                        // Call the stdlib function with context
+                        let stdlib_result = stdlib_func
+                            .call_with_context(&mut context, &stdlib_args)
+                            .map_err(|e| VMError::RuntimeError {
+                                message: format!("Stdlib function '{}' failed: {}", func_name, e),
+                                stack_trace: Some(self.build_stack_trace()),
+                            })?;
 
-                // Convert result back to VM value
-                let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
-                self.push(vm_result)?;
+                        // Convert result back to VM value
+                        let vm_result = self.stdlib_value_to_vm_value(&stdlib_result);
+                        self.push(vm_result)?;
+                    }
+                }
             } else {
                 return Err(VMError::UnknownIdentifier {
                     name: func_name.to_string(),
@@ -2312,6 +2642,7 @@ impl VM {
                             });
                         }
                         self.perform_io_print(args[0].clone())?;
+                        self.push(Value::Nil)?;
                     }
                     "println" => {
                         if args.is_empty() {
@@ -2321,6 +2652,7 @@ impl VM {
                             });
                         }
                         self.perform_io_println(args[0].clone())?;
+                        self.push(Value::Nil)?;
                     }
                     _ => return Err(VMError::RuntimeError {
                         message: format!("Unknown IO operation: {}", effect_op),
@@ -2379,6 +2711,124 @@ impl VM {
                         }
                     }
             }
+            "Time" => {
+                match effect_op {
+                    "now" => {
+                        // Return current time in milliseconds since Unix epoch
+                        use std::time::{SystemTime, UNIX_EPOCH};
+                        let duration = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .map_err(|_| VMError::RuntimeError {
+                                message: "System time before Unix epoch".to_string(),
+                                stack_trace: None,
+                            })?;
+                        let millis = duration.as_millis() as i64;
+                        self.push(Value::Integer(millis))?;
+                    }
+                    _ => return Err(VMError::RuntimeError {
+                        message: format!("Unknown Time operation: {}", effect_op),
+                        stack_trace: None,
+                    }),
+                }
+            }
+            "Random" => {
+                match effect_op {
+                    "int" => {
+                        if args.len() < 2 {
+                            return Err(VMError::RuntimeError {
+                                message: "Random.int requires min and max arguments".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        let min = match &args[0] {
+                            Value::Integer(i) => *i,
+                            _ => return Err(VMError::RuntimeError {
+                                message: "Random.int min must be an integer".to_string(),
+                                stack_trace: None,
+                            }),
+                        };
+                        let max = match &args[1] {
+                            Value::Integer(i) => *i,
+                            _ => return Err(VMError::RuntimeError {
+                                message: "Random.int max must be an integer".to_string(),
+                                stack_trace: None,
+                            }),
+                        };
+                        // Simple deterministic "random" for now
+                        let random_val = (min + max) / 2; // Just return midpoint for determinism
+                        self.push(Value::Integer(random_val))?;
+                    }
+                    "float" => {
+                        // Return a deterministic "random" float between 0 and 1
+                        self.push(Value::Float(0.5))?;
+                    }
+                    _ => return Err(VMError::RuntimeError {
+                        message: format!("Unknown Random operation: {}", effect_op),
+                        stack_trace: None,
+                    }),
+                }
+            }
+            "State" => {
+                match effect_op {
+                    "get" => {
+                        if args.is_empty() {
+                            return Err(VMError::RuntimeError {
+                                message: "State.get requires a key argument".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        let key = match &args[0] {
+                            Value::String(s) => s,
+                            _ => return Err(VMError::RuntimeError {
+                                message: "State.get key must be a string".to_string(),
+                                stack_trace: None,
+                            }),
+                        };
+                        // Use globals for state storage
+                        let state_key = format!("__state_{}", key);
+                        if std::env::var("VM_DEBUG").is_ok() {
+                            eprintln!("State.get: Looking for key {}", state_key);
+                        }
+                        if let Some(value) = self.get_global(&state_key) {
+                            if std::env::var("VM_DEBUG").is_ok() {
+                                eprintln!("State.get: Found value {:?}", value);
+                            }
+                            self.push(value.clone())?;
+                        } else {
+                            if std::env::var("VM_DEBUG").is_ok() {
+                                eprintln!("State.get: Key not found, returning nil");
+                            }
+                            self.push(Value::Nil)?;
+                        }
+                    }
+                    "set" => {
+                        if args.len() < 2 {
+                            return Err(VMError::RuntimeError {
+                                message: "State.set requires key and value arguments".to_string(),
+                                stack_trace: None,
+                            });
+                        }
+                        let key = match &args[0] {
+                            Value::String(s) => s,
+                            _ => return Err(VMError::RuntimeError {
+                                message: "State.set key must be a string".to_string(),
+                                stack_trace: None,
+                            }),
+                        };
+                        let value = args[1].clone();
+                        let state_key = format!("__state_{}", key);
+                        if std::env::var("VM_DEBUG").is_ok() {
+                            eprintln!("State.set: Setting {} = {:?}", state_key, value);
+                        }
+                        self.set_global(state_key, value);
+                        self.push(Value::Nil)?;
+                    }
+                    _ => return Err(VMError::RuntimeError {
+                        message: format!("Unknown State operation: {}", effect_op),
+                        stack_trace: None,
+                    }),
+                }
+            }
             _ => {
                 // For other effects, try the effect context
                 // This is a simplified version - in reality we'd need to handle async effects properly
@@ -2390,6 +2840,11 @@ impl VM {
         }
         
         Ok(())
+    }
+    
+    pub fn perform_effect_async(&mut self, effect_type: String, operation: String, args: Vec<Value>) -> VMResult<()> {
+        // For now, just handle it synchronously
+        self.perform_effect(effect_type, operation, args)
     }
     
     pub fn install_effect_handlers(&mut self, handlers: Vec<Value>) -> VMResult<()> {
@@ -2418,7 +2873,7 @@ impl VM {
         Ok(())
     }
     
-    pub fn throw_error(&mut self, error: Value) -> VMResult<VMState> {
+    pub fn throw_error(&mut self, _error: Value) -> VMResult<VMState> {
         // Simplified implementation
         Ok(VMState::Continue)
     }
@@ -2686,6 +3141,561 @@ impl VM {
             stack_trace: None,
         })
     }
+    
+    // Accessor methods for opcode handlers
+    
+    /// Get the current call frame
+    pub fn current_frame(&self) -> &CallFrame {
+        self.call_stack.last()
+            .expect("No active call frame")
+    }
+    
+    /// Get mutable access to cells
+    pub fn cells(&self) -> &Vec<Value> {
+        &self.cells
+    }
+    
+    /// Get mutable access to cells
+    pub fn cells_mut(&mut self) -> &mut Vec<Value> {
+        &mut self.cells
+    }
+    
+    /// Get reference to usage tracker
+    pub fn usage_tracker_ref(&self) -> Option<&UsageTracker> {
+        self.usage_tracker.as_ref().and_then(|arc| {
+            arc.try_read().ok().map(|guard| {
+                // This is a workaround - we can't return a reference from a guard
+                // In practice, the handlers should be refactored to work with Arc<RwLock>
+                // For now, we'll return None
+                None as Option<&UsageTracker>
+            }).flatten()
+        })
+    }
+    
+    /// Get mutable reference to usage tracker
+    pub fn usage_tracker_mut(&mut self) -> Option<&mut UsageTracker> {
+        // Due to the Arc<RwLock> wrapper, we can't get a direct mutable reference
+        // This needs to be refactored to work with the locking mechanism
+        None
+    }
+    
+    /// Enable profiling
+    pub fn enable_profiling(&mut self) {
+        if self.profiler.is_none() {
+            self.profiler = Some(Arc::new(Profiler::new()));
+        }
+        if let Some(profiler) = &self.profiler {
+            profiler.enable();
+        }
+    }
+    
+    /// Disable profiling
+    pub fn disable_profiling(&mut self) {
+        if let Some(profiler) = &self.profiler {
+            profiler.disable();
+        }
+    }
+    
+    /// Get profiler reference
+    pub fn profiler(&self) -> Option<&Arc<Profiler>> {
+        self.profiler.as_ref()
+    }
+    
+    /// Get mutable reference to current frame
+    pub fn current_frame_mut(&mut self) -> &mut CallFrame {
+        self.call_stack.last_mut()
+            .expect("No active call frame")
+    }
+    
+    /// Push loop tracking for profiling
+    pub fn push_loop_tracking(&mut self, loop_id: NodeId) {
+        self.loop_stack.push((loop_id, 0, web_time::Instant::now()));
+    }
+    
+    /// Pop loop tracking and return loop info
+    pub fn pop_loop_tracking(&mut self) -> Option<(NodeId, u64)> {
+        self.loop_stack.pop().map(|(id, count, _)| (id, count as u64))
+    }
+    
+    /// Increment current loop iteration count
+    pub fn increment_loop_iteration(&mut self) {
+        if let Some((_, count, _)) = self.loop_stack.last_mut() {
+            *count += 1;
+        }
+    }
+    
+    /// Record a value observation for profiling
+    pub fn record_value_observation(&self, node_id: NodeId, value: &Value) {
+        if let Some(profiler) = &self.profiler {
+            // Convert value to a string representation for profiling
+            let value_str = match value {
+                Value::Integer(n) => format!("int:{}", n),
+                Value::Float(f) => format!("float:{}", f),
+                Value::Boolean(b) => format!("bool:{}", b),
+                Value::String(s) => format!("str:len={}", s.len()),
+                Value::Symbol(s) => format!("sym:{}", s),
+                Value::Nil => "nil".to_string(),
+                Value::List(l) => format!("list:len={}", l.len()),
+                Value::Vector(v) => format!("vec:len={}", v.len()),
+                Value::Map(m) => format!("map:len={}", m.len()),
+                Value::Function { chunk_id, .. } => format!("func:chunk={}", chunk_id),
+                _ => "other".to_string(),
+            };
+            profiler.record_value(node_id, &value_str);
+        }
+    }
+    
+    /// Get reference to current frame
+    pub fn current_frame_ref(&self) -> Option<&CallFrame> {
+        self.call_stack.last()
+    }
+    
+    /// Get a debug representation of the current stack
+    pub fn debug_stack(&self) -> Vec<String> {
+        self.stack.iter().enumerate().map(|(i, v)| {
+            format!("[{}] {:?}", i, v)
+        }).collect()
+    }
+    
+    // Learning mode methods
+    
+    /// Enable learning mode with default configuration
+    pub fn enable_learning_mode(&mut self) {
+        self.enable_learning_mode_with_config(crate::learning_mode::LearningModeConfig::default());
+    }
+    
+    /// Enable learning mode with custom configuration
+    pub fn enable_learning_mode_with_config(&mut self, config: crate::learning_mode::LearningModeConfig) {
+        self.learning_mode = Some(Box::new(crate::learning_mode::LearningModeManager::new(config)));
+        
+        // Also enable profiling as learning mode depends on it
+        self.enable_profiling();
+    }
+    
+    /// Disable learning mode
+    pub fn disable_learning_mode(&mut self) {
+        self.learning_mode = None;
+    }
+    
+    /// Check if learning mode is enabled
+    pub fn is_learning_mode_enabled(&self) -> bool {
+        self.learning_mode.is_some()
+    }
+    
+    /// Get learning mode statistics
+    pub fn get_learning_statistics(&self) -> Option<crate::learning_mode::LearningStatistics> {
+        self.learning_mode.as_ref().map(|lm| lm.get_statistics())
+    }
+    
+    /// Save learned optimization data
+    pub fn save_learned_data(&self, path: &str) -> VMResult<()> {
+        if let Some(lm) = &self.learning_mode {
+            lm.save_learned_data(path)?;
+        }
+        Ok(())
+    }
+    
+    /// Load previously learned optimization data
+    pub fn load_learned_data(&mut self, path: &str) -> VMResult<()> {
+        if let Some(lm) = &mut self.learning_mode {
+            lm.load_learned_data(path)?;
+        }
+        Ok(())
+    }
+    
+    /// Set RL agent for intelligent optimization selection
+    #[cfg(feature = "ai-analysis")]
+    pub fn set_rl_agent(&mut self, agent: Box<dyn crate::learning_mode::RLAgentInterface>) {
+        if let Some(lm) = &mut self.learning_mode {
+            lm.set_rl_agent(agent);
+        }
+    }
+    
+    /// Set the AST graph for variant compilation
+    pub fn set_ast_graph(&mut self, graph: Arc<Graph>) {
+        self.ast_graph = Some(graph);
+    }
+    
+    /// Add a pre-compiled variant for a function
+    pub fn add_compiled_variant(&mut self, function_id: NodeId, variant: crate::learning_mode::CompiledVariant) {
+        if let Some(lm) = &mut self.learning_mode {
+            lm.add_variant(function_id, variant);
+        }
+    }
+    
+    /// Handle function call with learning mode
+    /// Returns the chunk_id to use (potentially optimized variant)
+    pub fn get_optimized_chunk_id(&mut self, original_chunk_id: usize) -> usize {
+        if let Some(lm) = &mut self.learning_mode {
+            // Map chunk_id to function NodeId using usage tracker
+            let function_id = if let Some(tracker) = &self.usage_tracker {
+                if let Ok(tracker) = tracker.read() {
+                    if let Some(&node_id) = tracker.chunk_to_node.get(&original_chunk_id) {
+                        node_id
+                    } else {
+                        // Fallback: create NodeId from chunk_id
+                        NodeId(std::num::NonZeroU32::new(original_chunk_id as u32 + 1).unwrap())
+                    }
+                } else {
+                    NodeId(std::num::NonZeroU32::new(original_chunk_id as u32 + 1).unwrap())
+                }
+            } else {
+                NodeId(std::num::NonZeroU32::new(original_chunk_id as u32 + 1).unwrap())
+            };
+            
+            // Record execution
+            if lm.record_execution(function_id) {
+                // Function just became hot, start exploration
+                if lm.should_explore(function_id) {
+                    if let Some(graph) = self.ast_graph.clone() {
+                        let strategies = lm.start_exploration(function_id, &graph);
+                        
+                        // Extract info we need before dropping the mutable borrow
+                        let chunk_info = self.bytecode.chunks.get(original_chunk_id)
+                            .map(|chunk| chunk.name.as_deref().unwrap_or("anonymous").to_string());
+                        
+                        // Temporarily take the learning mode to avoid borrow issues
+                        let mut learning_mode = self.learning_mode.take().unwrap();
+                        
+                        // Compile variants for the hot function
+                        if let Some(function_name) = chunk_info {
+                            self.compile_variants_for_function(function_id, &function_name, &graph, &strategies);
+                        }
+                        
+                        // Put the learning mode back
+                        self.learning_mode = Some(learning_mode);
+                    }
+                }
+            }
+            
+            // Re-borrow learning mode for checking variants
+            let lm = self.learning_mode.as_mut().unwrap();
+            
+            // Check if we have an optimized variant
+            if let Some(variant) = lm.get_best_variant(function_id) {
+                eprintln!("Learning mode: Using optimized variant with strategy {:?} for function {:?}", 
+                         variant.strategy, function_id);
+                
+                // Clone bytecode to avoid borrow issues
+                let variant_bytecode = variant.bytecode.clone();
+                
+                // Drop the mutable borrow of learning mode
+                drop(lm);
+                
+                // Find the corresponding chunk ID in the variant bytecode
+                if let Some(variant_chunk_id) = self.find_variant_chunk_id(&variant_bytecode, original_chunk_id) {
+                    // Schedule variant execution
+                    self.pending_variant_execution = Some((variant_bytecode, variant_chunk_id));
+                    
+                    // The actual execution will happen in the main execution loop
+                    // after we return from this method
+                } else {
+                    eprintln!("Learning mode: Could not find matching chunk in variant bytecode");
+                }
+            }
+        }
+        
+        original_chunk_id
+    }
+    
+    /// Truncate stack to specified size
+    pub fn truncate_stack(&mut self, size: usize) {
+        self.stack.truncate(size);
+    }
+    
+    /// Check if call stack is empty
+    pub fn call_stack_is_empty(&self) -> bool {
+        self.call_stack.is_empty()
+    }
+    
+    /// Set current chunk ID (updates the top frame)
+    pub fn set_chunk(&mut self, chunk_id: usize) {
+        if let Some(frame) = self.call_stack.last_mut() {
+            frame.chunk_id = chunk_id;
+        }
+    }
+    
+    /// Push a new call frame
+    pub fn push_frame(&mut self, mut frame: CallFrame) {
+        // Record function entry if profiling
+        if let Some(profiler) = &self.profiler {
+            let start_time = profiler.record_function_entry(frame.chunk_id, None);
+            if let Some(start) = start_time {
+                frame.start_time = Some(start);
+            }
+        }
+        self.call_stack.push(frame);
+    }
+    
+    /// Pop a call frame
+    pub fn pop_frame(&mut self) -> VMResult<CallFrame> {
+        let frame = self.call_stack.pop()
+            .ok_or_else(|| VMError::RuntimeError {
+                message: "Call stack underflow".to_string(),
+                stack_trace: None,
+            })?;
+        
+        // Record function exit if profiling
+        if let Some(profiler) = &self.profiler {
+            if let Some(start_time) = frame.start_time {
+                profiler.record_function_exit(frame.chunk_id, start_time);
+            }
+        }
+        
+        Ok(frame)
+    }
+    
+    /// Compile variants for a function with different optimization strategies
+    fn compile_variants_for_function(
+        &mut self,
+        function_id: NodeId,
+        function_name: &str,
+        graph: &Arc<Graph>,
+        strategies: &[crate::learning_mode::OptimizationStrategy],
+    ) {
+        use crate::variant_compiler::VariantCompiler;
+        use crate::learning_mode::CompiledVariant;
+        
+        let mut variant_compiler = VariantCompiler::new();
+        
+        for &strategy in strategies {
+            match variant_compiler.compile_variant(graph, function_name, strategy) {
+                Ok(bytecode) => {
+                    let compilation_start = web_time::Instant::now();
+                    let binary_size = bytecode.chunks.iter()
+                        .map(|chunk| chunk.instructions.len() * std::mem::size_of::<fluentai_bytecode::Instruction>())
+                        .sum();
+                    
+                    // Create compiled variant
+                    let variant = CompiledVariant {
+                        strategy,
+                        bytecode: Arc::new(bytecode),
+                        compilation_time: compilation_start.elapsed(),
+                        binary_size,
+                    };
+                    
+                    // Add to learning mode manager
+                    if let Some(lm) = &mut self.learning_mode {
+                        lm.add_variant(function_id, variant);
+                    }
+                    
+                    eprintln!("Learning mode: Compiled variant for function {} with strategy {}", 
+                             function_name, format_strategy(strategy));
+                }
+                Err(e) => {
+                    eprintln!("Learning mode: Failed to compile variant for function {} with strategy {:?}: {}", 
+                             function_name, strategy, e);
+                }
+            }
+        }
+    }
+    
+    /// Find the chunk ID in variant bytecode that corresponds to the original chunk ID
+    fn find_variant_chunk_id(&self, variant_bytecode: &Bytecode, original_chunk_id: usize) -> Option<usize> {
+        // Look for a chunk with the same name as the original
+        if let Some(original_chunk) = self.bytecode.chunks.get(original_chunk_id) {
+            if let Some(original_name) = &original_chunk.name {
+                // Find chunk with matching name in variant bytecode
+                for (idx, chunk) in variant_bytecode.chunks.iter().enumerate() {
+                    if chunk.name.as_ref() == Some(original_name) {
+                        return Some(idx);
+                    }
+                }
+            }
+        }
+        None
+    }
+    
+    /// Execute a function using optimized variant bytecode
+    pub fn execute_with_variant(
+        &mut self,
+        variant_bytecode: Arc<Bytecode>,
+        variant_chunk_id: usize,
+    ) -> VMResult<()> {
+        // Save current state for recovery
+        let original_bytecode = self.bytecode.clone();
+        let original_stack_len = self.stack.len();
+        let original_call_stack_len = self.call_stack.len();
+        let original_instruction_count = self.instruction_count;
+        
+        // Validate variant chunk exists
+        if variant_chunk_id >= variant_bytecode.chunks.len() {
+            eprintln!("Learning mode: Invalid variant chunk ID {}, skipping variant execution", variant_chunk_id);
+            return Ok(());
+        }
+        
+        // Create a new call frame for the variant execution
+        let frame = CallFrame {
+            chunk_id: variant_chunk_id,
+            ip: 0,
+            stack_base: self.stack.len(),
+            env: Vec::new(),
+            start_time: if let Some(profiler) = &self.profiler {
+                profiler.record_function_entry(variant_chunk_id, Some("variant".to_string()))
+            } else {
+                None
+            },
+        };
+        
+        // Temporarily switch to variant bytecode
+        self.bytecode = variant_bytecode.clone();
+        
+        // Push the frame and execute with error recovery
+        self.push_frame(frame);
+        
+        // Log variant execution start
+        eprintln!("Learning mode: Starting variant execution for chunk {} with {} instructions", 
+                 variant_chunk_id, 
+                 variant_bytecode.chunks.get(variant_chunk_id)
+                     .map(|c| c.instructions.len())
+                     .unwrap_or(0));
+        
+        // Execute until this frame completes
+        let result = match self.run_until_frame_complete() {
+            Ok(()) => {
+                eprintln!("Learning mode: Variant execution completed successfully");
+                Ok(())
+            },
+            Err(e) => {
+                // Recovery: restore original state
+                eprintln!("Learning mode: Variant execution failed: {:?}", e);
+                eprintln!("Learning mode: Recovering to original execution state");
+                
+                // Restore VM state
+                self.bytecode = original_bytecode.clone();
+                self.stack.truncate(original_stack_len);
+                self.call_stack.truncate(original_call_stack_len);
+                self.instruction_count = original_instruction_count;
+                
+                // Return error to propagate up
+                Err(e)
+            }
+        };
+        
+        // Always restore original bytecode
+        self.bytecode = original_bytecode;
+        
+        result
+    }
+    
+    /// Run VM until the current call frame completes
+    fn run_until_frame_complete(&mut self) -> VMResult<()> {
+        let target_depth = self.call_stack.len() - 1;
+        
+        loop {
+            // Get current frame info
+            let frame = self.call_stack.last()
+                .ok_or_else(|| VMError::StackUnderflow {
+                    operation: "get_current_frame".to_string(),
+                    stack_size: self.call_stack.len(),
+                    stack_trace: None,
+                })?;
+            let chunk_id = frame.chunk_id;
+            let ip = frame.ip;
+            
+            // Validate chunk and instruction
+            if chunk_id >= self.bytecode.chunks.len() {
+                return Err(VMError::RuntimeError {
+                    message: format!("Invalid chunk_id: {}. Total chunks: {}", chunk_id, self.bytecode.chunks.len()),
+                    stack_trace: None,
+                });
+            }
+            if ip >= self.bytecode.chunks[chunk_id].instructions.len() {
+                return Err(VMError::InvalidJumpTarget {
+                    target: ip,
+                    chunk_size: self.bytecode.chunks[chunk_id].instructions.len(),
+                    stack_trace: None,
+                });
+            }
+            
+            let instruction = self.bytecode.chunks[chunk_id].instructions[ip].clone();
+            
+            // Increment IP before execution
+            self.call_stack.last_mut().unwrap().ip += 1;
+            self.instruction_count += 1;
+            
+            // Execute the instruction
+            match self.execute_instruction(&instruction, chunk_id)? {
+                VMState::Continue => {
+                    // Continue executing
+                }
+                VMState::Return => {
+                    // Check if we've returned from the target frame
+                    if self.call_stack.len() <= target_depth {
+                        break;
+                    }
+                    // Otherwise, handle the return and continue
+                    let return_value = self.pop()?;
+                    let returning_frame = self.call_stack.pop().ok_or_else(|| VMError::RuntimeError {
+                        message: "No frame to return from".to_string(),
+                        stack_trace: None,
+                    })?;
+                    
+                    // Clean up stack
+                    if let Some(_) = self.call_stack.last() {
+                        self.stack.truncate(returning_frame.stack_base);
+                    }
+                    
+                    // Push return value for caller
+                    self.push(return_value)?;
+                }
+                VMState::Halt => {
+                    // Halt execution
+                    break;
+                }
+            }
+            
+            // Check if we've returned from the target frame
+            if self.call_stack.len() <= target_depth {
+                break;
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Check if there's a pending variant execution and handle it
+    pub fn check_pending_variant(&mut self) -> VMResult<()> {
+        if let Some((variant_bytecode, variant_chunk_id)) = self.pending_variant_execution.take() {
+            // Execute with the variant
+            self.execute_with_variant(variant_bytecode, variant_chunk_id)?;
+        }
+        Ok(())
+    }
+}
+
+/// Format optimization strategy for display
+fn format_strategy(strategy: crate::learning_mode::OptimizationStrategy) -> String {
+    use crate::learning_mode::OptimizationStrategy;
+    
+    match strategy {
+        OptimizationStrategy::None => "None".to_string(),
+        OptimizationStrategy::Basic => "Basic".to_string(),
+        OptimizationStrategy::Standard => "Standard".to_string(),
+        OptimizationStrategy::Aggressive => "Aggressive".to_string(),
+        OptimizationStrategy::Custom(mask) => {
+            let mut opts = Vec::new();
+            if mask & 0x001 != 0 { opts.push("ConstFold"); }
+            if mask & 0x002 != 0 { opts.push("DeadCode"); }
+            if mask & 0x004 != 0 { opts.push("CSE"); }
+            if mask & 0x008 != 0 { opts.push("Inline"); }
+            if mask & 0x010 != 0 { opts.push("TailCall"); }
+            if mask & 0x020 != 0 { opts.push("LoopOpt"); }
+            if mask & 0x040 != 0 { opts.push("BetaRed"); }
+            if mask & 0x080 != 0 { opts.push("PartialEval"); }
+            if mask & 0x100 != 0 { opts.push("StrengthRed"); }
+            if mask & 0x200 != 0 { opts.push("AlgebraicSimp"); }
+            if mask & 0x400 != 0 { opts.push("LoopInvariant"); }
+            if mask & 0x800 != 0 { opts.push("FuncSpec"); }
+            if mask & 0x1000 != 0 { opts.push("Memoization"); }
+            
+            if opts.is_empty() {
+                format!("Custom(0x{:03x})", mask)
+            } else {
+                format!("Custom[{}]", opts.join("+"))
+            }
+        }
+    }
 }
 
 // Implement continuation support for the VM
@@ -2828,10 +3838,7 @@ mod inline_tests {
             ip: 0,
             stack_base: 0,
             env: vec![],
-            #[cfg(not(target_arch = "wasm32"))]
-            start_time: Some(Instant::now()),
-            #[cfg(target_arch = "wasm32")]
-            start_time: None,
+            start_time: Some(web_time::Instant::now()),
         };
 
         assert_eq!(frame.chunk_id, 0);

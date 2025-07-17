@@ -6,7 +6,6 @@ use fluentai_vm::{compiler::{Compiler, CompilerOptions}, VM};
 use std::sync::Arc;
 use fluentai_effects::EffectRuntime;
 use fluentai_optimizer::OptimizationLevel;
-use fluentai_parser::parse_flc;
 
 fn compile_and_run(source: &str) -> Result<Value> {
     // Parse the source code using FLC parser
@@ -32,6 +31,15 @@ fn compile_and_run(source: &str) -> Result<Value> {
 
 #[test]
 fn test_create_actor() {
+    // First, let's try a simpler test - just create the initial state
+    let simple_result = compile_and_run(
+        r#"
+        // Just create a simple value
+        42
+        "#
+    );
+    eprintln!("Simple test result: {:?}", simple_result);
+    
     let result = compile_and_run(
         r#"
         // Simple actor that returns its state
@@ -43,12 +51,12 @@ fn test_create_actor() {
         }
         Echo
         "#
-    ).unwrap();
+    );
     
-    // Should return an actor ID
     match result {
-        Value::Actor(_) => {},
-        _ => panic!("Expected actor value, got {:?}", result),
+        Ok(Value::Actor(_)) => {},
+        Ok(other) => panic!("Expected actor value, got {:?}", other),
+        Err(e) => panic!("Actor creation failed: {:?}", e),
     }
 }
 

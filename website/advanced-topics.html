@@ -320,7 +320,7 @@
                 <li><a href="#actors">Actor Model</a></li>
                 <li><a href="#spawn">Spawn & Tasks</a></li>
                 <li><a href="#contracts">Contracts</a></li>
-                <li><a href="#optimization">Optimization</a></li>
+                <li><a href="#optimization">Optimization & AI Analysis</a></li>
                 <li><a href="#ffi">Foreign Function Interface</a></li>
             </ul>
         </aside>
@@ -646,12 +646,181 @@ private function test_sort_properties(list: List<int>) {
 }</code></pre>
             </div>
 
-            <h2 id="optimization">Optimization</h2>
-            <p>FluentAI includes advanced optimization techniques for maximum performance.</p>
+            <h2 id="optimization">Optimization & Performance</h2>
+            <p>FluentAI features a comprehensive optimization infrastructure with five phases of advanced techniques for maximum performance.</p>
 
-            <h3>Compiler Optimizations</h3>
+            <h3>Optimization Levels</h3>
+            <p>FluentAI provides four optimization levels that progressively enable more aggressive transformations:</p>
+            <ul>
+                <li><code>-O0</code> (None) - No optimizations, fastest compilation</li>
+                <li><code>-O1</code> (Basic) - Basic optimizations: constant folding, dead code elimination</li>
+                <li><code>-O2</code> (Standard) - Standard optimizations: inlining, CSE, loop optimizations</li>
+                <li><code>-O3</code> (Aggressive) - Maximum optimizations: all passes enabled</li>
+            </ul>
+
+            <h3>Phase 1: Runtime Profiling</h3>
+            <p>FluentAI includes a comprehensive profiling infrastructure that collects runtime data to guide optimizations:</p>
+            
             <div class="code-block">
-                <pre><code>// Inline hints
+                <pre><code>// Enable profiling in your VM
+let mut vm = VM::new();
+vm.enable_profiling(true);
+
+// Run your application
+vm.run(program)?;
+
+// Extract profiling data
+let profile_data = vm.get_profiler().get_profile_data();
+
+// Profile data includes:
+// - Function call counts and execution times
+// - Value distributions for specialization
+// - Loop iteration counts
+// - Memory allocation patterns</code></pre>
+            </div>
+
+            <h3>Phase 2: Runtime-Guided Optimization</h3>
+            <p>Using profiling data, FluentAI applies targeted optimizations to hot code paths:</p>
+            
+            <h4>Hot Path Inlining</h4>
+            <div class="code-block">
+                <pre><code>// Functions called frequently are automatically inlined
+private function compute(x: int) -> int {
+    x * 2 + 1  // If called >1000 times, will be inlined
+}
+
+// The optimizer detects hot functions and inlines them
+let result = data
+    .map(x => compute(x))  // compute() inlined here
+    .filter(x => x > 10);</code></pre>
+            </div>
+
+            <h4>Value Specialization</h4>
+            <div class="code-block">
+                <pre><code>// If profiling shows a function is often called with specific values
+private function process(mode: string, data: List<int>) -> int {
+    match mode {
+        "fast" => fast_path(data),    // 80% of calls
+        "normal" => normal_path(data), // 15% of calls
+        _ => slow_path(data)          // 5% of calls
+    }
+}
+
+// Optimizer creates specialized versions:
+// - process_fast() for the common case
+// - process_generic() for other cases</code></pre>
+            </div>
+
+            <h4>Adaptive Loop Unrolling</h4>
+            <div class="code-block">
+                <pre><code>// Loops with predictable iteration counts are unrolled
+for i in range(0, 4) {  // Profile shows always 4 iterations
+    process(data[i]);
+}
+
+// Optimized to:
+process(data[0]);
+process(data[1]);
+process(data[2]);
+process(data[3]);</code></pre>
+            </div>
+
+            <h3>Phase 3: Adaptive Memoization</h3>
+            <p>Pure functions with expensive computations are automatically memoized:</p>
+            
+            <div class="code-block">
+                <pre><code>// The optimizer detects pure functions
+private function fibonacci(n: int) -> int {
+    if (n <= 1) { n }
+    else { fibonacci(n-1) + fibonacci(n-2) }
+}
+
+// Automatically transformed to:
+private function fibonacci_memoized(n: int) -> int {
+    static memo_cache = Map<int, int>::new();
+    
+    if let Some(result) = memo_cache.get(n) {
+        return result;
+    }
+    
+    let result = if (n <= 1) { n }
+                 else { fibonacci_memoized(n-1) + fibonacci_memoized(n-2) };
+    
+    memo_cache.insert(n, result);
+    result
+}</code></pre>
+            </div>
+
+            <h3>Phase 4: AI-Driven Optimizations</h3>
+            <p>FluentAI uses embedded AI analysis to detect patterns and apply sophisticated optimizations:</p>
+            
+            <h4>Effect Reordering</h4>
+            <div class="code-block">
+                <pre><code>// Original code with interleaved effects
+perform IO.print("Starting");
+let x = compute_value();
+perform IO.print("Computing");
+let y = another_computation();
+perform IO.print("Done");
+
+// Optimized: effects batched, pure computations hoisted
+let x = compute_value();
+let y = another_computation();
+perform IO.print("Starting");
+perform IO.print("Computing");
+perform IO.print("Done");</code></pre>
+            </div>
+
+            <h4>Subgraph Fusion</h4>
+            <div class="code-block">
+                <pre><code>// Multiple traversals detected
+let result = data
+    .map(x => x * 2)
+    .map(x => x + 1)
+    .filter(x => x > 10);
+
+// Fused into single traversal
+let result = data
+    .filter_map(x => {
+        let temp = x * 2 + 1;
+        if (temp > 10) { Some(temp) } else { None }
+    });</code></pre>
+            </div>
+
+            <h3>Phase 5: Memory-Aware Transformations</h3>
+            <p>Advanced memory optimizations for cache efficiency:</p>
+            
+            <h4>Escape Analysis & Stack Allocation</h4>
+            <div class="code-block">
+                <pre><code>// The optimizer analyzes if values escape their scope
+private function process_local() {
+    let temp = [1, 2, 3, 4];  // Doesn't escape
+    let sum = temp.sum();
+    return sum;
+}
+
+// temp is stack-allocated instead of heap-allocated</code></pre>
+            </div>
+
+            <h4>Code Layout Optimization</h4>
+            <div class="code-block">
+                <pre><code>// Functions are reordered based on call patterns
+// Hot functions grouped together for better I-cache usage
+
+// Before: Random layout
+// function_a() -> 0x1000  (hot)
+// function_b() -> 0x2000  (cold) 
+// function_c() -> 0x3000  (hot)
+
+// After: Temperature-based layout
+// function_a() -> 0x1000  (hot)
+// function_c() -> 0x1100  (hot)
+// function_b() -> 0x4000  (cold)</code></pre>
+            </div>
+
+            <h3>Compiler Optimization Hints</h3>
+            <div class="code-block">
+                <pre><code>// Manual optimization hints
 #[inline(always)]
 private function hot_path_function(x: int) -> int {
     x * 2 + 1
@@ -669,7 +838,121 @@ private function process_in_place(data: &mut List<int>) {
 #[simd]
 private function vector_add(a: List<float>, b: List<float>) -> List<float> {
     a.zip(b).map(|(x, y)| x + y)
+}
+
+// Pure function hints for memoization
+#[pure]
+private function expensive_computation(x: int) -> int {
+    // Complex pure computation
 }</code></pre>
+            </div>
+
+            <h3>Optimization Pipeline Configuration</h3>
+            <div class="code-block">
+                <pre><code>// Configure optimization pipeline
+use fluentai_optimizer::{
+    OptimizationConfig, 
+    OptimizationLevel,
+    RuntimeGuidedConfig
+};
+
+// Basic configuration
+let config = OptimizationConfig::for_level(
+    OptimizationLevel::Aggressive
+);
+
+// Custom configuration with profiling data
+let runtime_config = RuntimeGuidedConfig {
+    hot_functions: profile_data.hot_functions,
+    skewed_values: profile_data.skewed_values,
+    hot_loops: profile_data.hot_loops,
+    hot_function_threshold: 1000,
+    value_specialization_threshold: 0.8,
+    loop_unroll_threshold: 4.0,
+};
+
+// Create optimization pipeline
+let pipeline = create_optimization_pipeline(runtime_config);
+let optimized_ast = pipeline.optimize(ast)?;</code></pre>
+            </div>
+
+            <h3>AI-Driven AST Analysis</h3>
+            <p>FluentAI features native AI-powered analysis of your code's Abstract Syntax Tree (AST) to detect patterns and suggest optimizations.</p>
+            
+            <div class="alert alert-info">
+                <strong>New!</strong> The AI analysis is embedded directly into the compiler with zero external dependencies. Enable with the <code>ai-analysis</code> feature flag.
+            </div>
+
+            <h4>Pattern Detection</h4>
+            <div class="code-block">
+                <pre><code>// The compiler automatically detects common patterns
+let data = [1, 2, 3, 4, 5]
+    .map(x => x * 2)      // Detected: map-reduce pattern
+    .filter(x => x > 5)   // Detected: filter-map chain
+    .reduce(0, (a, b) => a + b);
+
+// AI suggests optimizations like:
+// - Fusion of map and filter operations
+// - SIMD vectorization opportunities
+// - Parallelization potential</code></pre>
+            </div>
+
+            <h4>Optimization Suggestions</h4>
+            <div class="code-block">
+                <pre><code>// Enable AI analysis in your build
+use fluentai_ai::{analyze_ast, AiAnalyzerBuilder};
+
+// Get optimization suggestions
+let analyzer = AiAnalyzerBuilder::new()
+    .detect_patterns(true)
+    .detect_optimizations(true)
+    .build();
+
+let analysis = analyzer.analyze_graph(&ast)?;
+
+// Analysis provides:
+// - Performance score (0.0 - 1.0)
+// - Detected patterns (map-reduce, recursion, etc.)
+// - Optimization opportunities:
+//   * Constant folding
+//   * Common subexpression elimination
+//   * Tail recursion optimization
+//   * Dead code elimination</code></pre>
+            </div>
+
+            <h4>Zero-Copy Feature Extraction</h4>
+            <div class="code-block">
+                <pre><code>// Features are extracted directly from AST nodes
+// No JSON serialization or external dependencies
+
+// Each node provides ML-ready features:
+let features = node.metadata.feature_vector();
+// Returns normalized features for:
+// - Node type and structure
+// - Purity analysis
+// - Usage statistics
+// - Performance hints
+// - Context memory
+
+// The AI model operates directly on in-memory AST
+// with O(n) complexity and efficient caching</code></pre>
+            </div>
+
+            <h4>Integration with Compiler Pipeline</h4>
+            <div class="code-block">
+                <pre><code>// AI analysis results are injected into AST metadata
+let injector = MetadataInjector::new(InjectorConfig {
+    inject_optimizations: true,
+    inject_patterns: true,
+    inject_embeddings: false, // Optional: node embeddings
+});
+
+injector.inject(&mut ast, &analysis)?;
+
+// Metadata is available during compilation phases:
+// - Optimization passes can use AI suggestions
+// - Code generation can leverage pattern information
+// - IDE integration for real-time insights</code></pre>
             </div>
 
             <h3>Memory Management</h3>

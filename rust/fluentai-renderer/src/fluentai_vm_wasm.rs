@@ -12,9 +12,9 @@ use std::rc::Rc;
 use rustc_hash::FxHashMap;
 
 // Re-export types from the VM
-use fluentai_vm::{VM, VMError, Value, Bytecode, Compiler, CompilerOptions};
+use fluentai_vm::{VM, Value, Bytecode, Compiler, CompilerOptions};
 // use fluentai_effects::{EffectRuntime, EffectContext}; // TODO: Make effects WASM-compatible
-use fluentai_modules::{ModuleLoader, ModuleConfig};
+use fluentai_modules::{ModuleLoader, ModuleResolver};
 
 /// WASM-exposed FluentAI VM instance
 #[wasm_bindgen]
@@ -99,11 +99,11 @@ impl FluentAIVM {
                 // vm.set_effect_runtime(Arc::new(effect_runtime));
                 
                 // Enable features
-                vm.enable_trace();
+                // vm.enable_trace(); // Disabled for WASM to avoid time tracking
                 vm.with_sandbox_security();
                 
                 // Set up module loader
-                let module_loader = ModuleLoader::new(ModuleConfig::default());
+                let module_loader = ModuleLoader::new(Default::default());
                 vm.set_module_loader(module_loader);
                 
                 // Replace the VM
@@ -120,18 +120,26 @@ impl FluentAIVM {
     /// Execute the compiled FluentAI code
     #[wasm_bindgen]
     pub fn execute(&mut self) -> Result<JsValue, JsValue> {
+        // Add debug logging
+        log::info!("Starting VM execution");
+        
         // Run the VM and get the result
         let result = {
             let mut vm = self.vm.borrow_mut();
-            vm.run()
+            log::info!("VM borrowed, calling run()");
+            let res = vm.run();
+            log::info!("VM run() completed with result: {:?}", res.is_ok());
+            res
         };
         
         match result {
             Ok(value) => {
+                log::info!("VM execution successful");
                 // Convert VM value to JS value
                 Ok(self.vm_value_to_js(&value))
             }
             Err(e) => {
+                log::error!("VM execution failed: {:?}", e);
                 Err(JsValue::from_str(&format!("Runtime error: {}", e)))
             }
         }
@@ -140,7 +148,9 @@ impl FluentAIVM {
     /// Compile and execute FluentAI source code in one step
     #[wasm_bindgen]
     pub fn run(&mut self, source: &str) -> Result<JsValue, JsValue> {
+        log::info!("FluentAIVM::run called with source length: {}", source.len());
         self.compile(source)?;
+        log::info!("Compilation successful, executing...");
         self.execute()
     }
     

@@ -1,0 +1,7 @@
+// Simple function test
+private function add(x: int, y: int) -> int {
+    x + y
+}
+
+// Call the function
+add(2, 3)

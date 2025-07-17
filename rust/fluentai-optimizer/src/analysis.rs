@@ -758,6 +758,75 @@ pub fn is_recursive_function(graph: &Graph, func_id: NodeId) -> bool {
     }
 }
 
+/// Check if a function is pure (no side effects)
+pub fn is_pure_function(graph: &Graph, func_id: NodeId) -> bool {
+    if let Some(Node::Lambda { body, .. }) = graph.get_node(func_id) {
+        let mut visited = FxHashSet::default();
+        !has_side_effects(graph, *body, &mut visited)
+    } else {
+        false
+    }
+}
+
+/// Check if a node has side effects
+pub fn has_side_effects(
+    graph: &Graph,
+    node_id: NodeId,
+    visited: &mut FxHashSet<NodeId>,
+) -> bool {
+    if !visited.insert(node_id) {
+        return false; // Already visited, assume no side effects to avoid cycles
+    }
+    
+    if let Some(node) = graph.get_node(node_id) {
+        match node {
+            // Effect operations are impure
+            Node::Effect { .. } => true,
+            // Handler blocks are impure
+            Node::Handler { body, .. } => has_side_effects(graph, *body, visited),
+            // Channel operations are impure
+            Node::Channel { .. } => true,
+            Node::Send { .. } => true,
+            Node::Receive { .. } => true,
+            // Promise operations are impure
+            Node::Promise { .. } => true,
+            Node::Await { .. } => true,
+            // Actor operations are impure
+            Node::Actor { .. } => true,
+            // Check subexpressions
+            Node::Application { function, args } => {
+                has_side_effects(graph, *function, visited) ||
+                args.iter().any(|&arg| has_side_effects(graph, arg, visited))
+            }
+            Node::Lambda { body, .. } => {
+                // Lambda itself is pure, but check body for completeness
+                has_side_effects(graph, *body, visited)
+            }
+            Node::Let { bindings, body } => {
+                bindings.iter().any(|(_, value)| has_side_effects(graph, *value, visited)) ||
+                has_side_effects(graph, *body, visited)
+            }
+            Node::If { condition, then_branch, else_branch } => {
+                has_side_effects(graph, *condition, visited) ||
+                has_side_effects(graph, *then_branch, visited) ||
+                has_side_effects(graph, *else_branch, visited)
+            }
+            Node::Match { expr, branches } => {
+                has_side_effects(graph, *expr, visited) ||
+                branches.iter().any(|(_, body)| has_side_effects(graph, *body, visited))
+            }
+            // Pure nodes
+            Node::Variable { .. } |
+            Node::Literal(_) |
+            Node::List(_) |
+            Node::Map(_) => false,
+            _ => false, // Conservative: assume other nodes are pure
+        }
+    } else {
+        false
+    }
+}
+
 fn contains_reference_to(
     graph: &Graph,
     node_id: NodeId,

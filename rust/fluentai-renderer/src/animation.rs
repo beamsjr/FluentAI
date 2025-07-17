@@ -1,6 +1,6 @@
 // Animation engine for FluentAI UI
 
-use std::time::Duration;
+use web_time::Duration;
 use std::collections::HashMap;
 use cgmath::{Vector2, Vector3, Vector4};
 

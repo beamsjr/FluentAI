@@ -12,8 +12,7 @@ use fluentai_core::value::Value;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
-use web_time::Instant;
+use web_time::{Duration, Instant};
 
 /// Security capabilities that can be granted to code
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

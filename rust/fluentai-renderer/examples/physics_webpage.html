@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluentAI Physics Webpage</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            touch-action: none; /* Prevent default touch behaviors */
+        }
+        
+        #render-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            cursor: grab;
+        }
+        
+        #render-canvas:active {
+            cursor: grabbing;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: system-ui;
+            font-size: 18px;
+        }
+        
+        .touch-indicator {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: system-ui;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="render-canvas"></canvas>
+    <div class="loading" id="loading">Loading FluentAI Physics Engine...</div>
+    <div class="touch-indicator" id="touch-indicator">Touch: 0</div>
+    
+    <script type="module">
+        let demo = null;
+        let devicePixelRatio = window.devicePixelRatio || 1;
+        
+        async function initPhysicsWebpage() {
+            const loadingEl = document.getElementById('loading');
+            const touchIndicator = document.getElementById('touch-indicator');
+            
+            try {
+                // Import WASM module
+                const wasmModule = await import('./pkg/fluentai_renderer.js?v=' + Date.now());
+                await wasmModule.default();
+                
+                loadingEl.textContent = 'Initializing physics webpage...';
+                
+                // Create physics webpage demo
+                demo = new wasmModule.PhysicsWebpageDemo('render-canvas');
+                
+                // Get canvas
+                const canvas = document.getElementById('render-canvas');
+                
+                // Setup canvas size
+                function updateCanvasSize() {
+                    const width = window.innerWidth;
+                    const height = window.innerHeight;
+                    canvas.width = width * devicePixelRatio;
+                    canvas.height = height * devicePixelRatio;
+                    canvas.style.width = width + 'px';
+                    canvas.style.height = height + 'px';
+                    
+                    if (demo) {
+                        demo.update_canvas_size(width, height);
+                    }
+                }
+                
+                // Mouse event handlers
+                canvas.addEventListener('mousedown', (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) * devicePixelRatio;
+                    const y = (e.clientY - rect.top) * devicePixelRatio;
+                    if (demo) demo.handle_mouse_down(x, y);
+                });
+
+                canvas.addEventListener('mouseup', () => {
+                    if (demo) demo.handle_mouse_up();
+                });
+
+                canvas.addEventListener('mousemove', (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) * devicePixelRatio;
+                    const y = (e.clientY - rect.top) * devicePixelRatio;
+                    if (demo) demo.handle_mouse_move(x, y);
+                });
+                
+                // Touch event handlers for multi-touch gestures
+                canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // Prevent scrolling
+                    const rect = canvas.getBoundingClientRect();
+                    
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        const x = (touch.clientX - rect.left) * devicePixelRatio;
+                        const y = (touch.clientY - rect.top) * devicePixelRatio;
+                        if (demo) demo.handle_touch_start(touch.identifier, x, y);
+                    }
+                    
+                    // Update touch indicator
+                    touchIndicator.style.display = 'block';
+                    touchIndicator.textContent = `Touches: ${e.touches.length}`;
+                });
+                
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault(); // Prevent scrolling
+                    const rect = canvas.getBoundingClientRect();
+                    
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        const x = (touch.clientX - rect.left) * devicePixelRatio;
+                        const y = (touch.clientY - rect.top) * devicePixelRatio;
+                        if (demo) demo.handle_touch_move(touch.identifier, x, y);
+                    }
+                });
+                
+                canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        if (demo) demo.handle_touch_end(touch.identifier);
+                    }
+                    
+                    // Update touch indicator
+                    if (e.touches.length === 0) {
+                        touchIndicator.style.display = 'none';
+                    } else {
+                        touchIndicator.textContent = `Touches: ${e.touches.length}`;
+                    }
+                });
+                
+                canvas.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        const touch = e.changedTouches[i];
+                        if (demo) demo.handle_touch_end(touch.identifier);
+                    }
+                    
+                    touchIndicator.style.display = 'none';
+                });
+                
+                // Handle resize
+                window.addEventListener('resize', updateCanvasSize);
+                
+                // Initial size
+                updateCanvasSize();
+                
+                // Hide loading
+                loadingEl.style.display = 'none';
+                
+                // Render loop
+                function render(timestamp) {
+                    try {
+                        demo.render(timestamp);
+                        requestAnimationFrame(render);
+                    } catch (error) {
+                        console.error('Render error:', error);
+                    }
+                }
+                
+                requestAnimationFrame(render);
+                
+                console.log('Physics webpage initialized with multi-touch support!');
+                
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                loadingEl.textContent = 'Failed to load: ' + error.message;
+            }
+        }
+        
+        // Start when ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPhysicsWebpage);
+        } else {
+            initPhysicsWebpage();
+        }
+    </script>
+</body>
+</html>

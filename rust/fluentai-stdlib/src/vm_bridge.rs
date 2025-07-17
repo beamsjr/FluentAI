@@ -28,6 +28,18 @@ pub trait VMCallback: Send + Sync {
         // VMs can override this to properly propagate the context
         self.call_function(func, args)
     }
+    
+    /// Send a message to a channel
+    fn send_to_channel(&mut self, channel_id: u64, message: Value) -> Result<()> {
+        // Default implementation returns an error
+        Err(anyhow::anyhow!("Channel operations not supported by this VM"))
+    }
+    
+    /// Send a message to an actor
+    fn send_to_actor(&mut self, actor_id: u64, message: Value) -> Result<()> {
+        // Default implementation returns an error
+        Err(anyhow::anyhow!("Actor operations not supported by this VM"))
+    }
 }
 
 /// Dummy implementation for when VM callback is not available

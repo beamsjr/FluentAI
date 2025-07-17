@@ -1,0 +1,25 @@
+// Test list methods with correct argument order
+
+private function main() {
+    perform IO.println("=== Testing List Methods (stdlib style) ===");
+    
+    let nums = [1, 2, 3, 4, 5];
+    
+    // Test map with correct argument order
+    let doubled = map(x => x * 2, nums);
+    perform IO.println(f"Doubled: {doubled}");
+    
+    // Test filter
+    let evens = filter(x => x % 2 == 0, nums);
+    perform IO.println(f"Evens: {evens}");
+    
+    // Test fold (reduce)
+    let sum = fold((acc, x) => acc + x, 0, nums);
+    perform IO.println(f"Sum: {sum}");
+    
+    // Test length
+    let len = length(nums);
+    perform IO.println(f"Length: {len}");
+}
+
+main()

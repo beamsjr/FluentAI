@@ -21,7 +21,8 @@ mod tests {
         let mut chunk = BytecodeChunk::new(Some("test".to_string()));
         chunk.add_instruction(Instruction::new(Opcode::PushInt1));
         chunk.add_instruction(Instruction::new(Opcode::Return));
-        bytecode.add_chunk(chunk);
+        let chunk_id = bytecode.add_chunk(chunk);
+        bytecode.main_chunk = chunk_id;  // Set the main chunk!
         bytecode
     }
 

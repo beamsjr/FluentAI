@@ -23,10 +23,12 @@ enum GcHandleInner {
     /// Standard GC implementation
     Standard(Arc<GcCell>),
     /// Concurrent GC implementation
+    #[cfg(feature = "std")]
     Concurrent(Arc<ConcurrentGcNode>),
 }
 
 /// Node type for concurrent GC integration
+#[cfg(feature = "std")]
 #[derive(Debug)]
 pub struct ConcurrentGcNode {
     pub id: usize,
@@ -37,14 +39,17 @@ pub struct ConcurrentGcNode {
     pub ref_count: std::sync::atomic::AtomicUsize,
 }
 
+#[cfg(feature = "std")]
 impl PartialEq for ConcurrentGcNode {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
+#[cfg(feature = "std")]
 impl Eq for ConcurrentGcNode {}
 
+#[cfg(feature = "std")]
 impl std::hash::Hash for ConcurrentGcNode {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
@@ -55,6 +60,7 @@ impl PartialEq for GcHandle {
     fn eq(&self, other: &Self) -> bool {
         match (&self.inner, &other.inner) {
             (GcHandleInner::Standard(a), GcHandleInner::Standard(b)) => Arc::ptr_eq(a, b),
+            #[cfg(feature = "std")]
             (GcHandleInner::Concurrent(a), GcHandleInner::Concurrent(b)) => Arc::ptr_eq(a, b),
             _ => false,
         }
@@ -188,6 +194,7 @@ impl GarbageCollector {
     pub fn add_root(&self, handle: &GcHandle) {
         let id = match &handle.inner {
             GcHandleInner::Standard(cell) => cell.metadata.id,
+            #[cfg(feature = "std")]
             GcHandleInner::Concurrent(node) => node.id,
         };
         self.roots.write().unwrap().insert(id);
@@ -197,6 +204,7 @@ impl GarbageCollector {
     pub fn remove_root(&self, handle: &GcHandle) {
         let id = match &handle.inner {
             GcHandleInner::Standard(cell) => cell.metadata.id,
+            #[cfg(feature = "std")]
             GcHandleInner::Concurrent(node) => node.id,
         };
         self.roots.write().unwrap().remove(&id);
@@ -208,6 +216,7 @@ impl GarbageCollector {
             GcHandleInner::Standard(cell) => {
                 cell.metadata.pinned.store(true, Ordering::Relaxed);
             }
+            #[cfg(feature = "std")]
             GcHandleInner::Concurrent(_) => {
                 // Concurrent GC handles pinning differently
             }
@@ -220,6 +229,7 @@ impl GarbageCollector {
             GcHandleInner::Standard(cell) => {
                 cell.metadata.pinned.store(false, Ordering::Relaxed);
             }
+            #[cfg(feature = "std")]
             GcHandleInner::Concurrent(_) => {
                 // Concurrent GC handles pinning differently
             }
@@ -413,6 +423,7 @@ impl GcHandle {
     pub fn get(&self) -> Value {
         match &self.inner {
             GcHandleInner::Standard(cell) => cell.value.read().unwrap().clone(),
+            #[cfg(feature = "std")]
             GcHandleInner::Concurrent(node) => node.value.read().unwrap().clone(),
         }
     }
@@ -423,6 +434,7 @@ impl GcHandle {
             GcHandleInner::Standard(cell) => {
                 *cell.value.write().unwrap() = value;
             }
+            #[cfg(feature = "std")]
             GcHandleInner::Concurrent(node) => {
                 *node.value.write().unwrap() = value;
             }
@@ -436,11 +448,13 @@ impl GcHandle {
     {
         match &self.inner {
             GcHandleInner::Standard(cell) => f(&mut cell.value.write().unwrap()),
+            #[cfg(feature = "std")]
             GcHandleInner::Concurrent(node) => f(&mut node.value.write().unwrap()),
         }
     }
 
     /// Create a concurrent GC handle
+    #[cfg(feature = "std")]
     pub fn concurrent(node: Arc<ConcurrentGcNode>) -> Self {
         GcHandle {
             inner: GcHandleInner::Concurrent(node),

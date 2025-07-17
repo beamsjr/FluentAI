@@ -451,15 +451,15 @@ private function add(a: int, b: int) -> int {
     #[test]
     fn test_builtin_string_functions() {
         // Test string manipulation functions
-        let code = r#"string-length("hello")"#;
+        let code = r#"string_length("hello")"#;
 
         let mut env = TypeEnvironment::new();
-        // Add string-length function to environment
+        // Add string_length function to environment
         let string_to_int = TypedValue::function(FunctionType::new(
             vec![TypedValue::primitive(PrimitiveType::string())],
             TypedValue::primitive(PrimitiveType::int()),
         ));
-        env.bind("string-length", string_to_int);
+        env.bind("string_length", string_to_int);
 
         let result = infer_with_env(code, env);
         match result {

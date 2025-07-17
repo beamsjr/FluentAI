@@ -1,0 +1,26 @@
+// Test State effects
+
+private function main() {
+    perform IO.println("Testing State effects");
+    
+    // Set initial state
+    perform State.set("counter", 0);
+    perform State.set("name", "FluentAI");
+    
+    // Get and display state
+    let counter = perform State.get("counter");
+    let name = perform State.get("name");
+    perform IO.println(f"Initial counter: {counter}");
+    perform IO.println(f"Name: {name}");
+    
+    // Update state
+    perform State.set("counter", 42);
+    let new_counter = perform State.get("counter");
+    perform IO.println(f"Updated counter: {new_counter}");
+    
+    // Get non-existent key
+    let missing = perform State.get("missing_key");
+    perform IO.println(f"Missing key returns: {missing}");
+}
+
+main()

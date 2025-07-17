@@ -57,6 +57,30 @@ impl VMCallback for VMStdlibBridge<'_> {
 
         result
     }
+    
+    fn send_to_channel(&mut self, channel_id: u64, message: Value) -> Result<()> {
+        #[cfg(feature = "std")]
+        {
+            self.vm.send_to_channel(crate::safety::ChannelId(channel_id), message)?;
+            Ok(())
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            Err(anyhow::anyhow!("Channel operations require std feature"))
+        }
+    }
+    
+    fn send_to_actor(&mut self, actor_id: u64, message: Value) -> Result<()> {
+        #[cfg(feature = "std")]
+        {
+            self.vm.send_to_actor(crate::safety::ActorId(actor_id), message)?;
+            Ok(())
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            Err(anyhow::anyhow!("Actor operations require std feature"))
+        }
+    }
 }
 
 /// Extension trait for VM to support higher-order stdlib functions
@@ -129,7 +153,7 @@ impl VMStdlibExt for VM {
                 Ok(Value::List(result))
             }
 
-            "fold" => {
+            "fold" | "reduce" => {
                 if args.len() != 3 {
                     return Err(anyhow::anyhow!("fold: expected 3 arguments"));
                 }

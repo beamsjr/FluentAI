@@ -22,6 +22,7 @@ fn test_algebraic_simplification_integration() {
         strength_reduction: false,
         algebraic_simplification: false,
         loop_invariant_code_motion: false,
+        function_specialization: false,
         max_iterations: 1,
         debug_mode: false,
     };
@@ -44,6 +45,7 @@ fn test_algebraic_simplification_integration() {
         strength_reduction: false,
         algebraic_simplification: true,
         loop_invariant_code_motion: false,
+        function_specialization: false,
         max_iterations: 1,
         debug_mode: false,
     };
