@@ -130,7 +130,7 @@ impl Default for LearningModeConfig {
 /// Manager for learning mode operations
 pub struct LearningModeManager {
     /// Configuration
-    config: LearningModeConfig,
+    pub config: LearningModeConfig,
     /// Function execution counts
     execution_counts: FxHashMap<NodeId, u64>,
     /// Compiled variants for each function

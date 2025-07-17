@@ -1,0 +1,206 @@
+// Convex Hull implementation using Graham's Scan algorithm
+// This is a real-world computational geometry algorithm that benefits from optimization
+
+// Point structure using closure pattern
+private function Point(x: float, y: float) {
+    let self = {
+        "x": () => x,
+        "y": () => y,
+        "distance_squared_to": (other) => {
+            let dx = other.x() - x;
+            let dy = other.y() - y;
+            dx * dx + dy * dy
+        },
+        "to_string": () => f"({x}, {y})"
+    };
+    self
+}
+
+// Calculate cross product of vectors OA and OB where O is origin
+private function cross_product(origin, a, b) -> float {
+    (a.x() - origin.x()) * (b.y() - origin.y()) - 
+    (a.y() - origin.y()) * (b.x() - origin.x())
+}
+
+// Check if three points make a counter-clockwise turn
+private function ccw(p1, p2, p3) -> bool {
+    cross_product(p1, p2, p3) > 0.0
+}
+
+// Find the point with lowest y-coordinate (and leftmost if tie)
+private function find_bottom_point(points) {
+    points.reduce(points[0], (lowest, point) => {
+        if (point.y() < lowest.y() || 
+            (point.y() == lowest.y() && point.x() < lowest.x())) {
+            point
+        } else {
+            lowest
+        }
+    })
+}
+
+// Sort points by polar angle with respect to bottom point
+private function sort_by_polar_angle(points, bottom) {
+    // Calculate polar angles and distances
+    let points_with_data = points
+        .filter(p => p != bottom)
+        .map(p => {
+            let dx = p.x() - bottom.x();
+            let dy = p.y() - bottom.y();
+            let angle = if (dx == 0.0) {
+                if (dy > 0.0) { 90.0 } else { -90.0 }
+            } else {
+                // Use atan2 approximation since we don't have it built-in
+                let ratio = dy / dx;
+                let base_angle = ratio / (1.0 + 0.28 * ratio * ratio);
+                if (dx < 0.0) {
+                    if (dy >= 0.0) { base_angle + 3.14159 } 
+                    else { base_angle - 3.14159 }
+                } else {
+                    base_angle
+                }
+            };
+            {
+                "point": p,
+                "angle": angle,
+                "distance": bottom.distance_squared_to(p)
+            }
+        });
+    
+    // Sort by angle, then by distance
+    let sorted = points_with_data.sort((a, b) => {
+        if (a.angle < b.angle) { -1 }
+        else if (a.angle > b.angle) { 1 }
+        else if (a.distance < b.distance) { -1 }
+        else if (a.distance > b.distance) { 1 }
+        else { 0 }
+    });
+    
+    // Extract just the points
+    [bottom] + sorted.map(item => item.point)
+}
+
+// Graham's Scan algorithm for convex hull
+public function convex_hull(points) {
+    // Handle edge cases
+    if (points.length() < 3) {
+        return points;
+    }
+    
+    // Find bottom point and sort by polar angle
+    let bottom = find_bottom_point(points);
+    let sorted_points = sort_by_polar_angle(points, bottom);
+    
+    // Initialize stack with first two points
+    let stack = [sorted_points[0], sorted_points[1]];
+    
+    // Process remaining points
+    for i in 2..sorted_points.length() {
+        let point = sorted_points[i];
+        
+        // Pop points that make clockwise turn
+        while (stack.length() > 1) {
+            let top = stack[stack.length() - 1];
+            let second = stack[stack.length() - 2];
+            
+            if (!ccw(second, top, point)) {
+                stack = stack.slice(0, stack.length() - 1);
+            } else {
+                break;
+            }
+        }
+        
+        stack = stack + [point];
+    }
+    
+    stack
+}
+
+// Generate random points for testing
+private function generate_random_points(count: int, seed: int) {
+    // Simple linear congruential generator for reproducible randomness
+    let lcg = (s) => (s * 1103515245 + 12345) % 2147483648;
+    
+    let current_seed = seed;
+    let points = [];
+    
+    for i in 0..count {
+        current_seed = lcg(current_seed);
+        let x = (current_seed % 1000) / 10.0;
+        
+        current_seed = lcg(current_seed);
+        let y = (current_seed % 1000) / 10.0;
+        
+        points = points + [Point(x, y)];
+    }
+    
+    points
+}
+
+// Verify convex hull is correct
+private function verify_convex_hull(hull, all_points) -> bool {
+    // Check all points are either on hull or inside
+    for point in all_points {
+        let on_hull = hull.find(h => h == point).is_some();
+        if (!on_hull) {
+            // Check if point is inside hull using cross products
+            let inside = true;
+            for i in 0..hull.length() {
+                let j = (i + 1) % hull.length();
+                if (cross_product(hull[i], hull[j], point) < 0.0) {
+                    inside = false;
+                    break;
+                }
+            }
+            if (!inside) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+// Main benchmark function
+public function benchmark_convex_hull() {
+    $("=== Convex Hull Optimization Demo ===").print();
+    $("Algorithm: Graham's Scan").print();
+    $("").print();
+    
+    // Test with different point counts
+    let test_sizes = [100, 500, 1000];
+    
+    for size in test_sizes {
+        $(f"Testing with {size} points...").print();
+        
+        // Generate test data
+        let points = generate_random_points(size, 42);
+        
+        // Warm up with a few runs
+        for i in 0..5 {
+            let hull = convex_hull(points);
+        }
+        
+        // Now the function should be hot and trigger optimization exploration
+        $(f"Running convex hull {100} times to trigger optimization...").print();
+        
+        let start_time = 0; // Would use actual time API
+        for i in 0..100 {
+            let hull = convex_hull(points);
+            
+            // Verify correctness periodically
+            if (i % 20 == 0) {
+                if (!verify_convex_hull(hull, points)) {
+                    $("ERROR: Invalid hull computed!").print();
+                }
+            }
+        }
+        
+        $(f"Completed {size} point test").print();
+        $("").print();
+    }
+    
+    $("Benchmark complete!").print();
+}
+
+// Entry point
+benchmark_convex_hull()

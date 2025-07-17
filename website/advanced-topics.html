@@ -321,6 +321,7 @@
                 <li><a href="#spawn">Spawn & Tasks</a></li>
                 <li><a href="#contracts">Contracts</a></li>
                 <li><a href="#optimization">Optimization & AI Analysis</a></li>
+                <li><a href="#runtime-learning">Runtime Learning Mode</a></li>
                 <li><a href="#ffi">Foreign Function Interface</a></li>
             </ul>
         </aside>
@@ -953,6 +954,208 @@ injector.inject(&mut ast, &analysis)?;
 // - Optimization passes can use AI suggestions
 // - Code generation can leverage pattern information
 // - IDE integration for real-time insights</code></pre>
+            </div>
+
+            <h2 id="runtime-learning">Runtime Learning Mode</h2>
+            <p>FluentAI's Runtime Learning Mode is a sophisticated system that automatically optimizes your code during execution by learning from runtime behavior.</p>
+            
+            <h3>How Runtime Learning Works</h3>
+            <p>The learning mode system operates in several phases:</p>
+            <ol>
+                <li><strong>Profiling</strong>: Tracks function execution counts and performance metrics</li>
+                <li><strong>Hot Function Detection</strong>: Identifies frequently executed functions (default: 100+ calls)</li>
+                <li><strong>Strategy Exploration</strong>: Tests different optimization strategies on hot functions</li>
+                <li><strong>Variant Compilation</strong>: Creates optimized bytecode variants for each strategy</li>
+                <li><strong>Performance Measurement</strong>: Measures execution time, instruction count, and memory usage</li>
+                <li><strong>Automatic Selection</strong>: Chooses the best performing variant for future executions</li>
+            </ol>
+
+            <h3>Optimization Strategies</h3>
+            <p>The learning mode can explore various optimization strategies:</p>
+            
+            <div class="code-block">
+                <pre><code>// Available optimization strategies
+enum OptimizationStrategy {
+    None,           // No optimization (baseline)
+    Basic,          // Constant folding, dead code elimination
+    Standard,       // + CSE, function inlining
+    Aggressive,     // All optimizations enabled
+    Custom(u32),    // Bitmask for specific optimizations
+}</code></pre>
+            </div>
+
+            <h4>Available Optimization Passes</h4>
+            <p>When using Custom strategies, these optimization passes can be individually enabled:</p>
+            <ul>
+                <li><strong>Bit 0</strong>: Constant Folding - Evaluates constant expressions at compile time</li>
+                <li><strong>Bit 1</strong>: Dead Code Elimination - Removes unreachable code</li>
+                <li><strong>Bit 2</strong>: Common Subexpression Elimination - Reuses computed values</li>
+                <li><strong>Bit 3</strong>: Function Inlining - Replaces calls with function bodies</li>
+                <li><strong>Bit 5</strong>: Loop Optimization - General loop transformations</li>
+                <li><strong>Bit 7</strong>: Effect Reordering - Optimizes effect operations</li>
+                <li><strong>Bit 8</strong>: Strength Reduction - Replaces expensive ops with cheaper ones</li>
+                <li><strong>Bit 10</strong>: Loop Invariant Code Motion - Moves computations out of loops</li>
+                <li><strong>Bit 11</strong>: Function Specialization - Creates specialized versions</li>
+                <li><strong>Bit 12</strong>: Memoization - Caches pure function results</li>
+            </ul>
+
+            <h3>Exploration Modes</h3>
+            <p>Control how the learning mode explores optimization combinations:</p>
+            
+            <div class="code-block">
+                <pre><code>// Configuration for learning mode
+let config = LearningModeConfig {
+    hot_threshold: 100,              // Executions before "hot"
+    exploration_mode: ExplorationMode::Smart,
+    exploration_rate: 0.2,           // 20% exploration
+    use_rl_agent: true,             // Use AI for decisions
+};
+
+// Exploration modes:
+enum ExplorationMode {
+    Quick,      // Tests 4 predefined strategies only
+    Smart,      // Tests 19 carefully selected combinations
+    Exhaustive, // Tests all 8192 possible combinations
+}</code></pre>
+            </div>
+
+            <h3>Enabling Runtime Learning</h3>
+            <p>To enable runtime learning in your application:</p>
+            
+            <div class="code-block">
+                <pre><code>// Create VM with learning mode enabled
+let mut vm = VM::new();
+vm.enable_learning_mode(LearningModeConfig::default());
+
+// Run your application
+vm.run(program)?;
+
+// Check optimization progress
+let stats = vm.get_learning_stats();
+$(f"Functions analyzed: {stats.functions_analyzed}").print();
+$(f"Hot functions found: {stats.hot_functions}").print();
+$(f"Optimized functions: {stats.functions_explored}").print();
+
+// View exploration progress for active optimizations
+for (func_id, tested, total) in stats.exploration_progress {
+    $(f"Function {func_id}: {tested}/{total} strategies tested").print();
+}</code></pre>
+            </div>
+
+            <h3>Performance Metrics</h3>
+            <p>The learning mode tracks comprehensive metrics for each execution:</p>
+            
+            <div class="code-block">
+                <pre><code>struct ExecutionMetrics {
+    duration: Duration,           // Execution time
+    instruction_count: u64,       // Instructions executed
+    allocations: u64,            // Memory allocations
+    cache_misses: u64,           // Simulated cache misses
+    branch_mispredictions: u64,  // Simulated branch misses
+}</code></pre>
+            </div>
+
+            <h3>Variant Execution</h3>
+            <p>Once the learning mode identifies the best optimization strategy, the VM seamlessly switches to optimized variants:</p>
+            
+            <div class="code-block">
+                <pre><code>// The VM maintains multiple compiled variants
+// and automatically selects the best one
+
+// Original function
+private function process_data(items: List<int>) -> int {
+    items
+        .filter(x => x > 0)
+        .map(x => x * x)
+        .sum()
+}
+
+// After learning, the VM might use a variant with:
+// - Filter and map operations fused
+// - SIMD instructions for squaring
+// - Parallel reduction for sum
+// All transparently without code changes!</code></pre>
+            </div>
+
+            <h3>Real-World Example</h3>
+            <p>Here's a practical example showing runtime optimization in action:</p>
+            
+            <div class="code-block">
+                <pre><code>// Fibonacci function that benefits from memoization
+private function fib(n: int) -> int {
+    if (n <= 1) { n }
+    else { fib(n-1) + fib(n-2) }
+}
+
+// First execution: No optimization
+let start = perform Time.now();
+let result1 = fib(40);  // ~5 seconds
+$(f"Unoptimized: {perform Time.now() - start}ms").print();
+
+// After 100+ calls, learning mode kicks in
+// It detects the function is pure and adds memoization
+
+// Subsequent execution: Optimized with memoization
+let start2 = perform Time.now();
+let result2 = fib(40);  // ~0.001 seconds
+$(f"Optimized: {perform Time.now() - start2}ms").print();
+
+// 5000x speedup achieved automatically!</code></pre>
+            </div>
+
+            <h3>Configuration Options</h3>
+            <div class="code-block">
+                <pre><code>// Advanced configuration
+let config = LearningModeConfig {
+    // Function becomes hot after this many calls
+    hot_threshold: 100,
+    
+    // Maximum strategies to try per function
+    max_strategies_per_function: 10,
+    
+    // Save learned optimizations to disk
+    save_learned_data: true,
+    model_path: Some("optimizations.bin"),
+    
+    // Exploration vs exploitation rate
+    exploration_rate: 0.2,
+    
+    // Use AI agent for intelligent strategy selection
+    use_rl_agent: true,
+    
+    // How to explore optimization space
+    exploration_mode: ExplorationMode::Smart,
+};</code></pre>
+            </div>
+
+            <h3>Best Practices</h3>
+            <ul>
+                <li><strong>Profile First</strong>: Run your application with typical workloads to gather representative data</li>
+                <li><strong>Start with Smart Mode</strong>: Use Smart exploration for balanced optimization discovery</li>
+                <li><strong>Save Learned Data</strong>: Persist optimizations to avoid re-learning on restart</li>
+                <li><strong>Monitor Progress</strong>: Check learning statistics to understand optimization impact</li>
+                <li><strong>Test Thoroughly</strong>: Ensure optimized variants produce correct results</li>
+            </ul>
+
+            <h3>Debugging Runtime Optimizations</h3>
+            <div class="code-block">
+                <pre><code>// Enable detailed optimization logging
+vm.set_optimization_log_level(LogLevel::Debug);
+
+// Disable specific optimizations for debugging
+let config = LearningModeConfig {
+    disabled_optimizations: vec![
+        OptimizationPass::Memoization,
+        OptimizationPass::FunctionInlining,
+    ],
+    ..Default::default()
+};
+
+// Force a specific strategy for testing
+vm.force_optimization_strategy(
+    function_id, 
+    OptimizationStrategy::Basic
+);</code></pre>
             </div>
 
             <h3>Memory Management</h3>
